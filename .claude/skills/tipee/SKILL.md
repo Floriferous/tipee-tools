@@ -38,6 +38,11 @@ development; `pnpm build` refreshes the bundle it runs.
 
 ## Getting API access (the trap)
 
+The API is off until an admin with the "Responsable API" role turns it on
+at `/admin/instance/integrations/`; integrations, their keys and their
+rights are then managed at `/hr-core/integrations`. The full rights list
+lives in `plugins/tipee/skills/tipee/roles.md`.
+
 The key belongs to an *integration* — a service account created like an
 employee, given roles. Until it has the authorization
 **Configurations générales → "Se connecter avec des applications externes"**,

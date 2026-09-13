@@ -7,9 +7,11 @@ Not affiliated with Tipee.
 Setup takes three steps, described in the
 [project README](https://github.com/Floriferous/tipee-tools#readme):
 
-1. **Get an API key from Tipee**: create an integration in the Tipee admin
-   panel, grant it "Se connecter avec des applications externes" plus the
-   module rights Claude should have, and generate its key.
+1. **Get an API key from Tipee**: an admin with the "Responsable API" role
+   turns the API on (`/admin/instance/integrations/`), then creates an
+   integration (`/hr-core/integrations`), generates its key, and ticks its
+   rights: "Se connecter avec des applications externes" plus the module
+   rights Claude should have.
 2. **Install**: in Claude Desktop, from the downloaded extension file; in
    Claude Code, with `/plugin install tipee@tipee-tools`. Enter your instance
    and the key when asked; the key is stored in your keychain.

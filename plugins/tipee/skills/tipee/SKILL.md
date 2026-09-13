@@ -31,6 +31,8 @@ each error message to the fix.
 
 - **Setup**: `check` first when the tools are new to this machine. All `ok`
   means the setup is complete; anything else is explained in its report.
+  Which rights an integration needs for which tools, and every right Tipee
+  offers, is in [roles.md](roles.md).
 - **Withheld values**: `{"redacted": "forbidden"}` or `"confidential"` in
   place of a value means Tipee withheld it from this integration. Report it
   as withheld.

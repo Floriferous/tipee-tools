@@ -11,17 +11,20 @@ Not affiliated with Tipee.
 ## 1. Get an API key from Tipee
 
 Tipee talks to Claude through an _integration_, a kind of service account.
-Someone with admin rights on your Tipee instance does this once:
+Two admin steps, done once per company:
 
-1. In the Tipee admin panel, create an integration the way you would create
-   an employee, and generate its API key.
-2. Give it the authorization **Configurations générales → "Se connecter
-   avec des applications externes"**. Without it nothing works, whatever
-   else you grant.
-3. Give it the rights for what Claude should be able to do, for example
-   **Planning → "Voir les plannings"** to read plannings, **Planning →
-   "Planifier"** to change them, **Cœur RH → "Voir les collaborateurs"** for
-   people. Rights can be added later; the change is immediate.
+1. **Turn the API on**, at
+   `https://<instance>.tipee.net/admin/instance/integrations/`. Only an
+   admin with the **Responsable API** role can do this.
+2. **Create the integration**, at
+   `https://<instance>.tipee.net/hr-core/integrations`: create it, generate
+   its API key, and tick its rights. Two matter for everything:
+   **Configurations générales → "Se connecter avec des applications
+   externes"**, without which nothing works, and then the rights for what
+   Claude should be able to do, for example **Planning → "Voir les
+   plannings"** to read plannings, **Planning → "Planifier"** to change them,
+   **Cœur RH → "Voir les collaborateurs"** for people. Rights can be added
+   later; the change is immediate.
 
 Keep the key somewhere safe; you will paste it once during installation.
 
