@@ -9,7 +9,7 @@ import { constVoid } from 'effect/Function';
 import { HttpApi, HttpApiSchema, OpenApi } from 'effect/unstable/httpapi';
 import type { HttpApiEndpoint } from 'effect/unstable/httpapi';
 
-import { TipeeError } from './Errors.ts';
+import { InvalidRequest, TipeeError } from './Errors.ts';
 import { Tipee } from './generated/TipeeApi.ts';
 import { TipeeClient } from './TipeeClient.ts';
 
@@ -115,6 +115,13 @@ const call = (
 ): Effect.Effect<unknown, TipeeError, TipeeClient> =>
   Effect.gen(function* () {
     const { api } = yield* TipeeClient;
+    // Checked against the document before anything is sent, so a schema
+    // Error afterwards can only be Tipee's answer.
+    yield* Schema.decodeUnknownEffect(target.parameters as Schema.Codec<unknown>)(params).pipe(
+      Effect.mapError(
+        (cause) => new TipeeError({ reason: new InvalidRequest({ details: cause.message }) }),
+      ),
+    );
     const methods = api as unknown as Record<string, Record<string, Method> | undefined>;
     const method = methods[target.group]?.[target.endpoint];
     if (method === undefined) {
@@ -141,38 +148,57 @@ interface Kind {
   readonly id: string;
   readonly machine_name: string;
 }
+interface Listed {
+  readonly id: string;
+  readonly label: string;
+}
 interface Page {
-  readonly data: ReadonlyArray<{ readonly id: string }>;
+  readonly data: ReadonlyArray<Listed>;
 }
 
 // The integrations of the instance, when the key may list them.
-const integrations: Effect.Effect<
-  ReadonlyArray<{ readonly id: string }>,
-  TipeeError,
-  TipeeClient
-> = Effect.gen(function* () {
-  const kinds = (yield* call(operation('kinds_list'), {})) as ReadonlyArray<Kind>;
-  const kind = kinds.find((candidate) => candidate.machine_name === 'integration');
-  if (kind === undefined) {
-    return [];
-  }
-  const page = (yield* call(operation('resources_list'), {
-    kind_id: kind.id,
-    orders: [{ attribute: 'last_name', direction: 'asc', key: 'resource.attribute' }],
-    pagination: { limit: PAGE_SIZE, next_token: null },
-  })) as Page;
-  return page.data;
-});
+const integrations: Effect.Effect<ReadonlyArray<Listed>, TipeeError, TipeeClient> = Effect.gen(
+  function* () {
+    const kinds = (yield* call(operation('kinds_list'), {})) as ReadonlyArray<Kind>;
+    const kind = kinds.find((candidate) => candidate.machine_name === 'integration');
+    if (kind === undefined) {
+      return [];
+    }
+    const page = (yield* call(operation('resources_list'), {
+      kind_id: kind.id,
+      orders: [{ attribute: 'last_name', direction: 'asc', key: 'resource.attribute' }],
+      pagination: { limit: PAGE_SIZE, next_token: null },
+    })) as Page;
+    return page.data;
+  },
+);
 
-// The Roles tab of the integration the key belongs to, when the API lets us
-// List integrations and there is exactly one; the integrations page otherwise.
+export interface IntegrationLink {
+  /** The integration's name in Tipee. */
+  readonly label: string;
+  /** Its Roles tab, where rights are ticked. */
+  readonly roles_page: string;
+}
+
+/**
+ * The integration the key belongs to, when the API lets us list integrations
+ * And there is exactly one: any failure or ambiguity is undefined, never an error.
+ */
+export const integrationLink: Effect.Effect<IntegrationLink | undefined, never, TipeeClient> =
+  Effect.gen(function* () {
+    const { instance } = yield* TipeeClient;
+    const listed = yield* Effect.option(integrations);
+    const [only, second] = Option.getOrElse(listed, () => []);
+    return only !== undefined && second === undefined
+      ? { label: only.label, roles_page: pages(instance).roles(only.id) }
+      : undefined;
+  });
+
+// The Roles tab of the integration the key belongs to, or the integrations page.
 const rolesPage: Effect.Effect<string, never, TipeeClient> = Effect.gen(function* () {
   const { instance } = yield* TipeeClient;
-  const listed = yield* Effect.option(integrations);
-  const [only, second] = Option.getOrElse(listed, () => []);
-  return only !== undefined && second === undefined
-    ? pages(instance).roles(only.id)
-    : pages(instance).integrations;
+  const link = yield* integrationLink;
+  return link?.roles_page ?? pages(instance).integrations;
 });
 
 // The right a group's operations usually need, as named in the Roles tab.
@@ -191,12 +217,24 @@ const RIGHTS: Record<
   Timeclock: { module: 'Saisie des heures', read: 'Voir les timbrages' },
 };
 
+// Writes whose right is not the group's usual manage right.
+const SPECIAL_RIGHTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^schedule_templates_/u, 'Gérer les modèles horaires'],
+  [/^absence_types_/u, "Gérer les types d'absence"],
+  [/^tags_/u, 'Gérer les tags'],
+  [/^timechecks_delete/u, 'Supprimer un timbrage'],
+  [/^timechecks_(?:validate|update|create)/u, "Valider l'ensemble des timbrages des personnes"],
+];
+
 const rightFor = (target: Operation): string => {
   const rights = RIGHTS[target.group];
   if (rights === undefined) {
     return 'the right this operation needs';
   }
-  const right = target.readOnly ? rights.read : rights.write;
+  const special = target.readOnly
+    ? undefined
+    : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1];
+  const right = special ?? (target.readOnly ? rights.read : rights.write);
   return right === undefined
     ? `the ${rights.module} right this operation needs`
     : `«${rights.module} → ${right}»`;

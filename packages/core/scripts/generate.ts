@@ -63,17 +63,57 @@ for (const [route, methods] of Object.entries(document.paths)) {
   }
 }
 
-// Claude Desktop has no skill to read the pagination contract from.
-const resourcesList = document.paths['/api/directory/resources.list']?.post;
-if (resourcesList !== undefined) {
+// What Tipee's document does not say and Claude cannot learn otherwise: the
+// Description is the only place a Claude Desktop user's Claude reads.
+const describe = (route: string, rewrite: (current: string) => string): void => {
+  const operation = document.paths[route]?.post;
+  if (operation === undefined) {
+    throw new Error(`no POST ${route} in the document`);
+  }
   patch.push({
     op: 'replace',
-    path: `/paths/${pointer('/api/directory/resources.list')}/post/description`,
-    value:
-      `${resourcesList.description ?? ''} Pagination: send pagination with a limit and next_token ` +
-      '(null on the first page), explicit orders, and identical filters and orders on every ' +
-      'page; a non-null next_token can come back on the last full page, whose next page is empty.',
+    path: `/paths/${pointer(route)}/post/description`,
+    value: rewrite(operation.description ?? ''),
   });
+};
+describe('/api/directory/resources.list', (current) =>
+  `${current} Pagination: send pagination with a limit and next_token ` +
+  '(null on the first page), explicit orders, and identical filters and orders on every ' +
+  'page; a non-null next_token can come back on the last full page, whose next page is empty.');
+describe('/api/directory/kinds.list', (current) =>
+  current.replace(
+    "Only 'employee' is available at the moment.",
+    "The 'integration' kind lists the API integrations, including the one this key belongs to.",
+  ));
+describe('/api/timeclock/timechecks.list', (current) =>
+  `${current} Always pass a timecheck.date_range filter of a few weeks at most: without one ` +
+  'Tipee runs out of memory (HTTP 507).');
+describe('/api/schedule/absences.create', (current) =>
+  `${current} Pass percentage (100 for a whole day) or time_ranges (for part of a day); ` +
+  'Tipee refuses an absence with neither.');
+describe('/api/schedule/schedules.create', (current) =>
+  `${current} Tipee answers with no body: read the day back with schedules.list to get ` +
+  'the id of what was created.');
+
+// PHP serialises an empty map as [], so every map-typed property in a response
+// (deleted, failed, choices…) must also accept an empty array, or a delete
+// That succeeded would be reported as a response that does not match.
+const EMPTY_ARRAY = { maxItems: 0, type: 'array' };
+for (const [name, schema] of Object.entries(document.components.schemas)) {
+  const properties = name.endsWith('Command') ? {} : (schema.properties ?? {});
+  for (const [key, property] of Object.entries(properties)) {
+    if (
+      property.type === 'object' &&
+      property.additionalProperties !== undefined &&
+      property.properties === undefined
+    ) {
+      patch.push({
+        op: 'replace',
+        path: `/components/schemas/${pointer(name)}/properties/${pointer(key)}`,
+        value: { oneOf: [property, EMPTY_ARRAY] },
+      });
+    }
+  }
 }
 
 const removeExamples = (node: unknown, at: string): void => {

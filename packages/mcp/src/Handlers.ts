@@ -2,7 +2,7 @@
 // `invoke`; `check` probes the main read endpoints and reports shape
 // Mismatches without aborting.
 
-import { TipeeClient, invoke, operation, operations } from '@tipee-tools/core';
+import { TipeeClient, integrationLink, invoke, operation, operations } from '@tipee-tools/core';
 import type { TipeeError } from '@tipee-tools/core';
 import { DateTime, Effect } from 'effect';
 
@@ -39,9 +39,9 @@ interface Probe {
   readonly report: typeof EndpointReport.Type;
 }
 
-// One report line per endpoint. Only shape mismatches are reported as
-// Failures; auth and network errors abort the whole check so the user sees
-// Their explanation once.
+// One report line per endpoint. Shape mismatches are reported as failures
+// And a module that is off or a missing right as skipped; auth and network
+// Errors abort the whole check so the user sees their explanation once.
 const probe = (name: string, params: unknown): Effect.Effect<Probe, TipeeError, TipeeClient> =>
   invoke(operation(name), params).pipe(
     Effect.map((result): Probe => ({
@@ -51,6 +51,12 @@ const probe = (name: string, params: unknown): Effect.Effect<Probe, TipeeError, 
     Effect.catchReason('TipeeError', 'UnexpectedShape', (reason) =>
       Effect.succeed<Probe>({
         report: { error: reason.message, name, status: 'failed' },
+        result: undefined,
+      }),
+    ),
+    Effect.catchReason('TipeeError', 'Forbidden', (reason) =>
+      Effect.succeed<Probe>({
+        report: { error: reason.message, name, status: 'skipped' },
         result: undefined,
       }),
     ),
@@ -81,14 +87,17 @@ const check = Effect.fn('check')(function* ({ from, to }: { from?: string; to?: 
     ['absences_list', { date_range: dateRange }],
     ['on_calls_list', { date_range: dateRange }],
     ['resources_show_activity_rates', { resource_id: somebody?.id ?? '0' }],
+    ['timechecks_list', { filters: [{ key: 'timecheck.date_range', value: dateRange }] }],
   ];
   for (const [name, params] of probes) {
     reports.push((yield* probe(name, params)).report);
   }
+  const integration = yield* integrationLink;
   return {
     date_range: dateRange,
     endpoints: reports,
-    ok: reports.every((report) => report.status === 'ok'),
+    ...(integration === undefined ? {} : { integration }),
+    ok: reports.every((report) => report.status !== 'failed'),
   };
 });
 

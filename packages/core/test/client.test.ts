@@ -9,7 +9,8 @@ import { FetchHttpClient } from 'effect/unstable/http';
 
 import type { TipeeError } from '../src/index.ts';
 import { TipeeClient, invoke, operation } from '../src/index.ts';
-import { API_KEY, EMPLOYEE_KIND_ID, FAKE_PAGE_SIZE } from './handlers.ts';
+import { API_KEY, FAKE_PAGE_SIZE } from './handlers.ts';
+import { EMPLOYEE_KIND_ID } from './tables.ts';
 
 const GE = '1000000000000000102';
 const FR = '1000000000000000105';
@@ -35,6 +36,29 @@ layer(TestClient)('TipeeClient', (it) => {
 
         expect(kinds.map((kind) => kind.id)).toContain(EMPLOYEE_KIND_ID);
         expect(teams.map((team) => team.name)).toContain('Opérations FR');
+      }),
+    );
+
+    // PHP serialises an empty map as []: an attribute without choices must decode.
+    it.effect('shows a kind whose attributes include an empty choice map', () =>
+      Effect.gen(function* () {
+        const kind = (yield* call('kinds_show', { id: EMPLOYEE_KIND_ID })) as {
+          attributes: ReadonlyArray<{ attribute: { id: string } }>;
+        };
+
+        expect(kind.attributes.map((entry) => entry.attribute.id)).toContain('regrouping');
+      }),
+    );
+
+    it.effect('decodes a delete whose failed map is empty', () =>
+      Effect.gen(function* () {
+        const result = (yield* call('schedules_delete', {
+          ids: ['1000000000000000126'],
+          options: { group_action: 'single' },
+        })) as { deleted_count: number; failed_count: number };
+
+        expect(result.deleted_count).toBe(1);
+        expect(result.failed_count).toBe(0);
       }),
     );
 

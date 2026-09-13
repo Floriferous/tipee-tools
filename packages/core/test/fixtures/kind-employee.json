@@ -1,0 +1,1312 @@
+{
+  "id": "1000000000000000101",
+  "machine_name": "employee",
+  "attributes": [
+    {
+      "attribute": {
+        "id": "civility",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Anrede",
+          "en": "Title",
+          "fr": "Civilité"
+        },
+        "choices": {
+          "values": {
+            "mr": "Monsieur",
+            "mrs": "Madame",
+            "ms": "Mademoiselle",
+            "md": "Médecin",
+            "dct": "Docteur",
+            "dct_f": "Docteure",
+            "md_f": "Doctoresse",
+            "prf": "Professeur",
+            "prf_f": "Professeure"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": "civility",
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "last_name",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Name",
+          "en": "Last name",
+          "fr": "Nom"
+        },
+        "choices": null,
+        "icon": "last-name",
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "first_name",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Vorname",
+          "en": "First name",
+          "fr": "Prénom"
+        },
+        "choices": null,
+        "icon": "first-name",
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "gender",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Geschlecht",
+          "en": "Gender",
+          "fr": "Sexe"
+        },
+        "choices": {
+          "values": {
+            "male": "Homme",
+            "female": "Femme"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "description",
+        "content_type": "text/multiline",
+        "label": {
+          "de": "Beschreibung",
+          "en": "Description",
+          "fr": "Description"
+        },
+        "choices": null,
+        "icon": "description",
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "work_email",
+        "content_type": "text/email",
+        "label": {
+          "de": "Berufliche E-Mail",
+          "en": "Work email",
+          "fr": "Email professionnel"
+        },
+        "choices": null,
+        "icon": "email",
+        "type": "string",
+        "format": "email"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "work_phone",
+        "content_type": "text/phone",
+        "label": {
+          "de": "Beruflichestelefon",
+          "en": "Work phone",
+          "fr": "Téléphone professionnel"
+        },
+        "choices": null,
+        "icon": "phone",
+        "type": "string",
+        "format": "phone"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "job",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Funktion",
+          "en": "Position",
+          "fr": "Fonction"
+        },
+        "choices": null,
+        "icon": "job",
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "regrouping",
+        "content_type": "text/regrouping",
+        "label": {
+          "de": "Gruppierung",
+          "en": "Regrouping",
+          "fr": "Regroupement"
+        },
+        "choices": {
+          "values": [],
+          "strict": false,
+          "input_type": "combobox"
+        },
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": false,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "resolved_regrouping",
+        "content_type": "text/regrouping",
+        "label": {
+          "de": "Gruppierung",
+          "en": "Regrouping",
+          "fr": "Regroupement"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "tag_id",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Tag-ID",
+          "en": "Tag ID",
+          "fr": "Tag ID"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "work_mobile_phone",
+        "content_type": "text/phone",
+        "label": {
+          "de": "Berufliche Handynummer",
+          "en": "Professional mobile phone",
+          "fr": "Mobile professionnel"
+        },
+        "choices": null,
+        "icon": "mobile-phone",
+        "type": "string",
+        "format": "phone"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": true
+    },
+    {
+      "attribute": {
+        "id": "is_apprentice",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Auszubildende(r)",
+          "en": "Apprentice",
+          "fr": "Apprenti"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "is_trainee",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Praktikant/-in",
+          "en": "Intern",
+          "fr": "Stagiaire"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "is_paid_hourly",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Stundenlohn",
+          "en": "Paid hourly",
+          "fr": "A l'heure"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "activity_rate",
+        "content_type": "percentage/plain",
+        "label": {
+          "de": "Pensum",
+          "en": "Rate",
+          "fr": "Taux"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "percentage",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": false,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "schedule_period",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Abschlussperiode",
+          "en": "Closing period",
+          "fr": "Période de bouclement"
+        },
+        "choices": {
+          "values": {
+            "civil-year": "Année civile",
+            "school-year": "Horaires scolaires"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "full_address",
+        "content_type": "text/address",
+        "label": {
+          "de": "Vollständige Adresse",
+          "en": "Full address",
+          "fr": "Adresse complète"
+        },
+        "choices": null,
+        "icon": "address",
+        "type": "string",
+        "format": "address"
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "address",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Adresse",
+          "en": "Address",
+          "fr": "Adresse"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "zip",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Postleitzahl",
+          "en": "Postal code",
+          "fr": "Code postal"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "city",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Ort",
+          "en": "City",
+          "fr": "Ville"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "state",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Kanton",
+          "en": "Canton",
+          "fr": "Canton"
+        },
+        "choices": {
+          "values": {
+            "AG": "Argovie",
+            "AR": "Appenzell Rhodes-Extérieures",
+            "AI": "Appenzell Rhodes-Intérieures",
+            "BL": "Bâle-Campagne",
+            "BS": "Bâle-Ville",
+            "BE": "Berne",
+            "FR": "Fribourg",
+            "GE": "Genève",
+            "GL": "Glaris",
+            "GR": "Grisons",
+            "JU": "Jura",
+            "LU": "Lucerne",
+            "NE": "Neuchâtel",
+            "NW": "Nidwald",
+            "OW": "Obwald",
+            "SH": "Schaffhouse",
+            "SZ": "Schwytz",
+            "SO": "Soleure",
+            "SG": "Saint-Gall",
+            "TG": "Thurgovie",
+            "TI": "Tessin",
+            "UR": "Uri",
+            "VS": "Valais",
+            "VD": "Vaud",
+            "ZG": "Zoug",
+            "ZH": "Zürich"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "country",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Land",
+          "en": "Country",
+          "fr": "Pays"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "avs",
+        "content_type": "text/avs",
+        "label": {
+          "de": "AHV-Nr.",
+          "en": "AHV Number",
+          "fr": "N° AVS"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": "avs"
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "private_email",
+        "content_type": "text/email",
+        "label": {
+          "de": "E-Mail privat",
+          "en": "Private e-mail",
+          "fr": "Email privé"
+        },
+        "choices": null,
+        "icon": "email",
+        "type": "string",
+        "format": "email"
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "private_phone",
+        "content_type": "text/phone",
+        "label": {
+          "de": "Telefonnummer privat",
+          "en": "Private phone number",
+          "fr": "Téléphone privé"
+        },
+        "choices": null,
+        "icon": "phone",
+        "type": "string",
+        "format": "phone"
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "mobile_phone",
+        "content_type": "text/phone",
+        "label": {
+          "de": "Privates Mobiltelefon",
+          "en": "Personal mobile",
+          "fr": "Mobile privé"
+        },
+        "choices": null,
+        "icon": "mobile-phone",
+        "type": "string",
+        "format": "phone"
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "fax",
+        "content_type": "text/phone",
+        "label": {
+          "de": "Fax",
+          "en": "Fax",
+          "fr": "Fax"
+        },
+        "choices": null,
+        "icon": "phone",
+        "type": "string",
+        "format": "phone"
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "nationality",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Nationalität",
+          "en": "Nationality",
+          "fr": "Nationalité"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "birthdate",
+        "content_type": "date/plain",
+        "label": {
+          "de": "Geburtsdatum",
+          "en": "Date of birth",
+          "fr": "Date de naissance"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "date",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "work_permit",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Arbeitsbewilligung",
+          "en": "Work Permit",
+          "fr": "Permis de travail"
+        },
+        "choices": {
+          "values": {
+            "B": "Livret B (autorisation de séjour)",
+            "C": "Livret C (autorisation d'établissement)",
+            "Ci": "Livret Ci (autorisation de séjour avec activité lucrative)",
+            "F": "Livret F (pour étrangers admis provisoirement)",
+            "G": "Livret G (autorisation frontalière)",
+            "L": "Livret L (autorisation de courte durée)",
+            "N": "Livret N (pour requérants d'asile)",
+            "S": "Livret S (pour les personnes à protéger)"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "work_permit_expiration_date",
+        "content_type": "date/plain",
+        "label": {
+          "de": "Ablaufdatum der Arbeitsbewilligung",
+          "en": "Work permit expiration date",
+          "fr": "Date d'expiration du permis de travail"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "date",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "rh_status",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Zivilstand",
+          "en": "Marital status",
+          "fr": "Etat civil"
+        },
+        "choices": {
+          "values": {
+            "single": "Célibataire",
+            "married": "Marié(e)",
+            "partnership": "Partenariat",
+            "divorced": "Divorcé(e)",
+            "separated": "Séparé(e)",
+            "widow": "Veuf(ve)"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "rh_wedding_date",
+        "content_type": "date/plain",
+        "label": {
+          "de": "Hochzeitsdatum",
+          "en": "Marriage date",
+          "fr": "Date de mariage"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "date",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "rh_spouse_name",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Name des Ehepartners",
+          "en": "Spouse’s name",
+          "fr": "Nom du·de la partenaire"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "rh_spouse_birthdate",
+        "content_type": "date/plain",
+        "label": {
+          "de": "Geburtsdatum des Ehepartners",
+          "en": "Spouse’s date of birth",
+          "fr": "Date de naissance du·de la partenaire"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "date",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "has_compensation",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Anspruch auf Ausgleichszahlungen",
+          "en": "Entitlement to Compensations",
+          "fr": "Droit aux compensations"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "has_indemnity",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Anspruch auf Entschädigungen",
+          "en": "Entitlement to indemnities",
+          "fr": "Droit aux indemnités"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "seniority",
+        "content_type": "duration/plain",
+        "label": {
+          "de": "Dienstalter",
+          "en": "Seniority",
+          "fr": "Ancienneté"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "duration",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "work_regime",
+        "content_type": "id/plain",
+        "label": {
+          "de": "Arbeitsmodell",
+          "en": "Work regime",
+          "fr": "Régime de travail"
+        },
+        "choices": {
+          "values": {
+            "1000000000000000300": "Régime de travail 2 (40h)"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "id",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "weekly_worked_hours",
+        "content_type": "duration/plain",
+        "label": {
+          "de": "Stunden pro Woche",
+          "en": "Weekly hours",
+          "fr": "Heures hebdomadaires"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "duration",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": false,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "holiday_regime",
+        "content_type": "id/plain",
+        "label": {
+          "de": "Ferienmodell",
+          "en": "Vacation regime",
+          "fr": "Régime de vacances"
+        },
+        "choices": {
+          "values": {
+            "1000000000000000300": "Régime de vacances 2"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "id",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "holiday_right",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Ferienanspruch",
+          "en": "Vacation entitlement",
+          "fr": "Droit aux vacances"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": false,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "timecheck_mode",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Berücksichtigung geleisteter Arbeitsstunden",
+          "en": "Hours worked taken into account",
+          "fr": "Prise en compte des heures travaillées"
+        },
+        "choices": {
+          "values": {
+            "count": "Planifications prises en compte",
+            "only": "Timbrages uniquement",
+            "ignore": "Planifications uniquement"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "balance_mode",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Saldoberechnung",
+          "en": "Hours",
+          "fr": "Calcul du solde"
+        },
+        "choices": {
+          "values": {
+            "contract": "Contrat",
+            "scheduled": "Planifié"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "work_display_date_mode",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Anzeige des Arbeitssaldos",
+          "en": "Work balance display in gauges",
+          "fr": "Affichage du solde de travail dans les jauges"
+        },
+        "choices": {
+          "values": {
+            "yesterday": "À hier",
+            "end-of-planning-period": "À la fin de l'année"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "holiday_display_unit_mode",
+        "content_type": "enum/plain",
+        "label": {
+          "de": "Anzeigemodus für Feriensalden",
+          "en": "Vacation balance display mode",
+          "fr": "Affichage du solde de vacances"
+        },
+        "choices": {
+          "values": {
+            "hours": "Heures",
+            "full_days": "Jours complets",
+            "prorated_days": "Jours au prorata",
+            "units": "Unités"
+          },
+          "strict": true,
+          "input_type": "select"
+        },
+        "icon": null,
+        "type": "enum",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "username",
+        "content_type": "text/plain",
+        "label": {
+          "de": "Benutzername",
+          "en": "Username",
+          "fr": "Nom d'utilisateur"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "last_authentication",
+        "content_type": "date-time/plain",
+        "label": {
+          "de": "Letzte Anmeldung",
+          "en": "Last authentication",
+          "fr": "Dernière connexion"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "date-time",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "last_password_change",
+        "content_type": "date-time/plain",
+        "label": {
+          "de": "Passwort geändert am",
+          "en": "Password last changed on",
+          "fr": "Mot de passe modifié le"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "date-time",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "is_two_factor_configured",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Zwei-Faktor-Authentifizierung",
+          "en": "Two-factor authentication",
+          "fr": "Authentification à double facteur"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    },
+    {
+      "attribute": {
+        "id": "has_mobile_app_connection",
+        "content_type": "boolean/plain",
+        "label": {
+          "de": "Verbindung mobile App",
+          "en": "Mobile app connection",
+          "fr": "Connexion application mobile"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "boolean",
+        "format": null
+      },
+      "classification_level": "confidential",
+      "access_level": "read-own",
+      "searchable": true,
+      "sortable": false
+    }
+  ],
+  "relation_types": [
+    {
+      "id": "1000000000000000300",
+      "label": {
+        "de": "Referenzperson",
+        "en": "Home referee",
+        "fr": "Référent foyer"
+      },
+      "inverse_label": {
+        "de": "Referenzperson für",
+        "en": "Home referee for",
+        "fr": "Référent foyer pour"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "inverse": true
+    },
+    {
+      "id": "1000000000000000300",
+      "label": {
+        "de": "Co-Referenzperson",
+        "en": "Home co-referee",
+        "fr": "CoRéférent foyer"
+      },
+      "inverse_label": {
+        "de": "Co-Referenzperson für",
+        "en": "Home co-referee for",
+        "fr": "CoRéférent foyer pour"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "inverse": true
+    },
+    {
+      "id": "1000000000000000300",
+      "label": {
+        "de": "Moderatorin",
+        "en": "Referee facilitator",
+        "fr": "Animatrice référente"
+      },
+      "inverse_label": {
+        "de": "Moderatorin für",
+        "en": "Referee facilitator for",
+        "fr": "Animatrice référente pour"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "inverse": true
+    },
+    {
+      "id": "1000000000000000300",
+      "label": {
+        "de": "Arzt",
+        "en": "Doctor",
+        "fr": "Médecin"
+      },
+      "inverse_label": {
+        "de": "Arzt für",
+        "en": "Doctor for",
+        "fr": "Médecin pour"
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "inverse": true
+    }
+  ],
+  "sections": [
+    {
+      "id": "general",
+      "label": "Informations générales",
+      "classification_level": "internal",
+      "attribute_ids": ["civility", "last_name", "first_name", "gender", "description"],
+      "relation_type_ids": []
+    },
+    {
+      "id": "professional",
+      "label": "Informations professionnelles",
+      "classification_level": "internal",
+      "attribute_ids": [
+        "work_email",
+        "work_phone",
+        "job",
+        "regrouping",
+        "resolved_regrouping",
+        "tag_id",
+        "work_mobile_phone",
+        "is_apprentice",
+        "is_trainee",
+        "is_paid_hourly",
+        "activity_rate",
+        "schedule_period"
+      ],
+      "relation_type_ids": [
+        "1000000000000000300",
+        "1000000000000000300",
+        "1000000000000000300",
+        "1000000000000000300"
+      ]
+    },
+    {
+      "id": "personal",
+      "label": "Informations personnelles",
+      "classification_level": "confidential",
+      "attribute_ids": [
+        "full_address",
+        "address",
+        "zip",
+        "city",
+        "state",
+        "country",
+        "avs",
+        "private_email",
+        "private_phone",
+        "mobile_phone",
+        "fax",
+        "nationality",
+        "birthdate",
+        "work_permit",
+        "work_permit_expiration_date"
+      ],
+      "relation_type_ids": []
+    },
+    {
+      "id": "civil_family",
+      "label": "État civil et famille",
+      "classification_level": "confidential",
+      "attribute_ids": ["rh_status", "rh_wedding_date", "rh_spouse_name", "rh_spouse_birthdate"],
+      "relation_type_ids": []
+    },
+    {
+      "id": "skills",
+      "label": "Compétences",
+      "classification_level": "secret",
+      "attribute_ids": ["rh_education_level", "rh_driver_licence", "rh_specific_skills"],
+      "relation_type_ids": []
+    },
+    {
+      "id": "additional",
+      "label": "Informations supplémentaires",
+      "classification_level": "confidential",
+      "attribute_ids": ["has_compensation", "has_indemnity", "seniority"],
+      "relation_type_ids": []
+    },
+    {
+      "id": "balances",
+      "label": "Gestion des soldes",
+      "classification_level": "confidential",
+      "attribute_ids": [
+        "work_regime",
+        "weekly_worked_hours",
+        "holiday_regime",
+        "holiday_right",
+        "timecheck_mode",
+        "balance_mode",
+        "work_display_date_mode",
+        "holiday_display_unit_mode"
+      ],
+      "relation_type_ids": []
+    },
+    {
+      "id": "security",
+      "label": "Compte",
+      "classification_level": "confidential",
+      "attribute_ids": [
+        "username",
+        "last_authentication",
+        "last_password_change",
+        "is_two_factor_configured",
+        "has_mobile_app_connection"
+      ],
+      "relation_type_ids": []
+    },
+    {
+      "id": "breakdown",
+      "label": "Saisie du temps",
+      "classification_level": "confidential",
+      "attribute_ids": [],
+      "relation_type_ids": []
+    },
+    {
+      "id": "hr_information",
+      "label": "Informations RH",
+      "classification_level": "secret",
+      "attribute_ids": ["comment", "external_id", "joining_date", "departure_date"],
+      "relation_type_ids": []
+    }
+  ],
+  "sorting_attribute_ids": ["last_name", "first_name"]
+}

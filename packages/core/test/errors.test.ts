@@ -9,14 +9,16 @@ import { HttpResponse, http } from 'msw';
 
 import type { TipeeError } from '../src/index.ts';
 import { TipeeClient, invoke, operation } from '../src/index.ts';
-import { API_KEY, BASE, INTEGRATION_ID } from './handlers.ts';
+import { API_KEY, BASE } from './handlers.ts';
 import { server } from './server.ts';
+import { INTEGRATION_ID } from './tables.ts';
 
 const WEEK = '2026-09-07/2026-09-13';
 const KINDS_URL = `${BASE}/api/directory/kinds.list`;
 const SCHEDULES_URL = `${BASE}/api/schedule/schedules.list`;
 const RESOURCES_URL = `${BASE}/api/directory/resources.list`;
 const PROJECTS_URL = `${BASE}/api/activity/projects.list`;
+const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
@@ -57,6 +59,38 @@ layer(TestClient)('errors', (it) => {
       const error = yield* failure(call('schedules_list', { date_range: WEEK }));
 
       expect(error.reason._tag).toBe('UnexpectedShape');
+      expect(error.message).toMatch(/accepted the request/u);
+      expect(error.message).toMatch(/at \[0\]\["id"\]/u);
+    }),
+  );
+
+  it.effect('quotes what Tipee could not find', () =>
+    Effect.gen(function* () {
+      const error = yield* failure(
+        call('schedules_delete', { ids: ['1'], options: { group_action: 'single' } }),
+      );
+
+      expect(error.reason._tag).toBe('NotFound');
+      expect(error.message).toBe(
+        `Tipee could not find it: L'élément avec l'id "1" n'a pas été trouvé.`,
+      );
+    }),
+  );
+
+  it.effect('reads a 400 as a rejection', () =>
+    Effect.gen(function* () {
+      server.use(
+        status(HTTP_BAD_REQUEST, {
+          body: { message: 'Text cannot be parsed to an interval: 01.11.2026' },
+          url: SCHEDULES_URL,
+        }),
+      );
+      const error = yield* failure(call('schedules_list', { date_range: '01.11.2026' }));
+
+      expect(error.reason._tag).toBe('Rejected');
+      expect(error.message).toBe(
+        'Tipee rejected the request: Text cannot be parsed to an interval: 01.11.2026',
+      );
     }),
   );
 
@@ -82,9 +116,27 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('Forbidden');
       expect(error.message).toContain('«Planning → Voir les plannings»');
+    }),
+  );
+
+  it.effect('names the special right of a write', () =>
+    Effect.gen(function* () {
+      server.use(status(HTTP_FORBIDDEN, { url: `${BASE}/api/timeclock/timechecks.delete` }));
+      const error = yield* failure(call('timechecks_delete', { id: '1' }));
+
+      expect(error.message).toContain('«Saisie des heures → Supprimer un timbrage»');
       expect(error.message).toContain(
         `https://acme.tipee.net/hr-core/profile/${INTEGRATION_ID}/roles`,
       );
+    }),
+  );
+
+  it.effect('explains a request that does not match the API description before sending it', () =>
+    Effect.gen(function* () {
+      const error = yield* failure(call('timechecks_delete', { ids: ['1'] }));
+
+      expect(error.reason._tag).toBe('InvalidRequest');
+      expect(error.message).toMatch(/at \["id"\]/u);
     }),
   );
 

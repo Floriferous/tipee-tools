@@ -35349,7 +35349,7 @@ var Forbidden = class extends TaggedError()("Forbidden", { body: String$2 }) {
 };
 var NotFound = class extends TaggedError()("NotFound", { body: String$2 }) {
 	get message() {
-		return "Tipee could not find this resource.";
+		return this.body === "" ? "Tipee could not find this resource." : `Tipee could not find it: ${this.body}`;
 	}
 };
 var RateLimited = class extends TaggedError()("RateLimited", {}) {
@@ -35371,10 +35371,20 @@ var UnexpectedStatus = class extends TaggedError()("UnexpectedStatus", {
 		return `Tipee returned an unexpected error (HTTP ${this.status}) ${this.body}`.trim();
 	}
 };
-/** The response did not match the schema generated from Tipee's OpenAPI document. */
+/**
+* The response did not match the schema generated from Tipee's OpenAPI
+* Document. Tipee did accept the request, so a write may well have gone
+* Through: the message says so.
+*/
 var UnexpectedShape = class extends TaggedError()("UnexpectedShape", { details: String$2 }) {
 	get message() {
-		return `Tipee sent a response that does not match its API description:\n${this.details}`;
+		return `Tipee accepted the request but answered with a shape that does not match its API description (a write may still have gone through; read it back to be sure):\n${this.details}`;
+	}
+};
+/** The request body does not match Tipee's API description, so it was never sent. */
+var InvalidRequest$1 = class extends TaggedError()("InvalidRequest", { details: String$2 }) {
+	get message() {
+		return `The request does not match Tipee's API description, so it was not sent:\n${this.details}`;
 	}
 };
 /** The request never got an answer (DNS, TLS, connection reset…). */
@@ -35392,11 +35402,13 @@ const TipeeErrorReason = Union([
 	Rejected,
 	UnexpectedStatus,
 	UnexpectedShape,
+	InvalidRequest$1,
 	Unreachable
 ]);
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
 const HTTP_OK_MIN = 200;
 const HTTP_OK_MAX = 299;
+const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
@@ -35408,7 +35420,7 @@ const statusReason = (status, rawBody) => {
 	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing() : new ApiKeyRejected({ body });
 	if (status === HTTP_FORBIDDEN) return new Forbidden({ body });
 	if (status === HTTP_NOT_FOUND) return new NotFound({ body });
-	if (status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) return new Rejected({ body });
+	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) return new Rejected({ body });
 	if (status === HTTP_TOO_MANY_REQUESTS) return new RateLimited();
 	return new UnexpectedStatus({
 		body,
@@ -35429,7 +35441,10 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			const { reason } = cause;
 			if (reason instanceof StatusCodeError || reason instanceof DecodeError) {
 				const { status } = reason.response;
-				if (status >= HTTP_OK_MIN && status <= HTTP_OK_MAX) return new TipeeError({ reason: new UnexpectedShape({ details: reason.description ?? cause.message }) });
+				if (status >= HTTP_OK_MIN && status <= HTTP_OK_MAX) {
+					const details = isSchemaError(reason.cause) ? reason.cause.message : reason.description ?? cause.message;
+					return new TipeeError({ reason: new UnexpectedShape({ details }) });
+				}
 				const body = yield* reason.response.text.pipe(orElseSucceed(() => ""));
 				return new TipeeError({ reason: statusReason(status, body) });
 			}
@@ -38083,7 +38098,7 @@ const ResourceListView = StructWithRest(Struct({
 			"initial": String$2,
 			"url": Union([String$2, Null])
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		"attributes": Record(String$2, Json.annotate({ "expected": "JSON value" })),
+		"attributes": Union([Record(String$2, Json.annotate({ "expected": "JSON value" })), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 		"teams": optionalKey(ArraySchema(StructWithRest(Struct({
 			"id": String$2.annotate({ "format": "snowflake" }),
 			"head": Boolean,
@@ -38135,7 +38150,7 @@ const KindView = StructWithRest(Struct({
 				"de": optionalKey(String$2)
 			}),
 			"choices": Union([StructWithRest(Struct({
-				"values": Record(String$2, String$2),
+				"values": Union([Record(String$2, String$2), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 				"strict": Boolean,
 				"input_type": Literals([
 					"select",
@@ -38498,9 +38513,9 @@ const DeleteSchedulesCommand = Struct({
 }).annotate({ "identifier": "DeleteSchedulesCommand" });
 const DeleteScheduleResult = StructWithRest(Struct({
 	"deleted_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"deleted": Record(String$2, ArraySchema(String$2)),
+	"deleted": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": Record(String$2, ArraySchema(String$2))
+	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
 	"description": "Result of deleting schedule(s).",
 	"identifier": "DeleteScheduleResult"
@@ -38528,7 +38543,7 @@ const CreateAbsenceCommand = Struct({
 	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })
 }).annotate({ "identifier": "CreateAbsenceCommand" });
 const CreateAbsenceResult = StructWithRest(Struct({
-	"created": Record(String$2, ArraySchema(String$2)),
+	"created": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 	"repetition_id": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
 	"created_count": Number$1.annotate({ "default": 0 }).check(isInt().annotate({ "expected": "an integer" })),
 	"failed_count": Number$1.annotate({ "default": 0 }).check(isInt().annotate({ "expected": "an integer" })),
@@ -38555,9 +38570,9 @@ const UpdateAbsenceCommand = Struct({
 }).annotate({ "identifier": "UpdateAbsenceCommand" });
 const UpdateAbsenceResult = StructWithRest(Struct({
 	"updated_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"updated": Record(String$2, ArraySchema(String$2)),
+	"updated": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": Record(String$2, ArraySchema(String$2))
+	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
 	"description": "Result of updating absence(s).",
 	"identifier": "UpdateAbsenceResult"
@@ -38575,9 +38590,9 @@ const DeleteAbsenceCommand = Struct({
 }).annotate({ "identifier": "DeleteAbsenceCommand" });
 const DeleteAbsenceResult = StructWithRest(Struct({
 	"deleted_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"deleted": Record(String$2, ArraySchema(String$2)),
+	"deleted": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": Record(String$2, ArraySchema(String$2))
+	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
 	"description": "Result of deleting absence(s).",
 	"identifier": "DeleteAbsenceResult"
@@ -39353,7 +39368,7 @@ var DirectoryGroup = class extends make$6("Directory").add(post("postAppUiApiDir
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_resourceslist").annotate(Summary, "List").annotate(Description, "Retrieves all resources of a specific kind, including those with no (or only past) sector contracts. Returns associated details related to that kind. Use the 'resource.team' filter to narrow down the search by contract period (e.g. only currently employed). Pagination: send pagination with a limit and next_token (null on the first page), explicit orders, and identical filters and orders on every page; a non-null next_token can come back on the last full page, whose next page is empty."), post("postAppUiApiDirectoryDirectoryqueryKindslist", "/api/directory/kinds.list", {
 	payload: PostAppUiApiDirectoryDirectoryqueryKindslistRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryKindslist200
-}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindslist").annotate(Summary, "List").annotate(Description, "Retrieves all kinds of possible resources. Only 'employee' is available at the moment."), post("postAppUiApiDirectoryDirectoryqueryKindsshow", "/api/directory/kinds.show", {
+}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindslist").annotate(Summary, "List").annotate(Description, "Retrieves all kinds of possible resources. The 'integration' kind lists the API integrations, including the one this key belongs to."), post("postAppUiApiDirectoryDirectoryqueryKindsshow", "/api/directory/kinds.show", {
 	payload: PostAppUiApiDirectoryDirectoryqueryKindsshowRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryKindsshow200
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindsshow").annotate(Summary, "Show").annotate(Description, "Retrieves a specific kind with its attributes. Regarding attributes, while using 'api/directory/resources.list', 'searchable' refers to whether you can apply a filter to it or not (according to the filter type) and 'sortable' refers to 'orders'."), post("postAppUiApiDirectoryDirectoryqueryTeamslist", "/api/directory/teams.list", {
@@ -39376,7 +39391,7 @@ var ScheduleGroup = class extends make$6("Schedule").add(post("postAppUiApiSched
 	payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson,
 	success: Empty(201),
 	error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(status(409))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. Tipee answers with no body: read the day back with schedules.list to get the id of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson,
 	success: Empty(204),
 	error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(status(409))
@@ -39387,7 +39402,7 @@ var ScheduleGroup = class extends make$6("Schedule").add(post("postAppUiApiSched
 }).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_deleteschedules").annotate(Summary, "Delete").annotate(Description, "Deletes one or several schedules. If you provide 'all' or 'future' as group action and if you allow it through 'allow_partial=true', only the schedules that come after team's lock date (if it exists) will be deleted."), post("postAppUiApiScheduleSchedulecommandCreateabsence", "/api/schedule/absences.create", {
 	payload: PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandCreateabsence201.pipe(status(201))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence").annotate(Summary, "Create").annotate(Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE."), post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence").annotate(Summary, "Create").annotate(Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); Tipee refuses an absence with neither."), post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdateabsenceRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandUpdateabsence200
 }).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_updateabsence").annotate(Summary, "Update").annotate(Description, "Updates one absence, or an entire group of repeating absences."), post("postAppUiApiScheduleSchedulecommandDeleteabsences", "/api/schedule/absences.delete", {
@@ -39430,7 +39445,7 @@ var TimeclockGroup = class extends make$6("Timeclock").add(post("postAppUiApiTim
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockcommand_deletetimecheck").annotate(Summary, "Delete").annotate(Description, "Deletes a timecheck."), post("postAppUiApiTimeclockTimeclockqueryListtimechecks", "/api/timeclock/timechecks.list", {
 	payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson,
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
-}).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids).<br />Several filters can be used to narrow down the search.")).annotate(Description, "Timeclock") {};
+}).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids).<br />Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
 var Tipee = class extends make$8("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 //#endregion
 //#region ../../packages/core/src/TipeeClient.ts
@@ -39502,6 +39517,7 @@ const operation = (name) => {
 };
 const call = (target, params) => gen(function* () {
 	const { api } = yield* TipeeClient;
+	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => new TipeeError({ reason: new InvalidRequest$1({ details: cause.message }) })));
 	const method = api[target.group]?.[target.endpoint];
 	if (method === void 0) return yield* die(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
 	return yield* method({ payload: params }).pipe(catch_$2((error) => flatMap(TipeeError.fromCause(error), fail$3)));
@@ -39531,11 +39547,22 @@ const integrations = gen(function* () {
 		}
 	})).data;
 });
-const rolesPage = gen(function* () {
+/**
+* The integration the key belongs to, when the API lets us list integrations
+* And there is exactly one: any failure or ambiguity is undefined, never an error.
+*/
+const integrationLink = gen(function* () {
 	const { instance } = yield* TipeeClient;
 	const listed = yield* option(integrations);
 	const [only, second] = getOrElse(listed, () => []);
-	return only !== void 0 && second === void 0 ? pages(instance).roles(only.id) : pages(instance).integrations;
+	return only !== void 0 && second === void 0 ? {
+		label: only.label,
+		roles_page: pages(instance).roles(only.id)
+	} : void 0;
+});
+const rolesPage = gen(function* () {
+	const { instance } = yield* TipeeClient;
+	return (yield* integrationLink)?.roles_page ?? pages(instance).integrations;
 });
 const RIGHTS = {
 	Activity: { module: "Activités" },
@@ -39558,10 +39585,17 @@ const RIGHTS = {
 		read: "Voir les timbrages"
 	}
 };
+const SPECIAL_RIGHTS = [
+	[/^schedule_templates_/u, "Gérer les modèles horaires"],
+	[/^absence_types_/u, "Gérer les types d'absence"],
+	[/^tags_/u, "Gérer les tags"],
+	[/^timechecks_delete/u, "Supprimer un timbrage"],
+	[/^timechecks_(?:validate|update|create)/u, "Valider l'ensemble des timbrages des personnes"]
+];
 const rightFor = (target) => {
 	const rights = RIGHTS[target.group];
 	if (rights === void 0) return "the right this operation needs";
-	const right = target.readOnly ? rights.read : rights.write;
+	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
 	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
 };
 const explain = (error, target) => gen(function* () {
@@ -46947,10 +46981,19 @@ const EndpointReport = Struct({
 	count: optionalKey(Int),
 	error: optionalKey(String$2),
 	name: String$2,
-	status: Literals(["ok", "failed"])
+	/** "skipped" when the module behind the endpoint is off or the right is missing. */
+	status: Literals([
+		"ok",
+		"failed",
+		"skipped"
+	])
+});
+const IntegrationReport = Struct({
+	label: String$2,
+	roles_page: String$2
 });
 const Check = make$4("check", {
-	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when another tool fails: it explains missing authorizations and detects the day Tipee changes a response shape. Stores nothing.",
+	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when another tool fails: it names the integration the key belongs to and where its rights are set, explains missing authorizations, and detects the day Tipee changes a response shape. Stores nothing.",
 	failure: TipeeError,
 	parameters: Struct({
 		from: optionalKey(LocalDate.annotate({ description: "First day of the range, YYYY-MM-DD" })),
@@ -46959,6 +47002,7 @@ const Check = make$4("check", {
 	success: Struct({
 		date_range: String$2,
 		endpoints: ArraySchema(EndpointReport),
+		integration: optionalKey(IntegrationReport.annotate({ description: "The integration the key belongs to and the page where its rights are ticked." })),
 		ok: Boolean
 	})
 }).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
@@ -46995,6 +47039,13 @@ const probe = (name, params) => invoke(operation(name), params).pipe(map$3((resu
 		status: "failed"
 	},
 	result: void 0
+})), catchReason("TipeeError", "Forbidden", (reason) => succeed$3({
+	report: {
+		error: reason.message,
+		name,
+		status: "skipped"
+	},
+	result: void 0
 })));
 const ORDER = [{
 	attribute: "last_name",
@@ -47026,13 +47077,19 @@ const check = fn("check")(function* ({ from, to }) {
 		["schedules_list", { date_range: dateRange }],
 		["absences_list", { date_range: dateRange }],
 		["on_calls_list", { date_range: dateRange }],
-		["resources_show_activity_rates", { resource_id: somebody?.id ?? "0" }]
+		["resources_show_activity_rates", { resource_id: somebody?.id ?? "0" }],
+		["timechecks_list", { filters: [{
+			key: "timecheck.date_range",
+			value: dateRange
+		}] }]
 	];
 	for (const [name, params] of probes) reports.push((yield* probe(name, params)).report);
+	const integration = yield* integrationLink;
 	return {
 		date_range: dateRange,
 		endpoints: reports,
-		ok: reports.every((report) => report.status === "ok")
+		...integration === void 0 ? {} : { integration },
+		ok: reports.every((report) => report.status !== "failed")
 	};
 });
 const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
@@ -47065,7 +47122,7 @@ runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(Tipee
 		v2025_03_26,
 		v2024_11_05
 	],
-	version: "0.2.2"
+	version: "0.2.3"
 })), provide$2(TipeeClient.layerConfig), provide$2(layer$3), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
 //#endregion
 export {};

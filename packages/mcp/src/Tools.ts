@@ -17,14 +17,21 @@ export const EndpointReport = Schema.Struct({
   count: Schema.optionalKey(Schema.Int),
   error: Schema.optionalKey(Schema.String),
   name: Schema.String,
-  status: Schema.Literals(['ok', 'failed']),
+  /** "skipped" when the module behind the endpoint is off or the right is missing. */
+  status: Schema.Literals(['ok', 'failed', 'skipped']),
+});
+
+export const IntegrationReport = Schema.Struct({
+  label: Schema.String,
+  roles_page: Schema.String,
 });
 
 export const Check = Tool.make('check', {
   description:
     'Call the main read endpoints of Tipee and validate the response shapes. Run it first ' +
-    'after installing, or when another tool fails: it explains missing authorizations and ' +
-    'detects the day Tipee changes a response shape. Stores nothing.',
+    'after installing, or when another tool fails: it names the integration the key belongs ' +
+    'to and where its rights are set, explains missing authorizations, and detects the day ' +
+    'Tipee changes a response shape. Stores nothing.',
   failure: TipeeError,
   parameters: Schema.Struct({
     from: Schema.optionalKey(
@@ -37,6 +44,11 @@ export const Check = Tool.make('check', {
   success: Schema.Struct({
     date_range: Schema.String,
     endpoints: Schema.Array(EndpointReport),
+    integration: Schema.optionalKey(
+      IntegrationReport.annotate({
+        description: 'The integration the key belongs to and the page where its rights are ticked.',
+      }),
+    ),
     ok: Schema.Boolean,
   }),
 })

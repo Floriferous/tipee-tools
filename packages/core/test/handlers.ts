@@ -8,7 +8,20 @@ import { HttpResponse, http } from 'msw';
 import type { JsonBodyType } from 'msw';
 
 import { readFixture } from './fixtures.ts';
-import type { FixtureName } from './fixtures.ts';
+import {
+  EMPLOYEE_KIND_ID,
+  INTEGRATION_KIND_ID,
+  absences,
+  activityRates,
+  integrations,
+  kinds,
+  onCalls,
+  people,
+  shifts,
+  teams,
+  templates,
+} from './tables.ts';
+import type { Loaded, PersonRow } from './tables.ts';
 
 export const BASE = 'https://acme.tipee.net';
 export const API_KEY = 'test-key';
@@ -16,61 +29,11 @@ export const API_KEY = 'test-key';
 export const FAKE_PAGE_SIZE = 2;
 
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
 const HTTP_UNPROCESSABLE = 422;
+const HTTP_INSUFFICIENT_STORAGE = 507;
 
 const api = (path: string): string => `${BASE}${path}`;
-
-// Fixtures are raw Tipee JSON and are answered untouched; these schemas only
-// Pick what the fake needs to filter, sort and paginate.
-const Row = Schema.Struct({ id: Schema.String });
-const KindRow = Schema.Struct({ ...Row.fields, machine_name: Schema.String });
-const TeamRow = Schema.Struct({ ...Row.fields, parent_id: Schema.NullOr(Schema.String) });
-const TemplateRow = Schema.Struct({ ...Row.fields, team_id: Schema.String });
-const PersonRow = Schema.Struct({
-  ...Row.fields,
-  attributes: Schema.Struct({ last_name: Schema.String }),
-  teams: Schema.optionalKey(Schema.Array(Schema.Struct({ id: Schema.String }))),
-});
-const ByResource = Schema.Struct({ ...Row.fields, resource_id: Schema.String });
-const OnCallRow = Schema.Struct({ ...ByResource.fields, team_id: Schema.String });
-const AnyRow = Schema.Struct({});
-
-interface Loaded<Row> {
-  readonly raw: Schema.Json;
-  readonly row: Row;
-}
-
-const load = <S extends Schema.ConstraintDecoder<unknown>>(
-  schema: S,
-  name: FixtureName,
-): ReadonlyArray<Loaded<S['Type']>> => {
-  const raw = Schema.decodeUnknownSync(Schema.Array(Schema.Json))(readFixture(name));
-  const rows = Schema.decodeSync(Schema.Array(schema))(raw);
-  return rows.map((row, index) => ({ raw: raw[index] ?? null, row }));
-};
-
-const kinds = load(KindRow, 'kinds');
-const teams = load(TeamRow, 'teams');
-const templates = load(TemplateRow, 'templates');
-const people = load(PersonRow, 'people');
-const integrations = load(PersonRow, 'integrations');
-const shifts = load(ByResource, 'shifts');
-const absences = load(ByResource, 'absences');
-const onCalls = load(OnCallRow, 'on-calls');
-const activityRates = load(AnyRow, 'activity-rates');
-
-const employeeKind = kinds.find((kind) => kind.row.machine_name === 'employee');
-if (employeeKind === undefined) {
-  throw new Error('fixture kinds.json has no "employee" kind');
-}
-export const EMPLOYEE_KIND_ID = employeeKind.row.id;
-const integrationKind = kinds.find((kind) => kind.row.machine_name === 'integration');
-if (integrationKind === undefined) {
-  throw new Error('fixture kinds.json has no "integration" kind');
-}
-export const INTEGRATION_KIND_ID = integrationKind.row.id;
-/** The one integration of the fake instance: the key's own. */
-export const INTEGRATION_ID = integrations[0]?.row.id ?? '';
 
 const DateRange = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/u));
 const Ids = Schema.Array(Schema.String);
@@ -114,6 +77,32 @@ const unauthorized = (message: string): Response =>
 
 const unprocessable = (details: unknown): Response =>
   HttpResponse.json({ details, message: 'Invalid request' }, { status: HTTP_UNPROCESSABLE });
+
+const notFound = (message: string): Response =>
+  HttpResponse.json({ message }, { status: HTTP_NOT_FOUND });
+
+const ShowQuery = Schema.Struct({ id: Schema.String });
+const DeleteQuery = Schema.Struct({
+  ids: Schema.Array(Schema.String),
+  options: Schema.Struct({ group_action: Schema.Literals(['single', 'future', 'all']) }),
+});
+const TimecheckFilter = Schema.Struct({ key: Schema.String, value: Schema.Unknown });
+const ListTimechecksQuery = Schema.Struct({
+  filters: Schema.optionalKey(Schema.Array(TimecheckFilter)),
+});
+
+// Deletes answer like Tipee's PHP: a map of day to ids, and `[]` for an empty map.
+const deleted = <Row extends { readonly id: string }>(
+  items: ReadonlyArray<Loaded<Row>>,
+  ids: ReadonlyArray<string>,
+  day: string,
+): JsonBodyType | Response => {
+  const unknown = ids.find((id) => !items.some((item) => item.row.id === id));
+  if (unknown !== undefined) {
+    return notFound(`L'élément avec l'id "${unknown}" n'a pas été trouvé.`);
+  }
+  return { deleted: { [day]: ids }, deleted_count: ids.length, failed: [], failed_count: 0 };
+};
 
 const headersLikeTipee = (request: Request): Response | undefined => {
   if (request.headers.get('authorization') !== `Bearer ${API_KEY}`) {
@@ -235,6 +224,26 @@ const forPeople = <Row extends { readonly resource_id: string }>(
 
 export const handlers = [
   endpoint('/api/directory/kinds.list', Schema.Struct({}), () => rawOf(kinds)),
+  endpoint('/api/directory/kinds.show', ShowQuery, ({ id }) =>
+    id === EMPLOYEE_KIND_ID
+      ? (readFixture('kind-employee') as JsonBodyType)
+      : notFound(`Le type avec l'id "${id}" n'a pas été trouvé.`),
+  ),
+  endpoint('/api/schedule/schedules.delete', DeleteQuery, ({ ids }) =>
+    deleted(shifts, ids, '2026-09-07'),
+  ),
+  endpoint('/api/schedule/absences.delete', DeleteQuery, ({ ids }) =>
+    deleted(absences, ids, '2026-09-07'),
+  ),
+  // Without a date filter Tipee scans every timecheck and runs out of memory.
+  endpoint('/api/timeclock/timechecks.list', ListTimechecksQuery, ({ filters }) =>
+    (filters ?? []).some((filter) => filter.key === 'timecheck.date_range')
+      ? []
+      : HttpResponse.json(
+          { message: 'Your request is using too much memory.' },
+          { status: HTTP_INSUFFICIENT_STORAGE },
+        ),
+  ),
   endpoint('/api/directory/teams.list', Schema.Struct({}), () => rawOf(teams)),
   endpoint('/api/schedule/schedule-templates.list', ListTemplatesQuery, ({ team_ids }) =>
     rawOf(

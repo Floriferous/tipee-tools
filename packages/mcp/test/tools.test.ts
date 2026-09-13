@@ -3,7 +3,7 @@
 
 import { describe, expect, it, layer } from '@effect/vitest';
 import { TipeeClient, operations } from '@tipee-tools/core';
-import { API_KEY, BASE, server } from '@tipee-tools/core/testing';
+import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
 import { Context, Effect, Layer, Option, Redacted, Stream } from 'effect';
 import { Tool } from 'effect/unstable/ai';
 import { FetchHttpClient } from 'effect/unstable/http';
@@ -14,6 +14,7 @@ import { TipeeToolkit, TipeeToolkitLayer } from '../src/index.ts';
 const CHLOE = '1000000000000000104';
 const WEEK = '2026-09-07/2026-09-13';
 const HTTP_NO_CONTENT = 204;
+const HTTP_FORBIDDEN = 403;
 
 const clientFor = (apiKey: string) =>
   TipeeToolkitLayer.pipe(
@@ -96,6 +97,7 @@ layer(clientFor(API_KEY))('tools', (it) => {
         ok: boolean;
         date_range: string;
         endpoints: Array<{ name: string; status: string }>;
+        integration?: { label: string; roles_page: string };
       };
 
       expect(report.ok).toBe(true);
@@ -110,7 +112,37 @@ layer(clientFor(API_KEY))('tools', (it) => {
         'absences_list',
         'on_calls_list',
         'resources_show_activity_rates',
+        'timechecks_list',
       ]);
+      expect(report.integration).toEqual({
+        label: 'Claude',
+        roles_page: `https://acme.tipee.net/hr-core/profile/${INTEGRATION_ID}/roles`,
+      });
+    }),
+  );
+
+  it.effect('check skips an endpoint whose module is off, and stays ok', () =>
+    Effect.gen(function* () {
+      server.use(
+        http.post(
+          `${BASE}/api/timeclock/timechecks.list`,
+          () =>
+            HttpResponse.json(
+              { message: "Module 'Saisie des heures' is required and it is not activated." },
+              { status: HTTP_FORBIDDEN },
+            ),
+          { once: true },
+        ),
+      );
+      const report = (yield* call('check', {})) as {
+        ok: boolean;
+        endpoints: Array<{ name: string; status: string; error?: string }>;
+      };
+      const timechecks = report.endpoints.find((endpoint) => endpoint.name === 'timechecks_list');
+
+      expect(report.ok).toBe(true);
+      expect(timechecks?.status).toBe('skipped');
+      expect(timechecks?.error).toMatch(/Saisie des heures/u);
     }),
   );
 

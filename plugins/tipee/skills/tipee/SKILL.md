@@ -21,18 +21,20 @@ carries only what the schema cannot say.
 3. **Confirm the change, once.** State exactly what will change and for whom,
    in one sentence, and wait for a yes. Skip the wait only when the user
    already asked for that precise change. Then make one precise call.
-4. **Report Tipee's answer**: the created id, or `done`, and what changed.
-   Done when the user can see the outcome without opening Tipee.
+4. **Report Tipee's answer**: the created id and what changed. A schedule
+   create answers only `done`: read the day back to get the id. Done when
+   the user can see the outcome without opening Tipee.
 
 A failing tool ends the sequence: read [errors.md](errors.md), which maps
 each error message to the fix.
 
 ## What the schema cannot say
 
-- **Setup**: `check` first when the tools are new to this machine. All `ok`
-  means the setup is complete; anything else is explained in its report.
-  Which rights an integration needs for which tools, and every right Tipee
-  offers, is in [roles.md](roles.md).
+- **Setup**: `check` first when the tools are new to this machine. `ok`
+  means the setup is complete; a `skipped` endpoint is a module this
+  instance does not have. The report names the integration the key belongs
+  to and links its Roles tab. Which rights an integration needs for which
+  tools, and every right Tipee offers, is in [roles.md](roles.md).
 - **Withheld values**: `{"redacted": "forbidden"}` or `"confidential"` in
   place of a value means Tipee withheld it from this integration. Report it
   as withheld.

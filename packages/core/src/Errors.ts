@@ -54,7 +54,9 @@ export class NotFound extends Schema.TaggedError<NotFound>()('NotFound', {
   body: Schema.String,
 }) {
   public override get message(): string {
-    return 'Tipee could not find this resource.';
+    return this.body === ''
+      ? 'Tipee could not find this resource.'
+      : `Tipee could not find it: ${this.body}`;
   }
 }
 
@@ -82,12 +84,28 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
   }
 }
 
-/** The response did not match the schema generated from Tipee's OpenAPI document. */
+/**
+ * The response did not match the schema generated from Tipee's OpenAPI
+ * Document. Tipee did accept the request, so a write may well have gone
+ * Through: the message says so.
+ */
 export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
   details: Schema.String,
 }) {
   public override get message(): string {
-    return `Tipee sent a response that does not match its API description:\n${this.details}`;
+    return (
+      'Tipee accepted the request but answered with a shape that does not match its API ' +
+      `description (a write may still have gone through; read it back to be sure):\n${this.details}`
+    );
+  }
+}
+
+/** The request body does not match Tipee's API description, so it was never sent. */
+export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('InvalidRequest', {
+  details: Schema.String,
+}) {
+  public override get message(): string {
+    return `The request does not match Tipee's API description, so it was not sent:\n${this.details}`;
   }
 }
 
@@ -109,6 +127,7 @@ export const TipeeErrorReason = Schema.Union([
   Rejected,
   UnexpectedStatus,
   UnexpectedShape,
+  InvalidRequest,
   Unreachable,
 ]);
 export type TipeeErrorReason = typeof TipeeErrorReason.Type;
@@ -118,6 +137,7 @@ export type TipeeErrorReason = typeof TipeeErrorReason.Type;
 const RIGHTS_MISSING_MARKER = 'token_rights_missing';
 const HTTP_OK_MIN = 200;
 const HTTP_OK_MAX = 299;
+const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
@@ -138,7 +158,7 @@ const statusReason = (status: number, rawBody: string): TipeeErrorReason => {
   if (status === HTTP_NOT_FOUND) {
     return new NotFound({ body });
   }
-  if (status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
+  if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
     return new Rejected({ body });
   }
   if (status === HTTP_TOO_MANY_REQUESTS) {
@@ -174,9 +194,10 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
         ) {
           const { status } = reason.response;
           if (status >= HTTP_OK_MIN && status <= HTTP_OK_MAX) {
-            return new TipeeError({
-              reason: new UnexpectedShape({ details: reason.description ?? cause.message }),
-            });
+            const details = Schema.isSchemaError(reason.cause)
+              ? reason.cause.message
+              : (reason.description ?? cause.message);
+            return new TipeeError({ reason: new UnexpectedShape({ details }) });
           }
           const body = yield* reason.response.text.pipe(Effect.orElseSucceed(() => ''));
           return new TipeeError({ reason: statusReason(status, body) });
