@@ -24,7 +24,7 @@ const manifest = {
   description:
     'Read your Tipee plannings from Claude: people, teams, shift templates, shifts, absences, on-calls.',
   display_name: 'Tipee',
-  documentation: 'https://github.com/Floriferous/tipee-tools/blob/main/plugins/tipee/README.md',
+  documentation: 'https://github.com/Floriferous/tipee-tools#readme',
   homepage: 'https://github.com/Floriferous/tipee-tools',
   // Tipee's square mark, from the favicon on tipee.ch.
   icon: 'icon.png',
