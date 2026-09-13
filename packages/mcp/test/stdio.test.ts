@@ -64,10 +64,14 @@ describe('stdio transport', () => {
         expect(serverInfo?.name).toBe('tipee');
         const tools = listed.result?.tools as Array<{
           name: string;
-          annotations: { readOnlyHint: boolean };
+          annotations: { readOnlyHint: boolean; destructiveHint: boolean };
         }>;
-        expect(tools.map((tool) => tool.name)).toContain('tipee_check');
-        expect(tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
+        expect(tools.map((tool) => tool.name)).toContain('check');
+        expect(tools.map((tool) => tool.name)).toContain('schedules_create');
+        expect(tools.find((tool) => tool.name === 'check')?.annotations.readOnlyHint).toBe(true);
+        expect(
+          tools.find((tool) => tool.name === 'schedules_delete')?.annotations.destructiveHint,
+        ).toBe(true);
         const promptList = prompts.result?.prompts as Array<{ name: string }> | undefined;
         expect(promptList?.map((prompt) => prompt.name)).toContain('check-tipee-setup');
       } finally {

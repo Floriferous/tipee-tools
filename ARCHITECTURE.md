@@ -251,22 +251,28 @@ only, and asks for Node 24 on the machine.
 
 ## Phases
 
-1. **Done: MCP server, plugin, Desktop extension.** Effect 4 core
-   (`TipeeClient`, schemas, tagged errors), `@tipee-tools/mcp` (eight
-   read-only tools including `tipee_check`), the plugin with `userConfig`
-   and the bundled server, the repository as marketplace, the two skills, the
-   `.mcpb` packed by CI, `pnpm verify` through Turborepo.
-2. **Beyond Claude Code.** Triggered by the first user on another agent or
+1. **Done: MCP server, plugin, Desktop extension.** Effect 4 core, the
+   plugin with `userConfig` and the bundled server, the repository as
+   marketplace, the two skills, the `.mcpb` packed by CI, `pnpm verify`
+   through Turborepo.
+2. **Done: the whole API, generated.** `@effect/openapi-generator` turns
+   Tipee's OpenAPI document into an `HttpApi`; `HttpApiClient` derives the
+   client; `HttpApi.reflect` yields the operation catalogue; one
+   `Tool.dynamic` per operation gives 68 tools plus `check`, with read-only
+   and destructive annotations from the verb. No hand-written schemas,
+   no deny list, no server-side gate: which tools a user has, and which need
+   approval, is configured in the Claude client.
+3. **Beyond Claude Code.** Triggered by the first user on another agent or
    in a terminal: tsdown builds for npm, OIDC publishing, a CLI on
    `effect/unstable/cli` sharing the core, profile store, `npx skills add`
    instructions.
-3. **Distribution polish.** GitHub Releases carrying the `.mcpb` and a
+4. **Distribution polish.** GitHub Releases carrying the `.mcpb` and a
    signed extension, Bun binary and Homebrew tap for the CLI, Keychain
    storage in the CLI, and a hosted connector (remote MCP with OAuth, one
    Tipee key per organisation) if a company wants a zero-install rollout.
-4. **Writes, opt-in.** Shift creation behind an explicit flag and the
-   integration's "Planifier" right, with the guardrails from the skills
-   enforced in code.
+5. **Smarter planning.** Composite tools (a week's plan for a team in one
+   call, conflict detection) on top of the generated ones, if the raw API
+   proves too chatty for the model.
 
 ## Open decisions
 

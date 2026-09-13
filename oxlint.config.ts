@@ -19,6 +19,7 @@ export default defineConfig({
     '**/node_modules/**',
     '**/dist/**',
     'plugins/*/server/**',
+    'packages/*/src/generated/**',
     'opensrc/**',
   ],
   overrides: [

@@ -10,7 +10,8 @@
         ".claude-plugin/**",
         "packages/**",
         "plugins/**",
-        "!plugins/*/server/**"
+        "!plugins/*/server/**",
+        "!packages/*/src/generated/**"
       ]
     },
     "//#lint:check": {
@@ -20,7 +21,8 @@
         "plugins/**",
         "!plugins/*/server/**",
         "!**/*.md",
-        "!**/*.json"
+        "!**/*.json",
+        "!packages/*/src/generated/**"
       ]
     },
     "build": {
@@ -34,11 +36,15 @@
       "dependsOn": ["transit"]
     },
     "transit": {
-      "dependsOn": ["^transit"]
+      "dependsOn": ["^transit", "generate"]
     },
     "pack": {
       "dependsOn": ["build"],
       "outputs": ["dist/**"]
+    },
+    "generate": {
+      "inputs": ["spec/**", "scripts/**", "package.json"],
+      "outputs": ["src/generated/**"]
     }
   }
 }

@@ -10,12 +10,13 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "build:check": "turbo run build && git diff --exit-code -- plugins/tipee/server || (echo \"plugins/tipee/server is stale: run pnpm build and commit it\" && exit 1)",
+    "build:check": "turbo run generate build && git diff --exit-code -- packages/core/src/generated plugins/tipee/server || (echo \"generated files are stale: run pnpm fix and commit\" && exit 1)",
     "check": "turbo run check",
     "docs:effect": "npx -y opensrc fetch Effect-TS/effect && mkdir -p opensrc && ln -sfn \"$(npx -y opensrc path Effect-TS/effect | tail -1)\" opensrc/effect",
-    "fix": "pnpm lint && pnpm format && turbo run build",
+    "fix": "turbo run generate && pnpm lint && pnpm format && turbo run build",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
+    "generate": "turbo run generate",
     "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages plugins oxlint.config.ts",
     "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages plugins oxlint.config.ts",
     "mcp": "pnpm --filter @tipee-tools/mcp start",
@@ -23,7 +24,7 @@
     "plugin:validate": "claude plugin validate ./plugins/tipee --strict && claude plugin validate . --strict",
     "prepare": "effect-tsgo patch --typescript --oxlint",
     "test": "turbo run test",
-    "verify": "turbo run lint:check format:check check test build pack --continue && pnpm build:check"
+    "verify": "turbo run generate lint:check format:check check test build pack --continue && pnpm build:check"
   },
   "devDependencies": {
     "@effect/tsgo": "0.45.0",

@@ -1,14 +1,15 @@
 # tipee-tools
 
-A [Claude Code](https://claude.com/claude-code) plugin that lets Claude read
-your company's [Tipee](https://tipee.ch) plannings: people, teams, shift
-templates, shifts, absences and on-call duties.
+A [Claude Code](https://claude.com/claude-code) plugin that gives Claude the
+whole [Tipee](https://tipee.ch) HR API: people, teams, shift templates,
+shifts, absences, on-call duties, activities and time clock, reading and
+writing.
 
-It is built for agents, not for humans at a terminal. The plugin bundles a
-read-only [MCP](https://modelcontextprotocol.io) server and a skill that tells
-Claude when and how to use it. The same server ships as a Claude Desktop
-extension for people who do not use Claude Code. There is no command-line
-tool.
+It is built for agents, not for humans at a terminal. The plugin bundles an
+[MCP](https://modelcontextprotocol.io) server with one tool per operation of
+Tipee's API document, and a skill that tells Claude when and how to use
+them. The same server ships as a Claude Desktop extension for people who do
+not use Claude Code. There is no command-line tool.
 
 Works with any Tipee instance. Not affiliated with Tipee.
 
@@ -45,14 +46,17 @@ prompt from the "+" menu to confirm everything works.
 ## What Claude can do with it
 
 Ask about a week's shifts, who is on call, who is absent, a person's
-employment rate, or the shape of a team. Behind the questions are eight
-read-only tools: `tipee_teams`, `tipee_people`, `tipee_templates`,
-`tipee_shifts`, `tipee_absences`, `tipee_on_calls`, `tipee_activity_rates`
-and `tipee_check`.
+employment rate, the shape of a team, a project's hours; or ask it to plan a
+shift, record an absence, submit a day's tasks. Every operation of Tipee's
+API is a tool named `<resource>_<verb>`, such as `schedules_list` or
+`absences_create`, plus `check`, which validates the setup. Tools that
+only read are marked read-only and tools that delete are marked destructive,
+so your Claude client can auto-approve the first and ask before the second;
+which tools are available at all is decided in the client, per user.
 
-Nothing writes to Tipee, and nothing private leaves it: the server keeps
-only planning fields, so birth dates, addresses and contact details never
-reach the conversation.
+The tools, their parameters and their results are generated from Tipee's
+OpenAPI document, so the plugin cannot drift from the API. Personal data the
+integration is not entitled to arrives redacted from Tipee itself.
 
 ## Other agents
 

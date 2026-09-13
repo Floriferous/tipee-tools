@@ -1,6 +1,6 @@
 {
   "name": "@tipee-tools/core",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "description": "Effect client and schemas for the Tipee HR API (read-only)",
   "license": "MIT",
   "type": "module",
@@ -10,12 +10,14 @@
   },
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",
+    "generate": "node scripts/generate.ts",
     "test": "vitest run"
   },
   "dependencies": {
     "effect": "4.0.0-rc.115"
   },
   "devDependencies": {
+    "@effect/openapi-generator": "4.0.0-rc.115",
     "@effect/vitest": "4.0.0-rc.115",
     "@types/node": "24.13.4",
     "msw": "2.15.0",

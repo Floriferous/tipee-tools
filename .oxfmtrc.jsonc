@@ -19,6 +19,7 @@
     ".claude/**",
     "**/.claude/**",
     "plugins/tipee/server/**",
+    "packages/*/src/generated/**",
     "opensrc/**",
   ],
 }

@@ -2,7 +2,7 @@
 // (decode parameters, run the handler, encode the result).
 
 import { describe, expect, it, layer } from '@effect/vitest';
-import { TipeeClient } from '@tipee-tools/core';
+import { TipeeClient, operations } from '@tipee-tools/core';
 import { API_KEY, BASE, server } from '@tipee-tools/core/testing';
 import { Context, Effect, Layer, Option, Redacted, Stream } from 'effect';
 import { Tool } from 'effect/unstable/ai';
@@ -11,8 +11,9 @@ import { HttpResponse, http } from 'msw';
 
 import { TipeeToolkit, TipeeToolkitLayer } from '../src/index.ts';
 
-const ALICE = '1000000000000000100';
-const WEEK = { from: '2026-09-07', to: '2026-09-13' };
+const CHLOE = '1000000000000000104';
+const WEEK = '2026-09-07/2026-09-13';
+const HTTP_NO_CONTENT = 204;
 
 const clientFor = (apiKey: string) =>
   TipeeToolkitLayer.pipe(
@@ -20,96 +21,119 @@ const clientFor = (apiKey: string) =>
     Layer.provide(FetchHttpClient.layer),
   );
 
-type Tools = typeof TipeeToolkit.tools;
-
 // Runs a tool as the server does and returns the JSON it would send back.
-const call = Effect.fn('call')(function* call<Name extends keyof Tools>(
-  name: Name,
-  params: Tool.ParametersEncoded<Tools[Name]>,
-) {
+type Handled = Effect.Effect<Stream.Stream<{ readonly encodedResult: unknown }, unknown>, unknown>;
+
+const call = Effect.fn('call')(function* (name: string, params: unknown) {
   const toolkit = yield* TipeeToolkit;
-  const last = yield* toolkit.handle(name, params).pipe(Stream.unwrap, Stream.runLast);
-  return Option.getOrThrow(last).encodedResult as Record<string, unknown>;
+  const handled = toolkit.handle(name as never, params) as unknown as Handled;
+  const last = yield* handled.pipe(Stream.unwrap, Stream.runLast);
+  return Option.getOrThrow(last).encodedResult;
 });
 
 describe('toolkit', () => {
-  it('declares every tool read-only', () => {
+  it('has one tool per operation of the API document, plus check', () => {
     const tools = Object.values(TipeeToolkit.tools);
 
-    expect(tools.map((tool) => tool.name).toSorted()).toEqual([
-      'tipee_absences',
-      'tipee_activity_rates',
-      'tipee_check',
-      'tipee_on_calls',
-      'tipee_people',
-      'tipee_shifts',
-      'tipee_teams',
-      'tipee_templates',
-    ]);
-    expect(tools.every((tool) => Context.get(tool.annotations, Tool.Readonly))).toBe(true);
-    expect(tools.every((tool) => !Context.get(tool.annotations, Tool.Destructive))).toBe(true);
+    expect(tools).toHaveLength(operations.length + 1);
+    expect(tools.map((tool) => tool.name)).toContain('schedules_create');
+    expect(tools.map((tool) => tool.name)).toContain('day_tasks_submit_for_contributor');
+    expect(tools.map((tool) => tool.name)).toContain('check');
+  });
+
+  it('marks reads read-only and deletions destructive, from the document', () => {
+    for (const target of operations) {
+      const tool = TipeeToolkit.tools[target.name as keyof typeof TipeeToolkit.tools];
+      if (tool === undefined) {
+        throw new Error(`no tool for ${target.name}`);
+      }
+
+      expect(Context.get(tool.annotations, Tool.Readonly)).toBe(target.readOnly);
+      expect(Context.get(tool.annotations, Tool.Destructive)).toBe(target.destructive);
+    }
+    expect(Context.get(TipeeToolkit.tools.check.annotations, Tool.Readonly)).toBe(true);
   });
 });
 
 layer(clientFor(API_KEY))('tools', (it) => {
-  it.effect('tipee_people lists employees with planning fields only', () =>
+  it.effect('schedules_list filters by people', () =>
     Effect.gen(function* () {
-      const people = (yield* call('tipee_people', {})).people as Array<{ label: string }>;
-      const labels = people.map((person) => person.label);
+      const shifts = (yield* call('schedules_list', {
+        date_range: WEEK,
+        resource_ids: [CHLOE],
+      })) as Array<{
+        resource_id: string;
+      }>;
 
-      expect(labels).toContain('Alice (AP1) Placeholder');
-      expect(people[0]).not.toHaveProperty('attributes');
+      expect(shifts.length).toBeGreaterThan(0);
+      expect(shifts.every((shift) => shift.resource_id === CHLOE)).toBe(true);
     }),
   );
 
-  it.effect('tipee_shifts filters by people', () =>
+  it.effect('a write that answers with no content returns done', () =>
     Effect.gen(function* () {
-      const { shifts } = yield* call('tipee_shifts', { ...WEEK, resource_ids: [ALICE] });
+      server.use(
+        http.post(
+          `${BASE}/api/schedule/schedules.update`,
+          () => new HttpResponse(null, { status: HTTP_NO_CONTENT }),
+          {
+            once: true,
+          },
+        ),
+      );
+      const result = yield* call('schedules_update', {
+        id: '1000000000000000126',
+        remark: 'moved',
+      });
 
-      expect(
-        (shifts as Array<{ resource_id: string }>).every((shift) => shift.resource_id === ALICE),
-      ).toBe(true);
+      expect(result).toEqual({ done: true });
     }),
   );
 
-  it.effect('tipee_check reports every endpoint ok, over the coming week by default', () =>
+  it.effect('check reports every probed endpoint ok, over the coming week by default', () =>
     Effect.gen(function* () {
-      const report = yield* call('tipee_check', {});
+      const report = (yield* call('check', {})) as {
+        ok: boolean;
+        date_range: string;
+        endpoints: Array<{ name: string; status: string }>;
+      };
 
       expect(report.ok).toBe(true);
       // The test clock starts at the epoch.
       expect(report.date_range).toBe('1970-01-01/1970-01-07');
-      expect(
-        (report.endpoints as Array<{ name: string }>).map((endpoint) => endpoint.name),
-      ).toEqual([
-        'people',
-        'teams',
-        'templates',
-        'shifts',
-        'absences',
-        'on_calls',
-        'activity_rates',
+      expect(report.endpoints.map((endpoint) => endpoint.name)).toEqual([
+        'kinds_list',
+        'resources_list',
+        'teams_list',
+        'schedule_templates_list',
+        'schedules_list',
+        'absences_list',
+        'on_calls_list',
+        'resources_show_activity_rates',
       ]);
     }),
   );
 
-  it.effect('tipee_check flags an endpoint whose response no longer matches', () =>
+  it.effect('check flags an endpoint whose response no longer matches', () =>
     Effect.gen(function* () {
       server.use(
         http.post(
           `${BASE}/api/schedule/schedule-templates.list`,
-          () => HttpResponse.json([{ id: 'not-a-snowflake' }]),
+          () => HttpResponse.json([{ id: 'not-a-template' }]),
           { once: true },
         ),
       );
-      const report = yield* call('tipee_check', WEEK);
-      const templates = (
-        report.endpoints as Array<{ name: string; status: string; error?: string }>
-      ).find((endpoint) => endpoint.name === 'templates');
+      const report = (yield* call('check', { from: '2026-09-07', to: '2026-09-13' })) as {
+        ok: boolean;
+        endpoints: Array<{ name: string; status: string; error?: string }>;
+      };
+      const templates = report.endpoints.find(
+        (endpoint) => endpoint.name === 'schedule_templates_list',
+      );
 
       expect(report.ok).toBe(false);
       expect(templates?.status).toBe('failed');
-      expect(templates?.error).toMatch(/schedule-templates\.list/u);
+      expect(templates?.error).toMatch(/does not match/u);
     }),
   );
 });
@@ -117,10 +141,9 @@ layer(clientFor(API_KEY))('tools', (it) => {
 describe('failures', () => {
   it.effect('surface the Tipee error so the model reads the explanation', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(call('tipee_teams', {}));
+      const error = yield* Effect.flip(call('teams_list', {}));
 
-      expect(error._tag).toBe('TipeeError');
-      expect(error.message).toMatch(/rejected the API key/u);
+      expect(String(error)).toMatch(/rejected the API key/u);
     }).pipe(Effect.provide(clientFor('wrong'))),
   );
 });

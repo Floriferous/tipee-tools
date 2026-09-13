@@ -5,24 +5,26 @@ description: Working on tipee-tools (Effect 4 core client, MCP server, Claude Co
 
 # Tipee API via tipee-tools
 
-Tipee is a Swiss HR tool (employees, shifts, absences). This repo is a
-**read-only** toolkit over its public API that works against any Tipee
-instance: `@tipee-tools/core` (Effect service + schemas + errors),
-`@tipee-tools/mcp` (MCP toolkit and stdio server), and the Claude Code plugin
-in `plugins/tipee` that bundles the server. The user-facing skill lives in
+Tipee is a Swiss HR tool (employees, shifts, absences, activities). This
+repo exposes its **whole API** to agents, for any Tipee instance:
+`@tipee-tools/core` (the HttpApi generated from Tipee's OpenAPI document,
+the derived client, the operation catalogue, errors), `@tipee-tools/mcp`
+(one MCP tool per operation, built from the catalogue, plus `check`), and
+the Claude Code plugin in `plugins/tipee` that bundles the server. The user-facing skill lives in
 `plugins/tipee/skills/tipee`; this one is for developing the repo.
 
 ## Guardrails
 
-- **Never write to Tipee** unless the task explicitly asks for it and the key
-  has the "Planifier" right. Only `*.list` / `*.show-*` endpoints exist here.
+- **Writes exist now.** Which tools a user gets, and which need approval, is
+  decided in the Claude client; the server only annotates reads as read-only
+  and deletions as destructive. Don't add server-side gates or deny lists.
 - **Shift templates are history.** Old templates are referenced by past
   plannings; never delete or modify them (that rewrites who worked when).
   A new need means a new template.
-- **Personal data.** The directory returns birth dates, private contact
-  details, sick leave… The schemas keep only planning fields; don't widen
-  them without a reason, and never commit real responses — fixtures are
-  anonymised (the fictional company "Acme").
+- **Personal data.** Schemas are generated from the API document and pass
+  through what Tipee returns; Tipee redacts what the integration may not
+  see. Never commit real responses — fixtures are anonymised (the fictional
+  company "Acme").
 - **The API key is a secret**: only in `packages/mcp/.env` or the plugin's
   keychain entry, never in chat, commits or CI. Rotate it in the Tipee admin
   if it leaks.
@@ -72,6 +74,19 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
   transient failures with backoff (`HttpClient.retryTransient`).
 - Versions are date-based and supported ≥ 6 months after the next release;
   subscribe to the changelog on https://api.tipee.ch/.
+
+## Generated code
+
+`packages/core/spec/` holds Tipee's OpenAPI document (one file, the pinned
+version). `pnpm generate` runs `@effect/openapi-generator` on it, through a
+JSON Patch built in `packages/core/scripts/generate.ts` (currently: mark
+every request body required, because Tipee wants a JSON body even when
+empty), and writes `packages/core/src/generated/TipeeApi.ts` — committed,
+never edited, freshness-checked by `pnpm verify`. To update Tipee's version:
+replace the spec file, bump `TIPEE_API_VERSION`, `pnpm fix`, read the diff.
+`Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
+derives tool names from paths; the MCP package turns each entry into a
+`Tool.dynamic`. Spec-versus-reality fixes belong in the patch, nowhere else.
 
 ## Repository notes
 

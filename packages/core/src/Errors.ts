@@ -2,7 +2,8 @@
 // Tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
 // Surfaces show `message`, which explains the cause and the fix.
 
-import { Schema } from 'effect';
+import { Effect, Schema } from 'effect';
+import { HttpClientError } from 'effect/unstable/http';
 
 /** The key is not one Tipee knows (typo, revoked, or another instance's). */
 export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKeyRejected', {
@@ -23,7 +24,7 @@ export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMi
     return (
       'The API key works, but its Tipee integration has no permissions yet. ' +
       'In the Tipee admin panel, grant it "Configurations générales → Se connecter avec des applications externes", ' +
-      'then read access to the Planning and Cœur RH modules.'
+      'then access to the modules you need (Planning, Cœur RH, …).'
     );
   }
 }
@@ -32,7 +33,7 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()('Forbidden', {
   body: Schema.String,
 }) {
   public override get message(): string {
-    return 'The API key is valid but its Tipee integration lacks the permission for this data.';
+    return 'The API key is valid but its Tipee integration lacks the permission for this operation.';
   }
 }
 
@@ -50,6 +51,15 @@ export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited'
   }
 }
 
+/** Tipee refused the request on its own terms (a documented 4xx such as 409). */
+export class Rejected extends Schema.TaggedError<Rejected>()('Rejected', {
+  body: Schema.String,
+}) {
+  public override get message(): string {
+    return `Tipee rejected the request: ${this.body}`;
+  }
+}
+
 export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('UnexpectedStatus', {
   body: Schema.String,
   status: Schema.Int,
@@ -59,13 +69,12 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
   }
 }
 
-/** The response did not match the schema: Tipee changed a shape. */
+/** The response did not match the schema generated from Tipee's OpenAPI document. */
 export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
   details: Schema.String,
-  endpoint: Schema.String,
 }) {
   public override get message(): string {
-    return `Tipee sent an unexpected response for ${this.endpoint}:\n${this.details}`;
+    return `Tipee sent a response that does not match its API description:\n${this.details}`;
   }
 }
 
@@ -84,11 +93,40 @@ export const TipeeErrorReason = Schema.Union([
   Forbidden,
   NotFound,
   RateLimited,
+  Rejected,
   UnexpectedStatus,
   UnexpectedShape,
   Unreachable,
 ]);
 export type TipeeErrorReason = typeof TipeeErrorReason.Type;
+
+// Tipee answers 401 (not 403) for a valid key whose integration was never
+// Granted any rights, so the body is the only way to tell the cases apart.
+const RIGHTS_MISSING_MARKER = 'token_rights_missing';
+const HTTP_OK_MIN = 200;
+const HTTP_OK_MAX = 299;
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_FORBIDDEN = 403;
+const HTTP_NOT_FOUND = 404;
+const HTTP_TOO_MANY_REQUESTS = 429;
+
+const statusReason = (status: number, body: string): TipeeErrorReason => {
+  if (status === HTTP_UNAUTHORIZED) {
+    return body.includes(RIGHTS_MISSING_MARKER)
+      ? new RightsMissing()
+      : new ApiKeyRejected({ body });
+  }
+  if (status === HTTP_FORBIDDEN) {
+    return new Forbidden({ body });
+  }
+  if (status === HTTP_NOT_FOUND) {
+    return new NotFound({ body });
+  }
+  if (status === HTTP_TOO_MANY_REQUESTS) {
+    return new RateLimited();
+  }
+  return new UnexpectedStatus({ body, status });
+};
 
 export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
   reason: TipeeErrorReason,
@@ -96,6 +134,40 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
   public override get message(): string {
     return this.reason.message;
   }
+
+  // Explains whatever the generated client failed with: an HTTP status, a
+  // Transport failure, a response that does not match the API description,
+  // Or an error Tipee documents for the operation (such as a 409).
+  public static readonly fromCause = (cause: unknown): Effect.Effect<TipeeError> =>
+    Effect.gen(function* () {
+      if (cause instanceof TipeeError) {
+        return cause;
+      }
+      if (cause instanceof HttpClientError.HttpClientError) {
+        const { reason } = cause;
+        // The derived client reports an undeclared status as a decode failure
+        // On that response; a decode failure on a 2xx is a shape mismatch.
+        if (
+          reason instanceof HttpClientError.StatusCodeError ||
+          reason instanceof HttpClientError.DecodeError
+        ) {
+          const { status } = reason.response;
+          if (status >= HTTP_OK_MIN && status <= HTTP_OK_MAX) {
+            return new TipeeError({
+              reason: new UnexpectedShape({ details: reason.description ?? cause.message }),
+            });
+          }
+          const body = yield* reason.response.text.pipe(Effect.orElseSucceed(() => ''));
+          return new TipeeError({ reason: statusReason(status, body) });
+        }
+        return new TipeeError({ reason: new Unreachable({ description: cause.message }) });
+      }
+      if (Schema.isSchemaError(cause)) {
+        return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
+      }
+      const body = cause instanceof Error ? cause.message : String(cause);
+      return new TipeeError({ reason: new Rejected({ body }) });
+    });
 }
 
 /** `TIPEE_INSTANCE` or `TIPEE_API_KEY` is missing or malformed. */

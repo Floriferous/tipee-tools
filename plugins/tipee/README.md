@@ -1,8 +1,11 @@
 # Tipee for Claude
 
-Read your company's Tipee plannings from Claude: people, teams, shift
-templates, shifts, absences and on-call duties. Read-only by design. Not
-affiliated with Tipee.
+The whole Tipee API for Claude: people, teams, shift templates, shifts,
+absences, on-call duties, activities and time clock, reading and writing.
+One tool per operation, named `<resource>_<verb>`. Reads are marked
+read-only and deletions destructive, so your Claude client can auto-approve
+reads and ask before writes; decide which tools are enabled in the client.
+Not affiliated with Tipee.
 
 ## 1. Get an API key
 
@@ -14,9 +17,12 @@ admin rights on your Tipee instance does this once:
 2. Grant it the authorization **Configurations générales → "Se connecter
    avec des applications externes"**. Without it, every call fails with a
    "no permissions yet" message, whatever else you grant.
-3. Grant read access: **Planning → "Accéder au module Planning" + "Voir les
-   plannings"** and **Cœur RH → "Accéder au module Cœur RH" + "Voir les
-   collaborateurs"**.
+3. Grant the module rights you want Claude to use: reading plannings needs
+   **Planning → "Accéder au module Planning" + "Voir les plannings"** and
+   **Cœur RH → "Accéder au module Cœur RH" + "Voir les collaborateurs"**;
+   planning shifts needs **Planning → "Planifier"**; activities and time
+   clock have their own module rights. Rights not granted simply make the
+   corresponding tools fail with a clear message.
 
 Authorizations can be granted after installing; nothing needs reinstalling.
 
@@ -60,8 +66,8 @@ or which authorization is still missing.
 Claude Desktop: Settings → Extensions → Tipee → Configure. Claude Code:
 disable and re-enable the plugin in `/plugin`; it prompts again.
 
-## What it does not do
+## What it does and does not do
 
-It never writes to Tipee, and it never returns private data: the server
-keeps planning fields only, so birth dates, addresses and contact details
-never reach the conversation.
+It can write to Tipee when the integration has the right and your client
+approves the call. It returns what Tipee returns to the integration: fields
+the integration may not see arrive redacted from Tipee itself.
