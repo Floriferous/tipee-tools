@@ -11199,6 +11199,48 @@ const hasInterrupts = hasInterrupts$1;
 */
 const interruptors = causeInterruptors;
 /**
+* Converts a `Cause` into an `Array<Error>` suitable for logging or
+* rethrowing.
+*
+* **When to use**
+*
+* Use to convert every renderable failure in a cause into individual `Error`
+* values before logging or rethrowing.
+*
+* **Details**
+*
+* Each `Fail` and `Die` reason is converted into a standard
+* `Error`:
+*
+* - **Objects / Error instances** — `message`, `name`, `stack`, and `cause`
+*   are preserved. Extra enumerable properties are copied. Stack traces are
+*   cleaned up and enriched with span annotations when available.
+* - **Strings** — used directly as the `Error` message.
+* - **Other primitives** (`null`, `undefined`, numbers, …) — wrapped in an
+*   `Error` with message `"Unknown error: <value>"`.
+*
+* `Interrupt` reasons are collected separately. If the cause contains
+* **only** interrupts (no `Fail` or `Die`), a single `InterruptError` is
+* returned whose `cause` lists the interrupting fiber IDs.
+*
+* An empty cause returns an empty array.
+*
+* **Example** (Converting a cause to errors)
+*
+* ```ts import.meta.vitest
+* import { Cause } from "effect"
+*
+* Cause.prettyErrors(Cause.fail(new Error("boom")))[0].message // => "boom"
+* ```
+*
+* @see {@link pretty} — renders the cause as a single string
+* @see {@link squash} — lossy collapse to a single thrown value
+*
+* @category formatting
+* @since 3.2.0
+*/
+const prettyErrors = causePrettyErrors;
+/**
 * Checks whether an arbitrary value is a `Done` signal.
 *
 * **Example** (Checking the runtime type)
@@ -37560,6 +37602,53 @@ var ResourceUpdatedNotification$1 = class extends (/*#__PURE__*/ make$13("notifi
 	uri: String$2
 } })) {};
 /**
+* Describes an argument that a prompt can accept.
+*
+* @category schemas
+* @since 4.0.0
+*/
+var PromptArgument$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	/**
+	* The name of the argument.
+	*/
+	name: String$2,
+	title: /*#__PURE__*/ optional$4(String$2),
+	/**
+	* A human-readable description of the argument.
+	*/
+	description: /*#__PURE__*/ optional$4(String$2),
+	/**
+	* Whether this argument must be provided.
+	*/
+	required: /*#__PURE__*/ optional$4(Boolean)
+}))) {};
+/**
+* Represents a prompt or prompt template that the server offers.
+*
+* @category schemas
+* @since 4.0.0
+*/
+var Prompt$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Prompt")({
+	/**
+	* The name of the prompt or prompt template.
+	*/
+	name: String$2,
+	title: /*#__PURE__*/ optional$4(String$2),
+	/**
+	* An optional description of what this prompt provides
+	*/
+	description: /*#__PURE__*/ optional$4(String$2),
+	/**
+	* A list of arguments to use for templating the prompt.
+	*/
+	arguments: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(PromptArgument$2)),
+	/**
+	* Icons that clients can display for this prompt.
+	*/
+	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
+	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+})) {};
+/**
 * Represents text content provided to or from an LLM.
 *
 * @category schemas
@@ -37672,8 +37761,36 @@ const ContentBlock$2 = /*#__PURE__*/ Union([
 	EmbeddedResource$3,
 	ResourceLink$2
 ]);
+/**
+* Describes a message returned as part of a prompt.
+*
+* **Details**
+*
+* This is similar to `SamplingMessage`, but also supports the embedding of
+* resources from the MCP server.
+*
+* @category schemas
+* @since 4.0.0
+*/
+var PromptMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	role: Role$1,
+	content: ContentBlock$2
+}))) {};
 ({ ...PaginatedResultMeta.fields });
-({ ...ResultMeta$1.fields });
+/**
+* Represents the server response to a prompts/get request from the client.
+*
+* @category schemas
+* @since 4.0.0
+*/
+var GetPromptResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/GetPromptResult")({
+	...ResultMeta$1.fields,
+	messages: /*#__PURE__*/ ArraySchema(PromptMessage$4),
+	/**
+	* An optional description for the prompt.
+	*/
+	description: /*#__PURE__*/ optional$4(String$2)
+})) {};
 (
 /**
 * The name of the prompt or prompt template.
@@ -41668,6 +41785,95 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 * @since 4.0.0
 */
 const toolkit = (toolkit) => effectDiscard(registerToolkit(toolkit)).pipe(provide$2(McpServer.layer));
+/**
+* Registers an MCP prompt from an Effect program.
+*
+* **When to use**
+*
+* Use when you are already inside an Effect program with an `McpServer`
+* service and need to add a prompt handler directly.
+*
+* **Details**
+*
+* Parameters are decoded with the supplied schema, completion handlers encode
+* per-parameter suggestions, and string prompt content is converted into a user
+* text message.
+*
+* @see {@link prompt} for the layer-based prompt registration wrapper
+*
+* @category handlers
+* @since 4.0.0
+*/
+const registerPrompt = (options) => {
+	const args = empty$10();
+	const props = options.parameters ?? {};
+	for (const [name, prop] of Object.entries(props)) args.push({
+		name,
+		description: resolveDescription(prop.ast),
+		required: !isOptional(prop.ast)
+	});
+	const prompt = new Prompt$3({
+		name: options.name,
+		description: options.description,
+		arguments: args
+	});
+	const decode = options.parameters ? decodeEffect(Struct(props)) : () => succeed$3({});
+	const completion = options.completion ?? {};
+	return gen(function* () {
+		const registry = yield* McpServer;
+		const services = yield* context();
+		const completions = Object.create(null);
+		for (const [param, handle] of Object.entries(completion)) {
+			const encodeArray = encodeEffect(ArraySchema(props[param]));
+			const handler = (input, context) => handle(input, context).pipe(flatMap(encodeArray), map$1((values) => ({ completion: {
+				values,
+				total: values.length,
+				hasMore: false
+			} })), catchCause$1((cause) => {
+				const prettyError = prettyErrors(cause)[0];
+				return fail$3(new InternalError({ message: prettyError.message }));
+			}), provide(services));
+			completions[param] = handler;
+		}
+		yield* registry.addPrompt({
+			prompt,
+			completions,
+			annotations: options.annotations ?? empty$9(),
+			handle: (params) => decode(params).pipe(mapError$2((error) => new InvalidParams({ message: error.message })), flatMap((params) => options.content(params).pipe(catchCause$1((cause) => {
+				const prettyError = prettyErrors(cause)[0];
+				return fail$3(new InternalError({ message: prettyError.message }));
+			}))), map$1((messages) => {
+				messages = typeof messages === "string" ? [{
+					role: "user",
+					content: TextContent$3.make({ text: messages })
+				}] : messages;
+				return new GetPromptResult$4({
+					messages,
+					description: prompt.description
+				});
+			}), provideContext$2(services))
+		});
+	});
+};
+/**
+* Creates a layer that registers an MCP prompt.
+*
+* **When to use**
+*
+* Use to compose prompt registration into an MCP server layer.
+*
+* **Details**
+*
+* Parameters are decoded with the supplied schema, completion handlers encode
+* per-parameter suggestions, and string prompt content is converted into a user
+* text message.
+*
+* @see {@link registerPrompt} for the Effect-level prompt registration API
+*
+* @category layers
+* @since 4.0.0
+*/
+const prompt = (options) => effectDiscard(registerPrompt(options)).pipe(provide$2(McpServer.layer));
 const makeUriMatcher = () => {
 	const router = make$18({
 		ignoreTrailingSlash: true,
@@ -42034,8 +42240,20 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* TipeeToolkitLayer()
 	});
 }));
 //#endregion
+//#region ../../packages/mcp/src/Prompts.ts
+const SETUP_PROMPT = {
+	description: "Check that the Tipee connection works and explain any missing authorization.",
+	name: "check-tipee-setup",
+	text: "Run the tipee_check tool with no arguments. Then explain the result for someone who is not technical. If every endpoint is ok, say the setup is complete and give three examples of questions I can ask about my plannings. If the tool fails or an endpoint reports an error, quote the message, say exactly which authorization to grant in the Tipee admin panel (Configurations générales → \"Se connecter avec des applications externes\"; Planning → \"Accéder au module Planning\" and \"Voir les plannings\"; Cœur RH → \"Accéder au module Cœur RH\" and \"Voir les collaborateurs\"), and tell me to run this check again afterwards. If the message says the key was rejected, tell me to re-enter the instance and the key in the extension settings."
+};
+const SetupPrompt = prompt({
+	content: () => succeed$3(SETUP_PROMPT.text),
+	description: SETUP_PROMPT.description,
+	name: SETUP_PROMPT.name
+});
+//#endregion
 //#region src/main.ts
-runMain(launch(toolkit(TipeeToolkit).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
+runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Read-only access to Tipee plannings: people, teams, shifts, absences, on-calls.",
 	name: "tipee",
 	protocols: [
@@ -42044,7 +42262,7 @@ runMain(launch(toolkit(TipeeToolkit).pipe(provide$2(TipeeToolkitLayer), provide$
 		v2025_03_26,
 		v2024_11_05
 	],
-	version: "0.1.0"
+	version: "0.1.1"
 })), provide$2(TipeeClient.layerConfig), provide$2(layer$3), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
 //#endregion
 export {};

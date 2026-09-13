@@ -37,9 +37,10 @@ Download `tipee-<version>.mcpb` from the latest
 (artifact "tipee-mcpb"), then in Claude Desktop open Settings → Extensions →
 Advanced settings → Install Extension… and pick the file. Claude Desktop
 asks for the same two values, keeps the key in the system keychain, and runs
-the server with its own bundled Node, so nothing else is installed. The
-extension is not signed yet, so Claude Desktop shows a warning before
-installing.
+the server with its own bundled Node, so nothing else is installed. Claude
+Desktop warns that the extension is not verified by Anthropic, which is
+expected outside its directory. Afterwards, pick the **check-tipee-setup**
+prompt from the "+" menu to confirm everything works.
 
 ## What Claude can do with it
 

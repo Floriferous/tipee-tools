@@ -11,12 +11,13 @@ import { McpProtocol, McpServer } from 'effect/unstable/ai';
 import { FetchHttpClient } from 'effect/unstable/http';
 
 import { TipeeToolkitLayer } from './Handlers.ts';
+import { SetupPrompt } from './Prompts.ts';
 import { TipeeToolkit } from './Tools.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.1.0';
+export const SERVER_VERSION = '0.1.1';
 
-export const ServerLayer = McpServer.toolkit(TipeeToolkit).pipe(
+export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), SetupPrompt).pipe(
   Layer.provide(TipeeToolkitLayer),
   Layer.provide(
     McpServer.layerStdio({

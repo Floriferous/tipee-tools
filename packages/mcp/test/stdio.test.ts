@@ -57,6 +57,7 @@ describe('stdio transport', () => {
         });
         send({ jsonrpc: '2.0', method: 'notifications/initialized' });
         const listed = await request(2, 'tools/list', {});
+        const prompts = await request(3, 'prompts/list', {});
 
         expect(initialized.error, stderr.join('')).toBeUndefined();
         const serverInfo = initialized.result?.serverInfo as { name: string } | undefined;
@@ -67,6 +68,8 @@ describe('stdio transport', () => {
         }>;
         expect(tools.map((tool) => tool.name)).toContain('tipee_check');
         expect(tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
+        const promptList = prompts.result?.prompts as Array<{ name: string }> | undefined;
+        expect(promptList?.map((prompt) => prompt.name)).toContain('check-tipee-setup');
       } finally {
         child.kill();
       }
