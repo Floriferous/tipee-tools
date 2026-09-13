@@ -18,6 +18,19 @@ access right plus the view or manage right matching what the tool does.
 | `work_regimes_*`                                                                     | Calcul des soldes        | Voir les soldes                                                                      |                                                                       |
 | `projects_*`, `tasks_*`, `activities_*`, `day_tasks_*`                               | Activités                | the module's rights, listed on the screen once the module is enabled on the instance |                                                                       |
 
+## Chapters this list does not cover
+
+The rights screen only shows the modules enabled on the instance the list
+was copied from. Tipee publishes no complete list, so rights for the
+following modules are known to exist but are not listed here; read them on
+the screen of an instance that has the module.
+
+- **Activités** (projects, tasks, activities, day tasks): the module behind
+  the `projects_*`, `tasks_*`, `activities_*` and `day_tasks_*` tools.
+- **Notes de frais**: includes at least "prendre la main sur les notes de
+  frais" (release of 30 June 2026).
+- **Agenda**.
+
 ## Configurations générales
 
 - **Afficher les modules non disponibles avec leurs teasers** — Permet de découvrir, en simple aperçu, tous les modules proposés par tipee, même s'ils ne sont pas activés sur votre instance.
