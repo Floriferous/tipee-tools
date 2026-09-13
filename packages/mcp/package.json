@@ -5,10 +5,10 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./main": "./src/main.ts"
   },
   "scripts": {
-    "build": "tsdown",
     "check": "tsc --noEmit -p tsconfig.json",
     "start": "node --env-file-if-exists=.env src/main.ts",
     "test": "vitest run"
@@ -22,7 +22,6 @@
     "@effect/vitest": "4.0.0-rc.115",
     "@types/node": "24.13.3",
     "msw": "^2.15.0",
-    "tsdown": "^0.23.0",
     "vitest": "^5.0.0"
   }
 }

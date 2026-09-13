@@ -6,10 +6,25 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+# One run per branch: a new push cancels the previous run of the same ref.
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  # Optional Vercel Remote Cache; without these, the .turbo cache below applies.
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
 jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -25,8 +40,21 @@ jobs:
           cache: pnpm
           node-version: 24
 
+      # Turborepo's local cache, keyed by commit and restored from the most
+      # Recent run, so unchanged packages skip their tasks.
+      - name: Restore Turborepo cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Same command as the pre-commit hook's check step and as local `pnpm
+      # Verify`: lint, format, type-check, tests, bundle, then the bundle
+      # Freshness check (the committed plugin server must match the sources).
       - name: Verify
         run: pnpm verify

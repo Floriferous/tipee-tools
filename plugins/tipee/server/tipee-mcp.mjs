@@ -34373,7 +34373,7 @@ const is = is$1;
 */
 const exhaustive = exhaustive$1;
 //#endregion
-//#region ../core/src/Errors.ts
+//#region ../../packages/core/src/Errors.ts
 /** The key is not one Tipee knows (typo, revoked, or another instance's). */
 var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: String$2 }) {
 	get message() {
@@ -34450,7 +34450,7 @@ var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", {
 	}
 };
 //#endregion
-//#region ../core/src/Schemas.ts
+//#region ../../packages/core/src/Schemas.ts
 const DATE = String.raw`\d{4}-\d{2}-\d{2}`;
 const TIME = String.raw`\d{2}:\d{2}(?::\d{2})?`;
 const DURATION = String.raw`-?P(?:\d+D)?(?:T(?:-?\d+H)?(?:-?\d+M)?(?:-?\d+S)?)?`;
@@ -34620,7 +34620,7 @@ Struct({
 });
 const encodeDateRange = ({ from, to }) => `${from}/${to}`;
 //#endregion
-//#region ../core/src/TipeeClient.ts
+//#region ../../packages/core/src/TipeeClient.ts
 const TIPEE_API_VERSION = "26.06.25";
 const RESOURCE_ORDER = [{
 	attribute: "last_name",
@@ -41864,7 +41864,7 @@ const protocolForInternalTag = (registry, tag) => {
 };
 const getProtocolForClient = (clientProtocols, clientId, registry) => clientProtocols.get(clientId) ?? registry.protocols[0];
 //#endregion
-//#region src/Tools.ts
+//#region ../../packages/mcp/src/Tools.ts
 const readOnlyTool = (name, options) => make$4(name, options).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
 const TeamId = Snowflake.annotate({ description: "Restrict to this team and its sub-teams (an id from tipee_teams)" });
 const ResourceIds = ArraySchema(Snowflake).annotate({ description: "Restrict to these people (ids from tipee_people)" });
@@ -41948,7 +41948,7 @@ const TipeeToolkit = make$3(TipeeTeams, TipeePeople, TipeeTemplates, TipeeShifts
 	})
 }));
 //#endregion
-//#region src/Handlers.ts
+//#region ../../packages/mcp/src/Handlers.ts
 const defaultRange = map$1(now, (now) => ({
 	from: formatIsoDate(now),
 	to: formatIsoDate(add(now, { days: 6 }))

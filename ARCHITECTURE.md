@@ -126,21 +126,24 @@ tipee-tools/
 │   ├── core/                      # TipeeClient service, schemas, errors, test kit
 │   └── mcp/                       # toolkit, handlers, stdio server, entry point
 ├── plugins/
-│   └── tipee/                     # the Claude Code plugin
+│   └── tipee/                     # the Claude Code plugin, also workspace package @tipee-tools/plugin
 │       ├── .claude-plugin/plugin.json   # name, version, userConfig (instance, api_key)
 │       ├── .mcp.json                    # node ${CLAUDE_PLUGIN_ROOT}/server/tipee-mcp.mjs
+│       ├── src/main.ts + tsdown.config  # bundles @tipee-tools/mcp into server/
 │       ├── server/tipee-mcp.mjs         # the bundled server (pnpm build), committed
 │       ├── skills/tipee/SKILL.md        # user-facing: tools, guardrails, quirks
 │       └── README.md                    # install, integration setup
 ├── .claude-plugin/marketplace.json      # lists ./plugins/tipee: the repo is the marketplace
 ├── .claude/skills/tipee/SKILL.md        # contributor-facing: how to work on this repo
 ├── .claude/skills/effect-v4/SKILL.md    # Effect 4 idioms and RC gotchas
+├── turbo.json                           # task graph: transit nodes, root lint/format, bundle outputs
 └── ARCHITECTURE.md                      # this file
 ```
 
-**The plugin carries the server, vendored.** `pnpm build` bundles
-`packages/mcp` with every dependency (Effect included) into one file under
-`plugins/tipee/server`, using tsdown ([docs][tsdown]). The file is committed;
+**The plugin carries the server, vendored.** The plugin is itself a workspace
+package whose only build bundles `@tipee-tools/mcp` with every dependency
+(Effect included) into one file under `plugins/tipee/server`, using tsdown
+([docs][tsdown]). The file is committed;
 the pre-commit hook rebuilds and restages it, and `pnpm verify` fails when
 it is stale. Installing the plugin therefore installs nothing: Claude Code
 clones the marketplace and runs the file with `node`. This is the simplest
@@ -190,9 +193,16 @@ parameter on the tools; both plug into the same `Config` seam.
   loads the plugin without installing it; `/reload-plugins` picks up edits,
   and a local plugin shadows an installed one of the same name
   ([Create plugins][plugins]).
+- **One task graph.** Turborepo ([docs][turbo]) runs `check`, `test` and
+  `build` per package with caching; because packages consume each other's
+  TypeScript source, transit nodes (`transit` depends on `^transit`) make a
+  dependency's source change invalidate its dependents without serialising
+  the graph. Lint and format are root tasks over the whole repo.
 - **Validation.** `pnpm verify` (lint, format, tsc, tests, bundle freshness)
-  runs in CI and as the pre-commit hook's check step; `pnpm plugin:validate`
-  runs `claude plugin validate --strict` on the plugin and the marketplace.
+  is the single command run locally, by the pre-commit hook's check step, and
+  by CI, which restores the `.turbo` cache between runs and can switch to
+  Vercel's remote cache through two variables; `pnpm plugin:validate` runs
+  `claude plugin validate --strict` on the plugin and the marketplace.
 - **Fake Tipee everywhere.** The MSW test kit in `@tipee-tools/core/testing`
   is how every package is tested, the MCP tools included; a stdio test
   spawns the real entry point and completes the handshake. Nothing in CI
@@ -267,6 +277,7 @@ only, and asks for Node 24 on the machine.
 [oidc-playbook]: https://bex.co/blog/2026/09/10/npm-trusted-publishing-oidc-tokenless-pipeline
 [tsdown]: https://tsdown.dev/guide/faq
 [brew-node]: https://docs.brew.sh/Node-for-Formula-Authors.html
+[turbo]: https://turborepo.dev/docs/crafting-your-repository/configuring-tasks
 [effect-rc]: https://effect.website/blog/releases/effect/40-rc
 [effect-migration]: https://github.com/Effect-TS/effect/blob/main/MIGRATION.md
 
@@ -284,6 +295,7 @@ only, and asks for Node 24 on the machine.
   [Node 25.5 `--build-sea`][node-build-sea].
 - Effect 4: [release candidate announcement][effect-rc],
   [migration guide][effect-migration].
+- Build: [Turborepo task configuration][turbo].
 - Publishing: [npm trusted publishing][npm-oidc],
   [Tokenless publishing playbook][oidc-playbook], [tsdown FAQ][tsdown],
   [Homebrew: Node for formula authors][brew-node].

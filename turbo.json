@@ -1,0 +1,40 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "tasks": {
+    "//#format:check": {
+      "inputs": [
+        ".oxfmtrc.jsonc",
+        "*.{json,jsonc,md,ts,yml,yaml}",
+        ".github/**",
+        ".claude/**",
+        ".claude-plugin/**",
+        "packages/**",
+        "plugins/**",
+        "!plugins/*/server/**"
+      ]
+    },
+    "//#lint:check": {
+      "inputs": [
+        "oxlint.config.ts",
+        "packages/**",
+        "plugins/**",
+        "!plugins/*/server/**",
+        "!**/*.md",
+        "!**/*.json"
+      ]
+    },
+    "build": {
+      "dependsOn": ["transit"],
+      "outputs": ["server/**"]
+    },
+    "check": {
+      "dependsOn": ["transit"]
+    },
+    "test": {
+      "dependsOn": ["transit"]
+    },
+    "transit": {
+      "dependsOn": ["^transit"]
+    }
+  }
+}

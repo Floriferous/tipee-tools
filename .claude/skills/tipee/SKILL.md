@@ -84,8 +84,13 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
   `opensrc/effect` (`pnpm docs:effect`) rather than memory.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the
-  server into `plugins/tipee/server/` — committed, and checked for freshness
-  by `pnpm verify`.
+  server into `plugins/tipee/server/` (the plugin is the workspace package
+  `@tipee-tools/plugin`) — committed, and checked for freshness by
+  `pnpm verify`.
+- Tasks run through Turborepo (`turbo.json`): `check`, `test`, `build` per
+  package, cached; `transit` nodes propagate source changes between
+  workspace packages; `lint:check` and `format:check` are root tasks. Run a
+  single package with `pnpm exec turbo run test --filter=@tipee-tools/mcp`.
 - Tests: `@effect/vitest` + MSW. `packages/core/test/handlers.ts` is a fake
   Tipee that enforces the real rules (401 bad key, 422 bad pagination) —
   assert on output, not on requests. Other packages import it from

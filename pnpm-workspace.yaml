@@ -1,5 +1,6 @@
 packages:
   - 'packages/*'
+  - 'plugins/*'
 
 # pnpm 12 refuses to run a dependency's install scripts unless it is listed here.
 allowBuilds:

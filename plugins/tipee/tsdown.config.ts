@@ -1,5 +1,5 @@
-// Bundles the MCP server, dependencies included, into the Claude Code plugin
-// Directory. The plugin runs it with plain `node`; nothing is installed.
+// Bundles the MCP server, dependencies included, into `server/`. Claude Code
+// Runs the file with plain `node`; nothing is installed on the user's side.
 
 import { defineConfig } from 'tsdown';
 
@@ -9,6 +9,6 @@ export default defineConfig({
   dts: false,
   entry: { 'tipee-mcp': 'src/main.ts' },
   format: 'esm',
-  outDir: '../../plugins/tipee/server',
+  outDir: 'server',
   platform: 'node',
 });

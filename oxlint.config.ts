@@ -14,7 +14,13 @@ export default defineConfig({
     es6: true,
     node: true,
   },
-  ignorePatterns: ['.git/**', '**/node_modules/**', '**/dist/**', 'plugins/**', 'opensrc/**'],
+  ignorePatterns: [
+    '.git/**',
+    '**/node_modules/**',
+    '**/dist/**',
+    'plugins/*/server/**',
+    'opensrc/**',
+  ],
   overrides: [
     {
       // Build-tool configs run in Node and are the one place `process.env` belongs.

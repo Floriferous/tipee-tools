@@ -9,19 +9,19 @@
   },
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @tipee-tools/mcp build",
-    "build:check": "pnpm build && git diff --quiet -- plugins/tipee/server || (echo \"plugins/tipee/server is stale: run pnpm build and commit it\" && exit 1)",
-    "check": "pnpm -r check",
+    "build": "turbo run build",
+    "build:check": "turbo run build && git diff --exit-code -- plugins/tipee/server || (echo \"plugins/tipee/server is stale: run pnpm build and commit it\" && exit 1)",
+    "check": "turbo run check",
     "docs:effect": "npx -y opensrc fetch Effect-TS/effect && mkdir -p opensrc && ln -sfn \"$(npx -y opensrc path Effect-TS/effect | tail -1)\" opensrc/effect",
-    "fix": "pnpm lint && pnpm format && pnpm build",
+    "fix": "pnpm lint && pnpm format && turbo run build",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages oxlint.config.ts",
-    "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages oxlint.config.ts",
+    "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages plugins oxlint.config.ts",
+    "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages plugins oxlint.config.ts",
     "mcp": "pnpm --filter @tipee-tools/mcp start",
     "plugin:validate": "claude plugin validate ./plugins/tipee --strict && claude plugin validate . --strict",
-    "test": "pnpm -r test",
-    "verify": "pnpm lint:check && pnpm format:check && pnpm check && pnpm test && pnpm build:check"
+    "test": "turbo run test",
+    "verify": "turbo run lint:check format:check check test build --continue && pnpm build:check"
   },
   "devDependencies": {
     "@effect/language-service": "^0.87.2",
@@ -29,6 +29,7 @@
     "oxfmt": "0.65.0",
     "oxlint": "1.80.0",
     "oxlint-tsgolint": "7.0.2001",
+    "turbo": "2.10.12",
     "typescript": "6.0.3"
   },
   "engines": {

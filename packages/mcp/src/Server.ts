@@ -4,7 +4,9 @@
 
 import { NodeStdio } from '@effect/platform-node';
 import { TipeeClient } from '@tipee-tools/core';
+import type { ConfigurationMissing } from '@tipee-tools/core';
 import { Layer, Logger } from 'effect';
+import type { Cause, Effect } from 'effect';
 import { McpProtocol, McpServer } from 'effect/unstable/ai';
 import { FetchHttpClient } from 'effect/unstable/http';
 
@@ -35,3 +37,7 @@ export const ServerLayer = McpServer.toolkit(TipeeToolkit).pipe(
   Layer.provide(NodeStdio.layer),
   Layer.provide(Layer.succeed(Logger.LogToStderr, true)),
 );
+
+/** The whole server as one effect that runs until the client disconnects. */
+export const main: Effect.Effect<never, ConfigurationMissing | Cause.IllegalArgumentError> =
+  Layer.launch(ServerLayer);

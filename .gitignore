@@ -2,8 +2,9 @@
 node_modules/
 .pnpm-store/
 
-# build output
+# build output and task cache
 dist/
+.turbo/
 
 # Tipee API keys live here — local only, never committed
 .env

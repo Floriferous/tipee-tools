@@ -1,6 +1,6 @@
 # Pre-commit: apply the fixers and rebuild the plugin bundle, restage what
-# They rewrote, then run the checks that have no fixer. CI runs
-# `pnpm verify` instead, which only checks.
+# They rewrote, then run the cached checks. CI runs `pnpm verify` instead,
+# Which only checks.
 pre-commit:
   commands:
     fix:
@@ -9,4 +9,4 @@ pre-commit:
       stage_fixed: true
     check:
       priority: 2
-      run: pnpm check && pnpm test
+      run: pnpm exec turbo run check test
