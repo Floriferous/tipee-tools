@@ -1,5 +1,6 @@
-# Pre-commit: apply the fixers, restage what they rewrote, then run the checks
-# That have no fixer. CI runs `pnpm verify` instead, which only checks.
+# Pre-commit: apply the fixers and rebuild the plugin bundle, restage what
+# They rewrote, then run the checks that have no fixer. CI runs
+# `pnpm verify` instead, which only checks.
 pre-commit:
   commands:
     fix:

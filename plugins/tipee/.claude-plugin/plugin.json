@@ -1,0 +1,27 @@
+{
+  "name": "tipee",
+  "version": "0.1.0",
+  "description": "Read-only access to your Tipee plannings from Claude: people, teams, shifts, absences, on-calls.",
+  "author": {
+    "name": "Florian Bienefelt"
+  },
+  "homepage": "https://github.com/Floriferous/tipee-tools",
+  "repository": "https://github.com/Floriferous/tipee-tools",
+  "license": "MIT",
+  "keywords": ["tipee", "hr", "planning", "shifts", "mcp"],
+  "userConfig": {
+    "instance": {
+      "type": "string",
+      "title": "Tipee instance",
+      "description": "The subdomain you sign in at: \"acme\" for acme.tipee.net",
+      "required": true
+    },
+    "api_key": {
+      "type": "string",
+      "title": "Tipee API key",
+      "description": "The key of an integration created in the Tipee admin panel (see the plugin README for the authorizations it needs)",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

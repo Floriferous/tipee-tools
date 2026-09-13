@@ -1,14 +1,16 @@
 ---
 name: tipee
-description: Working with the Tipee HR API through tipee-tools (core client, CLI, MSW test kit) — access rights, API quirks vs. its docs, guardrails. Use whenever a task touches Tipee, shifts, absences, or this repository's packages.
+description: Working on tipee-tools (Effect 4 core client, MCP server, Claude Code plugin, MSW test kit) — Tipee access rights, API quirks vs. its docs, guardrails. Use whenever a task touches Tipee, shifts, absences, or this repository's packages.
 ---
 
 # Tipee API via tipee-tools
 
 Tipee is a Swiss HR tool (employees, shifts, absences). This repo is a
-**read-only** TypeScript toolkit over its public API that works against any
-Tipee instance: `@tipee-tools/core` (client + zod schemas + endpoints),
-`@tipee-tools/cli`, and later an MCP server on the same core.
+**read-only** toolkit over its public API that works against any Tipee
+instance: `@tipee-tools/core` (Effect service + schemas + errors),
+`@tipee-tools/mcp` (MCP toolkit and stdio server), and the Claude Code plugin
+in `plugins/tipee` that bundles the server. The user-facing skill lives in
+`plugins/tipee/skills/tipee`; this one is for developing the repo.
 
 ## Guardrails
 
@@ -21,13 +23,16 @@ Tipee instance: `@tipee-tools/core` (client + zod schemas + endpoints),
   details, sick leave… The schemas keep only planning fields; don't widen
   them without a reason, and never commit real responses — fixtures are
   anonymised (the fictional company "Acme").
-- **The API key is a secret**: only in `packages/cli/.env`, never in chat,
-  commits or CI. Rotate it in the Tipee admin if it leaks.
+- **The API key is a secret**: only in `packages/mcp/.env` or the plugin's
+  keychain entry, never in chat, commits or CI. Rotate it in the Tipee admin
+  if it leaks.
 
-## Running the CLI
+## Running the server
 
-`pnpm tipee help` from the repo root; configuration in `packages/cli/.env`
-(`TIPEE_INSTANCE`, `TIPEE_API_KEY`). Start with `pnpm tipee check`.
+`pnpm mcp` runs it on stdio from source; configuration in `packages/mcp/.env`
+(`TIPEE_INSTANCE`, `TIPEE_API_KEY`). Plugin users get the prompt from Claude
+Code instead. `claude --plugin-dir ./plugins/tipee` loads the plugin for
+development; `pnpm build` refreshes the bundle it runs.
 
 ## Getting API access (the trap)
 
@@ -63,21 +68,30 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
   and identical filters/orders on every page or Tipee answers 422. The
   cursor can be non-null on the last full page (the next page is empty).
 - Team filter: `{key: "resource.team", value: {teams: [id], recursive: true}}`.
-- Rate limits are generous (500-token bucket, 4/s); the client retries 429
-  honouring `Retry-After`.
+- Rate limits are generous (500-token bucket, 4/s); the client retries
+  transient failures with backoff (`HttpClient.retryTransient`).
 - Versions are date-based and supported ≥ 6 months after the next release;
   subscribe to the changelog on https://api.tipee.ch/.
 
 ## Repository notes
 
+- `ARCHITECTURE.md` is the target design (Effect 4 core, MCP server first,
+  the plugin bundles the server, the repo is its own marketplace). Check it
+  before adding a distribution channel or a configuration source.
+- Effect 4 is at its release candidate, pinned exactly; the `effect-v4` skill
+  in `.claude/skills` lists the idioms and RC gotchas. Read Effect's sources
+  in `node_modules/effect/src` (exact version) and its docs in
+  `opensrc/effect` (`pnpm docs:effect`) rather than memory.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
-  extension, no enums). `@tipee-tools/core` is consumed from source through
-  the workspace link; publishing to npm will need a compiled build.
-- Tests: vitest + MSW. `packages/core/test/handlers.ts` is a fake Tipee that
-  enforces the real rules (401 bad key, 422 bad pagination) — assert on
-  output, not on requests. Other packages import it from
-  `@tipee-tools/core/testing`.
-- `pnpm fix` applies the oxlint/oxfmt fixers, `pnpm verify` only checks (CI
-  and the pre-commit hook rely on that split); every disabled rule is
-  commented in `oxlint.config.ts` (notably `unicorn/no-null`: Tipee's wire
-  format needs literal `null`).
+  extension, no enums). The only build is `pnpm build`, which bundles the
+  server into `plugins/tipee/server/` — committed, and checked for freshness
+  by `pnpm verify`.
+- Tests: `@effect/vitest` + MSW. `packages/core/test/handlers.ts` is a fake
+  Tipee that enforces the real rules (401 bad key, 422 bad pagination) —
+  assert on output, not on requests. Other packages import it from
+  `@tipee-tools/core/testing`. `it.effect` runs on the test clock: fork,
+  `TestClock.adjust`, join to exercise retries.
+- `pnpm fix` applies the oxlint/oxfmt fixers and rebuilds the bundle;
+  `pnpm verify` only checks (CI and the pre-commit hook rely on that split);
+  every disabled rule is commented in `oxlint.config.ts` (notably
+  `unicorn/no-null`: Tipee's wire format needs literal `null`).

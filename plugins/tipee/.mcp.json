@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tipee": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/tipee-mcp.mjs"],
+      "env": {
+        "TIPEE_INSTANCE": "${user_config.instance}",
+        "TIPEE_API_KEY": "${user_config.api_key}"
+      }
+    }
+  }
+}

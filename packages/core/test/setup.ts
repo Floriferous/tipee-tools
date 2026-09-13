@@ -2,6 +2,7 @@
 // Request it does not know about fails the test instead of hitting the network.
 
 import { afterAll, afterEach, beforeAll } from 'vitest';
+
 import { server } from './server.ts';
 
 beforeAll(() => {

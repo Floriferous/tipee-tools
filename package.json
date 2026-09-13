@@ -9,17 +9,22 @@
   },
   "type": "module",
   "scripts": {
+    "build": "pnpm --filter @tipee-tools/mcp build",
+    "build:check": "pnpm build && git diff --quiet -- plugins/tipee/server || (echo \"plugins/tipee/server is stale: run pnpm build and commit it\" && exit 1)",
     "check": "pnpm -r check",
-    "fix": "pnpm lint && pnpm format",
+    "docs:effect": "npx -y opensrc fetch Effect-TS/effect && mkdir -p opensrc && ln -sfn \"$(npx -y opensrc path Effect-TS/effect | tail -1)\" opensrc/effect",
+    "fix": "pnpm lint && pnpm format && pnpm build",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages oxlint.config.ts",
     "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages oxlint.config.ts",
+    "mcp": "pnpm --filter @tipee-tools/mcp start",
+    "plugin:validate": "claude plugin validate ./plugins/tipee --strict && claude plugin validate . --strict",
     "test": "pnpm -r test",
-    "tipee": "pnpm --filter @tipee-tools/cli tipee",
-    "verify": "pnpm lint:check && pnpm format:check && pnpm check && pnpm test"
+    "verify": "pnpm lint:check && pnpm format:check && pnpm check && pnpm test && pnpm build:check"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.87.2",
     "lefthook": "2.1.10",
     "oxfmt": "0.65.0",
     "oxlint": "1.80.0",

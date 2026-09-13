@@ -1,27 +1,29 @@
 // The schemas must accept what Tipee really sends (the fixtures) and reject
 // What the docs' examples would have led us to write.
 
+import { Result, Schema } from 'effect';
+import { describe, expect, it } from 'vitest';
+
 import {
-  AbsenceList,
-  ActivityRateList,
+  Absence,
+  ActivityRate,
   Duration,
-  KindList,
+  Kind,
   LocalDateInterval,
   LocalDateTimeInterval,
   LocalTimeInterval,
-  OnCallList,
+  OnCall,
   Person,
   PersonPage,
-  ShiftList,
-  TeamList,
-  TemplateList,
-  toPersonView,
-} from '../src/schemas.ts';
-import { describe, expect, it } from 'vitest';
+  PersonRecord,
+  Shift,
+  Team,
+  Template,
+} from '../src/Schemas.ts';
 import { readFixture } from './fixtures.ts';
 
-const accepts = (schema: { safeParse: (value: unknown) => { success: boolean } }, value: string) =>
-  schema.safeParse(value).success;
+const accepts = (schema: Schema.ConstraintDecoder<unknown>, value: string): boolean =>
+  Result.isSuccess(Schema.decodeUnknownResult(schema)(value));
 
 describe('interval formats', () => {
   it('accepts date-time intervals with or without seconds', () => {
@@ -47,26 +49,31 @@ describe('interval formats', () => {
 
 describe('fixtures (real anonymised responses)', () => {
   it.each([
-    ['kinds', KindList],
-    ['teams', TeamList],
-    ['templates', TemplateList],
-    ['shifts', ShiftList],
-    ['absences', AbsenceList],
-    ['on-calls', OnCallList],
-    ['activity-rates', ActivityRateList],
+    ['kinds', Kind],
+    ['teams', Team],
+    ['templates', Template],
+    ['shifts', Shift],
+    ['absences', Absence],
+    ['on-calls', OnCall],
+    ['activity-rates', ActivityRate],
   ] as const)('%s parse', (name, schema) => {
-    const result = schema.safeParse(readFixture(name));
+    const result = Schema.decodeUnknownResult(Schema.Array(schema))(readFixture(name));
 
-    expect(result.success, result.success ? '' : result.error.message).toBe(true);
+    expect(Result.isSuccess(result), Result.isFailure(result) ? result.failure.message : '').toBe(
+      true,
+    );
   });
 
   it('people parse as a page; the view keeps only planning fields', () => {
-    const page = PersonPage.parse({ data: readFixture('people'), next_token: null });
+    const page = Schema.decodeUnknownSync(PersonPage)({
+      data: readFixture('people'),
+      next_token: null,
+    });
     const [first] = page.data;
     if (first === undefined) {
       throw new Error('the people fixture is empty');
     }
-    const view = toPersonView(first);
+    const view = Person.fromRecord(first);
 
     expect(first).not.toHaveProperty('picture');
     expect(view).not.toHaveProperty('attributes');
@@ -75,8 +82,13 @@ describe('fixtures (real anonymised responses)', () => {
   });
 
   it('rejects a person without the planning attributes', () => {
-    const result = Person.safeParse({ id: '1', label: 'Alice', short_label: 'A', teams: [] });
+    const result = Schema.decodeUnknownResult(PersonRecord)({
+      id: '1',
+      label: 'Alice',
+      short_label: 'A',
+      teams: [],
+    });
 
-    expect(result.success).toBe(false);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

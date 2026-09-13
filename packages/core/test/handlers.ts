@@ -3,10 +3,12 @@
 // Orders on every page, …) by answering 401/422 the way Tipee does — so tests
 // Assert on behaviour instead of inspecting requests.
 
+import { Result, Schema } from 'effect';
 import { HttpResponse, http } from 'msw';
 import type { JsonBodyType } from 'msw';
+
 import { readFixture } from './fixtures.ts';
-import { z } from 'zod';
+import type { FixtureName } from './fixtures.ts';
 
 export const BASE = 'https://acme.tipee.net';
 export const API_KEY = 'test-key';
@@ -18,28 +20,33 @@ const HTTP_UNPROCESSABLE = 422;
 
 const api = (path: string): string => `${BASE}${path}`;
 
-// Fixtures are raw Tipee JSON; these schemas only pick what the fake needs.
-const Row = z.looseObject({ id: z.string() });
-const KindRow = Row.extend({ machine_name: z.string() });
-const TeamRow = Row.extend({ parent_id: z.string().nullable() });
-const TemplateRow = Row.extend({ team_id: z.string() });
-const TeamRef = z.looseObject({ id: z.string() });
-const PersonRow = Row.extend({
-  attributes: z.looseObject({ last_name: z.string() }),
-  teams: z.array(TeamRef).default([]),
+// Fixtures are raw Tipee JSON and are answered untouched; these schemas only
+// Pick what the fake needs to filter, sort and paginate.
+const Row = Schema.Struct({ id: Schema.String });
+const KindRow = Schema.Struct({ ...Row.fields, machine_name: Schema.String });
+const TeamRow = Schema.Struct({ ...Row.fields, parent_id: Schema.NullOr(Schema.String) });
+const TemplateRow = Schema.Struct({ ...Row.fields, team_id: Schema.String });
+const PersonRow = Schema.Struct({
+  ...Row.fields,
+  attributes: Schema.Struct({ last_name: Schema.String }),
+  teams: Schema.optionalKey(Schema.Array(Schema.Struct({ id: Schema.String }))),
 });
-const ByResource = Row.extend({ resource_id: z.string() });
-const OnCallRow = ByResource.extend({ team_id: z.string() });
-const AnyRow = z.looseObject({});
+const ByResource = Schema.Struct({ ...Row.fields, resource_id: Schema.String });
+const OnCallRow = Schema.Struct({ ...ByResource.fields, team_id: Schema.String });
+const AnyRow = Schema.Struct({});
 
-type PersonFixture = z.output<typeof PersonRow>;
+interface Loaded<Row> {
+  readonly raw: Schema.Json;
+  readonly row: Row;
+}
 
-const load = <Output>(
-  schema: z.ZodType<Output>,
-  name: Parameters<typeof readFixture>[0],
-): Output[] => {
-  const raw = readFixture(name);
-  return z.array(schema).parse(raw);
+const load = <S extends Schema.ConstraintDecoder<unknown>>(
+  schema: S,
+  name: FixtureName,
+): ReadonlyArray<Loaded<S['Type']>> => {
+  const raw = Schema.decodeUnknownSync(Schema.Array(Schema.Json))(readFixture(name));
+  const rows = Schema.decodeUnknownSync(Schema.Array(schema))(raw);
+  return rows.map((row, index) => ({ raw: raw[index] ?? null, row }));
 };
 
 const kinds = load(KindRow, 'kinds');
@@ -51,39 +58,47 @@ const absences = load(ByResource, 'absences');
 const onCalls = load(OnCallRow, 'on-calls');
 const activityRates = load(AnyRow, 'activity-rates');
 
-const employeeKind = kinds.find((kind) => kind.machine_name === 'employee');
+const employeeKind = kinds.find((kind) => kind.row.machine_name === 'employee');
 if (employeeKind === undefined) {
   throw new Error('fixture kinds.json has no "employee" kind');
 }
-export const EMPLOYEE_KIND_ID = employeeKind.id;
+export const EMPLOYEE_KIND_ID = employeeKind.row.id;
 
-const DateRange = z.string().regex(/^\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/u);
-const Ids = z.array(z.string());
-const TeamFilterValue = z.object({ recursive: z.boolean(), teams: Ids });
-const TeamFilter = z.object({ key: z.literal('resource.team'), value: TeamFilterValue });
-const Order = z.object({
-  attribute: z.literal('last_name'),
-  direction: z.enum(['asc', 'desc']),
-  key: z.literal('resource.attribute'),
+const DateRange = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/u));
+const Ids = Schema.Array(Schema.String);
+const TeamFilter = Schema.Struct({
+  key: Schema.Literal('resource.team'),
+  value: Schema.Struct({ recursive: Schema.Boolean, teams: Ids }),
 });
-const Pagination = z.object({
-  limit: z.number().int().positive().nullable(),
-  next_token: z.string().nullable(),
+const Order = Schema.Struct({
+  attribute: Schema.Literal('last_name'),
+  direction: Schema.Literals(['asc', 'desc']),
+  key: Schema.Literal('resource.attribute'),
+});
+const Pagination = Schema.Struct({
+  limit: Schema.NullOr(Schema.Int.check(Schema.isGreaterThan(0))),
+  next_token: Schema.NullOr(Schema.String),
 });
 
-const ListResourcesQuery = z.object({
-  filters: z.array(TeamFilter).default([]),
-  kind_id: z.literal(EMPLOYEE_KIND_ID),
-  orders: z.array(Order).min(1),
+const ListResourcesQuery = Schema.Struct({
+  filters: Schema.optionalKey(Schema.Array(TeamFilter)),
+  kind_id: Schema.Literal(EMPLOYEE_KIND_ID),
+  orders: Schema.NonEmptyArray(Order),
   pagination: Pagination,
-  with_teams: z.boolean().default(false),
+  with_teams: Schema.optionalKey(Schema.Boolean),
 });
-const ListTemplatesQuery = z.object({ team_ids: Ids.optional() });
-const ListByDateQuery = z.object({ date_range: DateRange, resource_ids: Ids.optional() });
-const ListOnCallsQuery = ListByDateQuery.extend({ team_ids: Ids.optional() });
-const ShowActivityRatesQuery = z.object({
-  date_range: DateRange.optional(),
-  resource_id: z.string(),
+const ListTemplatesQuery = Schema.Struct({ team_ids: Schema.optionalKey(Ids) });
+const ListByDateQuery = Schema.Struct({
+  date_range: DateRange,
+  resource_ids: Schema.optionalKey(Ids),
+});
+const ListOnCallsQuery = Schema.Struct({
+  ...ListByDateQuery.fields,
+  team_ids: Schema.optionalKey(Ids),
+});
+const ShowActivityRatesQuery = Schema.Struct({
+  date_range: Schema.optionalKey(DateRange),
+  resource_id: Schema.String,
 });
 
 const unauthorized = (message: string): Response =>
@@ -105,22 +120,25 @@ const headersLikeTipee = (request: Request): Response | undefined => {
   return undefined;
 };
 
+const rawOf = <Row>(items: ReadonlyArray<Loaded<Row>>): JsonBodyType =>
+  items.map((item) => item.raw);
+
 // Validates auth headers and the body like Tipee, then answers.
-const endpoint = <Query>(
+const endpoint = <S extends Schema.ConstraintDecoder<unknown>>(
   path: string,
-  schema: z.ZodType<Query>,
-  answer: (query: Query) => JsonBodyType | Response,
+  schema: S,
+  answer: (query: S['Type']) => JsonBodyType | Response,
 ) =>
   http.post(api(path), async ({ request }) => {
     const rejection = headersLikeTipee(request);
     if (rejection !== undefined) {
       return rejection;
     }
-    const query = schema.safeParse(await request.json());
-    if (!query.success) {
-      return unprocessable(z.treeifyError(query.error));
+    const query = Schema.decodeUnknownResult(schema)(await request.json());
+    if (Result.isFailure(query)) {
+      return unprocessable(query.failure.message);
     }
-    const answered = answer(query.data);
+    const answered = answer(query.success);
     return answered instanceof Response ? answered : HttpResponse.json(answered);
   });
 
@@ -129,7 +147,7 @@ const descendants = (teamId: string): Set<string> => {
   let grew = true;
   while (grew) {
     grew = false;
-    for (const team of teams) {
+    for (const { row: team } of teams) {
       if (team.parent_id !== null && found.has(team.parent_id) && !found.has(team.id)) {
         found.add(team.id);
         grew = true;
@@ -139,7 +157,7 @@ const descendants = (teamId: string): Set<string> => {
   return found;
 };
 
-const teamIdsOf = (filters: z.output<typeof TeamFilter>[]): Set<string> => {
+const teamIdsOf = (filters: ReadonlyArray<typeof TeamFilter.Type>): Set<string> => {
   const ids = new Set<string>();
   for (const filter of filters) {
     for (const teamId of filter.value.teams) {
@@ -152,81 +170,86 @@ const teamIdsOf = (filters: z.output<typeof TeamFilter>[]): Set<string> => {
   return ids;
 };
 
+type PersonFixture = Loaded<typeof PersonRow.Type>;
+
 const byLastName =
   (direction: 'asc' | 'desc') =>
   (left: PersonFixture, right: PersonFixture): number => {
     const sign = direction === 'asc' ? 1 : -1;
-    return sign * left.attributes.last_name.localeCompare(right.attributes.last_name, 'fr');
+    return sign * left.row.attributes.last_name.localeCompare(right.row.attributes.last_name, 'fr');
   };
 
 // A real cursor is opaque; this one is "<offset>:<signature>" so the fake can
 // Refuse a page requested with different filters or orders, like Tipee does.
 const cursor = (offset: number, signature: string): string => `${offset}:${signature}`;
 
-const readCursor = (token: string | null, signature: string): number => {
+const readCursor = (token: string | null, signature: string): number | undefined => {
   if (token === null) {
     return 0;
   }
   const separator = token.indexOf(':');
   if (token.slice(separator + 1) !== signature) {
-    throw new Error('filters or orders changed between pages');
+    return undefined;
   }
   return Number(token.slice(0, separator));
 };
 
-const listResources = (query: z.output<typeof ListResourcesQuery>): JsonBodyType => {
-  const signature = JSON.stringify([query.filters, query.orders]);
+const listResources = (query: typeof ListResourcesQuery.Type): JsonBodyType | Response => {
+  const filters = query.filters ?? [];
+  const signature = JSON.stringify([filters, query.orders]);
   const offset = readCursor(query.pagination.next_token, signature);
-  const teamIds = teamIdsOf(query.filters);
+  if (offset === undefined) {
+    return unprocessable('filters or orders changed between pages');
+  }
+  const teamIds = teamIdsOf(filters);
   const [order] = query.orders;
-  const direction = order === undefined ? 'asc' : order.direction;
   const matching = people
-    .filter((person) => teamIds.size === 0 || person.teams.some((team) => teamIds.has(team.id)))
-    .toSorted(byLastName(direction));
+    .filter(
+      ({ row }) => teamIds.size === 0 || (row.teams ?? []).some((team) => teamIds.has(team.id)),
+    )
+    .toSorted(byLastName(order.direction));
   const pageSize = Math.min(query.pagination.limit ?? matching.length, FAKE_PAGE_SIZE);
   // Tipee hands out a cursor even when the last page was exactly full.
   const nextOffset = offset + pageSize;
   return {
-    data: matching.slice(offset, nextOffset),
+    data: rawOf(matching.slice(offset, nextOffset)),
     next_token: nextOffset <= matching.length ? cursor(nextOffset, signature) : null,
   };
 };
 
-const forPeople = <Item extends { resource_id: string }>(
-  items: Item[],
-  resourceIds: string[] | undefined,
-): Item[] =>
+const forPeople = <Row extends { readonly resource_id: string }>(
+  items: ReadonlyArray<Loaded<Row>>,
+  resourceIds: ReadonlyArray<string> | undefined,
+): ReadonlyArray<Loaded<Row>> =>
   resourceIds === undefined
     ? items
-    : items.filter((item) => resourceIds.includes(item.resource_id));
+    : items.filter((item) => resourceIds.includes(item.row.resource_id));
 
 export const handlers = [
-  endpoint('/api/directory/kinds.list', z.object({}), () => kinds),
-  endpoint('/api/directory/teams.list', z.object({}), () => teams),
+  endpoint('/api/directory/kinds.list', Schema.Struct({}), () => rawOf(kinds)),
+  endpoint('/api/directory/teams.list', Schema.Struct({}), () => rawOf(teams)),
   endpoint('/api/schedule/schedule-templates.list', ListTemplatesQuery, ({ team_ids }) =>
-    team_ids === undefined
-      ? templates
-      : templates.filter((template) => team_ids.includes(template.team_id)),
+    rawOf(
+      team_ids === undefined
+        ? templates
+        : templates.filter((template) => team_ids.includes(template.row.team_id)),
+    ),
   ),
-  endpoint('/api/directory/resources.list', ListResourcesQuery, (query) => {
-    try {
-      return listResources(query);
-    } catch (error) {
-      return unprocessable(error instanceof Error ? error.message : 'invalid cursor');
-    }
-  }),
+  endpoint('/api/directory/resources.list', ListResourcesQuery, listResources),
   endpoint('/api/schedule/schedules.list', ListByDateQuery, ({ resource_ids }) =>
-    forPeople(shifts, resource_ids),
+    rawOf(forPeople(shifts, resource_ids)),
   ),
   endpoint('/api/schedule/absences.list', ListByDateQuery, ({ resource_ids }) =>
-    forPeople(absences, resource_ids),
+    rawOf(forPeople(absences, resource_ids)),
   ),
   endpoint('/api/schedule/on-calls.list', ListOnCallsQuery, ({ resource_ids, team_ids }) =>
-    forPeople(onCalls, resource_ids).filter(
-      (duty) => team_ids === undefined || team_ids.includes(duty.team_id),
+    rawOf(
+      forPeople(onCalls, resource_ids).filter(
+        (duty) => team_ids === undefined || team_ids.includes(duty.row.team_id),
+      ),
     ),
   ),
   endpoint('/api/directory/resources.show-activity-rates', ShowActivityRatesQuery, (query) =>
-    people.some((person) => person.id === query.resource_id) ? activityRates : [],
+    rawOf(people.some((person) => person.row.id === query.resource_id) ? activityRates : []),
   ),
 ];
