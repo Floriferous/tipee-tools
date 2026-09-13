@@ -21,7 +21,7 @@
   "devDependencies": {
     "@effect/vitest": "4.0.0-rc.115",
     "@types/node": "24.13.4",
-    "msw": "^2.15.0",
-    "vitest": "^5.0.0"
+    "msw": "2.15.0",
+    "vitest": "5.0.0"
   }
 }
