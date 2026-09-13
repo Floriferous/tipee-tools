@@ -84,9 +84,12 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
 
 `packages/core/spec/` holds Tipee's OpenAPI document (one file, the pinned
 version). `pnpm generate` runs `@effect/openapi-generator` on it, through a
-JSON Patch built in `packages/core/scripts/generate.ts` (currently: mark
-every request body required, because Tipee wants a JSON body even when
-empty), and writes `packages/core/src/generated/TipeeApi.ts` — committed,
+JSON Patch built in `packages/core/scripts/generate.ts` (mark every request
+body required because Tipee wants a JSON body even when empty; drop
+`example(s)`; turn nested `and`/`or` filters into plain objects Tipee
+validates; close request objects with `additionalProperties: false` — the
+last three keep the 69 tool definitions near 90 KB, since Claude Desktop
+loads all of them into every chat), and writes `packages/core/src/generated/TipeeApi.ts` — committed,
 never edited, freshness-checked by `pnpm verify`. To update Tipee's version:
 replace the spec file, bump `TIPEE_API_VERSION`, `pnpm fix`, read the diff.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and

@@ -1,6 +1,6 @@
 {
   "name": "tipee",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Read-only access to your Tipee plannings from Claude: people, teams, shifts, absences, on-calls.",
   "author": {
     "name": "Florian Bienefelt"

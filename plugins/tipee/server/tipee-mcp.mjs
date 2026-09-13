@@ -7657,7 +7657,7 @@ const sync$1 = /*#__PURE__*/ makePrimitive({
 	}
 });
 /** @internal */
-const suspend$4 = /*#__PURE__*/ makePrimitive({
+const suspend$3 = /*#__PURE__*/ makePrimitive({
 	op: "Suspend",
 	[evaluate](_fiber) {
 		return this[args]();
@@ -7687,18 +7687,18 @@ const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 /** @internal */
 const succeedNone$1 = /*#__PURE__*/ succeed$6(/*#__PURE__*/ none());
 /** @internal */
-const failCauseSync$1 = (evaluate) => suspend$4(() => failCause$4(internalCall(evaluate)));
+const failCauseSync$1 = (evaluate) => suspend$3(() => failCause$4(internalCall(evaluate)));
 /** @internal */
 const die$2 = (defect) => exitDie(defect);
 /** @internal */
-const failSync = (error) => suspend$4(() => fail$6(internalCall(error)));
+const failSync = (error) => suspend$3(() => fail$6(internalCall(error)));
 /** @internal */
 const void_$3 = /*#__PURE__*/ succeed$6(void 0);
 /** @internal */
 const try_$1 = (options) => {
 	const evaluate = typeof options === "function" ? options : options.try;
 	const catcher = typeof options === "function" ? (cause) => new UnknownError$2(cause, "An error occurred in Effect.try") : options.catch;
-	return suspend$4(() => {
+	return suspend$3(() => {
 		try {
 			return succeed$6(internalCall(evaluate));
 		} catch (err) {
@@ -7788,17 +7788,17 @@ const never$2 = /*#__PURE__*/ callback$1(constVoid);
 const gen$1 = (...args) => {
 	if (args.length === 1) {
 		const body = args[0];
-		return suspend$4(() => fromIteratorUnsafe(body()));
+		return suspend$3(() => fromIteratorUnsafe(body()));
 	}
 	const [options, body] = args;
-	return suspend$4(() => fromIteratorUnsafe(body.call(options.self)));
+	return suspend$3(() => fromIteratorUnsafe(body.call(options.self)));
 };
 /** @internal */
 const fnUntraced$1 = (body, ...pipeables) => {
 	const fn = pipeables.length === 0 ? function() {
-		return suspend$4(() => fromIteratorUnsafe(body.apply(this, arguments)));
+		return suspend$3(() => fromIteratorUnsafe(body.apply(this, arguments)));
 	} : function() {
-		let effect = suspend$4(() => fromIteratorUnsafe(body.apply(this, arguments)));
+		let effect = suspend$3(() => fromIteratorUnsafe(body.apply(this, arguments)));
 		for (let i = 0; i < pipeables.length; i++) effect = pipeables[i](effect, ...arguments);
 		return effect;
 	};
@@ -7827,7 +7827,7 @@ const fn$1 = function() {
 const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) => {
 	const body = typeof bodyOrOptions === "function" ? bodyOrOptions : pipeables.shift().bind(bodyOrOptions.self);
 	return defineFunctionLength(body.length, function(...args) {
-		let result = suspend$4(() => {
+		let result = suspend$3(() => {
 			const iter = body.apply(this, arguments);
 			return isEffect$1(iter) ? iter : fromIteratorUnsafe(iter);
 		});
@@ -7873,11 +7873,11 @@ const fromIteratorEagerUnsafe = (evaluate) => {
 			} else if (primitive && primitive._tag === "Failure") return state.value;
 			else {
 				let isFirstExecution = true;
-				return suspend$4(() => {
+				return suspend$3(() => {
 					if (isFirstExecution) {
 						isFirstExecution = false;
 						return flatMap$2(state.value, (value) => fromIteratorUnsafe(iterator, value));
-					} else return suspend$4(() => fromIteratorUnsafe(evaluate()));
+					} else return suspend$3(() => fromIteratorUnsafe(evaluate()));
 				});
 			}
 		}
@@ -8258,7 +8258,7 @@ const ScopeCloseableTypeId = "~effect/Scope/Closeable";
 /** @internal */
 const scopeTag = /*#__PURE__*/ Service$1("effect/Scope");
 /** @internal */
-const scopeClose = (self, exit_) => suspend$4(() => scopeCloseUnsafe(self, exit_) ?? void_$3);
+const scopeClose = (self, exit_) => suspend$3(() => scopeCloseUnsafe(self, exit_) ?? void_$3);
 /** @internal */
 const scopeCloseUnsafe = (self, exit_) => {
 	if (self.state._tag === "Closed") return;
@@ -8306,7 +8306,7 @@ const scopeForkUnsafe = (scope, finalizerStrategy) => {
 };
 /** @internal */
 const scopeAddFinalizerExit = (scope, finalizer) => {
-	return suspend$4(() => {
+	return suspend$3(() => {
 		if (scope.state._tag === "Closed") return finalizer(scope.state.exit);
 		scopeAddFinalizerUnsafe(scope, {}, finalizer);
 		return void_$3;
@@ -8370,9 +8370,9 @@ const scoped$1 = (self) => withFiber$1((fiber) => {
 	});
 });
 /** @internal */
-const scopedWith$1 = (f) => suspend$4(() => {
+const scopedWith$1 = (f) => suspend$3(() => {
 	const scope = scopeMakeUnsafe();
-	return onExit$2(f(scope), (exit) => suspend$4(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
+	return onExit$2(f(scope), (exit) => suspend$3(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
 });
 /** @internal */
 const onExitPrimitive = /*#__PURE__*/ function() {
@@ -8434,7 +8434,7 @@ const cached$1 = (self) => sync$1(() => {
 	let started = false;
 	let exit;
 	const wait = flatMap$2(latch.await, () => exit);
-	return suspend$4(() => {
+	return suspend$3(() => {
 		if (exit !== void 0) return exit;
 		if (started) return wait;
 		started = true;
@@ -8490,7 +8490,7 @@ const interruptibleMask$1 = (f) => withFiber$1((fiber) => {
 const all$2 = (arg, options) => {
 	if (isIterable(arg)) return options?.mode === "result" ? forEach$1(arg, result$2, options) : forEach$1(arg, identity, options);
 	else if (options?.discard) return options.mode === "result" ? forEach$1(Object.values(arg), result$2, options) : forEach$1(Object.values(arg), identity, options);
-	return suspend$4(() => {
+	return suspend$3(() => {
 		const out = {};
 		return as$1(forEach$1(Object.entries(arg), ([key, effect]) => map$5(options?.mode === "result" ? result$2(effect) : effect, (value) => {
 			assignProperty(out, key, value);
@@ -8520,7 +8520,7 @@ const whileLoop$1 = /*#__PURE__*/ makePrimitive({
 	}
 });
 /** @internal */
-const forEach$1 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (iterable, f, options) => suspend$4(() => {
+const forEach$1 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (iterable, f, options) => suspend$3(() => {
 	const concurrency = resolveConcurrency(options?.concurrency);
 	if (concurrency === 1) return forEachSequential(iterable, f, options);
 	const items = fromIterable$2(iterable);
@@ -8533,7 +8533,7 @@ const forEach$1 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (i
 	}, items, { concurrency });
 	return eff ? as$1(eff, out) : succeed$6(out);
 }));
-const forEachSequential = (iterable, f, options) => suspend$4(() => {
+const forEachSequential = (iterable, f, options) => suspend$3(() => {
 	const out = options?.discard ? void 0 : [];
 	const iterator = iterable[Symbol.iterator]();
 	let state = iterator.next();
@@ -8605,7 +8605,7 @@ const iterateConcurrentImpl = (options) => {
 						return cb(failDefect(error));
 					}
 					if (result) return cb(result);
-					return suspend$4(() => {
+					return suspend$3(() => {
 						terminal = exitVoid;
 						interrupted = true;
 						return fibers ? fiberInterruptAll(fibers) : void_$3;
@@ -8940,7 +8940,7 @@ const useSpan$1 = (name, ...args) => {
 		const span = makeSpanUnsafe(fiber, name, options);
 		const clock = fiber.getRef(ClockRef);
 		const timingEnabled = fiber.getRef(TracerTimingEnabled);
-		return onExit$2(suspend$4(() => internalCall(() => evaluate(span))), (exit) => endSpan(span, exit, clock, timingEnabled));
+		return onExit$2(suspend$3(() => internalCall(() => evaluate(span))), (exit) => endSpan(span, exit, clock, timingEnabled));
 	});
 };
 const provideParentSpan = /*#__PURE__*/ provideService$1(ParentSpan);
@@ -10091,7 +10091,7 @@ const memoMapBuild = (memoMap, layer, scope, build) => {
 	const entry = {
 		observers: 1,
 		effect: _await(deferred),
-		finalizer: (exit) => suspend$4(() => {
+		finalizer: (exit) => suspend$3(() => {
 			entry.observers--;
 			if (entry.observers === 0) {
 				memoMap.map.delete(layer);
@@ -10121,7 +10121,7 @@ var MemoMapImpl = class {
 		return this.parent?.get(layer, scope);
 	}
 	getOrElseMemoize(layer, scope, build) {
-		return suspend$4(() => {
+		return suspend$3(() => {
 			const existing = this.get(layer, scope);
 			if (existing) return existing;
 			return memoMapBuild(this, layer, scope, build);
@@ -12234,7 +12234,7 @@ const toStep = (schedule) => catchCause$2(schedule.step, (cause) => succeed$6(()
 */
 const toStepWithMetadata = (schedule) => clockWith((clock) => map$5(toStep(schedule), (step) => {
 	const metaFn = metadataFn();
-	return (input) => suspend$4(() => {
+	return (input) => suspend$3(() => {
 		const now = clock.currentTimeMillisUnsafe();
 		return flatMap$2(step(now, input), ([output, duration]) => {
 			const meta = metaFn(now, input);
@@ -12380,7 +12380,7 @@ const provide$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, sourc
 /** @internal */
 const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2(toStepWithMetadata(schedule), (step) => {
 	let meta = CurrentMetadata.defaultValue();
-	return catch_$3(forever$2(tap$1(flatMap$2(suspend$4(() => provideService$1(self, CurrentMetadata, meta)), step), (meta_) => sync$1(() => {
+	return catch_$3(forever$2(tap$1(flatMap$2(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), step), (meta_) => sync$1(() => {
 		meta = meta_;
 	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$6(error.value) : orElse(error, meta.attempt === 0 ? none() : some(meta)));
 }));
@@ -12388,7 +12388,7 @@ const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2
 const retryOrElse = /*#__PURE__*/ dual(3, (self, policy, orElse) => flatMap$2(toStepWithMetadata(policy), (step) => {
 	let meta = CurrentMetadata.defaultValue();
 	let lastError;
-	const loop = catch_$3(suspend$4(() => provideService$1(self, CurrentMetadata, meta)), (error) => {
+	const loop = catch_$3(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), (error) => {
 		lastError = error;
 		return flatMap$2(step(error), (meta_) => {
 			meta = meta_;
@@ -12887,7 +12887,7 @@ const succeedNone = succeedNone$1;
 * @category constructors
 * @since 2.0.0
 */
-const suspend$3 = suspend$4;
+const suspend$2 = suspend$3;
 /**
 * Creates an `Effect` that represents a synchronous side-effectful computation.
 *
@@ -17150,7 +17150,7 @@ const bounded = (capacity) => make$37({ capacity });
 * @category offering
 * @since 2.0.0
 */
-const offer = (self, message) => suspend$4(() => {
+const offer = (self, message) => suspend$3(() => {
 	if (self.state._tag !== "Open") return exitFalse;
 	else if (self.messages.length >= self.capacity) switch (self.strategy) {
 		case "dropping": return exitFalse;
@@ -17259,7 +17259,7 @@ const offerUnsafe = (self, message) => {
 * @category offering
 * @since 2.0.0
 */
-const offerAll = (self, messages) => suspend$4(() => {
+const offerAll = (self, messages) => suspend$3(() => {
 	if (self.state._tag !== "Open") return succeed$6(fromIterable$2(messages));
 	const remaining = offerAllUnsafe(self, messages);
 	if (remaining.length === 0) return exitSucceed([]);
@@ -17569,7 +17569,7 @@ const takeAll = (self) => takeBetween(self, 1, Number.POSITIVE_INFINITY);
 const takeBetween = (self, min, max) => {
 	min = normalize$2(min);
 	max = normalize$2(max);
-	return suspend$4(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self), takeBetween(self, 1, max)));
+	return suspend$3(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self), takeBetween(self, 1, max)));
 };
 /**
 * Takes a single message from the queue, or wait for a message to be
@@ -17610,7 +17610,7 @@ const takeBetween = (self, min, max) => {
 * @category taking
 * @since 2.0.0
 */
-const take = (self) => suspend$4(() => takeUnsafe(self) ?? andThen$1(awaitTake(self), take(self)));
+const take = (self) => suspend$3(() => takeUnsafe(self) ?? andThen$1(awaitTake(self), take(self)));
 /**
 * Attempts to take one message from the queue synchronously.
 *
@@ -17905,7 +17905,7 @@ var SemaphoreImpl = class {
 		return this.permits - this.taken;
 	}
 	take(n) {
-		const take = suspend$4(() => {
+		const take = suspend$3(() => {
 			if (this.free < n) return waitForPermits(this, n, take);
 			this.taken += n;
 			return succeed$6(n);
@@ -17913,7 +17913,7 @@ var SemaphoreImpl = class {
 		return take;
 	}
 	takeIfAvailable(n) {
-		return suspend$4(() => {
+		return suspend$3(() => {
 			if (this.free < n) return succeed$6(false);
 			this.taken += n;
 			return succeed$6(true);
@@ -17945,7 +17945,7 @@ var SemaphoreImpl = class {
 	}
 	withPermits(n) {
 		return (self) => uninterruptibleMask$1((restore) => {
-			const acquire = suspend$4(() => {
+			const acquire = suspend$3(() => {
 				if (this.free < n) {
 					const wait = waitForPermits(this, n, void_$3);
 					return flatMap$2(restore(wait), () => acquire);
@@ -18178,7 +18178,7 @@ const toTransform = (channel) => channel.transform;
 * @category constructors
 * @since 2.0.0
 */
-const suspend$2 = (evaluate) => fromTransform$1((upstream, scope) => suspend$3(() => toTransform(evaluate())(upstream, scope)));
+const suspend$1 = (evaluate) => fromTransform$1((upstream, scope) => suspend$2(() => toTransform(evaluate())(upstream, scope)));
 /**
 * Creates a `Channel` that emits a single value and then ends.
 *
@@ -18252,7 +18252,7 @@ const failCause = (cause) => fromPull(failCause$2(cause));
 */
 const fromEffect$1 = (effect) => fromPull(sync(() => {
 	let done$18 = false;
-	return suspend$3(() => {
+	return suspend$2(() => {
 		if (done$18) return done();
 		done$18 = true;
 		return effect;
@@ -18313,7 +18313,7 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
 	const exit = options.exit ?? make$39(void 0);
-	const pull = suspend$3(() => {
+	const pull = suspend$2(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
 			try: () => reader.read(),
@@ -18499,7 +18499,7 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 const flattenArray = (self) => transformPull$1(self, (pull) => {
 	let array;
 	let index = 0;
-	const pump = suspend$3(function loop() {
+	const pump = suspend$2(function loop() {
 		if (array === void 0) return flatMap(pull, (array_) => {
 			switch (array_.length) {
 				case 0: return loop();
@@ -18566,7 +18566,7 @@ const catchCause = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream,
 				return childPull;
 			}));
 		}));
-		return suspend$3(() => currentPull);
+		return suspend$2(() => currentPull);
 	});
 }));
 /**
@@ -18654,7 +18654,7 @@ const pipeTo = /*#__PURE__*/ dual(2, (self, that) => fromTransform$1((upstream, 
 */
 const unwrap$1 = (channel) => fromTransform$1((upstream, scope) => {
 	let pull;
-	return succeed$3(suspend$3(() => {
+	return succeed$3(suspend$2(() => {
 		if (pull) return pull;
 		return channel.pipe(provide$3(scope), flatMap((channel) => toTransform(channel)(upstream, scope)), flatMap((pull_) => pull = pull_));
 	}));
@@ -18730,7 +18730,7 @@ const onEnd$1 = /*#__PURE__*/ dual(2, (self, onEnd) => transformPull$1(self, (pu
 * @since 2.0.0
 */
 const ensuring$1 = /*#__PURE__*/ dual(2, (self, finalizer) => onExit(self, (_) => finalizer));
-const runWith = (self, f, onHalt) => suspend$3(() => {
+const runWith = (self, f, onHalt) => suspend$2(() => {
 	const scope = makeUnsafe$5();
 	const makePull = toTransform(self)(done(), scope);
 	return catchDone(flatMap(makePull, f), onHalt ? onHalt : succeed$3).pipe(onExit$1((exit) => close(scope, exit)));
@@ -19411,7 +19411,7 @@ const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) =
 			context.set(key, value);
 		});
 		context.set(Scope.key, entry.scope);
-		suspend$3(() => self.lookup(key)).pipe(runForkWith(makeUnsafe$7(context)), runIn(entry.scope)).addObserver((exit) => doneUnsafe(entry.deferred, exit));
+		suspend$2(() => self.lookup(key)).pipe(runForkWith(makeUnsafe$7(context)), runIn(entry.scope)).addObserver((exit) => doneUnsafe(entry.deferred, exit));
 	}
 	const scope = getUnsafe(parent.context, Scope);
 	return addFinalizer(scope, entry.finalizer).pipe(andThen(restore(_await(entry.deferred))));
@@ -19593,7 +19593,7 @@ const succeed$1 = (value) => fromChannel(succeed$2(of(value)));
 * @category constructors
 * @since 2.0.0
 */
-const suspend$1 = (stream) => fromChannel(suspend$2(() => stream().channel));
+const suspend = (stream) => fromChannel(suspend$1(() => stream().channel));
 /**
 * Terminates with the specified error.
 *
@@ -19720,7 +19720,7 @@ const unwrap = (effect) => fromChannel(unwrap$1(map$3(effect, toChannel)));
 * @category mapping
 * @since 2.0.0
 */
-const map$1 = /*#__PURE__*/ dual(2, (self, f) => suspend$1(() => {
+const map$1 = /*#__PURE__*/ dual(2, (self, f) => suspend(() => {
 	let i = 0;
 	return fromChannel(map$2(self.channel, map$6((o) => f(o, i++))));
 }));
@@ -19826,7 +19826,7 @@ const pipeThroughChannel = /*#__PURE__*/ dual(2, (self, channel) => fromChannel(
 * @category decoding
 * @since 2.0.0
 */
-const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => suspend$1(() => {
+const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => suspend(() => {
 	const decoder = new TextDecoder(options?.encoding);
 	return map$1(self, (chunk) => decoder.decode(chunk, { stream: true }));
 }));
@@ -23713,35 +23713,6 @@ function formatIsOptional(isOptional) {
 	return isOptional ? "?" : "";
 }
 /**
-* Constructs a {@link Suspend}.
-*
-* @category constructors
-* @since 4.0.0
-*/
-const Suspend = class extends ASTNodeImpl {
-	_tag = "Suspend";
-	thunk;
-	constructor(thunk, annotations, checks, encoding, context) {
-		if (checks) throw new Error("Cannot add checks to Suspend");
-		super(annotations, void 0, encoding, context);
-		let ast;
-		this.thunk = () => ast ??= thunk();
-	}
-	/** @internal */
-	getParser(compile) {
-		let parser;
-		return (input, options) => (parser ??= compile(this.thunk()))(input, options);
-	}
-	/** @internal */
-	recur(recur) {
-		return new Suspend(() => recur(this.thunk()), this.annotations, void 0, void 0, this.context);
-	}
-	/** @internal */
-	getExpected(getExpected) {
-		return getExpected(this.thunk());
-	}
-};
-/**
 * Constructs a {@link Filter}.
 *
 * @category constructors
@@ -24601,7 +24572,7 @@ const readableToPullUnsafe = (options) => {
 	readable.on("readable", onReadable);
 	readable.once("error", onError);
 	readable.once("end", onEnd);
-	const pull = suspend$3(function loop() {
+	const pull = suspend$2(function loop() {
 		let item = options.readable.read(options.chunkSize);
 		if (item === null) {
 			if (exit.current) return exit.current;
@@ -27996,34 +27967,6 @@ const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 * @since 3.10.0
 */
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
-/**
-* Creates a suspended schema that defers evaluation until needed. This is
-* essential for creating recursive schemas where a schema references itself,
-* preventing infinite recursion during schema definition.
-*
-* **Example** (Defining recursive tree schemas)
-*
-* ```ts import.meta.vitest
-* import { Schema } from "effect"
-*
-* interface Tree {
-*   readonly value: number
-*   readonly children: ReadonlyArray<Tree>
-* }
-*
-* const Tree = Schema.Struct({
-*   value: Schema.Number,
-*   children: Schema.Array(Schema.suspend((): Schema.Codec<Tree> => Tree))
-* })
-* Schema.decodeSync(Tree)({ value: 1, children: [] }) // => { value: 1, children: [] }
-* ```
-*
-* @category constructors
-* @since 3.10.0
-*/
-function suspend(f) {
-	return make$26(new Suspend(() => f().ast));
-}
 function decodeTo(to, transformation) {
 	return (from) => {
 		return make$26(decodeTo$1(from.ast, to.ast, transformation ? make$32(transformation) : passthrough()), {
@@ -30632,7 +30575,7 @@ var InterruptibleResponse = class {
 	[TypeId$16] = TypeId$16;
 	[TypeId$17] = TypeId$17;
 	applyInterrupt(effect) {
-		return suspend$3(() => {
+		return suspend$2(() => {
 			responseRegistry.unregister(this.original);
 			return onInterrupt(effect, () => sync(() => {
 				this.controller.abort();
@@ -30673,7 +30616,7 @@ var InterruptibleResponse = class {
 		return this.applyInterrupt(this.original.arrayBuffer);
 	}
 	get stream() {
-		return suspend$1(() => {
+		return suspend(() => {
 			responseRegistry.unregister(this.original);
 			return ensuring(this.original.stream, sync(() => {
 				this.controller.abort();
@@ -32392,7 +32335,7 @@ const jsonRpcInternalError = -32603;
 * @category services
 * @since 4.0.0
 */
-const withRun = () => (f) => suspend$3(() => {
+const withRun = () => (f) => suspend$2(() => {
 	const semaphore = makeUnsafe$2(1);
 	let buffer = [];
 	let write = (...args) => contextWith((context) => {
@@ -32405,7 +32348,7 @@ const withRun = () => (f) => suspend$3(() => {
 			return semaphore.withPermits(1)(gen(function* () {
 				const prev = write;
 				write = f;
-				for (const [args, context] of buffer) yield* provideContext$2(suspend$3(() => f(...args)), context);
+				for (const [args, context] of buffer) yield* provideContext$2(suspend$2(() => f(...args)), context);
 				buffer = [];
 				return yield* onExit$1(never$1, () => {
 					write = prev;
@@ -32423,7 +32366,7 @@ const withRun = () => (f) => suspend$3(() => {
 * @category services
 * @since 4.0.0
 */
-const withRunClient = (f) => suspend$3(() => {
+const withRunClient = (f) => suspend$2(() => {
 	const clientIds = /* @__PURE__ */ new Set();
 	const clientBuffers = /* @__PURE__ */ new Map();
 	const clientWrites = /* @__PURE__ */ new Map();
@@ -32449,7 +32392,7 @@ const withRunClient = (f) => suspend$3(() => {
 				const buffer = clientBuffers.get(clientId);
 				if (buffer) {
 					clientBuffers.delete(clientId);
-					for (const [args, context] of buffer) yield* provideContext$2(suspend$3(() => f(args)), context);
+					for (const [args, context] of buffer) yield* provideContext$2(suspend$2(() => f(args)), context);
 				}
 				return yield* onExit$1(never$1, () => {
 					clientIds.delete(clientId);
@@ -33128,7 +33071,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			return andThen(write, latch.await);
 		});
 	};
-	const sendDefect = (client, defect) => suspend$3(() => {
+	const sendDefect = (client, defect) => suspend$2(() => {
 		const shouldEnd = client.ended && client.fibers.size === 0;
 		const write = options.onFromServer({
 			_tag: "Defect",
@@ -36084,7 +36027,7 @@ const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
 		}
 		return void_$1;
 	});
-	return suspend$3(function loop() {
+	return suspend$2(function loop() {
 		if (isArrayNonEmpty(buffer)) {
 			const out = buffer;
 			buffer = [];
@@ -36561,7 +36504,7 @@ function makeSseDecoder(declaration) {
 function decodeSseStream(stream, declaration, decoder) {
 	const events = transformPull(stream.pipe(decodeText$1, pipeThroughChannel(decoder)), (pull) => sync(() => {
 		let pendingFailureCause = void 0;
-		return suspend$3(() => {
+		return suspend$2(() => {
 			if (pendingFailureCause !== void 0) return failCause$2(pendingFailureCause);
 			return flatMap(pull, (events) => {
 				for (let i = 0; i < events.length; i++) {
@@ -36749,248 +36692,165 @@ const make$6 = (identifier, options) => makeProto$1({
 });
 //#endregion
 //#region ../../packages/core/src/generated/TipeeApi.ts
-const ListProjectsQueryFilter = suspend(() => __recursive_ListProjectsQueryFilter);
-const ListProjectHourlyBudgetStatsQueryFilter = suspend(() => __recursive_ListProjectHourlyBudgetStatsQueryFilter);
-const ListProjectTasksQueryFilter = suspend(() => __recursive_ListProjectTasksQueryFilter);
-const ListActivitiesQueryFilter = suspend(() => __recursive_ListActivitiesQueryFilter);
-const ListDetailedActivitiesQueryFilter = suspend(() => __recursive_ListDetailedActivitiesQueryFilter);
-const ShowActivitiesTotalsQueryFilter = suspend(() => __recursive_ShowActivitiesTotalsQueryFilter);
-const ListResourcesQueryFilter = suspend(() => __recursive_ListResourcesQueryFilter);
-const ListTagsQueryFilter = suspend(() => __recursive_ListTagsQueryFilter);
-const ListTimechecksQueryFilter = suspend(() => __recursive_ListTimechecksQueryFilter);
-const CreateProjectCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+const CreateProjectCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
 	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })),
 	"external_id": optionalKey(Union([String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateProjectCommand" });
+}).annotate({ "identifier": "CreateProjectCommand" });
 const Snowflake = String$2.annotate({
-	"examples": ["872815618512410358"],
 	"format": "snowflake",
 	"identifier": "Snowflake"
 });
-const DeleteProjectCommand = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteProjectCommand" });
-const UpdateProjectCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+const DeleteProjectCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteProjectCommand" });
+const UpdateProjectCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"name": optionalKey(String$2),
 	"description": optionalKey(Union([String$2, Null])),
 	"external_id": optionalKey(Union([String$2, Null])),
-	"resource_id": optionalKey(Union([String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}), Null], { mode: "oneOf" })),
-	"date_range": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}), Null], { mode: "oneOf" })),
+	"resource_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
+	"date_range": optionalKey(Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" })),
 	"hourly_budget_mode": optionalKey(Literals([
 		"none",
 		"project",
 		"task"
-	]).annotate({ "examples": ["none"] })),
+	])),
 	"hourly_budget": optionalKey(String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateProjectCommand" });
-const AssignProjectResourceCommand = StructWithRest(Struct({
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+}).annotate({ "identifier": "UpdateProjectCommand" });
+const AssignProjectResourceCommand = Struct({
+	"project_id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"access_rights": ArraySchema(Literals([
 		"manage-project",
 		"validate-hours",
 		"contribute-hours",
 		"consult-hours"
-	]).annotate({ "examples": ["manage-project"] }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AssignProjectResourceCommand" });
-const AssignProjectTeamCommand = StructWithRest(Struct({
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	]))
+}).annotate({ "identifier": "AssignProjectResourceCommand" });
+const AssignProjectTeamCommand = Struct({
+	"project_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
 	"access_rights": ArraySchema(Literals([
 		"manage-project",
 		"validate-hours",
 		"contribute-hours",
 		"consult-hours"
-	]).annotate({ "examples": ["manage-project"] }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AssignProjectTeamCommand" });
-const GrantProjectTeamCommand = StructWithRest(Struct({
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	]))
+}).annotate({ "identifier": "AssignProjectTeamCommand" });
+const GrantProjectTeamCommand = Struct({
+	"project_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
 	"access_rights": ArraySchema(Literals([
 		"manage-project",
 		"validate-hours",
 		"contribute-hours",
 		"consult-hours"
-	]).annotate({ "examples": ["manage-project"] }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "GrantProjectTeamCommand" });
-const DeleteProjectMemberCommand = StructWithRest(Struct({
-	"member_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteProjectMemberCommand" });
-const UpdateProjectStatusCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	]))
+}).annotate({ "identifier": "GrantProjectTeamCommand" });
+const DeleteProjectMemberCommand = Struct({
+	"member_id": String$2.annotate({ "format": "snowflake" }),
+	"project_id": String$2.annotate({ "format": "snowflake" })
+}).annotate({ "identifier": "DeleteProjectMemberCommand" });
+const UpdateProjectStatusCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"status": Literals([
 		"draft",
 		"active",
 		"locked",
 		"archived"
-	]).annotate({ "examples": ["draft"] })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateProjectStatusCommand" });
-const GrantProjectResourceCommand = StructWithRest(Struct({
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	])
+}).annotate({ "identifier": "UpdateProjectStatusCommand" });
+const GrantProjectResourceCommand = Struct({
+	"project_id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"access_rights": ArraySchema(Literals([
 		"manage-project",
 		"validate-hours",
 		"contribute-hours",
 		"consult-hours"
-	]).annotate({ "examples": ["manage-project"] }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "GrantProjectResourceCommand" });
-const ListProjectsQuery = StructWithRest(Struct({
+	]))
+}).annotate({ "identifier": "GrantProjectResourceCommand" });
+const ListProjectsQuery = Struct({
 	"with_task_ids": optionalKey(Boolean.annotate({ "default": true })),
 	"filters": optionalKey(ArraySchema(Union([
-		StructWithRest(Struct({
-			"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-			"value": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.external_id").annotate({ "examples": ["project.external_id"] }),
+		Struct({
+			"key": Literal("project.ids"),
+			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		}),
+		Struct({
+			"key": Literal("project.external_id"),
 			"value": ArraySchema(String$2)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.search").annotate({ "examples": ["project.search"] }),
+		}),
+		Struct({
+			"key": Literal("project.search"),
 			"value": String$2
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.status").annotate({ "examples": ["project.status"] }),
+		}),
+		Struct({
+			"key": Literal("project.status"),
 			"value": ArraySchema(Literals([
 				"draft",
 				"active",
 				"locked",
 				"archived"
-			]).annotate({ "examples": ["draft"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.access_rights").annotate({ "examples": ["project.access_rights"] }),
-			"value": StructWithRest(Struct({
-				"resource_id": String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}),
+			]))
+		}),
+		Struct({
+			"key": Literal("project.access_rights"),
+			"value": Struct({
+				"resource_id": String$2.annotate({ "format": "snowflake" }),
 				"rights": ArraySchema(Literals([
 					"manage-project",
 					"validate-hours",
 					"contribute-hours",
 					"consult-hours"
-				]).annotate({ "examples": ["manage-project"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.date_range").annotate({ "examples": ["project.date_range"] }),
-			"value": String$2.annotate({
-				"examples": ["2019-11-11/2019-12-12"],
-				"format": "local-date-interval"
+				]))
 			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.created_at").annotate({ "examples": ["project.created_at"] }),
-			"value": String$2.annotate({
-				"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-				"format": "local-date-time-interval"
-			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.with_activities").annotate({ "examples": ["project.with_activities"] }),
-			"value": String$2.annotate({
-				"examples": ["2019-11-11/2019-12-12"],
-				"format": "local-date-interval"
-			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-			"value": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("or").annotate({ "examples": ["or"] }),
-			"value": ArraySchema(ListProjectsQueryFilter)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("and").annotate({ "examples": ["and"] }),
-			"value": ArraySchema(ListProjectsQueryFilter)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
+		}),
+		Struct({
+			"key": Literal("project.date_range"),
+			"value": String$2.annotate({ "format": "local-date-interval" })
+		}),
+		Struct({
+			"key": Literal("project.created_at"),
+			"value": String$2.annotate({ "format": "local-date-time-interval" })
+		}),
+		Struct({
+			"key": Literal("project.with_activities"),
+			"value": String$2.annotate({ "format": "local-date-interval" })
+		}),
+		Struct({
+			"key": Literal("project.resource_ids"),
+			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		}),
+		Struct({
+			"key": Literal("or"),
+			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+		}),
+		Struct({
+			"key": Literal("and"),
+			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+		})
 	], { mode: "oneOf" }))),
 	"orders": optionalKey(ArraySchema(Union([
-		StructWithRest(Struct({
-			"key": Literal("project.name").annotate({ "examples": ["project.name"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.date_range").annotate({ "examples": ["project.date_range"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("project.client_name").annotate({ "examples": ["project.client_name"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
+		Struct({
+			"key": Literal("project.name"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("project.date_range"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("project.client_name"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		})
 	], { mode: "oneOf" })))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListProjectsQuery" });
+}).annotate({ "identifier": "ListProjectsQuery" });
 const ProjectListView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": Union([String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}), Null], { mode: "oneOf" }),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
 	"name": String$2,
 	"description": Union([String$2, Null]),
 	"external_id": Union([String$2, Null]),
@@ -36999,43 +36859,24 @@ const ProjectListView = StructWithRest(Struct({
 		"active",
 		"locked",
 		"archived"
-	]).annotate({ "examples": ["draft"] }),
-	"date_range": Union([String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}), Null], { mode: "oneOf" }),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+	]),
+	"date_range": Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"hourly_budget": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"hourly_budget_mode": Literals([
 		"none",
 		"project",
 		"task"
-	]).annotate({ "examples": ["none"] }),
-	"created_at": String$2.annotate({
-		"examples": ["2025-10-30T10:40:22.01367Z"],
-		"format": "zoned-date-time"
-	})
+	]),
+	"created_at": String$2.annotate({ "format": "zoned-date-time" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectListView" });
-const ShowProjectQuery = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ShowProjectQuery" });
+const ShowProjectQuery = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "ShowProjectQuery" });
 const ProjectView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": Union([String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}), Null], { mode: "oneOf" }),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
 	"name": String$2,
 	"description": Union([String$2, Null]),
 	"external_id": Union([String$2, Null]),
@@ -37044,583 +36885,410 @@ const ProjectView = StructWithRest(Struct({
 		"active",
 		"locked",
 		"archived"
-	]).annotate({ "examples": ["draft"] }),
-	"date_range": Union([String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}), Null], { mode: "oneOf" }),
+	]),
+	"date_range": Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }),
 	"members": StructWithRest(Struct({
 		"resources": ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
 			"access_rights": ArraySchema(Literals([
 				"manage-project",
 				"validate-hours",
 				"contribute-hours",
 				"consult-hours"
-			]).annotate({ "examples": ["manage-project"] }))
+			]))
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 		"teams": ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
 			"access_rights": ArraySchema(Literals([
 				"manage-project",
 				"validate-hours",
 				"contribute-hours",
 				"consult-hours"
-			]).annotate({ "examples": ["manage-project"] }))
+			]))
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"hourly_budget": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"hourly_budget_mode": Literals([
 		"none",
 		"project",
 		"task"
-	]).annotate({ "examples": ["none"] }),
-	"created_at": String$2.annotate({
-		"examples": ["2025-10-30T10:40:22.01367Z"],
-		"format": "zoned-date-time"
-	})
+	]),
+	"created_at": String$2.annotate({ "format": "zoned-date-time" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectView" });
-const ListProjectHourlyBudgetStatsQuery = StructWithRest(Struct({ "filters": optionalKey(ArraySchema(Union([
-	StructWithRest(Struct({
-		"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(ListProjectHourlyBudgetStatsQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(ListProjectHourlyBudgetStatsQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListProjectHourlyBudgetStatsQuery" });
-const ProjectHourlyBudgetStatsView = StructWithRest(Struct({
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
+const ListProjectHourlyBudgetStatsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	Struct({
+		"key": Literal("project.ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
 	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }))) }).annotate({ "identifier": "ListProjectHourlyBudgetStatsQuery" });
+const ProjectHourlyBudgetStatsView = StructWithRest(Struct({
+	"project_id": String$2.annotate({ "format": "snowflake" }),
 	"hourly_budget_mode": Literals([
 		"none",
 		"project",
 		"task"
-	]).annotate({ "examples": ["none"] }),
+	]),
 	"hourly_budget": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"total_effective_hours": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"total_budget_hours": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"hours_by_tasks": ArraySchema(StructWithRest(Struct({
-		"task_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"task_id": String$2.annotate({ "format": "snowflake" }),
 		"effective_hours": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
 		"budget_hours": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		})
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectHourlyBudgetStatsView" });
-const DeleteProjectTaskCommand = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteProjectTaskCommand" });
-const CreateProjectTaskCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+const DeleteProjectTaskCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteProjectTaskCommand" });
+const CreateProjectTaskCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"project_id": String$2.annotate({ "format": "snowflake" }),
 	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })),
 	"color": String$2,
 	"billable": Boolean,
 	"remark_required": optionalKey(Boolean.annotate({ "default": false })),
 	"hourly_budget": optionalKey(Union([String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}), Null], { mode: "oneOf" })),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})).annotate({ "default": [] })),
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})).annotate({ "default": [] }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateProjectTaskCommand" });
-const UpdateProjectTaskCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "default": [] })),
+	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "default": [] }))
+}).annotate({ "identifier": "CreateProjectTaskCommand" });
+const UpdateProjectTaskCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"name": optionalKey(String$2),
 	"color": optionalKey(String$2),
 	"billable": optionalKey(Boolean),
 	"remark_required": optionalKey(Boolean),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
+	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
 	"hourly_budget": optionalKey(String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateProjectTaskCommand" });
-const ListProjectTasksQuery = StructWithRest(Struct({ "filters": optionalKey(ArraySchema(Union([
-	StructWithRest(Struct({
-		"key": Literal("task.projects_ids").annotate({ "examples": ["task.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.ids").annotate({ "examples": ["task.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.assigned").annotate({ "examples": ["task.assigned"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.project_status").annotate({ "examples": ["task.project_status"] }),
+}).annotate({ "identifier": "UpdateProjectTaskCommand" });
+const ListProjectTasksQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	Struct({
+		"key": Literal("task.projects_ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("task.ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("task.assigned"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("task.project_status"),
 		"value": ArraySchema(Literals([
 			"draft",
 			"active",
 			"locked",
 			"archived"
-		]).annotate({ "examples": ["draft"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.projects_date_range").annotate({ "examples": ["task.projects_date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
+		]))
+	}),
+	Struct({
+		"key": Literal("task.projects_date_range"),
+		"value": String$2.annotate({ "format": "local-date-interval" })
+	}),
+	Struct({
+		"key": Literal("task.effective"),
+		"value": Struct({
+			"resource_id": String$2.annotate({ "format": "snowflake" }),
+			"date_range": String$2.annotate({ "format": "local-date-interval" })
 		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.effective").annotate({ "examples": ["task.effective"] }),
-		"value": StructWithRest(Struct({
-			"resource_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"date_range": String$2.annotate({
-				"examples": ["2019-11-11/2019-12-12"],
-				"format": "local-date-interval"
-			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.billable").annotate({ "examples": ["task.billable"] }),
+	}),
+	Struct({
+		"key": Literal("task.billable"),
 		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.search").annotate({ "examples": ["task.search"] }),
+	}),
+	Struct({
+		"key": Literal("task.search"),
 		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.tags").annotate({ "examples": ["task.tags"] }),
-		"value": StructWithRest(Struct({
-			"tags": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			})),
-			"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(ListProjectTasksQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(ListProjectTasksQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListProjectTasksQuery" });
+	}),
+	Struct({
+		"key": Literal("task.tags"),
+		"value": Struct({
+			"tags": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+			"operator": Literals(["or", "and"])
+		})
+	}),
+	Struct({
+		"key": Literal("project.resource_ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }))) }).annotate({ "identifier": "ListProjectTasksQuery" });
 const TaskView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"project_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"tag_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"project_id": String$2.annotate({ "format": "snowflake" }),
+	"tag_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"name": String$2,
 	"color": String$2,
 	"billable": Boolean,
 	"remark_required": Boolean,
 	"hourly_budget": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TaskView" });
-const CreateActivityCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"task_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+const CreateActivityCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"task_id": String$2.annotate({ "format": "snowflake" }),
 	"billable": Boolean,
-	"type": Literals(["duration", "range"]).annotate({
-		"examples": ["duration"],
-		"description": "Activity type. Determines which fields are required: `duration` needs `date` + `duration`, `range` needs `start` (+ optionally `end`)."
-	}),
+	"type": Literals(["duration", "range"]).annotate({ "description": "Activity type. Determines which fields are required: `duration` needs `date` + `duration`, `range` needs `start` (+ optionally `end`)." }),
 	"date": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11"],
 		"format": "local-date",
 		"description": "Required when type is `duration`."
 	})),
 	"duration": optionalKey(Union([String$2.annotate({
 		"description": "Required when type is `duration`. Must be ≤ 24h.",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(65535).annotate({ "expected": "a value with a length of at most 65535" })), Null])),
 	"start": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
 		"format": "local-date-time",
 		"description": "Required when type is `range`."
 	})),
 	"end": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
 		"format": "local-date-time",
 		"description": "Required when type is `range`, but can be omitted for open (running) activity."
 	}), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateActivityCommand" });
-const UpdateActivityCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"type": Literals(["duration", "range"]).annotate({
-		"examples": ["duration"],
-		"description": "Activity type. Determines validation rules for other fields."
-	}),
-	"task_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "CreateActivityCommand" });
+const UpdateActivityCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"type": Literals(["duration", "range"]).annotate({ "description": "Activity type. Determines validation rules for other fields." }),
+	"task_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
 	"billable": optionalKey(Boolean),
-	"date": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
-	}), Null], { mode: "oneOf" })),
+	"date": optionalKey(Union([String$2.annotate({ "format": "local-date" }), Null], { mode: "oneOf" })),
 	"duration": optionalKey(Union([String$2.annotate({
 		"description": "Can be provided only for `duration` activity type and must be ≤ 24h.",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." })),
 	"remark": optionalKey(Union([String$2, Null])),
 	"start": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
 		"format": "local-date-time",
 		"description": "Can be provided only for `range`."
 	})),
 	"end": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
 		"format": "local-date-time",
 		"description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open."
 	}), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateActivityCommand" });
-const DeleteActivityCommand = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteActivityCommand" });
-const ListActivitiesQuery = StructWithRest(Struct({ "filters": optionalKey(ArraySchema(Union([
-	StructWithRest(Struct({
-		"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.open_activities").annotate({ "examples": ["activity.open_activities"] }),
+}).annotate({ "identifier": "UpdateActivityCommand" });
+const DeleteActivityCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteActivityCommand" });
+const ListActivitiesQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	Struct({
+		"key": Literal("activity.date_range"),
+		"value": String$2.annotate({ "format": "local-date-interval" })
+	}),
+	Struct({
+		"key": Literal("activity.projects_ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("activity.resources"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("activity.tasks_ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("activity.open_activities"),
 		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(ListActivitiesQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(ListActivitiesQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListActivitiesQuery" });
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }))) }).annotate({ "identifier": "ListActivitiesQuery" });
 const ActivityView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"task_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"task_id": String$2.annotate({ "format": "snowflake" }),
 	"billable": Boolean,
-	"type": Literals(["duration", "range"]).annotate({ "examples": ["duration"] }),
-	"date": String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
-	}),
+	"type": Literals(["duration", "range"]),
+	"date": String$2.annotate({ "format": "local-date" }),
 	"duration": Union([String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}), Null], { mode: "oneOf" }),
 	"remark": Union([String$2, Null]),
-	"time_range": Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-		"format": "local-date-time-interval"
-	}), Null], { mode: "oneOf" }),
+	"time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" }),
 	"project_status": Literals([
 		"draft",
 		"active",
 		"locked",
 		"archived"
-	]).annotate({ "examples": ["draft"] }),
+	]),
 	"state": StructWithRest(Struct({
 		"status": Literals([
 			"editing",
 			"submitted",
 			"validated",
 			"rejected"
-		]).annotate({ "examples": ["editing"] }),
+		]),
 		"editable": Boolean.annotate({ "title": "True only if every DayTask covered by the activity is editable." })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityView" });
-const ListDetailedActivitiesQuery = StructWithRest(Struct({
+const ListDetailedActivitiesQuery = Struct({
 	"filters": optionalKey(ArraySchema(Union([
-		StructWithRest(Struct({
-			"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-			"value": String$2.annotate({
-				"examples": ["2019-11-11/2019-12-12"],
-				"format": "local-date-interval"
+		Struct({
+			"key": Literal("activity.date_range"),
+			"value": String$2.annotate({ "format": "local-date-interval" })
+		}),
+		Struct({
+			"key": Literal("activity.tags_ids"),
+			"value": Struct({
+				"tags": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
+				"operator": Literals(["or", "and"])
 			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-			"value": StructWithRest(Struct({
-				"tags": ArraySchema(Union([String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}), Null], { mode: "oneOf" })),
-				"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-			"value": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
+		}),
+		Struct({
+			"key": Literal("activity.projects_ids"),
+			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		}),
+		Struct({
+			"key": Literal("activity.project_name"),
 			"value": String$2
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-			"value": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
+		}),
+		Struct({
+			"key": Literal("activity.tasks_ids"),
+			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		}),
+		Struct({
+			"key": Literal("activity.task_name"),
 			"value": String$2
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
+		}),
+		Struct({
+			"key": Literal("activity.billable"),
 			"value": Boolean
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-			"value": ArraySchema(Union([String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}), Null], { mode: "oneOf" }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
+		}),
+		Struct({
+			"key": Literal("activity.projects_resources"),
+			"value": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }))
+		}),
+		Struct({
+			"key": Literal("activity.day_task_status"),
 			"value": ArraySchema(Literals([
 				"editing",
 				"submitted",
 				"validated",
 				"rejected"
-			]).annotate({ "examples": ["editing"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-			"value": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
+			]))
+		}),
+		Struct({
+			"key": Literal("activity.resources"),
+			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		}),
+		Struct({
+			"key": Literal("activity.has_remark"),
 			"value": Boolean
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
+		}),
+		Struct({
+			"key": Literal("activity.has_budget"),
 			"value": Boolean
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("or").annotate({ "examples": ["or"] }),
-			"value": ArraySchema(ListDetailedActivitiesQueryFilter)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("and").annotate({ "examples": ["and"] }),
-			"value": ArraySchema(ListDetailedActivitiesQueryFilter)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
+		}),
+		Struct({
+			"key": Literal("or"),
+			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+		}),
+		Struct({
+			"key": Literal("and"),
+			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+		})
 	], { mode: "oneOf" }))),
 	"orders": optionalKey(ArraySchema(Union([
-		StructWithRest(Struct({
-			"key": Literal("activity.id").annotate({ "examples": ["activity.id"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.date").annotate({ "examples": ["activity.date"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.duration").annotate({ "examples": ["activity.duration"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.time_range").annotate({ "examples": ["activity.time_range"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.remark").annotate({ "examples": ["activity.remark"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-			"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
+		Struct({
+			"key": Literal("activity.id"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.date"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.billable"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.duration"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.time_range"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.remark"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.day_task_status"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.project_name"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.task_name"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.projects_resources"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		}),
+		Struct({
+			"key": Literal("activity.resources"),
+			"direction": optionalKey(Literals(["asc", "desc"]))
+		})
 	], { mode: "oneOf" }))),
-	"pagination": optionalKey(StructWithRest(Struct({
+	"pagination": optionalKey(Struct({
 		"limit": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
 		"next_token": Union([String$2, Null])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"select": StructWithRest(Struct({ "fields": optionalKey(ArraySchema(Literals([
+	})),
+	"select": Struct({ "fields": optionalKey(ArraySchema(Literals([
 		"activity.date",
 		"activity.billable",
 		"activity.duration",
@@ -37633,39 +37301,24 @@ const ListDetailedActivitiesQuery = StructWithRest(Struct({
 		"activity.tags_ids",
 		"activity.projects_resources",
 		"activity.day_task_status"
-	]).annotate({ "examples": ["activity.date"] }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListDetailedActivitiesQuery" });
+	]))) })
+}).annotate({ "identifier": "ListDetailedActivitiesQuery" });
 const ActivityDetailedView = StructWithRest(Struct({
 	"next_token": Union([String$2, Null]),
 	"data": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
 		"project_name": String$2,
 		"task": StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"project_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
+			"project_id": String$2.annotate({ "format": "snowflake" }),
 			"name": String$2,
 			"color": String$2,
 			"billable": Boolean,
 			"remark_required": Boolean
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		"company": Union([StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"kind_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
+			"kind_id": String$2.annotate({ "format": "snowflake" }),
 			"label": String$2,
 			"short_label": String$2,
 			"sort_label": String$2,
@@ -37673,40 +37326,27 @@ const ActivityDetailedView = StructWithRest(Struct({
 				"m",
 				"f",
 				"n"
-			]).annotate({ "examples": ["m"] }),
+			]),
 			"picture": StructWithRest(Struct({
 				"shape": Literals([
 					"round",
 					"rounded-square",
 					"square"
-				]).annotate({ "examples": ["round"] }),
+				]),
 				"initial": String$2,
 				"url": Union([String$2, Null])
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"date": String$2.annotate({
-			"examples": ["2019-11-11"],
-			"format": "local-date"
-		}),
+		"date": String$2.annotate({ "format": "local-date" }),
 		"billable": Boolean,
 		"duration": Union([String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}), Null], { mode: "oneOf" }),
-		"time_range": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		}),
+		"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
 		"resource": StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"kind_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
+			"kind_id": String$2.annotate({ "format": "snowflake" }),
 			"label": String$2,
 			"short_label": String$2,
 			"sort_label": String$2,
@@ -37714,13 +37354,13 @@ const ActivityDetailedView = StructWithRest(Struct({
 				"m",
 				"f",
 				"n"
-			]).annotate({ "examples": ["m"] }),
+			]),
 			"picture": StructWithRest(Struct({
 				"shape": Literals([
 					"round",
 					"rounded-square",
 					"square"
-				]).annotate({ "examples": ["round"] }),
+				]),
 				"initial": String$2,
 				"url": Union([String$2, Null])
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
@@ -37731,296 +37371,173 @@ const ActivityDetailedView = StructWithRest(Struct({
 			"submitted",
 			"validated",
 			"rejected"
-		]).annotate({ "examples": ["editing"] }),
+		]),
 		"tags": ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
 			"name": String$2,
 			"enabled": Boolean.annotate({ "default": false }),
 			"icon": String$2.annotate({ "default": "tag" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityDetailedView" });
-const ShowActivitiesTotalsQuery = StructWithRest(Struct({ "filters": optionalKey(ArraySchema(Union([
-	StructWithRest(Struct({
-		"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
+const ShowActivitiesTotalsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	Struct({
+		"key": Literal("activity.date_range"),
+		"value": String$2.annotate({ "format": "local-date-interval" })
+	}),
+	Struct({
+		"key": Literal("activity.tags_ids"),
+		"value": Struct({
+			"tags": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
+			"operator": Literals(["or", "and"])
 		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-		"value": StructWithRest(Struct({
-			"tags": ArraySchema(Union([String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}), Null], { mode: "oneOf" })),
-			"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
+	}),
+	Struct({
+		"key": Literal("activity.projects_ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("activity.project_name"),
 		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
+	}),
+	Struct({
+		"key": Literal("activity.tasks_ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("activity.task_name"),
 		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
+	}),
+	Struct({
+		"key": Literal("activity.billable"),
 		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-		"value": ArraySchema(Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
+	}),
+	Struct({
+		"key": Literal("activity.projects_resources"),
+		"value": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }))
+	}),
+	Struct({
+		"key": Literal("activity.day_task_status"),
 		"value": ArraySchema(Literals([
 			"editing",
 			"submitted",
 			"validated",
 			"rejected"
-		]).annotate({ "examples": ["editing"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
+		]))
+	}),
+	Struct({
+		"key": Literal("activity.resources"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("activity.has_remark"),
 		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
+	}),
+	Struct({
+		"key": Literal("activity.has_budget"),
 		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(ShowActivitiesTotalsQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(ShowActivitiesTotalsQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ShowActivitiesTotalsQuery" });
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }))) }).annotate({ "identifier": "ShowActivitiesTotalsQuery" });
 const ActivityTotalsView = StructWithRest(Struct({
 	"total": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"billable": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"validated": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"non_validated": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"rejected": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"non_submitted": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	})
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityTotalsView" });
-const SubmitCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+const SubmitCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "SubmitCommand" });
-const SubmitForContributorCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "SubmitCommand" });
+const SubmitForContributorCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "SubmitForContributorCommand" });
-const CancelSubmissionCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "SubmitForContributorCommand" });
+const CancelSubmissionCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CancelSubmissionCommand" });
-const SubmitCorrectionCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "CancelSubmissionCommand" });
+const SubmitCorrectionCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "SubmitCorrectionCommand" });
-const ValidateCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "SubmitCorrectionCommand" });
+const ValidateCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ValidateCommand" });
-const CancelValidationCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "ValidateCommand" });
+const CancelValidationCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CancelValidationCommand" });
-const RejectCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "CancelValidationCommand" });
+const RejectCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "RejectCommand" });
-const CancelRejectionCommand = StructWithRest(Struct({
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "RejectCommand" });
+const CancelRejectionCommand = Struct({
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CancelRejectionCommand" });
-const ListDayTasksQuery = StructWithRest(Struct({
-	"task_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"resource_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+}).annotate({ "identifier": "CancelRejectionCommand" });
+const ListDayTasksQuery = Struct({
+	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"is_own": Boolean
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListDayTasksQuery" });
+}).annotate({ "identifier": "ListDayTasksQuery" });
 const DayTaskView = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"task_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"date": String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
-	}),
-	"actor_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"task_id": String$2.annotate({ "format": "snowflake" }),
+	"date": String$2.annotate({ "format": "local-date" }),
+	"actor_id": String$2.annotate({ "format": "snowflake" }),
 	"status": Literals([
 		"editing",
 		"submitted",
 		"validated",
 		"rejected"
-	]).annotate({ "examples": ["editing"] }),
-	"at": String$2.annotate({
-		"examples": ["2025-10-30T10:40:22.01367Z"],
-		"format": "zoned-date-time"
-	}),
+	]),
+	"at": String$2.annotate({ "format": "zoned-date-time" }),
 	"remark": Union([String$2, Null]),
 	"validator_remark": Union([String$2, Null]),
 	"editable": Boolean,
@@ -38033,120 +37550,69 @@ const DayTaskView = StructWithRest(Struct({
 		"cancel-validation",
 		"reject",
 		"cancel-rejection"
-	]).annotate({ "examples": ["submit"] }))
+	]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DayTaskView" });
 const ListWorkRegimesQuery = Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "identifier": "ListWorkRegimesQuery" });
 const WorkRegimesView = StructWithRest(Struct({ "work_regimes": ArraySchema(StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"label": Struct({
+		"fr": optionalKey(String$2),
+		"en": optionalKey(String$2),
+		"de": optionalKey(String$2)
 	}),
-	"label": StructWithRest(Struct({
+	"formatted_label": Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }),
-	"formatted_label": StructWithRest(Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }),
+	}),
 	"weekly_worked_hours": String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}),
 	"weekly_worked_days": Number$1.annotate({ "format": "float" }).check(isFinite().annotate({ "expected": "a finite number" })),
 	"enabled": Boolean
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "WorkRegimesView" });
-const CreateResourceCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"kind_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+const CreateResourceCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"kind_id": String$2.annotate({ "format": "snowflake" }),
 	"attributes": Record(String$2, Json.annotate({ "expected": "JSON value" })),
-	"relations": optionalKey(ArraySchema(StructWithRest(Struct({
-		"relation_type_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"related_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))),
-	"team_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"start_date": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
-	})),
-	"end_date": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
-	})),
-	"additional_settings": optionalKey(StructWithRest(Struct({
-		"activity_rate_contract": optionalKey(StructWithRest(Struct({
-			"rate": Number$1.annotate({
-				"examples": [100],
-				"format": "percentage"
-			}).check(isFinite().annotate({ "expected": "a finite number" })),
+	"relations": optionalKey(ArraySchema(Struct({
+		"relation_type_id": String$2.annotate({ "format": "snowflake" }),
+		"related_id": String$2.annotate({ "format": "snowflake" })
+	}))),
+	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"start_date": optionalKey(String$2.annotate({ "format": "local-date" })),
+	"end_date": optionalKey(String$2.annotate({ "format": "local-date" })),
+	"additional_settings": optionalKey(Struct({
+		"activity_rate_contract": optionalKey(Struct({
+			"rate": Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })),
 			"paid_hourly": optionalKey(Boolean.annotate({ "default": false })),
 			"trainee": optionalKey(Boolean.annotate({ "default": false })),
 			"apprentice": optionalKey(Boolean.annotate({ "default": false }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-		"security": optionalKey(StructWithRest(Struct({
+		})),
+		"security": optionalKey(Struct({
 			"username": optionalKey(String$2),
 			"password": optionalKey(String$2),
 			"send_email": optionalKey(Boolean)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
+		})),
 		"language": optionalKey(Literals([
 			"en",
 			"fr",
 			"de"
-		]).annotate({ "examples": ["en"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"hr_process": optionalKey(StructWithRest(Struct({
-		"template_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"personas_mapping": ArraySchema(StructWithRest(Struct({
-			"persona_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"resource_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-		"milestones_mapping": ArraySchema(StructWithRest(Struct({
-			"milestone_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"date": String$2.annotate({
-				"examples": ["2019-11-11"],
-				"format": "local-date"
-			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-		"built_in_type_payload": optionalKey(Union([StructWithRest(Struct({
-			"location": optionalKey(Union([StructWithRest(Struct({
+		]))
+	})),
+	"hr_process": optionalKey(Struct({
+		"template_id": String$2.annotate({ "format": "snowflake" }),
+		"personas_mapping": ArraySchema(Struct({
+			"persona_id": String$2.annotate({ "format": "snowflake" }),
+			"resource_id": String$2.annotate({ "format": "snowflake" })
+		})),
+		"milestones_mapping": ArraySchema(Struct({
+			"milestone_id": String$2.annotate({ "format": "snowflake" }),
+			"date": String$2.annotate({ "format": "local-date" })
+		})),
+		"built_in_type_payload": optionalKey(Union([Struct({
+			"location": optionalKey(Union([Struct({
 				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
 					"default": null,
 					"format": "float"
@@ -38157,49 +37623,25 @@ const CreateResourceCommand = StructWithRest(Struct({
 				}),
 				"address": Union([String$2, Null]),
 				"remark": Union([String$2, Null]).annotate({ "default": null })
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-			"date": optionalKey(Union([String$2.annotate({
-				"examples": ["2019-11-11"],
-				"format": "local-date"
 			}), Null], { mode: "oneOf" })),
-			"time": optionalKey(Union([String$2.annotate({
-				"examples": ["12:34:56"],
-				"format": "local-time"
-			}), Null], { mode: "oneOf" }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateResourceCommand" });
-const UpdateResourceCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+			"date": optionalKey(Union([String$2.annotate({ "format": "local-date" }), Null], { mode: "oneOf" })),
+			"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
+		}), Null], { mode: "oneOf" }))
+	}))
+}).annotate({ "identifier": "CreateResourceCommand" });
+const UpdateResourceCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"attributes": optionalKey(Record(String$2, Json.annotate({ "expected": "JSON value" }))),
-	"relations": optionalKey(ArraySchema(StructWithRest(Struct({
-		"relation_type_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"related_id": optionalKey(Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }).annotate({ "description": "Null means \"remove the relation for that relation type\"" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateResourceCommand" });
-const AssignResourceTeamCommand = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"relations": optionalKey(ArraySchema(Struct({
+		"relation_type_id": String$2.annotate({ "format": "snowflake" }),
+		"related_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }).annotate({ "description": "Null means \"remove the relation for that relation type\"" }))
+	})))
+}).annotate({ "identifier": "UpdateResourceCommand" });
+const AssignResourceTeamCommand = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
 	"head": Boolean,
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"regrouping": optionalKey(Union([String$2, Null])),
 	"contract_number": optionalKey(Union([String$2, Null])),
 	"external_id": optionalKey(Union([String$2, Null])),
@@ -38207,100 +37649,54 @@ const AssignResourceTeamCommand = StructWithRest(Struct({
 		"description": "Assigning resource to a team will be done only if you provide 'warning_aware: true'.",
 		"default": false
 	}))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AssignResourceTeamCommand" });
+}).annotate({ "identifier": "AssignResourceTeamCommand" });
 const ResourceTeamWarningType = Literals([
 	"assign-conflicting-resource-teams",
 	"unassign-remove-all-resource-teams",
 	"unassign-conflicting-resource-teams"
-]).annotate({
-	"examples": ["assign-conflicting-resource-teams"],
-	"identifier": "ResourceTeamWarningType"
-});
+]).annotate({ "identifier": "ResourceTeamWarningType" });
 const ResourceTeamAssignWarningDetails = StructWithRest(Struct({
 	"modifications": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"date_range": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		}),
+		"team_id": String$2.annotate({ "format": "snowflake" }),
+		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] }),
 	"deletions": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"date_range": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		}),
+		"team_id": String$2.annotate({ "format": "snowflake" }),
+		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamAssignWarningDetails" });
-const UnassignResourceTeamsCommand = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
+const UnassignResourceTeamsCommand = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
 	"head": optionalKey(Boolean),
 	"warning_aware": optionalKey(Boolean.annotate({
 		"description": "Unassigning resource to a team will be done only if you provide 'warning_aware: true'.",
 		"default": false
 	}))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UnassignResourceTeamsCommand" });
+}).annotate({ "identifier": "UnassignResourceTeamsCommand" });
 const ResourceTeamUnassignWarningDetails = StructWithRest(Struct({
 	"modifications": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"date_range": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		}),
+		"team_id": String$2.annotate({ "format": "snowflake" }),
+		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] }),
 	"deletions": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"date_range": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		}),
+		"team_id": String$2.annotate({ "format": "snowflake" }),
+		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] }),
 	"has_related_schedules": Boolean,
 	"has_related_on_calls": Boolean,
 	"has_locked_dates": Boolean
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamUnassignWarningDetails" });
-const AssignResourceActivityRateCommand260625 = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"average_rate": Number$1.annotate({
-		"examples": [100],
-		"format": "percentage"
-	}).check(isFinite().annotate({ "expected": "a finite number" })),
+const AssignResourceActivityRateCommand260625 = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"average_rate": Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })),
 	"work_regime_id": optionalKey(Union([String$2.annotate({
-		"examples": ["872815618512410358"],
 		"format": "snowflake",
 		"description": "If null, it will adopt the sector’s work regime."
 	}), Null], { mode: "oneOf" }).annotate({ "description": "If null, it will adopt the sector’s work regime." })),
@@ -38309,57 +37705,34 @@ const AssignResourceActivityRateCommand260625 = StructWithRest(Struct({
 	"trainee": optionalKey(Boolean.annotate({ "default": false })),
 	"apprentice": optionalKey(Boolean.annotate({ "default": false })),
 	"paid_hourly": optionalKey(Boolean.annotate({ "default": false }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AssignResourceActivityRateCommand260625" });
-const UnassignResourceActivityRateCommand = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	})
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UnassignResourceActivityRateCommand" });
-const CreateTeamCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"parent_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+}).annotate({ "identifier": "AssignResourceActivityRateCommand260625" });
+const UnassignResourceActivityRateCommand = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"date_range": String$2.annotate({ "format": "local-date-interval" })
+}).annotate({ "identifier": "UnassignResourceActivityRateCommand" });
+const CreateTeamCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"parent_id": String$2.annotate({ "format": "snowflake" }),
 	"name": String$2,
 	"short_name": optionalKey(String$2.annotate({ "description": "Should be provided only for sectors" })),
 	"color": optionalKey(String$2.annotate({ "description": "Should be provided only for sectors" })),
 	"external_id": optionalKey(String$2)
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateTeamCommand" });
-const UpdateTeamCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+}).annotate({ "identifier": "CreateTeamCommand" });
+const UpdateTeamCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"name": optionalKey(String$2),
 	"short_name": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors" })),
 	"color": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors" })),
 	"external_id": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors and sites" }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateTeamCommand" });
-const EnableTeamCommand = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "EnableTeamCommand" });
-const DisableTeamCommand = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DisableTeamCommand" });
-const ListResourcesQuery = StructWithRest(Struct({
+}).annotate({ "identifier": "UpdateTeamCommand" });
+const EnableTeamCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "EnableTeamCommand" });
+const DisableTeamCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DisableTeamCommand" });
+const ListResourcesQuery = Struct({
 	"kind_id": String$2.annotate({
-		"examples": ["872815618512410358"],
 		"format": "snowflake",
 		"description": "Only the \"employee\" kind is available at the moment."
 	}),
 	"at_date": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11"],
 		"format": "local-date",
 		"description": "If you do not specify a date, today's date will be used."
 	})),
@@ -38370,42 +37743,39 @@ const ListResourcesQuery = StructWithRest(Struct({
 	})),
 	"with_relations": optionalKey(Union([Boolean, Null]).annotate({ "default": false })),
 	"with_total_count": optionalKey(Boolean.annotate({ "default": false })),
-	"counting_mode": optionalKey(Literals(["strict", "approximate"]).annotate({ "examples": ["strict"] })),
+	"counting_mode": optionalKey(Literals(["strict", "approximate"])),
 	"filters": optionalKey(ArraySchema(Union([
-		StructWithRest(Struct({
-			"key": Literal("resource.ids").annotate({ "examples": ["resource.ids"] }),
-			"value": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("resource.boolean").annotate({ "examples": ["resource.boolean"] }),
-			"value": StructWithRest(Struct({
+		Struct({
+			"key": Literal("resource.ids"),
+			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		}),
+		Struct({
+			"key": Literal("resource.boolean"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"equals",
 					"not_equals",
 					"none"
-				]).annotate({ "examples": ["equals"] }),
+				]),
 				"value": optionalKey(Boolean.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.choice").annotate({ "examples": ["resource.choice"] }),
-			"value": StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
+		Struct({
+			"key": Literal("resource.choice"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"in_list",
 					"not_in_list",
 					"none"
-				]).annotate({ "examples": ["in_list"] }),
+				]),
 				"value": optionalKey(ArraySchema(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), String$2])).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.date_range").annotate({ "examples": ["resource.date_range"] }),
-			"value": StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
+		Struct({
+			"key": Literal("resource.date_range"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Union([Literals([
 					"equals",
@@ -38413,21 +37783,20 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"from",
 					"until",
 					"none"
-				]).annotate({ "examples": ["equals"] }), Literals([
+				]), Literals([
 					"in_range",
 					"not_in_range",
 					"none"
-				]).annotate({ "examples": ["in_range"] })]),
+				])]),
 				"value": optionalKey(String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
 					"format": "local-date-interval",
 					"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
 				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("resource.decimal").annotate({ "examples": ["resource.decimal"] }),
-			"value": StructWithRest(Struct({
+			})
+		}),
+		Struct({
+			"key": Literal("resource.decimal"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"equals",
@@ -38437,13 +37806,13 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"greater_than",
 					"greater_than_or_equal",
 					"none"
-				]).annotate({ "examples": ["equals"] }),
+				]),
 				"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.duration").annotate({ "examples": ["resource.duration"] }),
-			"value": StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
+		Struct({
+			"key": Literal("resource.duration"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"equals",
@@ -38453,17 +37822,16 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"greater_than",
 					"greater_than_or_equal",
 					"none"
-				]).annotate({ "examples": ["equals"] }),
+				]),
 				"value": optionalKey(String$2.annotate({
 					"description": "Property can be omitted with 'none' operator. It is required for all other operators.",
-					"examples": ["PT1H30M20S"],
 					"format": "duration"
 				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.integer").annotate({ "examples": ["resource.integer"] }),
-			"value": StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
+		Struct({
+			"key": Literal("resource.integer"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"equals",
@@ -38473,55 +37841,42 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"greater_than",
 					"greater_than_or_equal",
 					"none"
-				]).annotate({ "examples": ["equals"] }),
+				]),
 				"value": optionalKey(Number$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }).check(isInt().annotate({ "expected": "an integer" })))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.month_day_range").annotate({ "examples": ["resource.month_day_range"] }),
-			"value": StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
+		Struct({
+			"key": Literal("resource.month_day_range"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"in_range",
 					"not_in_range",
 					"none"
-				]).annotate({ "examples": ["in_range"] }),
+				]),
 				"value": optionalKey(String$2.annotate({
-					"examples": ["--11-11/--12-12"],
 					"format": "local-month-day-interval",
 					"description": "Property can be omitted with 'none' operator. It is required for all other operators."
 				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.regrouping").annotate({ "examples": ["resource.regrouping"] }),
-			"value": StructWithRest(Struct({
-				"teams": optionalKey(Union([Literal("*").annotate({
-					"description": "Refers to all teams",
-					"examples": ["*"]
-				}), ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				})).annotate({
-					"description": "Refers to a list of teams",
-					"examples": [["903956503593387633", "903956503593534034"]]
-				})], { mode: "oneOf" })),
-				"main_team": optionalKey(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				})),
+			})
+		}).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
+		Struct({
+			"key": Literal("resource.regrouping"),
+			"value": Struct({
+				"teams": optionalKey(Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" })),
+				"main_team": optionalKey(String$2.annotate({ "format": "snowflake" })),
 				"filter_pattern": optionalKey(String$2),
 				"operator": optionalKey(Literals([
 					"in_list",
 					"not_in_list",
 					"none"
-				]).annotate({ "examples": ["in_list"] })),
-				"sources": optionalKey(ArraySchema(Literals(["resource", "team"]).annotate({ "examples": ["resource"] })))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.fulltext").annotate({ "examples": ["resource.fulltext"] }),
-			"value": StructWithRest(Struct({
+				])),
+				"sources": optionalKey(ArraySchema(Literals(["resource", "team"])))
+			})
+		}).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
+		Struct({
+			"key": Literal("resource.fulltext"),
+			"value": Struct({
 				"attributes": optionalKey(ArraySchema(String$2).annotate({ "default": [] })),
 				"operator": Literals([
 					"equals",
@@ -38531,13 +37886,13 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"starts_with",
 					"ends_with",
 					"none"
-				]).annotate({ "examples": ["equals"] }),
+				]),
 				"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("resource.text").annotate({ "examples": ["resource.text"] }),
-			"value": StructWithRest(Struct({
+			})
+		}),
+		Struct({
+			"key": Literal("resource.text"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Literals([
 					"equals",
@@ -38547,24 +37902,15 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"starts_with",
 					"ends_with",
 					"none"
-				]).annotate({ "examples": ["equals"] }),
+				]),
 				"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.team").annotate({ "examples": ["resource.team"] }),
-			"value": StructWithRest(Struct({
-				"teams": optionalKey(Union([Union([Literal("*").annotate({
-					"description": "Refers to all teams",
-					"examples": ["*"]
-				}), ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				})).annotate({
-					"description": "Refers to a list of teams",
-					"examples": [["903956503593387633", "903956503593534034"]]
-				})], { mode: "oneOf" }), Null], { mode: "oneOf" })),
-				"period": optionalKey(Union([StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
+		Struct({
+			"key": Literal("resource.team"),
+			"value": Struct({
+				"teams": optionalKey(Union([Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" }), Null], { mode: "oneOf" })),
+				"period": optionalKey(Union([Struct({
 					"operator": Literals([
 						"first_starts_in",
 						"starts_in",
@@ -38572,19 +37918,16 @@ const ListResourcesQuery = StructWithRest(Struct({
 						"ends_in",
 						"last_ends_in",
 						"none"
-					]).annotate({ "examples": ["first_starts_in"] }),
-					"date_range": optionalKey(Union([String$2.annotate({
-						"examples": ["2019-11-11/2019-12-12"],
-						"format": "local-date-interval"
-					}), Null], { mode: "oneOf" }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
+					]),
+					"date_range": optionalKey(Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }))
+				}), Null], { mode: "oneOf" })),
 				"recursive": optionalKey(Boolean.annotate({ "default": false })),
 				"head": optionalKey(Union([Boolean, Null]))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
-		StructWithRest(Struct({
-			"key": Literal("resource.time_range").annotate({ "examples": ["resource.time_range"] }),
-			"value": StructWithRest(Struct({
+			})
+		}).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
+		Struct({
+			"key": Literal("resource.time_range"),
+			"value": Struct({
 				"attribute": String$2,
 				"operator": Union([Literals([
 					"equals",
@@ -38592,47 +37935,40 @@ const ListResourcesQuery = StructWithRest(Struct({
 					"from",
 					"until",
 					"none"
-				]).annotate({ "examples": ["equals"] }), Literals([
+				]), Literals([
 					"in_range",
 					"not_in_range",
 					"none"
-				]).annotate({ "examples": ["in_range"] })]),
+				])]),
 				"value": optionalKey(String$2.annotate({
-					"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
 					"format": "local-date-time-interval",
 					"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
 				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
-		StructWithRest(Struct({
-			"key": Literal("or").annotate({ "examples": ["or"] }),
-			"value": ArraySchema(ListResourcesQueryFilter)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		StructWithRest(Struct({
-			"key": Literal("and").annotate({ "examples": ["and"] }),
-			"value": ArraySchema(ListResourcesQueryFilter)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
+			})
+		}).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
+		Struct({
+			"key": Literal("or"),
+			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+		}),
+		Struct({
+			"key": Literal("and"),
+			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+		})
 	], { mode: "oneOf" }))),
-	"orders": optionalKey(ArraySchema(Union([StructWithRest(Struct({
-		"key": Literal("resource.attribute").annotate({ "examples": ["resource.attribute"] }),
-		"direction": optionalKey(Literals(["asc", "desc"]).annotate({ "examples": ["asc"] })),
+	"orders": optionalKey(ArraySchema(Union([Struct({
+		"key": Literal("resource.attribute"),
+		"direction": optionalKey(Literals(["asc", "desc"])),
 		"attribute": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])], { mode: "oneOf" }))),
-	"pagination": optionalKey(StructWithRest(Struct({
+	})], { mode: "oneOf" }))),
+	"pagination": optionalKey(Struct({
 		"limit": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
 		"next_token": Union([String$2, Null])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListResourcesQuery" });
+	}))
+}).annotate({ "identifier": "ListResourcesQuery" });
 const ResourceListView = StructWithRest(Struct({
 	"data": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"kind_id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
+		"kind_id": String$2.annotate({ "format": "snowflake" }),
 		"label": String$2,
 		"short_label": String$2,
 		"sort_label": String$2,
@@ -38641,32 +37977,20 @@ const ResourceListView = StructWithRest(Struct({
 				"round",
 				"rounded-square",
 				"square"
-			]).annotate({ "examples": ["round"] }),
+			]),
 			"initial": String$2,
 			"url": Union([String$2, Null])
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		"attributes": Record(String$2, Json.annotate({ "expected": "JSON value" })),
 		"teams": optionalKey(ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
+			"id": String$2.annotate({ "format": "snowflake" }),
 			"head": Boolean,
 			"name": String$2
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "description": "Only present if parameter \"with_teams\" is set to \"true\"." })),
 		"relations": optionalKey(ArraySchema(StructWithRest(Struct({
-			"relation_type_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"related_to_id": Union([String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}), Null], { mode: "oneOf" }),
-			"related_by_ids": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}))
+			"relation_type_id": String$2.annotate({ "format": "snowflake" }),
+			"related_to_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
+			"related_by_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "description": "Only present if parameter \"with_relations\" is set to \"true\"." }))
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"next_token": Union([String$2, Null]),
@@ -38675,21 +37999,12 @@ const ResourceListView = StructWithRest(Struct({
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceListView" });
 const ListKindsQuery = Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "identifier": "ListKindsQuery" });
 const KindSummaryView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"machine_name": String$2
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindSummaryView" });
-const ShowKindQuery = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ShowKindQuery" });
+const ShowKindQuery = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "ShowKindQuery" });
 const KindView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"machine_name": String$2,
 	"attributes": ArraySchema(StructWithRest(Struct({
 		"attribute": StructWithRest(Struct({
@@ -38711,16 +38026,12 @@ const KindView = StructWithRest(Struct({
 				"text/phone",
 				"text/regrouping",
 				"text/plain"
-			]).annotate({ "examples": ["text/address"] }),
-			"label": StructWithRest(Struct({
+			]),
+			"label": Struct({
 				"fr": optionalKey(String$2),
 				"en": optionalKey(String$2),
 				"de": optionalKey(String$2)
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-				"en": "Hello",
-				"fr": "Bonjour",
-				"de": "Guten Tag"
-			}] }),
+			}),
 			"choices": Union([StructWithRest(Struct({
 				"values": Record(String$2, String$2),
 				"strict": Boolean,
@@ -38728,7 +38039,7 @@ const KindView = StructWithRest(Struct({
 					"select",
 					"combobox",
 					"radio"
-				]).annotate({ "examples": ["select"] })
+				])
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 			"icon": Union([Literals([
 				"email",
@@ -38745,7 +38056,7 @@ const KindView = StructWithRest(Struct({
 				"last-name",
 				"joining-date",
 				"website"
-			]).annotate({ "examples": ["email"] }), Null], { mode: "oneOf" }),
+			]), Null], { mode: "oneOf" }),
 			"type": Literals([
 				"boolean",
 				"date",
@@ -38757,64 +38068,53 @@ const KindView = StructWithRest(Struct({
 				"int",
 				"percentage",
 				"string"
-			]).annotate({ "examples": ["boolean"] }),
+			]),
 			"format": Union([Literals([
 				"avs",
 				"email",
 				"phone",
 				"address"
-			]).annotate({ "examples": ["avs"] }), Null], { mode: "oneOf" })
+			]), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		"classification_level": Literals([
 			"unclassified",
 			"internal",
 			"confidential",
 			"secret"
-		]).annotate({ "examples": ["unclassified"] }),
+		]),
 		"access_level": Literals([
 			"none",
 			"read-own",
 			"read",
 			"write"
-		]).annotate({ "examples": ["none"] }),
+		]),
 		"searchable": Boolean,
 		"sortable": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"relation_types": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
+		"id": String$2.annotate({ "format": "snowflake" }),
+		"label": Struct({
+			"fr": optionalKey(String$2),
+			"en": optionalKey(String$2),
+			"de": optionalKey(String$2)
 		}),
-		"label": StructWithRest(Struct({
+		"inverse_label": Struct({
 			"fr": optionalKey(String$2),
 			"en": optionalKey(String$2),
 			"de": optionalKey(String$2)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-			"en": "Hello",
-			"fr": "Bonjour",
-			"de": "Guten Tag"
-		}] }),
-		"inverse_label": StructWithRest(Struct({
-			"fr": optionalKey(String$2),
-			"en": optionalKey(String$2),
-			"de": optionalKey(String$2)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-			"en": "Hello",
-			"fr": "Bonjour",
-			"de": "Guten Tag"
-		}] }),
+		}),
 		"classification_level": Literals([
 			"unclassified",
 			"internal",
 			"confidential",
 			"secret"
-		]).annotate({ "examples": ["unclassified"] }),
+		]),
 		"access_level": Literals([
 			"none",
 			"read-own",
 			"read",
 			"write"
-		]).annotate({ "examples": ["none"] }),
+		]),
 		"inverse": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"sections": ArraySchema(StructWithRest(Struct({
@@ -38825,176 +38125,96 @@ const KindView = StructWithRest(Struct({
 			"internal",
 			"confidential",
 			"secret"
-		]).annotate({ "examples": ["unclassified"] }),
+		]),
 		"attribute_ids": ArraySchema(String$2),
-		"relation_type_ids": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
+		"relation_type_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"sorting_attribute_ids": ArraySchema(String$2)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindView" });
-const ListTeamQuery = StructWithRest(Struct({
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
+const ListTeamQuery = Struct({
+	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
 	"with_ancestors": optionalKey(Boolean),
 	"with_disabled": optionalKey(Boolean),
 	"exclude_instance": optionalKey(Boolean)
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListTeamQuery" });
+}).annotate({ "identifier": "ListTeamQuery" });
 const TeamView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"parent_id": Union([String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}), Null], { mode: "oneOf" }),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"parent_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
 	"name": String$2,
 	"short_name": Union([String$2, Null]),
 	"color": Union([String$2, Null])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamView" });
-const ShowTeamQuery = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ShowTeamQuery" });
+const ShowTeamQuery = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "ShowTeamQuery" });
 const TeamShowView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"name": String$2,
 	"short_name": Union([String$2, Null]),
 	"parent": Union([StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
 		"name": String$2
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"children": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
 		"name": String$2
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"enabled": Boolean,
 	"external_id": Union([String$2, Null]),
 	"color": Union([String$2, Null])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamShowView" });
-const ShowResourceTeamsQuery = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
+const ShowResourceTeamsQuery = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
 	"head": optionalKey(Boolean),
-	"date_range": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ShowResourceTeamsQuery" });
+	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" }))
+}).annotate({ "identifier": "ShowResourceTeamsQuery" });
 const ResourceTeamView = StructWithRest(Struct({
 	"team": StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
 		"name": String$2
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 	"head": Boolean,
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"regrouping": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
+		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		String$2,
 		Null
 	]),
 	"contract_number": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
+		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		String$2,
 		Null
 	]),
 	"external_id": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
+		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		String$2,
 		Null
 	])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamView" });
-const ShowResourceActivityRatesQuery = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"date_range": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ShowResourceActivityRatesQuery" });
+const ShowResourceActivityRatesQuery = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" }))
+}).annotate({ "identifier": "ShowResourceActivityRatesQuery" });
 const ActivityRateView = StructWithRest(Struct({
-	"average_rate": Number$1.annotate({
-		"examples": [100],
-		"format": "percentage"
-	}).check(isFinite().annotate({ "expected": "a finite number" })),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
+	"average_rate": Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"activity_rate_patterns": ArraySchema(StructWithRest(Struct({
-		"monday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"tuesday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"wednesday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"thursday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"friday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"saturday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"sunday": Union([Number$1.annotate({
-			"examples": [100],
-			"format": "percentage"
-		}).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" })
+		"monday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
+		"tuesday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
+		"wednesday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
+		"thursday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
+		"friday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
+		"saturday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
+		"sunday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"work_regime": Union([StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"label": StructWithRest(Struct({
+		"id": String$2.annotate({ "format": "snowflake" }),
+		"label": Struct({
 			"fr": optionalKey(String$2),
 			"en": optionalKey(String$2),
 			"de": optionalKey(String$2)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-			"en": "Hello",
-			"fr": "Bonjour",
-			"de": "Guten Tag"
-		}] }),
+		}),
 		"weekly_worked_hours": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
 		"weekly_worked_days": Number$1.annotate({ "format": "float" }).check(isFinite().annotate({ "expected": "a finite number" }))
@@ -39002,270 +38222,178 @@ const ActivityRateView = StructWithRest(Struct({
 	"paid_hourly": Boolean,
 	"apprentice": Boolean,
 	"trainee": Boolean,
-	"indemnity_enabled": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Boolean]),
-	"compensation_enabled": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Boolean])
+	"indemnity_enabled": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Boolean]),
+	"compensation_enabled": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Boolean])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityRateView" });
-const ListTagsQuery = StructWithRest(Struct({ "filters": optionalKey(ArraySchema(Union([
-	StructWithRest(Struct({
-		"key": Literal("tag.ids").annotate({ "examples": ["tag.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("tag.name").annotate({ "examples": ["tag.name"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
-	StructWithRest(Struct({
-		"key": Literal("tag.with_disabled").annotate({ "examples": ["tag.with_disabled"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("tag.date_created").annotate({ "examples": ["tag.date_created"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("tag.date_updated").annotate({ "examples": ["tag.date_updated"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(ListTagsQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(ListTagsQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListTagsQuery" });
-const TagView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
+const ListTagsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	Struct({
+		"key": Literal("tag.ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
 	}),
+	Struct({
+		"key": Literal("tag.name"),
+		"value": String$2
+	}).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
+	Struct({
+		"key": Literal("tag.with_disabled"),
+		"value": Boolean
+	}),
+	Struct({
+		"key": Literal("tag.date_created"),
+		"value": String$2.annotate({ "format": "local-date-time" })
+	}),
+	Struct({
+		"key": Literal("tag.date_updated"),
+		"value": String$2.annotate({ "format": "local-date-time" })
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }))) }).annotate({ "identifier": "ListTagsQuery" });
+const TagView = StructWithRest(Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"name": String$2,
 	"external_id": Union([String$2, Null]).annotate({ "default": null }),
 	"enabled": Boolean.annotate({ "default": false }),
 	"icon": String$2.annotate({ "default": "tag" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TagView" });
-const CreateScheduleCommand = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"schedule_template_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"when": String$2.annotate({
-		"description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required.",
-		"examples": ["RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;DTSTART=20260101T120000;UNTIL=20260105T120000"]
-	}),
-	"hour_ranges": ArraySchema(StructWithRest(Struct({
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}),
-		"auto_correct": Union([StructWithRest(Struct({
+const CreateScheduleCommand = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
+	"schedule_template_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." }),
+	"hour_ranges": ArraySchema(Struct({
+		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
+		"auto_correct": Union([Struct({
 			"before_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"before_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"paid_break": Union([StructWithRest(Struct({
+		}), Null], { mode: "oneOf" }),
+		"paid_break": Union([Struct({
 			"max_duration": String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}),
-			"hour_range": Union([String$2.annotate({
-				"examples": ["12:34:56/PT2H"],
-				"format": "local-time-interval"
-			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"adjustment": optionalKey(StructWithRest(Struct({
+			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
+		}), Null], { mode: "oneOf" })
+	})),
+	"adjustment": optionalKey(Struct({
 		"value": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"time": optionalKey(String$2.annotate({
-			"examples": ["12:34:56"],
-			"format": "local-time"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"break_time": optionalKey(StructWithRest(Struct({
+		"time": optionalKey(String$2.annotate({ "format": "local-time" }))
+	})),
+	"break_time": optionalKey(Struct({
 		"min_duration": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
+		"hour_range": String$2.annotate({ "format": "local-time-interval" })
+	})),
 	"remark": optionalKey(String$2),
-	"options": StructWithRest(Struct({
+	"options": Struct({
 		"employee_resident_ratio": Boolean,
 		"text_color": Union([String$2, Null]),
-		"special_hour_range": Union([String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}), Null], { mode: "oneOf" }),
+		"special_hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" }),
 		"schedule_on_bank_holidays": Boolean,
 		"allow_partial": Boolean.annotate({ "default": false })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateScheduleCommand" });
-const OverlappingSchedulesConflictResponseBodyDTO = StructWithRest(Struct({ "conflicting_dates": ArraySchema(StructWithRest(Struct({
-	"resource": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"date": String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
 	})
+}).annotate({ "identifier": "CreateScheduleCommand" });
+const OverlappingSchedulesConflictResponseBodyDTO = StructWithRest(Struct({ "conflicting_dates": ArraySchema(StructWithRest(Struct({
+	"resource": String$2.annotate({ "format": "snowflake" }),
+	"date": String$2.annotate({ "format": "local-date" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OverlappingSchedulesConflictResponseBodyDTO" });
 const MaskedSectorResponseBodyDTO = StructWithRest(Struct({ "masked_sector": ArraySchema(StructWithRest(Struct({
 	"sector_name": String$2,
 	"date_start": String$2,
 	"date_end": Union([String$2, Null])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "MaskedSectorResponseBodyDTO" });
-const UpdateScheduleCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"schedule_template_id": optionalKey(Union([String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}), Null], { mode: "oneOf" })),
-	"team_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"when": optionalKey(String$2.annotate({
-		"description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required.",
-		"examples": ["RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;DTSTART=20260101T120000;UNTIL=20260105T120000"]
-	})),
-	"hour_ranges": optionalKey(ArraySchema(StructWithRest(Struct({
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}),
-		"auto_correct": Union([StructWithRest(Struct({
+const UpdateScheduleCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"schedule_template_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
+	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"when": optionalKey(String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })),
+	"hour_ranges": optionalKey(ArraySchema(Struct({
+		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
+		"auto_correct": Union([Struct({
 			"before_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"before_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"paid_break": Union([StructWithRest(Struct({
+		}), Null], { mode: "oneOf" }),
+		"paid_break": Union([Struct({
 			"max_duration": String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}),
-			"hour_range": Union([String$2.annotate({
-				"examples": ["12:34:56/PT2H"],
-				"format": "local-time-interval"
-			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))),
-	"adjustment": optionalKey(Union([StructWithRest(Struct({
+			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
+		}), Null], { mode: "oneOf" })
+	}))),
+	"adjustment": optionalKey(Union([Struct({
 		"value": optionalKey(String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		})),
-		"time": optionalKey(Union([String$2.annotate({
-			"examples": ["12:34:56"],
-			"format": "local-time"
-		}), Null], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-	"break_time": optionalKey(Union([StructWithRest(Struct({
+		"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
+	}), Null], { mode: "oneOf" })),
+	"break_time": optionalKey(Union([Struct({
 		"min_duration": optionalKey(String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		})),
-		"hour_range": optionalKey(String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
+		"hour_range": optionalKey(String$2.annotate({ "format": "local-time-interval" }))
+	}), Null], { mode: "oneOf" })),
 	"remark": optionalKey(Union([String$2, Null])),
-	"options": optionalKey(StructWithRest(Struct({
+	"options": optionalKey(Struct({
 		"employee_resident_ratio": Boolean,
 		"text_color": Union([String$2, Null]),
-		"special_hour_range": Union([String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}), Null], { mode: "oneOf" }),
+		"special_hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" }),
 		"schedule_on_bank_holidays": Boolean,
 		"allow_partial": Boolean.annotate({ "default": false })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateScheduleCommand" });
-const DeleteSchedulesCommand = StructWithRest(Struct({
-	"ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"options": StructWithRest(Struct({
+	}))
+}).annotate({ "identifier": "UpdateScheduleCommand" });
+const DeleteSchedulesCommand = Struct({
+	"ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"options": Struct({
 		"group_action": Literals([
 			"single",
 			"future",
 			"all"
-		]).annotate({
-			"examples": ["single"],
-			"description": "If group action is 'single', allow_partial should not be provided"
-		}),
+		]).annotate({ "description": "If group action is 'single', allow_partial should not be provided" }),
 		"allow_partial": optionalKey(Boolean.annotate({ "description": "Allows partial processing of the request for periods when the schedule is not locked and not overlapping" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteSchedulesCommand" });
+	})
+}).annotate({ "identifier": "DeleteSchedulesCommand" });
 const DeleteScheduleResult = StructWithRest(Struct({
 	"deleted_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
 	"deleted": Record(String$2, ArraySchema(String$2)),
@@ -39278,46 +38406,25 @@ const DeleteScheduleResult = StructWithRest(Struct({
 const DeleteSchedulesWarningDetails = StructWithRest(Struct({
 	"schedules_to_delete_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
 	"locked_schedules_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"locked_schedules_date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
+	"locked_schedules_date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"locked_teams": ArraySchema(StructWithRest(Struct({
 		"team_id": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-		"locked_date": String$2.annotate({
-			"examples": ["2019-11-11"],
-			"format": "local-date"
-		})
+		"locked_date": String$2.annotate({ "format": "local-date" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteSchedulesWarningDetails" });
-const CreateAbsenceCommand = StructWithRest(Struct({
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"absence_type_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"percentage": optionalKey(Number$1.annotate({
-		"examples": [100],
-		"format": "percentage"
-	}).check(isFinite().annotate({ "expected": "a finite number" }))),
-	"time_ranges": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["12:34:56/PT2H"],
-		"format": "local-time-interval"
-	}))),
-	"options": optionalKey(StructWithRest(Struct({
+const CreateAbsenceCommand = Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"absence_type_id": String$2.annotate({ "format": "snowflake" }),
+	"percentage": optionalKey(Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))),
+	"time_ranges": optionalKey(ArraySchema(String$2.annotate({ "format": "local-time-interval" }))),
+	"options": optionalKey(Struct({
 		"schedule_on_bank_holidays": optionalKey(Boolean),
 		"allow_partial": optionalKey(Boolean)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
+	})),
 	"repetition_id": optionalKey(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])),
 	"remark": optionalKey(Union([String$2, Null])),
-	"when": String$2.annotate({
-		"description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required.",
-		"examples": ["RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;DTSTART=20260101T120000;UNTIL=20260105T120000"]
-	})
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateAbsenceCommand" });
+	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })
+}).annotate({ "identifier": "CreateAbsenceCommand" });
 const CreateAbsenceResult = StructWithRest(Struct({
 	"created": Record(String$2, ArraySchema(String$2)),
 	"repetition_id": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
@@ -39328,34 +38435,22 @@ const CreateAbsenceResult = StructWithRest(Struct({
 	"description": "Result of creating absence(s).",
 	"identifier": "CreateAbsenceResult"
 });
-const UpdateAbsenceCommand = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"absence_type_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"percentage": optionalKey(Number$1.annotate({
-		"examples": [100],
-		"format": "percentage"
-	}).check(isFinite().annotate({ "expected": "a finite number" }))),
-	"time_ranges": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["12:34:56/PT2H"],
-		"format": "local-time-interval"
-	}))),
-	"options": StructWithRest(Struct({
+const UpdateAbsenceCommand = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"absence_type_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"percentage": optionalKey(Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))),
+	"time_ranges": optionalKey(ArraySchema(String$2.annotate({ "format": "local-time-interval" }))),
+	"options": Struct({
 		"group_action": Literals([
 			"single",
 			"future",
 			"all"
-		]).annotate({ "examples": ["single"] }),
+		]),
 		"allow_partial": optionalKey(Boolean)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
+	}),
 	"repetition_id": optionalKey(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])),
 	"remark": optionalKey(Union([String$2, Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateAbsenceCommand" });
+}).annotate({ "identifier": "UpdateAbsenceCommand" });
 const UpdateAbsenceResult = StructWithRest(Struct({
 	"updated_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
 	"updated": Record(String$2, ArraySchema(String$2)),
@@ -39365,23 +38460,17 @@ const UpdateAbsenceResult = StructWithRest(Struct({
 	"description": "Result of updating absence(s).",
 	"identifier": "UpdateAbsenceResult"
 });
-const DeleteAbsenceCommand = StructWithRest(Struct({
-	"ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"options": StructWithRest(Struct({
+const DeleteAbsenceCommand = Struct({
+	"ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"options": Struct({
 		"group_action": Literals([
 			"single",
 			"future",
 			"all"
-		]).annotate({
-			"examples": ["single"],
-			"description": "If group action is 'single', allow_partial should not be provided"
-		}),
+		]).annotate({ "description": "If group action is 'single', allow_partial should not be provided" }),
 		"allow_partial": optionalKey(Boolean.annotate({ "description": "Allows partial processing of the request for periods when the schedule is not locked and not overlapping" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteAbsenceCommand" });
+	})
+}).annotate({ "identifier": "DeleteAbsenceCommand" });
 const DeleteAbsenceResult = StructWithRest(Struct({
 	"deleted_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
 	"deleted": Record(String$2, ArraySchema(String$2)),
@@ -39391,77 +38480,45 @@ const DeleteAbsenceResult = StructWithRest(Struct({
 	"description": "Result of deleting absence(s).",
 	"identifier": "DeleteAbsenceResult"
 });
-const ListSchedulesQuery = StructWithRest(Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})).annotate({ "description": "If used with `ids` filter, it will limit the returned schedules to those that are associated with the given resource ids (ignoring schedule ids that are not)." })),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	})
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListSchedulesQuery" });
+const ListSchedulesQuery = Struct({
+	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "If used with `ids` filter, it will limit the returned schedules to those that are associated with the given resource ids (ignoring schedule ids that are not)." })),
+	"date_range": String$2.annotate({ "format": "local-date-interval" })
+}).annotate({ "identifier": "ListSchedulesQuery" });
 const ScheduleView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
 	"time_ranges": ArraySchema(StructWithRest(Struct({
-		"time_range": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		}),
-		"auto_correct": Union([StructWithRest(Struct({
+		"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
+		"auto_correct": Union([Struct({
 			"before_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"before_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
+		}), Null], { mode: "oneOf" }),
 		"paid_break": Union([StructWithRest(Struct({
 			"max_duration": String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}),
-			"time_range": Union([String$2.annotate({
-				"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-				"format": "local-date-time-interval"
-			}), Null], { mode: "oneOf" })
+			"time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"schedule_template": Union([StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
 		"name": String$2,
 		"description": Union([String$2, Null]),
 		"color": String$2
@@ -39471,510 +38528,299 @@ const ScheduleView = StructWithRest(Struct({
 	"adjustment": Union([StructWithRest(Struct({
 		"value": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"time": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}), Null], { mode: "oneOf" })
+		"time": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"break_time": Union([StructWithRest(Struct({
 		"min_duration": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"time_range": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		})
+		"time_range": String$2.annotate({ "format": "local-date-time-interval" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"options": StructWithRest(Struct({
 		"employee_resident_ratio": Boolean,
 		"text_color": Union([String$2, Null]),
-		"special_time_range": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		}), Null], { mode: "oneOf" })
+		"special_time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleView" });
-const ListAbsencesQuery250901 = StructWithRest(Struct({
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})).annotate({ "description": "When omitted, the only absences returned are those the current user is allowed to view." })),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	})
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListAbsencesQuery250901" });
+const ListAbsencesQuery250901 = Struct({
+	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "When omitted, the only absences returned are those the current user is allowed to view." })),
+	"date_range": String$2.annotate({ "format": "local-date-interval" })
+}).annotate({ "identifier": "ListAbsencesQuery250901" });
 const AbsenceView250901 = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
 	"absence_type": StructWithRest(Struct({
-		"id": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		})]),
-		"name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
-		"short_name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
-		"machine_name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
-		"color": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2])
+		"id": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2.annotate({ "format": "snowflake" })]),
+		"name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
+		"short_name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
+		"machine_name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
+		"color": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2])
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"remark": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
+		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 		String$2,
 		Null
 	]),
-	"date": String$2.annotate({
-		"examples": ["2019-11-11"],
-		"format": "local-date"
-	}),
-	"percentage": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]).annotate({ "examples": ["forbidden"] }) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Number$1.annotate({
-		"examples": [100],
-		"format": "percentage"
-	}).check(isFinite().annotate({ "expected": "a finite number" }))]),
-	"time_range": Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-		"format": "local-date-time-interval"
-	}), Null], { mode: "oneOf" }),
+	"date": String$2.annotate({ "format": "local-date" }),
+	"percentage": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))]),
+	"time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" }),
 	"repetition_id": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceView250901" });
-const ListAbsenceTypesQuery250901 = StructWithRest(Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
+const ListAbsenceTypesQuery250901 = Struct({
+	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
 	"requestable": optionalKey(Boolean),
 	"enabled": optionalKey(Boolean)
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListAbsenceTypesQuery250901" });
+}).annotate({ "identifier": "ListAbsenceTypesQuery250901" });
 const AbsenceTypeView250901 = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"name": StructWithRest(Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"name": Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }),
+	}),
 	"requestable": Boolean,
 	"enabled": Boolean,
 	"confidential": Boolean,
 	"machine_name": String$2
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceTypeView250901" });
-const ListOnCallsQuery = StructWithRest(Struct({
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
-	"date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListOnCallsQuery" });
+const ListOnCallsQuery = Struct({
+	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })))
+}).annotate({ "identifier": "ListOnCallsQuery" });
 const OnCallView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"time_range": String$2.annotate({
-		"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-		"format": "local-date-time-interval"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
+	"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
 	"schedule_template": Union([StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
+		"id": String$2.annotate({ "format": "snowflake" }),
 		"name": String$2,
 		"description": Union([String$2, Null]),
 		"color": String$2
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"remark": Union([String$2, Null])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OnCallView" });
-const CreateScheduleTemplateCommand260625 = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"schedule_template_type_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"name": Union([StructWithRest(Struct({
+const CreateScheduleTemplateCommand260625 = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"schedule_template_type_id": String$2.annotate({ "format": "snowflake" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
+	"name": Union([Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }), String$2]),
-	"description": optionalKey(Union([StructWithRest(Struct({
+	}), String$2]),
+	"description": optionalKey(Union([Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }), String$2])),
+	}), String$2])),
 	"color": String$2,
-	"hour_ranges": ArraySchema(StructWithRest(Struct({
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}),
-		"auto_correct": Union([StructWithRest(Struct({
+	"hour_ranges": ArraySchema(Struct({
+		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
+		"auto_correct": Union([Struct({
 			"before_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"before_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"paid_break": Union([StructWithRest(Struct({
+		}), Null], { mode: "oneOf" }),
+		"paid_break": Union([Struct({
 			"max_duration": String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}),
-			"hour_range": Union([String$2.annotate({
-				"examples": ["12:34:56/PT2H"],
-				"format": "local-time-interval"
-			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })),
-	"validity_date_range": String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
-	"adjustment": optionalKey(StructWithRest(Struct({
+			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
+		}), Null], { mode: "oneOf" })
+	})).check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })),
+	"validity_date_range": String$2.annotate({ "format": "local-date-interval" }),
+	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"adjustment": optionalKey(Struct({
 		"value": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"time": optionalKey(String$2.annotate({
-			"examples": ["12:34:56"],
-			"format": "local-time"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"break_time": optionalKey(StructWithRest(Struct({
+		"time": optionalKey(String$2.annotate({ "format": "local-time" }))
+	})),
+	"break_time": optionalKey(Struct({
 		"min_duration": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"options": optionalKey(StructWithRest(Struct({
+		"hour_range": String$2.annotate({ "format": "local-time-interval" })
+	})),
+	"options": optionalKey(Struct({
 		"counts_in_balances": Boolean.annotate({ "default": true }),
 		"timecheck_counted": Boolean.annotate({ "default": true }),
 		"employee_resident_ratio": Boolean.annotate({ "default": false }),
 		"auto_completable": Boolean.annotate({ "default": true })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "CreateScheduleTemplateCommand260625" });
-const UpdateScheduleTemplateCommand260625 = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"schedule_template_type_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"team_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"name": optionalKey(Union([StructWithRest(Struct({
+	}))
+}).annotate({ "identifier": "CreateScheduleTemplateCommand260625" });
+const UpdateScheduleTemplateCommand260625 = Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"schedule_template_type_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"name": optionalKey(Union([Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }), String$2])),
+	}), String$2])),
 	"description": optionalKey(Union([
-		StructWithRest(Struct({
+		Struct({
 			"fr": optionalKey(String$2),
 			"en": optionalKey(String$2),
 			"de": optionalKey(String$2)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-			"en": "Hello",
-			"fr": "Bonjour",
-			"de": "Guten Tag"
-		}] }),
+		}),
 		String$2,
 		Null
 	])),
 	"color": optionalKey(String$2),
-	"hour_ranges": optionalKey(ArraySchema(StructWithRest(Struct({
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}),
-		"auto_correct": Union([StructWithRest(Struct({
+	"hour_ranges": optionalKey(ArraySchema(Struct({
+		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
+		"auto_correct": Union([Struct({
 			"before_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"before_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"paid_break": Union([StructWithRest(Struct({
+		}), Null], { mode: "oneOf" }),
+		"paid_break": Union([Struct({
 			"max_duration": String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}),
-			"hour_range": Union([String$2.annotate({
-				"examples": ["12:34:56/PT2H"],
-				"format": "local-time-interval"
-			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))),
-	"validity_date_range": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	})),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
+			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
+		}), Null], { mode: "oneOf" })
 	}))),
-	"adjustment": optionalKey(Union([StructWithRest(Struct({
+	"validity_date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" })),
+	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"adjustment": optionalKey(Union([Struct({
 		"value": optionalKey(String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		})),
-		"time": optionalKey(Union([String$2.annotate({
-			"examples": ["12:34:56"],
-			"format": "local-time"
-		}), Null], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-	"break_time": optionalKey(Union([StructWithRest(Struct({
+		"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
+	}), Null], { mode: "oneOf" })),
+	"break_time": optionalKey(Union([Struct({
 		"min_duration": optionalKey(String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		})),
-		"hour_range": optionalKey(String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-	"options": optionalKey(StructWithRest(Struct({
+		"hour_range": optionalKey(String$2.annotate({ "format": "local-time-interval" }))
+	}), Null], { mode: "oneOf" })),
+	"options": optionalKey(Struct({
 		"counts_in_balances": optionalKey(Boolean),
 		"timecheck_counted": optionalKey(Boolean),
 		"employee_resident_ratio": optionalKey(Boolean),
 		"auto_completable": optionalKey(Boolean)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"force_update": optionalKey(Boolean.annotate({ "default": false }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "UpdateScheduleTemplateCommand260625" });
-const ListScheduleTemplatesQuery260625 = StructWithRest(Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})).annotate({ "description": "If used, it will limit the returned schedule template list to those that are associated with the given team ids (ignoring provided ids that are not)." })),
-	"date_range": optionalKey(String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
 	})),
+	"force_update": optionalKey(Boolean.annotate({ "default": false }))
+}).annotate({ "identifier": "UpdateScheduleTemplateCommand260625" });
+const ListScheduleTemplatesQuery260625 = Struct({
+	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "If used, it will limit the returned schedule template list to those that are associated with the given team ids (ignoring provided ids that are not)." })),
+	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" })),
 	"is_on_call": optionalKey(Boolean),
-	"type_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})).annotate({ "description": "If used, it will limit the returned schedule template list to those that match one of the given schedule template type ids." }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListScheduleTemplatesQuery260625" });
+	"type_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "If used, it will limit the returned schedule template list to those that match one of the given schedule template type ids." }))
+}).annotate({ "identifier": "ListScheduleTemplatesQuery260625" });
 const ScheduleTemplateView260625 = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"name": StructWithRest(Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"name": Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }),
-	"description": Union([StructWithRest(Struct({
+	}),
+	"description": Union([Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }), Null], { mode: "oneOf" }),
-	"team_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	}), Null], { mode: "oneOf" }),
+	"team_id": String$2.annotate({ "format": "snowflake" }),
 	"type": StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"name": StructWithRest(Struct({
+		"id": String$2.annotate({ "format": "snowflake" }),
+		"name": Struct({
 			"fr": optionalKey(String$2),
 			"en": optionalKey(String$2),
 			"de": optionalKey(String$2)
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-			"en": "Hello",
-			"fr": "Bonjour",
-			"de": "Guten Tag"
-		}] }),
+		}),
 		"machine_name": String$2,
 		"display_mode": Literals([
 			"normal",
 			"hour",
 			"corner"
-		]).annotate({ "examples": ["normal"] }),
+		]),
 		"is_on_call": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 	"color": String$2,
-	"hour_ranges": ArraySchema(StructWithRest(Struct({
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		}),
-		"auto_correct": Union([StructWithRest(Struct({
+	"hour_ranges": ArraySchema(Struct({
+		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
+		"auto_correct": Union([Struct({
 			"before_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_start": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"before_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" }),
 			"after_end": Union([String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"paid_break": Union([StructWithRest(Struct({
+		}), Null], { mode: "oneOf" }),
+		"paid_break": Union([Struct({
 			"max_duration": String$2.annotate({
 				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"examples": ["PT1H30M20S"],
 				"format": "duration"
 			}),
-			"hour_range": Union([String$2.annotate({
-				"examples": ["12:34:56/PT2H"],
-				"format": "local-time-interval"
-			}), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
+			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
+		}), Null], { mode: "oneOf" })
+	})),
 	"adjustment": Union([StructWithRest(Struct({
 		"value": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"time": Union([String$2.annotate({
-			"examples": ["12:34:56"],
-			"format": "local-time"
-		}), Null], { mode: "oneOf" })
+		"time": Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"tag_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+	"tag_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"break_time": Union([StructWithRest(Struct({
 		"min_duration": String$2.annotate({
 			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"examples": ["PT1H30M20S"],
 			"format": "duration"
 		}),
-		"hour_range": String$2.annotate({
-			"examples": ["12:34:56/PT2H"],
-			"format": "local-time-interval"
-		})
+		"hour_range": String$2.annotate({ "format": "local-time-interval" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"validity_date_range": Union([String$2.annotate({
-		"examples": ["2019-11-11/2019-12-12"],
-		"format": "local-date-interval"
-	}), Null], { mode: "oneOf" }),
+	"validity_date_range": Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }),
 	"options": StructWithRest(Struct({
 		"counts_in_balances": Boolean,
 		"timecheck_counted": Boolean,
@@ -39982,163 +38828,92 @@ const ScheduleTemplateView260625 = StructWithRest(Struct({
 		"auto_completable": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateView260625" });
-const ListScheduleTemplateTypesQuery260625 = StructWithRest(Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}))),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListScheduleTemplateTypesQuery260625" });
+const ListScheduleTemplateTypesQuery260625 = Struct({
+	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
+	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })))
+}).annotate({ "identifier": "ListScheduleTemplateTypesQuery260625" });
 const ScheduleTemplateTypeView260625 = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"name": StructWithRest(Struct({
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"name": Struct({
 		"fr": optionalKey(String$2),
 		"en": optionalKey(String$2),
 		"de": optionalKey(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "examples": [{
-		"en": "Hello",
-		"fr": "Bonjour",
-		"de": "Guten Tag"
-	}] }),
+	}),
 	"machine_name": String$2,
 	"display_mode": Literals([
 		"normal",
 		"hour",
 		"corner"
-	]).annotate({ "examples": ["normal"] }),
+	]),
 	"is_on_call": Boolean
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateTypeView260625" });
-const ProposeTimecheckCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"in": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
-		"format": "local-date-time"
-	}), Null], { mode: "oneOf" })),
-	"out": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
-		"format": "local-date-time"
-	}), Null], { mode: "oneOf" })),
+const ProposeTimecheckCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"resource_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"in": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
+	"out": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
 	"remark": optionalKey(Union([String$2, Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProposeTimecheckCommand" });
-const ValidateTimecheckCommand = StructWithRest(Struct({
-	"id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"resource_id": optionalKey(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
-	"in": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
-		"format": "local-date-time"
-	}), Null], { mode: "oneOf" })),
-	"out": optionalKey(Union([String$2.annotate({
-		"examples": ["2019-11-11T12:34:56"],
-		"format": "local-date-time"
-	}), Null], { mode: "oneOf" })),
+}).annotate({ "identifier": "ProposeTimecheckCommand" });
+const ValidateTimecheckCommand = Struct({
+	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"resource_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
+	"in": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
+	"out": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
 	"remark": optionalKey(Union([String$2, Null]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ValidateTimecheckCommand" });
-const DeleteTimecheckCommand = StructWithRest(Struct({ "id": String$2.annotate({
-	"examples": ["872815618512410358"],
-	"format": "snowflake"
-}) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteTimecheckCommand" });
-const ListTimechecksQuery = StructWithRest(Struct({ "filters": optionalKey(ArraySchema(Union([
-	StructWithRest(Struct({
-		"key": Literal("timecheck.ids").annotate({ "examples": ["timecheck.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.resources").annotate({ "examples": ["timecheck.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.date_range").annotate({ "examples": ["timecheck.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.datetime_range").annotate({ "examples": ["timecheck.datetime_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.open").annotate({ "examples": ["timecheck.open"] }),
+}).annotate({ "identifier": "ValidateTimecheckCommand" });
+const DeleteTimecheckCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteTimecheckCommand" });
+const ListTimechecksQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	Struct({
+		"key": Literal("timecheck.ids"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("timecheck.resources"),
+		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+	}),
+	Struct({
+		"key": Literal("timecheck.date_range"),
+		"value": String$2.annotate({ "format": "local-date-interval" })
+	}),
+	Struct({
+		"key": Literal("timecheck.datetime_range"),
+		"value": String$2.annotate({ "format": "local-date-time-interval" })
+	}),
+	Struct({
+		"key": Literal("timecheck.open"),
 		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(ListTimechecksQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(ListTimechecksQueryFilter)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }))) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ListTimechecksQuery" });
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }))) }).annotate({ "identifier": "ListTimechecksQuery" });
 const TimecheckView = StructWithRest(Struct({
-	"id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
-	"resource_id": String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	}),
+	"id": String$2.annotate({ "format": "snowflake" }),
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"duration": Union([String$2.annotate({
 		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"examples": ["PT1H30M20S"],
 		"format": "duration"
 	}), Null], { mode: "oneOf" }),
-	"time_range": String$2.annotate({
-		"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-		"format": "local-date-time-interval"
-	}),
-	"expected_time_range": String$2.annotate({
-		"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-		"format": "local-date-time-interval"
-	}),
+	"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
+	"expected_time_range": String$2.annotate({ "format": "local-date-time-interval" }),
 	"type": Literals([
 		"device",
 		"adjusted",
 		"proposal",
 		"validation"
-	]).annotate({ "examples": ["device"] }),
+	]),
 	"color": String$2,
 	"device": StructWithRest(Struct({
 		"in": Union([StructWithRest(Struct({
-			"time": String$2.annotate({
-				"examples": ["2019-11-11T12:34:56"],
-				"format": "local-date-time"
-			}),
+			"time": String$2.annotate({ "format": "local-date-time" }),
 			"name": Union([String$2, Null]),
 			"beacon_name": Union([String$2, Null]),
-			"autocorrection": Union([String$2.annotate({
-				"examples": ["2019-11-11T12:34:56"],
-				"format": "local-date-time"
-			}), Null], { mode: "oneOf" }),
+			"autocorrection": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 			"autocorrection_source": Union([String$2, Null]),
 			"geolocation": Union([StructWithRest(Struct({
 				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
@@ -40154,22 +38929,13 @@ const TimecheckView = StructWithRest(Struct({
 					"format": "float"
 				})
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-			"received_at": Union([String$2.annotate({
-				"examples": ["2025-10-30T10:40:22.01367Z"],
-				"format": "zoned-date-time"
-			}), Null], { mode: "oneOf" })
+			"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 		"out": Union([StructWithRest(Struct({
-			"time": String$2.annotate({
-				"examples": ["2019-11-11T12:34:56"],
-				"format": "local-date-time"
-			}),
+			"time": String$2.annotate({ "format": "local-date-time" }),
 			"name": Union([String$2, Null]),
 			"beacon_name": Union([String$2, Null]),
-			"autocorrection": Union([String$2.annotate({
-				"examples": ["2019-11-11T12:34:56"],
-				"format": "local-date-time"
-			}), Null], { mode: "oneOf" }),
+			"autocorrection": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 			"autocorrection_source": Union([String$2, Null]),
 			"geolocation": Union([StructWithRest(Struct({
 				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
@@ -40185,2197 +38951,34 @@ const TimecheckView = StructWithRest(Struct({
 					"format": "float"
 				})
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-			"received_at": Union([String$2.annotate({
-				"examples": ["2025-10-30T10:40:22.01367Z"],
-				"format": "zoned-date-time"
-			}), Null], { mode: "oneOf" })
+			"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 	"proposal": Union([StructWithRest(Struct({
-		"resource_id": Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }),
-		"in": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}), Null], { mode: "oneOf" }),
-		"out": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}), Null], { mode: "oneOf" }),
-		"received_at": Union([String$2.annotate({
-			"examples": ["2025-10-30T10:40:22.01367Z"],
-			"format": "zoned-date-time"
-		}), Null], { mode: "oneOf" }),
+		"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
+		"in": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
+		"out": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
+		"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
 		"comment": Union([String$2, Null]).annotate({ "default": null })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"validation": Union([StructWithRest(Struct({
-		"resource_id": Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }),
-		"in": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}), Null], { mode: "oneOf" }),
-		"out": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}), Null], { mode: "oneOf" }),
-		"received_at": Union([String$2.annotate({
-			"examples": ["2025-10-30T10:40:22.01367Z"],
-			"format": "zoned-date-time"
-		}), Null], { mode: "oneOf" }),
+		"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
+		"in": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
+		"out": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
+		"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
 		"comment": Union([String$2, Null]).annotate({ "default": null })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"is_adjusted": Boolean,
-	"matched_schedule_ids": ArraySchema(String$2.annotate({
-		"examples": ["872815618512410358"],
-		"format": "snowflake"
-	})),
+	"matched_schedule_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"tags_comment": Union([String$2, Null]),
 	"tags": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}),
-		"added_at": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}),
-		"added_by_id": Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }),
-		"removed_at": Union([String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		}), Null], { mode: "oneOf" }),
-		"removed_by_id": Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" })
+		"id": String$2.annotate({ "format": "snowflake" }),
+		"added_at": String$2.annotate({ "format": "local-date-time" }),
+		"added_by_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
+		"removed_at": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
+		"removed_by_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimecheckView" });
-const __recursive_ListProjectsQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.external_id").annotate({ "examples": ["project.external_id"] }),
-		"value": ArraySchema(String$2)
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.search").annotate({ "examples": ["project.search"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.status").annotate({ "examples": ["project.status"] }),
-		"value": ArraySchema(Literals([
-			"draft",
-			"active",
-			"locked",
-			"archived"
-		]).annotate({ "examples": ["draft"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.access_rights").annotate({ "examples": ["project.access_rights"] }),
-		"value": StructWithRest(Struct({
-			"resource_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"rights": ArraySchema(Literals([
-				"manage-project",
-				"validate-hours",
-				"contribute-hours",
-				"consult-hours"
-			]).annotate({ "examples": ["manage-project"] }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.date_range").annotate({ "examples": ["project.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.created_at").annotate({ "examples": ["project.created_at"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.with_activities").annotate({ "examples": ["project.with_activities"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.external_id").annotate({ "examples": ["project.external_id"] }),
-				"value": ArraySchema(String$2)
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.search").annotate({ "examples": ["project.search"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.status").annotate({ "examples": ["project.status"] }),
-				"value": ArraySchema(Literals([
-					"draft",
-					"active",
-					"locked",
-					"archived"
-				]).annotate({ "examples": ["draft"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.access_rights").annotate({ "examples": ["project.access_rights"] }),
-				"value": StructWithRest(Struct({
-					"resource_id": String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}),
-					"rights": ArraySchema(Literals([
-						"manage-project",
-						"validate-hours",
-						"contribute-hours",
-						"consult-hours"
-					]).annotate({ "examples": ["manage-project"] }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.date_range").annotate({ "examples": ["project.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.created_at").annotate({ "examples": ["project.created_at"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-					"format": "local-date-time-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.with_activities").annotate({ "examples": ["project.with_activities"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListProjectsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListProjectsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.external_id").annotate({ "examples": ["project.external_id"] }),
-				"value": ArraySchema(String$2)
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.search").annotate({ "examples": ["project.search"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.status").annotate({ "examples": ["project.status"] }),
-				"value": ArraySchema(Literals([
-					"draft",
-					"active",
-					"locked",
-					"archived"
-				]).annotate({ "examples": ["draft"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.access_rights").annotate({ "examples": ["project.access_rights"] }),
-				"value": StructWithRest(Struct({
-					"resource_id": String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}),
-					"rights": ArraySchema(Literals([
-						"manage-project",
-						"validate-hours",
-						"contribute-hours",
-						"consult-hours"
-					]).annotate({ "examples": ["manage-project"] }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.date_range").annotate({ "examples": ["project.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.created_at").annotate({ "examples": ["project.created_at"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-					"format": "local-date-time-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.with_activities").annotate({ "examples": ["project.with_activities"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListProjectsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListProjectsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListProjectsQueryFilter" });
-const __recursive_ListProjectHourlyBudgetStatsQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListProjectHourlyBudgetStatsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListProjectHourlyBudgetStatsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("project.ids").annotate({ "examples": ["project.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListProjectHourlyBudgetStatsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListProjectHourlyBudgetStatsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListProjectHourlyBudgetStatsQueryFilter" });
-const __recursive_ListProjectTasksQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("task.projects_ids").annotate({ "examples": ["task.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.ids").annotate({ "examples": ["task.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.assigned").annotate({ "examples": ["task.assigned"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.project_status").annotate({ "examples": ["task.project_status"] }),
-		"value": ArraySchema(Literals([
-			"draft",
-			"active",
-			"locked",
-			"archived"
-		]).annotate({ "examples": ["draft"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.projects_date_range").annotate({ "examples": ["task.projects_date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.effective").annotate({ "examples": ["task.effective"] }),
-		"value": StructWithRest(Struct({
-			"resource_id": String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}),
-			"date_range": String$2.annotate({
-				"examples": ["2019-11-11/2019-12-12"],
-				"format": "local-date-interval"
-			})
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.billable").annotate({ "examples": ["task.billable"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.search").annotate({ "examples": ["task.search"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("task.tags").annotate({ "examples": ["task.tags"] }),
-		"value": StructWithRest(Struct({
-			"tags": ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			})),
-			"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("task.projects_ids").annotate({ "examples": ["task.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.ids").annotate({ "examples": ["task.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.assigned").annotate({ "examples": ["task.assigned"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.project_status").annotate({ "examples": ["task.project_status"] }),
-				"value": ArraySchema(Literals([
-					"draft",
-					"active",
-					"locked",
-					"archived"
-				]).annotate({ "examples": ["draft"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.projects_date_range").annotate({ "examples": ["task.projects_date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.effective").annotate({ "examples": ["task.effective"] }),
-				"value": StructWithRest(Struct({
-					"resource_id": String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}),
-					"date_range": String$2.annotate({
-						"examples": ["2019-11-11/2019-12-12"],
-						"format": "local-date-interval"
-					})
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.billable").annotate({ "examples": ["task.billable"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.search").annotate({ "examples": ["task.search"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.tags").annotate({ "examples": ["task.tags"] }),
-				"value": StructWithRest(Struct({
-					"tags": ArraySchema(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})),
-					"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListProjectTasksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListProjectTasksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("task.projects_ids").annotate({ "examples": ["task.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.ids").annotate({ "examples": ["task.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.assigned").annotate({ "examples": ["task.assigned"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.project_status").annotate({ "examples": ["task.project_status"] }),
-				"value": ArraySchema(Literals([
-					"draft",
-					"active",
-					"locked",
-					"archived"
-				]).annotate({ "examples": ["draft"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.projects_date_range").annotate({ "examples": ["task.projects_date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.effective").annotate({ "examples": ["task.effective"] }),
-				"value": StructWithRest(Struct({
-					"resource_id": String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}),
-					"date_range": String$2.annotate({
-						"examples": ["2019-11-11/2019-12-12"],
-						"format": "local-date-interval"
-					})
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.billable").annotate({ "examples": ["task.billable"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.search").annotate({ "examples": ["task.search"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("task.tags").annotate({ "examples": ["task.tags"] }),
-				"value": StructWithRest(Struct({
-					"tags": ArraySchema(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})),
-					"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("project.resource_ids").annotate({ "examples": ["project.resource_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListProjectTasksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListProjectTasksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListProjectTasksQueryFilter" });
-const __recursive_ListActivitiesQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.open_activities").annotate({ "examples": ["activity.open_activities"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.open_activities").annotate({ "examples": ["activity.open_activities"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.open_activities").annotate({ "examples": ["activity.open_activities"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListActivitiesQueryFilter" });
-const __recursive_ListDetailedActivitiesQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-		"value": StructWithRest(Struct({
-			"tags": ArraySchema(Union([String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}), Null], { mode: "oneOf" })),
-			"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-		"value": ArraySchema(Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-		"value": ArraySchema(Literals([
-			"editing",
-			"submitted",
-			"validated",
-			"rejected"
-		]).annotate({ "examples": ["editing"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-				"value": StructWithRest(Struct({
-					"tags": ArraySchema(Union([String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}), Null], { mode: "oneOf" })),
-					"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-				"value": ArraySchema(Union([String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}), Null], { mode: "oneOf" }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-				"value": ArraySchema(Literals([
-					"editing",
-					"submitted",
-					"validated",
-					"rejected"
-				]).annotate({ "examples": ["editing"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListDetailedActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListDetailedActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-				"value": StructWithRest(Struct({
-					"tags": ArraySchema(Union([String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}), Null], { mode: "oneOf" })),
-					"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-				"value": ArraySchema(Union([String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}), Null], { mode: "oneOf" }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-				"value": ArraySchema(Literals([
-					"editing",
-					"submitted",
-					"validated",
-					"rejected"
-				]).annotate({ "examples": ["editing"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListDetailedActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListDetailedActivitiesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListDetailedActivitiesQueryFilter" });
-const __recursive_ShowActivitiesTotalsQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-		"value": StructWithRest(Struct({
-			"tags": ArraySchema(Union([String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			}), Null], { mode: "oneOf" })),
-			"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-		"value": ArraySchema(Union([String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}), Null], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-		"value": ArraySchema(Literals([
-			"editing",
-			"submitted",
-			"validated",
-			"rejected"
-		]).annotate({ "examples": ["editing"] }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-				"value": StructWithRest(Struct({
-					"tags": ArraySchema(Union([String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}), Null], { mode: "oneOf" })),
-					"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-				"value": ArraySchema(Union([String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}), Null], { mode: "oneOf" }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-				"value": ArraySchema(Literals([
-					"editing",
-					"submitted",
-					"validated",
-					"rejected"
-				]).annotate({ "examples": ["editing"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ShowActivitiesTotalsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ShowActivitiesTotalsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("activity.date_range").annotate({ "examples": ["activity.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tags_ids").annotate({ "examples": ["activity.tags_ids"] }),
-				"value": StructWithRest(Struct({
-					"tags": ArraySchema(Union([String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					}), Null], { mode: "oneOf" })),
-					"operator": Literals(["or", "and"]).annotate({ "examples": ["or"] })
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_ids").annotate({ "examples": ["activity.projects_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.project_name").annotate({ "examples": ["activity.project_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.tasks_ids").annotate({ "examples": ["activity.tasks_ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.task_name").annotate({ "examples": ["activity.task_name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.billable").annotate({ "examples": ["activity.billable"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.projects_resources").annotate({ "examples": ["activity.projects_resources"] }),
-				"value": ArraySchema(Union([String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}), Null], { mode: "oneOf" }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.day_task_status").annotate({ "examples": ["activity.day_task_status"] }),
-				"value": ArraySchema(Literals([
-					"editing",
-					"submitted",
-					"validated",
-					"rejected"
-				]).annotate({ "examples": ["editing"] }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.resources").annotate({ "examples": ["activity.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_remark").annotate({ "examples": ["activity.has_remark"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("activity.has_budget").annotate({ "examples": ["activity.has_budget"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ShowActivitiesTotalsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ShowActivitiesTotalsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ShowActivitiesTotalsQueryFilter" });
-const __recursive_ListResourcesQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("resource.ids").annotate({ "examples": ["resource.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("resource.boolean").annotate({ "examples": ["resource.boolean"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"equals",
-				"not_equals",
-				"none"
-			]).annotate({ "examples": ["equals"] }),
-			"value": optionalKey(Boolean.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.choice").annotate({ "examples": ["resource.choice"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"in_list",
-				"not_in_list",
-				"none"
-			]).annotate({ "examples": ["in_list"] }),
-			"value": optionalKey(ArraySchema(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), String$2])).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.date_range").annotate({ "examples": ["resource.date_range"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Union([Literals([
-				"equals",
-				"not_equals",
-				"from",
-				"until",
-				"none"
-			]).annotate({ "examples": ["equals"] }), Literals([
-				"in_range",
-				"not_in_range",
-				"none"
-			]).annotate({ "examples": ["in_range"] })]),
-			"value": optionalKey(String$2.annotate({
-				"examples": ["2019-11-11/2019-12-12"],
-				"format": "local-date-interval",
-				"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("resource.decimal").annotate({ "examples": ["resource.decimal"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"equals",
-				"not_equals",
-				"less_than",
-				"less_than_or_equal",
-				"greater_than",
-				"greater_than_or_equal",
-				"none"
-			]).annotate({ "examples": ["equals"] }),
-			"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.duration").annotate({ "examples": ["resource.duration"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"equals",
-				"not_equals",
-				"less_than",
-				"less_than_or_equal",
-				"greater_than",
-				"greater_than_or_equal",
-				"none"
-			]).annotate({ "examples": ["equals"] }),
-			"value": optionalKey(String$2.annotate({
-				"description": "Property can be omitted with 'none' operator. It is required for all other operators.",
-				"examples": ["PT1H30M20S"],
-				"format": "duration"
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.integer").annotate({ "examples": ["resource.integer"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"equals",
-				"not_equals",
-				"less_than",
-				"less_than_or_equal",
-				"greater_than",
-				"greater_than_or_equal",
-				"none"
-			]).annotate({ "examples": ["equals"] }),
-			"value": optionalKey(Number$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }).check(isInt().annotate({ "expected": "an integer" })))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.month_day_range").annotate({ "examples": ["resource.month_day_range"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"in_range",
-				"not_in_range",
-				"none"
-			]).annotate({ "examples": ["in_range"] }),
-			"value": optionalKey(String$2.annotate({
-				"examples": ["--11-11/--12-12"],
-				"format": "local-month-day-interval",
-				"description": "Property can be omitted with 'none' operator. It is required for all other operators."
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.regrouping").annotate({ "examples": ["resource.regrouping"] }),
-		"value": StructWithRest(Struct({
-			"teams": optionalKey(Union([Literal("*").annotate({
-				"description": "Refers to all teams",
-				"examples": ["*"]
-			}), ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			})).annotate({
-				"description": "Refers to a list of teams",
-				"examples": [["903956503593387633", "903956503593534034"]]
-			})], { mode: "oneOf" })),
-			"main_team": optionalKey(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			})),
-			"filter_pattern": optionalKey(String$2),
-			"operator": optionalKey(Literals([
-				"in_list",
-				"not_in_list",
-				"none"
-			]).annotate({ "examples": ["in_list"] })),
-			"sources": optionalKey(ArraySchema(Literals(["resource", "team"]).annotate({ "examples": ["resource"] })))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.fulltext").annotate({ "examples": ["resource.fulltext"] }),
-		"value": StructWithRest(Struct({
-			"attributes": optionalKey(ArraySchema(String$2).annotate({ "default": [] })),
-			"operator": Literals([
-				"equals",
-				"not_equals",
-				"contains",
-				"not_contains",
-				"starts_with",
-				"ends_with",
-				"none"
-			]).annotate({ "examples": ["equals"] }),
-			"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("resource.text").annotate({ "examples": ["resource.text"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Literals([
-				"equals",
-				"not_equals",
-				"contains",
-				"not_contains",
-				"starts_with",
-				"ends_with",
-				"none"
-			]).annotate({ "examples": ["equals"] }),
-			"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.team").annotate({ "examples": ["resource.team"] }),
-		"value": StructWithRest(Struct({
-			"teams": optionalKey(Union([Union([Literal("*").annotate({
-				"description": "Refers to all teams",
-				"examples": ["*"]
-			}), ArraySchema(String$2.annotate({
-				"examples": ["872815618512410358"],
-				"format": "snowflake"
-			})).annotate({
-				"description": "Refers to a list of teams",
-				"examples": [["903956503593387633", "903956503593534034"]]
-			})], { mode: "oneOf" }), Null], { mode: "oneOf" })),
-			"period": optionalKey(Union([StructWithRest(Struct({
-				"operator": Literals([
-					"first_starts_in",
-					"starts_in",
-					"intersects_with",
-					"ends_in",
-					"last_ends_in",
-					"none"
-				]).annotate({ "examples": ["first_starts_in"] }),
-				"date_range": optionalKey(Union([String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				}), Null], { mode: "oneOf" }))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-			"recursive": optionalKey(Boolean.annotate({ "default": false })),
-			"head": optionalKey(Union([Boolean, Null]))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
-	StructWithRest(Struct({
-		"key": Literal("resource.time_range").annotate({ "examples": ["resource.time_range"] }),
-		"value": StructWithRest(Struct({
-			"attribute": String$2,
-			"operator": Union([Literals([
-				"equals",
-				"not_equals",
-				"from",
-				"until",
-				"none"
-			]).annotate({ "examples": ["equals"] }), Literals([
-				"in_range",
-				"not_in_range",
-				"none"
-			]).annotate({ "examples": ["in_range"] })]),
-			"value": optionalKey(String$2.annotate({
-				"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-				"format": "local-date-time-interval",
-				"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-			}))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("resource.ids").annotate({ "examples": ["resource.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("resource.boolean").annotate({ "examples": ["resource.boolean"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(Boolean.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.choice").annotate({ "examples": ["resource.choice"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"in_list",
-						"not_in_list",
-						"none"
-					]).annotate({ "examples": ["in_list"] }),
-					"value": optionalKey(ArraySchema(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), String$2])).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.date_range").annotate({ "examples": ["resource.date_range"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Union([Literals([
-						"equals",
-						"not_equals",
-						"from",
-						"until",
-						"none"
-					]).annotate({ "examples": ["equals"] }), Literals([
-						"in_range",
-						"not_in_range",
-						"none"
-					]).annotate({ "examples": ["in_range"] })]),
-					"value": optionalKey(String$2.annotate({
-						"examples": ["2019-11-11/2019-12-12"],
-						"format": "local-date-interval",
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("resource.decimal").annotate({ "examples": ["resource.decimal"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"less_than",
-						"less_than_or_equal",
-						"greater_than",
-						"greater_than_or_equal",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.duration").annotate({ "examples": ["resource.duration"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"less_than",
-						"less_than_or_equal",
-						"greater_than",
-						"greater_than_or_equal",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators.",
-						"examples": ["PT1H30M20S"],
-						"format": "duration"
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.integer").annotate({ "examples": ["resource.integer"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"less_than",
-						"less_than_or_equal",
-						"greater_than",
-						"greater_than_or_equal",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(Number$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }).check(isInt().annotate({ "expected": "an integer" })))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.month_day_range").annotate({ "examples": ["resource.month_day_range"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"in_range",
-						"not_in_range",
-						"none"
-					]).annotate({ "examples": ["in_range"] }),
-					"value": optionalKey(String$2.annotate({
-						"examples": ["--11-11/--12-12"],
-						"format": "local-month-day-interval",
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators."
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.regrouping").annotate({ "examples": ["resource.regrouping"] }),
-				"value": StructWithRest(Struct({
-					"teams": optionalKey(Union([Literal("*").annotate({
-						"description": "Refers to all teams",
-						"examples": ["*"]
-					}), ArraySchema(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})).annotate({
-						"description": "Refers to a list of teams",
-						"examples": [["903956503593387633", "903956503593534034"]]
-					})], { mode: "oneOf" })),
-					"main_team": optionalKey(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})),
-					"filter_pattern": optionalKey(String$2),
-					"operator": optionalKey(Literals([
-						"in_list",
-						"not_in_list",
-						"none"
-					]).annotate({ "examples": ["in_list"] })),
-					"sources": optionalKey(ArraySchema(Literals(["resource", "team"]).annotate({ "examples": ["resource"] })))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.fulltext").annotate({ "examples": ["resource.fulltext"] }),
-				"value": StructWithRest(Struct({
-					"attributes": optionalKey(ArraySchema(String$2).annotate({ "default": [] })),
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"contains",
-						"not_contains",
-						"starts_with",
-						"ends_with",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("resource.text").annotate({ "examples": ["resource.text"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"contains",
-						"not_contains",
-						"starts_with",
-						"ends_with",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.team").annotate({ "examples": ["resource.team"] }),
-				"value": StructWithRest(Struct({
-					"teams": optionalKey(Union([Union([Literal("*").annotate({
-						"description": "Refers to all teams",
-						"examples": ["*"]
-					}), ArraySchema(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})).annotate({
-						"description": "Refers to a list of teams",
-						"examples": [["903956503593387633", "903956503593534034"]]
-					})], { mode: "oneOf" }), Null], { mode: "oneOf" })),
-					"period": optionalKey(Union([StructWithRest(Struct({
-						"operator": Literals([
-							"first_starts_in",
-							"starts_in",
-							"intersects_with",
-							"ends_in",
-							"last_ends_in",
-							"none"
-						]).annotate({ "examples": ["first_starts_in"] }),
-						"date_range": optionalKey(Union([String$2.annotate({
-							"examples": ["2019-11-11/2019-12-12"],
-							"format": "local-date-interval"
-						}), Null], { mode: "oneOf" }))
-					}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-					"recursive": optionalKey(Boolean.annotate({ "default": false })),
-					"head": optionalKey(Union([Boolean, Null]))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.time_range").annotate({ "examples": ["resource.time_range"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Union([Literals([
-						"equals",
-						"not_equals",
-						"from",
-						"until",
-						"none"
-					]).annotate({ "examples": ["equals"] }), Literals([
-						"in_range",
-						"not_in_range",
-						"none"
-					]).annotate({ "examples": ["in_range"] })]),
-					"value": optionalKey(String$2.annotate({
-						"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-						"format": "local-date-time-interval",
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListResourcesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListResourcesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("resource.ids").annotate({ "examples": ["resource.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("resource.boolean").annotate({ "examples": ["resource.boolean"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(Boolean.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.choice").annotate({ "examples": ["resource.choice"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"in_list",
-						"not_in_list",
-						"none"
-					]).annotate({ "examples": ["in_list"] }),
-					"value": optionalKey(ArraySchema(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), String$2])).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.date_range").annotate({ "examples": ["resource.date_range"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Union([Literals([
-						"equals",
-						"not_equals",
-						"from",
-						"until",
-						"none"
-					]).annotate({ "examples": ["equals"] }), Literals([
-						"in_range",
-						"not_in_range",
-						"none"
-					]).annotate({ "examples": ["in_range"] })]),
-					"value": optionalKey(String$2.annotate({
-						"examples": ["2019-11-11/2019-12-12"],
-						"format": "local-date-interval",
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("resource.decimal").annotate({ "examples": ["resource.decimal"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"less_than",
-						"less_than_or_equal",
-						"greater_than",
-						"greater_than_or_equal",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.duration").annotate({ "examples": ["resource.duration"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"less_than",
-						"less_than_or_equal",
-						"greater_than",
-						"greater_than_or_equal",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators.",
-						"examples": ["PT1H30M20S"],
-						"format": "duration"
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.integer").annotate({ "examples": ["resource.integer"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"less_than",
-						"less_than_or_equal",
-						"greater_than",
-						"greater_than_or_equal",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(Number$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }).check(isInt().annotate({ "expected": "an integer" })))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.month_day_range").annotate({ "examples": ["resource.month_day_range"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"in_range",
-						"not_in_range",
-						"none"
-					]).annotate({ "examples": ["in_range"] }),
-					"value": optionalKey(String$2.annotate({
-						"examples": ["--11-11/--12-12"],
-						"format": "local-month-day-interval",
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators."
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.regrouping").annotate({ "examples": ["resource.regrouping"] }),
-				"value": StructWithRest(Struct({
-					"teams": optionalKey(Union([Literal("*").annotate({
-						"description": "Refers to all teams",
-						"examples": ["*"]
-					}), ArraySchema(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})).annotate({
-						"description": "Refers to a list of teams",
-						"examples": [["903956503593387633", "903956503593534034"]]
-					})], { mode: "oneOf" })),
-					"main_team": optionalKey(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})),
-					"filter_pattern": optionalKey(String$2),
-					"operator": optionalKey(Literals([
-						"in_list",
-						"not_in_list",
-						"none"
-					]).annotate({ "examples": ["in_list"] })),
-					"sources": optionalKey(ArraySchema(Literals(["resource", "team"]).annotate({ "examples": ["resource"] })))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.fulltext").annotate({ "examples": ["resource.fulltext"] }),
-				"value": StructWithRest(Struct({
-					"attributes": optionalKey(ArraySchema(String$2).annotate({ "default": [] })),
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"contains",
-						"not_contains",
-						"starts_with",
-						"ends_with",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("resource.text").annotate({ "examples": ["resource.text"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Literals([
-						"equals",
-						"not_equals",
-						"contains",
-						"not_contains",
-						"starts_with",
-						"ends_with",
-						"none"
-					]).annotate({ "examples": ["equals"] }),
-					"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.team").annotate({ "examples": ["resource.team"] }),
-				"value": StructWithRest(Struct({
-					"teams": optionalKey(Union([Union([Literal("*").annotate({
-						"description": "Refers to all teams",
-						"examples": ["*"]
-					}), ArraySchema(String$2.annotate({
-						"examples": ["872815618512410358"],
-						"format": "snowflake"
-					})).annotate({
-						"description": "Refers to a list of teams",
-						"examples": [["903956503593387633", "903956503593534034"]]
-					})], { mode: "oneOf" }), Null], { mode: "oneOf" })),
-					"period": optionalKey(Union([StructWithRest(Struct({
-						"operator": Literals([
-							"first_starts_in",
-							"starts_in",
-							"intersects_with",
-							"ends_in",
-							"last_ends_in",
-							"none"
-						]).annotate({ "examples": ["first_starts_in"] }),
-						"date_range": optionalKey(Union([String$2.annotate({
-							"examples": ["2019-11-11/2019-12-12"],
-							"format": "local-date-interval"
-						}), Null], { mode: "oneOf" }))
-					}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })),
-					"recursive": optionalKey(Boolean.annotate({ "default": false })),
-					"head": optionalKey(Union([Boolean, Null]))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
-			StructWithRest(Struct({
-				"key": Literal("resource.time_range").annotate({ "examples": ["resource.time_range"] }),
-				"value": StructWithRest(Struct({
-					"attribute": String$2,
-					"operator": Union([Literals([
-						"equals",
-						"not_equals",
-						"from",
-						"until",
-						"none"
-					]).annotate({ "examples": ["equals"] }), Literals([
-						"in_range",
-						"not_in_range",
-						"none"
-					]).annotate({ "examples": ["in_range"] })]),
-					"value": optionalKey(String$2.annotate({
-						"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-						"format": "local-date-time-interval",
-						"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-					}))
-				}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListResourcesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListResourcesQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListResourcesQueryFilter" });
-const __recursive_ListTagsQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("tag.ids").annotate({ "examples": ["tag.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("tag.name").annotate({ "examples": ["tag.name"] }),
-		"value": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
-	StructWithRest(Struct({
-		"key": Literal("tag.with_disabled").annotate({ "examples": ["tag.with_disabled"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("tag.date_created").annotate({ "examples": ["tag.date_created"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("tag.date_updated").annotate({ "examples": ["tag.date_updated"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56"],
-			"format": "local-date-time"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("tag.ids").annotate({ "examples": ["tag.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("tag.name").annotate({ "examples": ["tag.name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
-			StructWithRest(Struct({
-				"key": Literal("tag.with_disabled").annotate({ "examples": ["tag.with_disabled"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("tag.date_created").annotate({ "examples": ["tag.date_created"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56"],
-					"format": "local-date-time"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("tag.date_updated").annotate({ "examples": ["tag.date_updated"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56"],
-					"format": "local-date-time"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListTagsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListTagsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("tag.ids").annotate({ "examples": ["tag.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("tag.name").annotate({ "examples": ["tag.name"] }),
-				"value": String$2
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
-			StructWithRest(Struct({
-				"key": Literal("tag.with_disabled").annotate({ "examples": ["tag.with_disabled"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("tag.date_created").annotate({ "examples": ["tag.date_created"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56"],
-					"format": "local-date-time"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("tag.date_updated").annotate({ "examples": ["tag.date_updated"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56"],
-					"format": "local-date-time"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListTagsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListTagsQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListTagsQueryFilter" });
-const __recursive_ListTimechecksQueryFilter = Union([
-	StructWithRest(Struct({
-		"key": Literal("timecheck.ids").annotate({ "examples": ["timecheck.ids"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.resources").annotate({ "examples": ["timecheck.resources"] }),
-		"value": ArraySchema(String$2.annotate({
-			"examples": ["872815618512410358"],
-			"format": "snowflake"
-		}))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.date_range").annotate({ "examples": ["timecheck.date_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11/2019-12-12"],
-			"format": "local-date-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.datetime_range").annotate({ "examples": ["timecheck.datetime_range"] }),
-		"value": String$2.annotate({
-			"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-			"format": "local-date-time-interval"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("timecheck.open").annotate({ "examples": ["timecheck.open"] }),
-		"value": Boolean
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("or").annotate({ "examples": ["or"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("timecheck.ids").annotate({ "examples": ["timecheck.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.resources").annotate({ "examples": ["timecheck.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.date_range").annotate({ "examples": ["timecheck.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.datetime_range").annotate({ "examples": ["timecheck.datetime_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-					"format": "local-date-time-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.open").annotate({ "examples": ["timecheck.open"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListTimechecksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListTimechecksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	StructWithRest(Struct({
-		"key": Literal("and").annotate({ "examples": ["and"] }),
-		"value": ArraySchema(Union([
-			StructWithRest(Struct({
-				"key": Literal("timecheck.ids").annotate({ "examples": ["timecheck.ids"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.resources").annotate({ "examples": ["timecheck.resources"] }),
-				"value": ArraySchema(String$2.annotate({
-					"examples": ["872815618512410358"],
-					"format": "snowflake"
-				}))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.date_range").annotate({ "examples": ["timecheck.date_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11/2019-12-12"],
-					"format": "local-date-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.datetime_range").annotate({ "examples": ["timecheck.datetime_range"] }),
-				"value": String$2.annotate({
-					"examples": ["2019-11-11T12:34:56/2019-12-12T23:59:59"],
-					"format": "local-date-time-interval"
-				})
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("timecheck.open").annotate({ "examples": ["timecheck.open"] }),
-				"value": Boolean
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("or").annotate({ "examples": ["or"] }),
-				"value": ArraySchema(suspend(() => ListTimechecksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-			StructWithRest(Struct({
-				"key": Literal("and").annotate({ "examples": ["and"] }),
-				"value": ArraySchema(suspend(() => ListTimechecksQueryFilter))
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		], { mode: "oneOf" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-], { mode: "oneOf" }).annotate({ "identifier": "ListTimechecksQueryFilter" });
 const PostAppUiApiActivityConfigurationProjectcommandCreateprojectRequestJson = CreateProjectCommand;
 const PostAppUiApiActivityConfigurationProjectcommandCreateproject201 = StructWithRest(Struct({ "id": Snowflake }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]);
 const PostAppUiApiActivityConfigurationProjectcommandDeleteprojectRequestJson = DeleteProjectCommand;
@@ -42462,24 +39065,24 @@ const PostAppUiApiDirectoryDirectoryqueryListtagsRequestJson = ListTagsQuery;
 const PostAppUiApiDirectoryDirectoryqueryListtags200 = ArraySchema(TagView);
 const PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson = CreateScheduleCommand;
 const PostAppUiApiScheduleSchedulecommandCreateschedule409 = Union([StructWithRest(Struct({
-	"error": optionalKey(String$2.annotate({ "examples": ["OVERLAPPING"] })),
+	"error": optionalKey(String$2),
 	"body": optionalKey(OverlappingSchedulesConflictResponseBodyDTO)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), StructWithRest(Struct({
-	"error": optionalKey(String$2.annotate({ "examples": ["SCHEDULE_SECTOR_MASKED"] })),
+	"error": optionalKey(String$2),
 	"body": optionalKey(MaskedSectorResponseBodyDTO)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])], { mode: "oneOf" });
 const PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson = UpdateScheduleCommand;
 const PostAppUiApiScheduleSchedulecommandUpdateschedule409 = Union([StructWithRest(Struct({
-	"error": optionalKey(String$2.annotate({ "examples": ["OVERLAPPING"] })),
+	"error": optionalKey(String$2),
 	"body": optionalKey(OverlappingSchedulesConflictResponseBodyDTO)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), StructWithRest(Struct({
-	"error": optionalKey(String$2.annotate({ "examples": ["SCHEDULE_SECTOR_MASKED"] })),
+	"error": optionalKey(String$2),
 	"body": optionalKey(MaskedSectorResponseBodyDTO)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])], { mode: "oneOf" });
 const PostAppUiApiScheduleSchedulecommandDeleteschedulesRequestJson = DeleteSchedulesCommand;
 const PostAppUiApiScheduleSchedulecommandDeleteschedules200 = DeleteScheduleResult;
 const PostAppUiApiScheduleSchedulecommandDeleteschedules409 = StructWithRest(Struct({
-	"warning_type": optionalKey(String$2.annotate({ "examples": ["locked_schedules"] })),
+	"warning_type": optionalKey(String$2),
 	"description": optionalKey(String$2),
 	"details": optionalKey(DeleteSchedulesWarningDetails),
 	"required_action": optionalKey(String$2)
@@ -42645,7 +39248,7 @@ var DirectoryGroup = class extends make$6("Directory").add(post("postAppUiApiDir
 }).annotate(Identifier, "post_app_ui_api_directory_directorycommand_disableteam").annotate(Summary, "Disable").annotate(Description, "Disables a team."), post("postAppUiApiDirectoryDirectoryqueryResourceslist", "/api/directory/resources.list", {
 	payload: PostAppUiApiDirectoryDirectoryqueryResourceslistRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryResourceslist200
-}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_resourceslist").annotate(Summary, "List").annotate(Description, "Retrieves all resources of a specific kind, including those with no (or only past) sector contracts. Returns associated details related to that kind. Use the 'resource.team' filter to narrow down the search by contract period (e.g. only currently employed)."), post("postAppUiApiDirectoryDirectoryqueryKindslist", "/api/directory/kinds.list", {
+}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_resourceslist").annotate(Summary, "List").annotate(Description, "Retrieves all resources of a specific kind, including those with no (or only past) sector contracts. Returns associated details related to that kind. Use the 'resource.team' filter to narrow down the search by contract period (e.g. only currently employed). Pagination: send pagination with a limit and next_token (null on the first page), explicit orders, and identical filters and orders on every page; a non-null next_token can come back on the last full page, whose next page is empty."), post("postAppUiApiDirectoryDirectoryqueryKindslist", "/api/directory/kinds.list", {
 	payload: PostAppUiApiDirectoryDirectoryqueryKindslistRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryKindslist200
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindslist").annotate(Summary, "List").annotate(Description, "Retrieves all kinds of possible resources. Only 'employee' is available at the moment."), post("postAppUiApiDirectoryDirectoryqueryKindsshow", "/api/directory/kinds.show", {
@@ -46774,7 +43377,7 @@ const make$2 = /*#__PURE__*/ sync(() => {
 				for (const registration of registrations.values()) if (registration.isVisible(profile)) descriptors.push(registration.descriptor);
 				return descriptors;
 			}),
-			call: (call, invocation) => suspend$3(() => {
+			call: (call, invocation) => suspend$2(() => {
 				const registration = registrations.get(call.name);
 				if (registration === void 0) return new ToolNotFound({ name: call.name });
 				if (!registration.isVisible(invocation.protocol)) return new ToolNotFound({ name: call.name });
@@ -49183,7 +45786,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const listChangedHandles = /* @__PURE__ */ new Map();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
-			onFromClient: (options) => suspend$3(() => {
+			onFromClient: (options) => suspend$2(() => {
 				const message = options.message;
 				if (message._tag !== "Request") return void_$1;
 				const notification = toInternalServerNotification(message);
@@ -50277,7 +46880,7 @@ runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(Tipee
 		v2025_03_26,
 		v2024_11_05
 	],
-	version: "0.2.0"
+	version: "0.2.1"
 })), provide$2(TipeeClient.layerConfig), provide$2(layer$3), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
 //#endregion
 export {};

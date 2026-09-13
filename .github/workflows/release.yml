@@ -1,0 +1,50 @@
+name: Release
+
+# Pushing a tag such as v0.2.1 builds the extension and publishes it on a
+# GitHub Release under two names: the versioned file, and tipee.mcpb, which
+# The README's "latest" link resolves to.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the extension
+        run: pnpm exec turbo run pack
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          file=$(ls plugins/tipee/dist/*.mcpb)
+          cp "$file" plugins/tipee/dist/tipee.mcpb
+          gh release create "$GITHUB_REF_NAME" "$file" plugins/tipee/dist/tipee.mcpb \
+            --title "Tipee for Claude ${GITHUB_REF_NAME#v}" \
+            --generate-notes

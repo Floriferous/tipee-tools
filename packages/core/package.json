@@ -1,6 +1,6 @@
 {
   "name": "@tipee-tools/core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Effect client and schemas for the Tipee HR API (read-only)",
   "license": "MIT",
   "type": "module",
