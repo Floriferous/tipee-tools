@@ -1,0 +1,19 @@
+[
+  {
+    "id": "1000000000000000200",
+    "kind_id": "1000000000000000151",
+    "label": "Claude",
+    "short_label": "Claude",
+    "sort_label": "Claude",
+    "picture": {
+      "shape": "round",
+      "initial": "C",
+      "url": null
+    },
+    "attributes": {
+      "last_name": "Claude",
+      "description": null
+    },
+    "teams": []
+  }
+]

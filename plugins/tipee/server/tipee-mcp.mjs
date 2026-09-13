@@ -8183,6 +8183,11 @@ const ignoreCause$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, o
 	});
 });
 /** @internal */
+const option$1 = (self) => match(self, {
+	onFailure: none,
+	onSuccess: some
+});
+/** @internal */
 const result$2 = (self) => matchEager(self, {
 	onFailure: fail$7,
 	onSuccess: succeed$7
@@ -13528,6 +13533,48 @@ const tap = tap$1;
 * @since 4.0.0
 */
 const result$1 = result$2;
+/**
+* Converts success to `Option.some` and failure to `Option.none`.
+*
+* **When to use**
+*
+* Use when you only care whether an effect succeeds and want recoverable
+* failures represented as `Option.none`.
+*
+* **Details**
+*
+* Success values become `Option.some`, recoverable failures become
+* `Option.none`, and defects still fail the effect.
+*
+* **Gotchas**
+*
+* `option` only captures typed, recoverable failures as `Option.none`.
+* Defects and interruptions are not captured inside the `Option` and still
+* fail the effect.
+*
+* `option` also discards typed failure values. Use `result` if the failure
+* value matters.
+*
+* **Example** (Capturing success or failure as Option)
+*
+* ```ts import.meta.vitest
+* import { Effect, Option } from "effect"
+*
+* const program = Effect.all([
+*   Effect.option(Effect.succeed(1)),
+*   Effect.option(Effect.fail("missing"))
+* ])
+*
+* Effect.runSync(program) // => [Option.some(1), Option.none()]
+* ```
+*
+* @see {@link result} for a version that uses `Result` instead.
+* @see {@link exit} for a version that encapsulates both recoverable errors and defects in an `Exit`.
+*
+* @category error handling
+* @since 2.0.0
+*/
+const option = option$1;
 /**
 * Transforms an effect to encapsulate both failure and success using the `Exit`
 * data type.
@@ -25292,6 +25339,12 @@ function decodeUnknownEffect$1(schema, options) {
 	const parser = run(schema.ast);
 	return options === void 0 ? parser : (input, overrideOptions) => parser(input, mergeParseOptions(options, overrideOptions));
 }
+/** @internal */
+function decodeUnknownOption(schema, options) {
+	return asOption(decodeUnknownEffect$1(schema, options));
+}
+/** @internal */
+const decodeOption$1 = decodeUnknownOption;
 /**
 * Creates a decoder for `unknown` input that reports failure safely as a
 * `Result`.
@@ -25369,6 +25422,16 @@ function runWithCompiler(compiler, ast) {
 }
 function asExit(parser) {
 	return (input, options) => runSyncExit(parser(input, options));
+}
+/** @internal */
+function asOption(parser) {
+	const parserExit = asExit(parser);
+	return (input, options) => {
+		const exit = parserExit(input, options);
+		if (isSuccess(exit)) return some(exit.value);
+		getSchemaIssueOrThrow(exit.cause, "Option adapter can only return none for schema issues");
+		return none();
+	};
 }
 function asResult(parser) {
 	const parserExit = asExit(parser);
@@ -27205,6 +27268,32 @@ function decodeUnknownEffect(schema, options) {
 * @since 4.0.0
 */
 const decodeEffect = decodeUnknownEffect;
+/**
+* Decodes a typed input (the schema's `Encoded` type) against a schema,
+* returning an `Option` that is `Some` with the decoded value on success or
+* `None` for schema mismatches.
+*
+* **When to use**
+*
+* Use when you already have input typed as the schema's `Encoded` type and
+* only need to know whether decoding succeeded.
+*
+* **Details**
+*
+* For `unknown` input use {@link decodeUnknownOption}.
+* Options may be provided either when creating the decoder or when applying it;
+* application options override creation options.
+*
+* **Gotchas**
+*
+* Only causes made entirely of schema issues are converted to `None`. Causes
+* that contain defects, interruptions, or other non-schema reasons throw
+* instead.
+*
+* @category decoding
+* @since 3.10.0
+*/
+const decodeOption = decodeOption$1;
 /**
 * Decodes an `unknown` input against a schema, returning a `Result` that
 * succeeds with the decoded value or fails with a {@link SchemaError} for schema
@@ -35232,10 +35321,15 @@ const codeByLiteral = {
 const fromLiteral = (literal) => codeByLiteral[literal];
 //#endregion
 //#region ../../packages/core/src/Errors.ts
+const ProblemBody = fromJsonString(Struct({
+	detail: optionalKey(String$2),
+	message: optionalKey(String$2)
+}));
+const explained = (body) => decodeOption(ProblemBody)(body).pipe(flatMap$3((problem) => fromNullishOr(problem.detail ?? problem.message)), getOrElse(() => body));
 /** The key is not one Tipee knows (typo, revoked, or another instance's). */
 var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: String$2 }) {
 	get message() {
-		return "Tipee rejected the API key. Check that TIPEE_API_KEY is the key of an integration on this instance.";
+		return "Tipee rejected the API key: it is not the key of an integration on this instance.";
 	}
 };
 /**
@@ -35245,12 +35339,12 @@ var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: Strin
 */
 var RightsMissing = class extends TaggedError()("RightsMissing", {}) {
 	get message() {
-		return "The API key works, but its Tipee integration has no permissions yet. In the Tipee admin panel, grant it \"Configurations générales → Se connecter avec des applications externes\", then access to the modules you need (Planning, Cœur RH, …).";
+		return "The API key works, but its Tipee integration is not allowed to use the API yet.";
 	}
 };
 var Forbidden = class extends TaggedError()("Forbidden", { body: String$2 }) {
 	get message() {
-		return "The API key is valid but its Tipee integration lacks the permission for this operation.";
+		return this.body === "" ? "The Tipee integration lacks the right for this operation." : `Tipee refused the operation: ${this.body}`;
 	}
 };
 var NotFound = class extends TaggedError()("NotFound", { body: String$2 }) {
@@ -35306,20 +35400,28 @@ const HTTP_OK_MAX = 299;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
+const HTTP_CONFLICT = 409;
+const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS = 429;
-const statusReason = (status, body) => {
-	if (status === HTTP_UNAUTHORIZED) return body.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing() : new ApiKeyRejected({ body });
+const statusReason = (status, rawBody) => {
+	const body = explained(rawBody);
+	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing() : new ApiKeyRejected({ body });
 	if (status === HTTP_FORBIDDEN) return new Forbidden({ body });
 	if (status === HTTP_NOT_FOUND) return new NotFound({ body });
+	if (status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) return new Rejected({ body });
 	if (status === HTTP_TOO_MANY_REQUESTS) return new RateLimited();
 	return new UnexpectedStatus({
 		body,
 		status
 	});
 };
-var TipeeError = class TipeeError extends TaggedError()("TipeeError", { reason: TipeeErrorReason }) {
+var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
+	/** Where to fix it, with a link into the user's Tipee when one is known. */
+	fix: optionalKey(String$2),
+	reason: TipeeErrorReason
+}) {
 	get message() {
-		return this.reason.message;
+		return this.fix === void 0 ? this.reason.message : `${this.reason.message} ${this.fix}`;
 	}
 	static fromCause = (cause) => gen(function* () {
 		if (cause instanceof TipeeError) return cause;
@@ -39341,7 +39443,10 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 			schedule: exponential("250 millis"),
 			times: RETRY_ATTEMPTS
 		}))
-	}));
+	}).pipe(map$3((api) => ({
+		api,
+		instance: credentials.instance
+	}))));
 	static layerConfig = unwrap$2(all({
 		apiKey: Redacted("TIPEE_API_KEY"),
 		instance: String$1("TIPEE_INSTANCE")
@@ -39395,10 +39500,92 @@ const operation = (name) => {
 	if (found === void 0) throw new Error(`Tipee has no operation named ${name}`);
 	return found;
 };
-const invoke = (target, params) => gen(function* () {
-	const method = (yield* TipeeClient)[target.group]?.[target.endpoint];
+const call = (target, params) => gen(function* () {
+	const { api } = yield* TipeeClient;
+	const method = api[target.group]?.[target.endpoint];
 	if (method === void 0) return yield* die(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
 	return yield* method({ payload: params }).pipe(catch_$2((error) => flatMap(TipeeError.fromCause(error), fail$3)));
+});
+const pages = (instance) => {
+	const base = `https://${instance}.tipee.net`;
+	return {
+		api: `${base}/admin/instance/integrations/`,
+		integrations: `${base}/hr-core/integrations`,
+		roles: (integrationId) => `${base}/hr-core/profile/${integrationId}/roles`
+	};
+};
+const PAGE_SIZE$1 = 100;
+const integrations = gen(function* () {
+	const kind = (yield* call(operation("kinds_list"), {})).find((candidate) => candidate.machine_name === "integration");
+	if (kind === void 0) return [];
+	return (yield* call(operation("resources_list"), {
+		kind_id: kind.id,
+		orders: [{
+			attribute: "last_name",
+			direction: "asc",
+			key: "resource.attribute"
+		}],
+		pagination: {
+			limit: PAGE_SIZE$1,
+			next_token: null
+		}
+	})).data;
+});
+const rolesPage = gen(function* () {
+	const { instance } = yield* TipeeClient;
+	const listed = yield* option(integrations);
+	const [only, second] = getOrElse(listed, () => []);
+	return only !== void 0 && second === void 0 ? pages(instance).roles(only.id) : pages(instance).integrations;
+});
+const RIGHTS = {
+	Activity: { module: "Activités" },
+	Balances: {
+		module: "Calcul des soldes",
+		read: "Voir les soldes"
+	},
+	Directory: {
+		module: "Cœur RH",
+		read: "Voir les collaborateurs",
+		write: "Gérer les collaborateurs"
+	},
+	Schedule: {
+		module: "Planning",
+		read: "Voir les plannings",
+		write: "Planifier"
+	},
+	Timeclock: {
+		module: "Saisie des heures",
+		read: "Voir les timbrages"
+	}
+};
+const rightFor = (target) => {
+	const rights = RIGHTS[target.group];
+	if (rights === void 0) return "the right this operation needs";
+	const right = target.readOnly ? rights.read : rights.write;
+	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
+};
+const explain = (error, target) => gen(function* () {
+	const { instance } = yield* TipeeClient;
+	const { reason } = error;
+	if (reason._tag === "RightsMissing") return new TipeeError({
+		fix: `Open ${pages(instance).integrations}, pick the integration whose key you pasted, and tick «Configurations générales → Se connecter avec des applications externes» in its Roles tab. If the API itself is not turned on yet, an admin with the «Responsable API» role does that at ${pages(instance).api}.`,
+		reason
+	});
+	if (reason._tag === "ApiKeyRejected") return new TipeeError({
+		fix: `Check the instance name, then the integration and its key at ${pages(instance).integrations}, and re-enter them in the extension settings.`,
+		reason
+	});
+	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? new TipeeError({
+		fix: "An administrator enables modules in Tipee.",
+		reason
+	}) : new TipeeError({
+		fix: `Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`,
+		reason
+	});
+	return error;
+});
+const invoke = (target, params) => gen(function* () {
+	return yield* call(target, params).pipe(catch_$2((error) => flatMap(explain(error, target), fail$3)));
 });
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/AiError.js
@@ -46880,7 +47067,7 @@ runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(Tipee
 		v2025_03_26,
 		v2024_11_05
 	],
-	version: "0.2.1"
+	version: "0.2.2"
 })), provide$2(TipeeClient.layerConfig), provide$2(layer$3), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
 //#endregion
 export {};

@@ -25,12 +25,17 @@ export interface TipeeCredentials {
 
 type Groups = typeof Tipee extends HttpApi.HttpApi<string, infer G> ? G : never;
 
-/** The derived client: `client.<Group>.<operation>({ payload })`. */
+/** The derived client: `api.<Group>.<operation>({ payload })`. */
 export type TipeeApi = HttpApiClient.Client<Groups>;
 
-export class TipeeClient extends Context.Service<TipeeClient, TipeeApi>()(
-  '@tipee-tools/core/TipeeClient',
-) {
+export class TipeeClient extends Context.Service<
+  TipeeClient,
+  {
+    readonly api: TipeeApi;
+    /** The subdomain, kept so errors can link into this instance's admin pages. */
+    readonly instance: string;
+  }
+>()('@tipee-tools/core/TipeeClient') {
   // A client for one instance; needs an `HttpClient`.
   public static readonly layer = (
     credentials: TipeeCredentials,
@@ -55,7 +60,7 @@ export class TipeeClient extends Context.Service<TipeeClient, TipeeApi>()(
               times: RETRY_ATTEMPTS,
             }),
           ),
-      }),
+      }).pipe(Effect.map((api) => ({ api, instance: credentials.instance }))),
     );
 
   // A client configured from `TIPEE_INSTANCE` and `TIPEE_API_KEY`.

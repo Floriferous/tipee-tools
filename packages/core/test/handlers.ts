@@ -53,6 +53,7 @@ const kinds = load(KindRow, 'kinds');
 const teams = load(TeamRow, 'teams');
 const templates = load(TemplateRow, 'templates');
 const people = load(PersonRow, 'people');
+const integrations = load(PersonRow, 'integrations');
 const shifts = load(ByResource, 'shifts');
 const absences = load(ByResource, 'absences');
 const onCalls = load(OnCallRow, 'on-calls');
@@ -63,6 +64,13 @@ if (employeeKind === undefined) {
   throw new Error('fixture kinds.json has no "employee" kind');
 }
 export const EMPLOYEE_KIND_ID = employeeKind.row.id;
+const integrationKind = kinds.find((kind) => kind.row.machine_name === 'integration');
+if (integrationKind === undefined) {
+  throw new Error('fixture kinds.json has no "integration" kind');
+}
+export const INTEGRATION_KIND_ID = integrationKind.row.id;
+/** The one integration of the fake instance: the key's own. */
+export const INTEGRATION_ID = integrations[0]?.row.id ?? '';
 
 const DateRange = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/u));
 const Ids = Schema.Array(Schema.String);
@@ -82,7 +90,7 @@ const Pagination = Schema.Struct({
 
 const ListResourcesQuery = Schema.Struct({
   filters: Schema.optionalKey(Schema.Array(TeamFilter)),
-  kind_id: Schema.Literal(EMPLOYEE_KIND_ID),
+  kind_id: Schema.Literals([EMPLOYEE_KIND_ID, INTEGRATION_KIND_ID]),
   orders: Schema.NonEmptyArray(Order),
   pagination: Pagination,
   with_teams: Schema.optionalKey(Schema.Boolean),
@@ -203,7 +211,7 @@ const listResources = (query: typeof ListResourcesQuery.Type): JsonBodyType | Re
   }
   const teamIds = teamIdsOf(filters);
   const [order] = query.orders;
-  const matching = people
+  const matching = (query.kind_id === INTEGRATION_KIND_ID ? integrations : people)
     .filter(
       ({ row }) => teamIds.size === 0 || (row.teams ?? []).some((team) => teamIds.has(team.id)),
     )

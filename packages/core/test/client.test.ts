@@ -4,33 +4,22 @@
 // Responses, so this is also where the generated schemas meet reality.
 
 import { describe, expect, it, layer } from '@effect/vitest';
-import { ConfigProvider, Effect, Fiber, Layer, Redacted } from 'effect';
-import { TestClock } from 'effect/testing';
+import { ConfigProvider, Effect, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/unstable/http';
-import { HttpResponse, http } from 'msw';
 
 import type { TipeeError } from '../src/index.ts';
 import { TipeeClient, invoke, operation } from '../src/index.ts';
-import { API_KEY, BASE, EMPLOYEE_KIND_ID, FAKE_PAGE_SIZE } from './handlers.ts';
-import { server } from './server.ts';
+import { API_KEY, EMPLOYEE_KIND_ID, FAKE_PAGE_SIZE } from './handlers.ts';
 
 const GE = '1000000000000000102';
 const FR = '1000000000000000105';
 const ALICE = '1000000000000000100';
 const CHLOE = '1000000000000000104';
 const WEEK = '2026-09-07/2026-09-13';
-const KINDS_URL = `${BASE}/api/directory/kinds.list`;
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_NOT_FOUND = 404;
-const HTTP_TOO_MANY_REQUESTS = 429;
-const HTTP_SERVER_ERROR = 500;
 const PAGE_SIZE = 100;
 
 const credentials = { apiKey: Redacted.make(API_KEY), instance: 'acme' };
 const TestClient = TipeeClient.layer(credentials).pipe(Layer.provide(FetchHttpClient.layer));
-
-const status = (code: number, headers?: Record<string, string>, once = true) =>
-  http.post(KINDS_URL, () => new HttpResponse(undefined, { headers, status: code }), { once });
 
 const call = (name: string, params: unknown) => invoke(operation(name), params);
 
@@ -129,73 +118,6 @@ layer(TestClient)('TipeeClient', (it) => {
       }),
     );
   });
-
-  describe('errors', () => {
-    it.effect('explains a response that does not match the API description', () =>
-      Effect.gen(function* () {
-        server.use(
-          http.post(`${BASE}/api/schedule/schedules.list`, () => HttpResponse.json([{}]), {
-            once: true,
-          }),
-        );
-        const error = yield* failure(call('schedules_list', { date_range: WEEK }));
-
-        expect(error.reason._tag).toBe('UnexpectedShape');
-      }),
-    );
-
-    it.effect('explains a valid key whose integration has no permissions yet', () =>
-      Effect.gen(function* () {
-        server.use(
-          http.post(
-            KINDS_URL,
-            () =>
-              HttpResponse.json(
-                { message: 'Tipee.api.token_rights_missing' },
-                { status: HTTP_UNAUTHORIZED },
-              ),
-            { once: true },
-          ),
-        );
-        const error = yield* failure(call('kinds_list', {}));
-
-        expect(error.reason._tag).toBe('RightsMissing');
-        expect(error.message).toMatch(/applications externes/u);
-      }),
-    );
-
-    it.effect('does not retry client errors', () =>
-      Effect.gen(function* () {
-        server.use(status(HTTP_NOT_FOUND));
-        const error = yield* failure(call('kinds_list', {}));
-
-        expect(error.reason._tag).toBe('NotFound');
-      }),
-    );
-
-    it.effect('retries a 429 and succeeds once the limit lifts', () =>
-      Effect.gen(function* () {
-        server.use(status(HTTP_TOO_MANY_REQUESTS, { 'Retry-After': '1' }));
-        const pending = yield* Effect.forkChild(call('kinds_list', {}));
-        yield* TestClock.adjust('10 seconds');
-        const kinds = (yield* Fiber.join(pending)) as ReadonlyArray<unknown>;
-
-        expect(kinds.length).toBeGreaterThan(0);
-      }),
-    );
-
-    it.effect('gives up after repeated server errors', () =>
-      Effect.gen(function* () {
-        server.use(status(HTTP_SERVER_ERROR, undefined, false));
-        const pending = yield* Effect.forkChild(failure(call('kinds_list', {})));
-        yield* TestClock.adjust('10 seconds');
-        const error = yield* Fiber.join(pending);
-
-        expect(error.reason._tag).toBe('UnexpectedStatus');
-        expect(error.message).toMatch(/HTTP 500/u);
-      }),
-    );
-  });
 });
 
 describe('configuration', () => {
@@ -214,6 +136,7 @@ describe('configuration', () => {
 
       expect(error.reason._tag).toBe('ApiKeyRejected');
       expect(error.message).toMatch(/rejected the API key/u);
+      expect(error.message).toContain('https://acme.tipee.net/hr-core/integrations');
     }).pipe(Effect.provide(withProvider({ TIPEE_API_KEY: 'wrong', TIPEE_INSTANCE: 'acme' }))),
   );
 

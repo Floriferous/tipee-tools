@@ -2,15 +2,30 @@
 // Tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
 // Surfaces show `message`, which explains the cause and the fix.
 
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { HttpClientError } from 'effect/unstable/http';
+
+// Tipee's error bodies are JSON with a `message`, or RFC 9457 problem details
+// With a `detail`; either reads better than the raw body.
+const ProblemBody = Schema.fromJsonString(
+  Schema.Struct({
+    detail: Schema.optionalKey(Schema.String),
+    message: Schema.optionalKey(Schema.String),
+  }),
+);
+
+const explained = (body: string): string =>
+  Schema.decodeOption(ProblemBody)(body).pipe(
+    Option.flatMap((problem) => Option.fromNullishOr(problem.detail ?? problem.message)),
+    Option.getOrElse(() => body),
+  );
 
 /** The key is not one Tipee knows (typo, revoked, or another instance's). */
 export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKeyRejected', {
   body: Schema.String,
 }) {
   public override get message(): string {
-    return 'Tipee rejected the API key. Check that TIPEE_API_KEY is the key of an integration on this instance.';
+    return 'Tipee rejected the API key: it is not the key of an integration on this instance.';
   }
 }
 
@@ -21,11 +36,7 @@ export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKey
  */
 export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMissing', {}) {
   public override get message(): string {
-    return (
-      'The API key works, but its Tipee integration has no permissions yet. ' +
-      'In the Tipee admin panel, grant it "Configurations générales → Se connecter avec des applications externes", ' +
-      'then access to the modules you need (Planning, Cœur RH, …).'
-    );
+    return 'The API key works, but its Tipee integration is not allowed to use the API yet.';
   }
 }
 
@@ -33,7 +44,9 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()('Forbidden', {
   body: Schema.String,
 }) {
   public override get message(): string {
-    return 'The API key is valid but its Tipee integration lacks the permission for this operation.';
+    return this.body === ''
+      ? 'The Tipee integration lacks the right for this operation.'
+      : `Tipee refused the operation: ${this.body}`;
   }
 }
 
@@ -108,11 +121,14 @@ const HTTP_OK_MAX = 299;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
+const HTTP_CONFLICT = 409;
+const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS = 429;
 
-const statusReason = (status: number, body: string): TipeeErrorReason => {
+const statusReason = (status: number, rawBody: string): TipeeErrorReason => {
+  const body = explained(rawBody);
   if (status === HTTP_UNAUTHORIZED) {
-    return body.includes(RIGHTS_MISSING_MARKER)
+    return rawBody.includes(RIGHTS_MISSING_MARKER)
       ? new RightsMissing()
       : new ApiKeyRejected({ body });
   }
@@ -122,6 +138,9 @@ const statusReason = (status: number, body: string): TipeeErrorReason => {
   if (status === HTTP_NOT_FOUND) {
     return new NotFound({ body });
   }
+  if (status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
+    return new Rejected({ body });
+  }
   if (status === HTTP_TOO_MANY_REQUESTS) {
     return new RateLimited();
   }
@@ -129,10 +148,12 @@ const statusReason = (status: number, body: string): TipeeErrorReason => {
 };
 
 export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
+  /** Where to fix it, with a link into the user's Tipee when one is known. */
+  fix: Schema.optionalKey(Schema.String),
   reason: TipeeErrorReason,
 }) {
   public override get message(): string {
-    return this.reason.message;
+    return this.fix === undefined ? this.reason.message : `${this.reason.message} ${this.fix}`;
   }
 
   // Explains whatever the generated client failed with: an HTTP status, a
