@@ -9,7 +9,7 @@ import { Tool } from 'effect/unstable/ai';
 import { FetchHttpClient } from 'effect/unstable/http';
 import { HttpResponse, http } from 'msw';
 
-import { TipeeToolkit, TipeeToolkitLayer } from '../src/index.ts';
+import { Telemetry, TipeeToolkit, TipeeToolkitLayer } from '../src/index.ts';
 
 const CHLOE = '1000000000000000104';
 const WEEK = '2026-09-07/2026-09-13';
@@ -19,6 +19,7 @@ const HTTP_FORBIDDEN = 403;
 const clientFor = (apiKey: string) =>
   TipeeToolkitLayer.pipe(
     Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(apiKey), instance: 'acme' })),
+    Layer.provide(Telemetry.layerOff),
     Layer.provide(FetchHttpClient.layer),
   );
 
@@ -30,6 +31,62 @@ const call = Effect.fn('call')(function* (name: string, params: unknown) {
   const handled = toolkit.handle(name as never, params) as unknown as Handled;
   const last = yield* handled.pipe(Stream.unwrap, Stream.runLast);
   return Option.getOrThrow(last).encodedResult;
+});
+
+interface Recorded {
+  readonly event: string;
+  readonly properties: Record<string, unknown>;
+}
+const recorded: Array<Recorded> = [];
+const recording = Layer.succeed(Telemetry, {
+  capture: (event, properties) =>
+    Effect.sync(() => {
+      recorded.push({ event, properties: { ...properties } });
+    }),
+  exception: (type, message, properties) =>
+    Effect.sync(() => {
+      recorded.push({ event: '$exception', properties: { ...properties, message, type } });
+    }),
+  flush: Effect.void,
+});
+const recordingClient = TipeeToolkitLayer.pipe(
+  Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
+  Layer.provide(recording),
+  Layer.provide(FetchHttpClient.layer),
+);
+
+layer(recordingClient)('telemetry of a tool call', (it) => {
+  it.effect('records the outcome and reason, never the parameters or the answer', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      server.use(
+        http.post(`${BASE}/api/schedule/schedules.list`, () => HttpResponse.json([{}]), {
+          once: true,
+        }),
+      );
+      yield* call('teams_list', {});
+      yield* Effect.flip(call('schedules_list', { date_range: WEEK }));
+
+      expect(recorded.map((entry) => entry.event)).toEqual([
+        'tool_called',
+        'tool_called',
+        '$exception',
+      ]);
+      expect(recorded[0]?.properties).toMatchObject({ outcome: 'ok', tool: 'teams_list' });
+      expect(recorded[0]?.properties.duration_ms).toBeTypeOf('number');
+      expect(recorded[1]?.properties).toMatchObject({
+        outcome: 'failed',
+        reason: 'UnexpectedShape',
+        tool: 'schedules_list',
+      });
+      expect(recorded[2]?.properties).toMatchObject({
+        tool: 'schedules_list',
+        type: 'TipeeUnexpectedShape',
+      });
+      expect(JSON.stringify(recorded)).not.toContain(WEEK);
+      expect(JSON.stringify(recorded)).not.toContain('Opérations');
+    }),
+  );
 });
 
 describe('toolkit', () => {

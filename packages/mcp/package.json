@@ -1,7 +1,7 @@
 {
   "name": "@tipee-tools/mcp",
-  "version": "0.2.3",
-  "description": "MCP server exposing read-only Tipee planning data",
+  "version": "0.3.0",
+  "description": "MCP server giving Claude the whole Tipee API",
   "license": "MIT",
   "type": "module",
   "exports": {

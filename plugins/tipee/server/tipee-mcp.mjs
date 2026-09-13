@@ -1,3 +1,11 @@
+import * as Crypto from "node:crypto";
+import { randomUUID } from "node:crypto";
+import * as NFS from "node:fs";
+import * as OS from "node:os";
+import { homedir } from "node:os";
+import * as Path from "node:path";
+import path from "node:path";
+import { arch, platform, version } from "node:process";
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Pipeable.js
 /**
 * The `Pipeable` module defines the shared interface and implementation helpers
@@ -311,6 +319,9 @@ const constUndefined = /*#__PURE__*/ constant(void 0);
 * @since 2.0.0
 */
 const constVoid = constUndefined;
+function pipe(a, ...args) {
+	return pipeArguments(a, args);
+}
 function flow(ab, bc, cd, de, ef, fg, gh, hi, ij) {
 	switch (arguments.length) {
 		case 1: return ab;
@@ -2810,7 +2821,7 @@ const done$2 = (value) => {
 * @category constructors
 * @since 2.0.0
 */
-const make$47 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
+const make$48 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 /**
 * Creates an equivalence relation that uses strict equality (`===`) to compare values.
@@ -2918,7 +2929,7 @@ const strictEqual = () => isStrictEquivalent;
 * @since 4.0.0
 */
 function Tuple$1(elements) {
-	return make$47((self, that) => {
+	return make$48((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!elements[i](self[i], that[i])) return false;
 		return true;
@@ -2928,7 +2939,7 @@ function Tuple$1(elements) {
 * @since 4.0.0
 */
 function Array_(item) {
-	return make$47((self, that) => {
+	return make$48((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!item(self[i], that[i])) return false;
 		return true;
@@ -2955,9 +2966,9 @@ const normalize$2 = (n) => n > 0 ? Math.floor(n) : 0;
 /**
 * @since 2.0.0
 */
-const TypeId$47 = "~effect/Option";
+const TypeId$48 = "~effect/Option";
 const CommonProto$1 = {
-	[TypeId$47]: { _A: (_) => _ },
+	[TypeId$48]: { _A: (_) => _ },
 	...PipeInspectableProto,
 	[Symbol.iterator]() {
 		return new SingleShotGen(this);
@@ -3007,7 +3018,7 @@ const NoneProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Common
 	}
 });
 /** @internal */
-const isOption$1 = (input) => hasProperty(input, TypeId$47);
+const isOption$1 = (input) => hasProperty(input, TypeId$48);
 /** @internal */
 const isNone$1 = (fa) => fa._tag === "None";
 /** @internal */
@@ -3023,9 +3034,9 @@ SomeImpl.prototype = SomeProto;
 const some$1 = (value) => new SomeImpl(value);
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/result.js
-const TypeId$46 = "~effect/Result";
+const TypeId$47 = "~effect/Result";
 const CommonProto = {
-	[TypeId$46]: {
+	[TypeId$47]: {
 		/* v8 ignore next 2 */
 		_A: (_) => _,
 		_E: (_) => _
@@ -3076,7 +3087,7 @@ const FailureProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Com
 	}
 });
 /** @internal */
-const isResult$1 = (input) => hasProperty(input, TypeId$46);
+const isResult$1 = (input) => hasProperty(input, TypeId$47);
 /** @internal */
 const isFailure$2 = (result) => result._tag === "Failure";
 /** @internal */
@@ -3144,7 +3155,7 @@ const succeed$8 = (success) => new SuccessImpl(success);
 * @category constructors
 * @since 2.0.0
 */
-function make$46(compare) {
+function make$47(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
 /**
@@ -3178,7 +3189,7 @@ function make$46(compare) {
 * @category instances
 * @since 4.0.0
 */
-const Number$4 = /*#__PURE__*/ make$46((self, that) => {
+const Number$4 = /*#__PURE__*/ make$47((self, that) => {
 	if (globalThis.Number.isNaN(self) && globalThis.Number.isNaN(that)) return 0;
 	if (globalThis.Number.isNaN(self)) return -1;
 	if (globalThis.Number.isNaN(that)) return 1;
@@ -3216,7 +3227,7 @@ const Number$4 = /*#__PURE__*/ make$46((self, that) => {
 * @category mapping
 * @since 2.0.0
 */
-const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$46((b1, b2) => self(f(b1), f(b2))));
+const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$47((b1, b2) => self(f(b1), f(b2))));
 /**
 * Checks whether one value is strictly less than another according to the given order.
 *
@@ -4618,7 +4629,7 @@ const ServiceProto = {
 		return self;
 	},
 	context(self) {
-		return make$45(this, self);
+		return make$46(this, self);
 	},
 	use(f) {
 		return withFiber$1((fiber) => f(get$2(fiber.context, this)));
@@ -4629,7 +4640,7 @@ const ServiceProto = {
 };
 const cacheKeys = /*#__PURE__*/ new Set();
 const ReferenceTypeId = "~effect/Context/Reference";
-const TypeId$45 = "~effect/Context";
+const TypeId$46 = "~effect/Context";
 const MaxDepth = 8;
 const FlattenAfterBaseHits = 8;
 const makeImpl = (cacheRoot, base, overlay, depth) => {
@@ -4709,7 +4720,7 @@ const Proto$18 = {
 		return flatten$2(this);
 	},
 	...PipeInspectableProto,
-	[TypeId$45]: { _Services: (_) => _ },
+	[TypeId$46]: { _Services: (_) => _ },
 	toJSON() {
 		return {
 			_id: "Context",
@@ -4764,7 +4775,7 @@ const hasSameCache = (self, that) => self.cacheRoot === that.cacheRoot;
 * @category guards
 * @since 2.0.0
 */
-const isContext = (u) => hasProperty(u, TypeId$45);
+const isContext = (u) => hasProperty(u, TypeId$46);
 /**
 * Checks whether the provided argument is a `Reference`.
 *
@@ -4818,7 +4829,7 @@ const emptyContext = /*#__PURE__*/ makeUnsafe$7(/*#__PURE__*/ new Map());
 * @category constructors
 * @since 2.0.0
 */
-const make$45 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
+const make$46 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
 /**
 * Adds a service to a given `Context`.
 *
@@ -5161,7 +5172,7 @@ const mergeAll$1 = (...ctxs) => {
 const Reference = Service$1;
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Duration.js
-const TypeId$44 = "~effect/Duration";
+const TypeId$45 = "~effect/Duration";
 const bigint0$3 = /*#__PURE__*/ BigInt(0);
 const bigint1$2 = /*#__PURE__*/ BigInt(1);
 const bigint2 = /*#__PURE__*/ BigInt(2);
@@ -5240,13 +5251,13 @@ const fromInputUnsafe$1 = (input) => {
 		}
 		case "object": {
 			if (input === null) break;
-			if (TypeId$44 in input) return input;
+			if (TypeId$45 in input) return input;
 			if (Array.isArray(input)) {
 				if (input.length !== 2 || !input.every(isNumber)) return invalid$1(input);
 				if (Number.isNaN(input[0]) || Number.isNaN(input[1])) return zero$1;
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
-				return make$44(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
+				return make$45(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
 			}
 			const obj = input;
 			let millis = 0;
@@ -5256,8 +5267,8 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.minutes) millis += obj.minutes * 6e4;
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
-			if (!obj.microseconds && !obj.nanoseconds) return make$44(millis);
-			return make$44(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
+			if (!obj.microseconds && !obj.nanoseconds) return make$45(millis);
+			return make$45(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
 		}
 	}
 	return invalid$1(input);
@@ -5272,7 +5283,7 @@ const zeroDurationValue = {
 const infinityDurationValue = { _tag: "Infinity" };
 const negativeInfinityDurationValue = { _tag: "NegativeInfinity" };
 const DurationProto = {
-	[TypeId$44]: TypeId$44,
+	[TypeId$45]: TypeId$45,
 	[symbol$3]() {
 		switch (this.value._tag) {
 			case "Millis": {
@@ -5323,7 +5334,7 @@ const DurationProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const make$44 = (input) => {
+const make$45 = (input) => {
 	const duration = Object.create(DurationProto);
 	if (typeof input === "number") {
 		if (isNaN(input) || input === 0 || Object.is(input, -0)) duration.value = zeroDurationValue;
@@ -5358,7 +5369,7 @@ const make$44 = (input) => {
 * @category guards
 * @since 2.0.0
 */
-const isDuration = (u) => hasProperty(u, TypeId$44);
+const isDuration = (u) => hasProperty(u, TypeId$45);
 /**
 * Checks whether a Duration is finite (not infinite).
 *
@@ -5441,8 +5452,8 @@ const abs$1 = (self) => {
 	switch (self.value._tag) {
 		case "Infinity":
 		case "NegativeInfinity": return infinity;
-		case "Millis": return self.value.millis < 0 ? make$44(-self.value.millis) : self;
-		case "Nanos": return self.value.nanos < bigint0$3 ? make$44(-self.value.nanos) : self;
+		case "Millis": return self.value.millis < 0 ? make$45(-self.value.millis) : self;
+		case "Nanos": return self.value.nanos < bigint0$3 ? make$45(-self.value.nanos) : self;
 	}
 };
 /**
@@ -5459,7 +5470,7 @@ const abs$1 = (self) => {
 * @category constructors
 * @since 2.0.0
 */
-const zero$1 = /*#__PURE__*/ make$44(0);
+const zero$1 = /*#__PURE__*/ make$45(0);
 /**
 * A Duration representing infinite time.
 *
@@ -5474,7 +5485,7 @@ const zero$1 = /*#__PURE__*/ make$44(0);
 * @category constructors
 * @since 2.0.0
 */
-const infinity = /*#__PURE__*/ make$44(Infinity);
+const infinity = /*#__PURE__*/ make$45(Infinity);
 /**
 * A Duration representing negative infinite time.
 *
@@ -5489,7 +5500,7 @@ const infinity = /*#__PURE__*/ make$44(Infinity);
 * @category constructors
 * @since 4.0.0
 */
-const negativeInfinity = /*#__PURE__*/ make$44(-Infinity);
+const negativeInfinity = /*#__PURE__*/ make$45(-Infinity);
 /**
 * Creates a Duration from nanoseconds.
 *
@@ -5504,7 +5515,7 @@ const negativeInfinity = /*#__PURE__*/ make$44(-Infinity);
 * @category constructors
 * @since 2.0.0
 */
-const nanos = (nanos) => make$44(nanos);
+const nanos = (nanos) => make$45(nanos);
 /**
 * Creates a Duration from milliseconds.
 *
@@ -5519,7 +5530,7 @@ const nanos = (nanos) => make$44(nanos);
 * @category constructors
 * @since 2.0.0
 */
-const millis = (millis) => make$44(millis);
+const millis = (millis) => make$45(millis);
 /**
 * Creates a Duration from seconds.
 *
@@ -5534,7 +5545,7 @@ const millis = (millis) => make$44(millis);
 * @category constructors
 * @since 2.0.0
 */
-const seconds = (seconds) => make$44(seconds * 1e3);
+const seconds = (seconds) => make$45(seconds * 1e3);
 /**
 * Creates a Duration from minutes.
 *
@@ -5549,7 +5560,7 @@ const seconds = (seconds) => make$44(seconds * 1e3);
 * @category constructors
 * @since 2.0.0
 */
-const minutes = (minutes) => make$44(minutes * 6e4);
+const minutes = (minutes) => make$45(minutes * 6e4);
 /**
 * Creates a Duration from hours.
 *
@@ -5564,7 +5575,7 @@ const minutes = (minutes) => make$44(minutes * 6e4);
 * @category constructors
 * @since 2.0.0
 */
-const hours = (hours) => make$44(hours * 36e5);
+const hours = (hours) => make$45(hours * 36e5);
 /**
 * Creates a Duration from days.
 *
@@ -5579,7 +5590,7 @@ const hours = (hours) => make$44(hours * 36e5);
 * @category constructors
 * @since 2.0.0
 */
-const days = (days) => make$44(days * 864e5);
+const days = (days) => make$45(days * 864e5);
 /**
 * Creates a Duration from weeks.
 *
@@ -5594,7 +5605,7 @@ const days = (days) => make$44(days * 864e5);
 * @category constructors
 * @since 2.0.0
 */
-const weeks = (weeks) => make$44(weeks * 6048e5);
+const weeks = (weeks) => make$45(weeks * 6048e5);
 /**
 * Converts a Duration to milliseconds.
 *
@@ -6810,7 +6821,7 @@ var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiber
 * @category constructors
 * @since 2.0.0
 */
-const make$43 = (options) => options;
+const make$44 = (options) => options;
 /**
 * Creates an `ExternalSpan` from trace and span identifiers, defaulting
 * `sampled` to `true` and annotations to an empty context when they are not
@@ -6983,7 +6994,7 @@ const Tracer = /*#__PURE__*/ Reference(TracerKey, {
 * @category references
 * @since 4.0.0
 */
-const nativeTracer = /*#__PURE__*/ make$43({ span: (options) => new NativeSpan(options) });
+const nativeTracer = /*#__PURE__*/ make$44({ span: (options) => new NativeSpan(options) });
 /**
 * Default in-memory `Span` implementation used by the native tracer. It
 * generates span and trace identifiers, stores attributes, events, and links,
@@ -7163,6 +7174,11 @@ var Interrupt = class extends ReasonBase {
 const makeInterruptReason$1 = (fiberId) => new Interrupt(fiberId);
 /** @internal */
 const causeInterrupt = (fiberId) => new CauseImpl([new Interrupt(fiberId)]);
+/** @internal */
+const findFail = (self) => {
+	const reason = self.reasons.find(isFailReason$1);
+	return reason ? succeed$7(reason) : fail$7(self);
+};
 /** @internal */
 const findError$1 = (self) => {
 	for (let i = 0; i < self.reasons.length; i++) {
@@ -7421,7 +7437,7 @@ var FiberImpl = class {
 	interruptUnsafe(fiberId, annotations) {
 		if (this._exit) return;
 		let cause = causeInterrupt(fiberId);
-		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$45(StackTraceKey, this.cache.stackFrame));
+		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$46(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
 		this._interruptedCause = this._interruptedCause ? causeCombine(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
@@ -7584,13 +7600,13 @@ const fiberInterruptChildren = (fiber) => {
 const fiberAwait = (self) => {
 	const impl = self;
 	if (impl._exit) return succeed$6(impl._exit);
-	return callback$1((resume) => {
+	return callback$2((resume) => {
 		if (impl._exit) return resume(succeed$6(impl._exit));
 		return sync$1(self.addObserver((exit) => resume(succeed$6(exit))));
 	});
 };
 /** @internal */
-const fiberAwaitAll = (self) => callback$1((resume) => {
+const fiberAwaitAll = (self) => callback$2((resume) => {
 	const iter = self[Symbol.iterator]();
 	const exits = [];
 	let cancel = void 0;
@@ -7617,7 +7633,7 @@ const fiberAwaitAll = (self) => callback$1((resume) => {
 const fiberJoin = (self) => {
 	const impl = self;
 	if (impl._exit) return impl._exit;
-	return callback$1((resume) => {
+	return callback$2((resume) => {
 		if (impl._exit) return resume(impl._exit);
 		return sync$1(self.addObserver(resume));
 	});
@@ -7781,9 +7797,9 @@ const asyncFinalizer = /*#__PURE__*/ makePrimitive({
 	}
 });
 /** @internal */
-const callback$1 = (register) => callbackOptions(register, register.length >= 2);
+const callback$2 = (register) => callbackOptions(register, register.length >= 2);
 /** @internal */
-const never$2 = /*#__PURE__*/ callback$1(constVoid);
+const never$2 = /*#__PURE__*/ callback$2(constVoid);
 /** @internal */
 const gen$1 = (...args) => {
 	if (args.length === 1) {
@@ -7963,7 +7979,7 @@ const asVoid$1 = (self) => new ContImpl(self, returnPayload, exitVoid);
 /** @internal */
 const sandbox$1 = (self) => catchCause$2(self, fail$6);
 /** @internal */
-const raceAllFirst = (all, options) => withFiber$1((parent) => callback$1((resume) => {
+const raceAllFirst = (all, options) => withFiber$1((parent) => callback$2((resume) => {
 	let done = false;
 	const fibers = /* @__PURE__ */ new Set();
 	const onExit = (exit) => {
@@ -8171,6 +8187,21 @@ const orDie$1 = (self) => catch_$3(self, die$2);
 /** @internal */
 const orElseSucceed$1 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (_) => sync$1(f)));
 /** @internal */
+const ignore$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => {
+	if (!options?.log) return matchEffect$2(self, {
+		onFailure: (_) => void_$3,
+		onSuccess: (_) => void_$3
+	});
+	const logEffect = logWithLevel(options.log === true ? void 0 : options.log);
+	return matchCauseEffect$1(self, {
+		onFailure(cause) {
+			const failure = findFail(cause);
+			return isFailure$1(failure) ? failCause$4(failure.failure) : options.message === void 0 ? logEffect(cause) : logEffect(options.message, cause);
+		},
+		onSuccess: (_) => void_$3
+	});
+});
+/** @internal */
 const ignoreCause$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => {
 	if (!options?.log) return matchCauseEffect$1(self, {
 		onFailure: (_) => void_$3,
@@ -8255,7 +8286,12 @@ const timeout$1 = /*#__PURE__*/ dual(2, (self, duration) => {
 	});
 });
 /** @internal */
-const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep(duration), none())));
+const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep$1(duration), none())));
+/** @internal */
+const timed$1 = (self) => clockWith((clock) => {
+	const start = clock.monotonicTimeNanosUnsafe();
+	return map$5(self, (a) => [nanos(clock.monotonicTimeNanosUnsafe() - start), a]);
+});
 /** @internal */
 const ScopeTypeId = "~effect/Scope";
 /** @internal */
@@ -8380,6 +8416,10 @@ const scopedWith$1 = (f) => suspend$3(() => {
 	return onExit$2(f(scope), (exit) => suspend$3(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
 });
 /** @internal */
+const acquireRelease$1 = (acquire, release, options) => contextWith$1((context) => uninterruptibleMask$1((restore) => flatMap$2(scope$1, (scope) => tap$1(options?.interruptible ? restore(acquire) : acquire, (a) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(release(a, exit), context))))));
+/** @internal */
+const addFinalizer$2 = (finalizer) => flatMap$2(scope$1, (scope) => contextWith$1((context) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(finalizer(exit), context))));
+/** @internal */
 const onExitPrimitive = /*#__PURE__*/ function() {
 	const Proto = /*#__PURE__*/ makePrimitiveProto({
 		op: "OnExit",
@@ -8493,11 +8533,11 @@ const interruptibleMask$1 = (f) => withFiber$1((fiber) => {
 });
 /** @internal */
 const all$2 = (arg, options) => {
-	if (isIterable(arg)) return options?.mode === "result" ? forEach$1(arg, result$2, options) : forEach$1(arg, identity, options);
-	else if (options?.discard) return options.mode === "result" ? forEach$1(Object.values(arg), result$2, options) : forEach$1(Object.values(arg), identity, options);
+	if (isIterable(arg)) return options?.mode === "result" ? forEach$2(arg, result$2, options) : forEach$2(arg, identity, options);
+	else if (options?.discard) return options.mode === "result" ? forEach$2(Object.values(arg), result$2, options) : forEach$2(Object.values(arg), identity, options);
 	return suspend$3(() => {
 		const out = {};
-		return as$1(forEach$1(Object.entries(arg), ([key, effect]) => map$5(options?.mode === "result" ? result$2(effect) : effect, (value) => {
+		return as$1(forEach$2(Object.entries(arg), ([key, effect]) => map$5(options?.mode === "result" ? result$2(effect) : effect, (value) => {
 			assignProperty(out, key, value);
 		}), {
 			discard: true,
@@ -8525,7 +8565,7 @@ const whileLoop$1 = /*#__PURE__*/ makePrimitive({
 	}
 });
 /** @internal */
-const forEach$1 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (iterable, f, options) => suspend$3(() => {
+const forEach$2 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (iterable, f, options) => suspend$3(() => {
 	const concurrency = resolveConcurrency(options?.concurrency);
 	if (concurrency === 1) return forEachSequential(iterable, f, options);
 	const items = fromIterable$2(iterable);
@@ -8598,7 +8638,7 @@ const iterateConcurrentImpl = (options) => {
 				if (effectIsExit(eff)) {
 					terminal = step(state, item, eff, index);
 					if (terminal) break;
-				} else if (!parentFiber) return callback$1((cb) => {
+				} else if (!parentFiber) return callback$2((cb) => {
 					parentFiber = getCurrentFiber();
 					fibers = /* @__PURE__ */ new Set();
 					effect = eff;
@@ -8832,7 +8872,7 @@ var Latch = class {
 		this.flushWaiters();
 		return true;
 	}
-	await = /*#__PURE__*/ callback$1((resume) => {
+	await = /*#__PURE__*/ callback$2((resume) => {
 		if (this._isOpen) return resume(void_$3);
 		this.waiters.push(resume);
 		return sync$1(() => {
@@ -9006,7 +9046,7 @@ var ClockImpl = class {
 	sleepMillis(millis) {
 		if (millis <= 0) return yieldNow;
 		else if (!Number.isFinite(millis)) return never$2;
-		return callback$1((resume) => {
+		return callback$2((resume) => {
 			const continuation = millis > MAX_TIMER_MILLIS ? this.sleepMillis(millis - MAX_TIMER_MILLIS) : void_$3;
 			const handle = setTimeout(() => resume(continuation), Math.min(millis, MAX_TIMER_MILLIS));
 			return sync$1(() => clearTimeout(handle));
@@ -9042,7 +9082,7 @@ const wallTimeNanos = /*#__PURE__*/ function() {
 /** @internal */
 const clockWith = (f) => withFiber$1((fiber) => f(fiber.getRef(ClockRef)));
 /** @internal */
-const sleep = (duration) => clockWith((clock) => clock.sleep(fromInputUnsafe$1(duration)));
+const sleep$1 = (duration) => clockWith((clock) => clock.sleep(fromInputUnsafe$1(duration)));
 /** @internal */
 const currentTimeMillis$1 = /*#__PURE__*/ clockWith((clock) => clock.currentTimeMillis);
 /** @internal */
@@ -9240,7 +9280,7 @@ const reportCauseUnsafe = (fiber, cause, defectsOnly) => {
 };
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Deferred.js
-const TypeId$43 = "~effect/Deferred";
+const TypeId$44 = "~effect/Deferred";
 /**
 * Checks whether a value is a `Deferred`.
 *
@@ -9252,9 +9292,9 @@ const TypeId$43 = "~effect/Deferred";
 * @category guards
 * @since 4.0.0
 */
-const isDeferred = (u) => hasProperty(u, TypeId$43);
+const isDeferred = (u) => hasProperty(u, TypeId$44);
 const DeferredProto = {
-	[TypeId$43]: {
+	[TypeId$44]: {
 		_A: identity,
 		_E: identity
 	},
@@ -9288,7 +9328,7 @@ DeferredImpl.prototype = DeferredProto;
 * @since 4.0.0
 */
 const makeUnsafe$6 = () => new DeferredImpl();
-const _await = (self) => callback$1((resume) => {
+const _await = (self) => callback$2((resume) => {
 	if (self.effect) return resume(self.effect);
 	self.resumes ??= [];
 	self.resumes.push(resume);
@@ -9762,7 +9802,7 @@ const Scope = scopeTag;
 * @category constructors
 * @since 2.0.0
 */
-const make$42 = scopeMake;
+const make$43 = scopeMake;
 /**
 * Creates a new `Scope` synchronously without wrapping it in an `Effect`.
 * This is useful when you need a scope immediately but should be used with caution
@@ -9896,7 +9936,7 @@ const addFinalizerExit = scopeAddFinalizerExit;
 * @category combinators
 * @since 2.0.0
 */
-const addFinalizer = scopeAddFinalizer;
+const addFinalizer$1 = scopeAddFinalizer;
 /**
 * Creates a closeable child scope synchronously and registers it with a parent scope.
 *
@@ -9995,14 +10035,14 @@ const close = scopeClose;
 const closeUnsafe = scopeCloseUnsafe;
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Layer.js
-const TypeId$42 = "~effect/Layer";
+const TypeId$43 = "~effect/Layer";
 const MemoMapTypeId = "~effect/Layer/MemoMap";
 const memoMapReuse = (entry, scope) => {
 	entry.observers++;
 	return andThen$1(scopeAddFinalizerExit(scope, (exit) => entry.finalizer(exit)), entry.effect);
 };
 const LayerProto = {
-	[TypeId$42]: {
+	[TypeId$43]: {
 		_ROut: identity,
 		_E: identity,
 		_RIn: identity
@@ -10381,8 +10421,8 @@ const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber
 * @since 2.0.0
 */
 const succeed$4 = function() {
-	if (arguments.length === 1) return (resource) => succeedContext(make$45(arguments[0], resource));
-	return succeedContext(make$45(arguments[0], arguments[1]));
+	if (arguments.length === 1) return (resource) => succeedContext(make$46(arguments[0], resource));
+	return succeedContext(make$46(arguments[0], arguments[1]));
 };
 /**
 * Constructs a layer that provides all services in an already available
@@ -10474,7 +10514,7 @@ const effect = function() {
 	if (arguments.length === 1) return (effect) => effectImpl(arguments[0], effect);
 	return effectImpl(arguments[0], arguments[1]);
 };
-const effectImpl = (service, effect) => effectContext(map$5(effect, (value) => make$45(service, value)));
+const effectImpl = (service, effect) => effectContext(map$5(effect, (value) => make$46(service, value)));
 /**
 * Constructs a layer from an effect that produces all services in a `Context`.
 *
@@ -10579,10 +10619,10 @@ const unwrapKey = /*#__PURE__*/ Service$1("effect/Layer/unwrap");
 * @category converting
 * @since 4.0.0
 */
-const unwrap$2 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
+const unwrap$3 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
 const mergeAllEffect = (layers, memoMap, scope) => {
 	const parentScope = forkUnsafe(scope, "parallel");
-	return forEach$1(layers, (layer) => layer.build(memoMap, forkUnsafe(parentScope, "sequential")), { concurrency: layers.length }).pipe(map$5((context) => mergeAll$1(...context)));
+	return forEach$2(layers, (layer) => layer.build(memoMap, forkUnsafe(parentScope, "sequential")), { concurrency: layers.length }).pipe(map$5((context) => mergeAll$1(...context)));
 };
 /**
 * Combines all the provided layers concurrently, creating a new layer with
@@ -11393,6 +11433,50 @@ const interruptors = causeInterruptors;
 */
 const prettyErrors = causePrettyErrors;
 /**
+* Formats a `Cause` as a human-readable string for logging or debugging.
+*
+* **When to use**
+*
+* Use to render a whole cause as one human-readable string for logs or
+* diagnostics.
+*
+* **Details**
+*
+* Delegates to {@link prettyErrors} to convert each reason to an `Error`,
+* then joins their stack traces with newlines. Nested `Error.cause` chains
+* are rendered inline with indentation:
+*
+* ```text
+* ErrorName: message
+*     at ...
+*     at ... {
+*   [cause]: NestedError: message
+*       at ...
+* }
+* ```
+*
+* Span annotations are appended to the relevant stack frames when available.
+*
+* **Gotchas**
+*
+* Rendering an empty cause produces an empty string because there are no
+* errors to render.
+*
+* **Example** (Rendering a cause)
+*
+* ```ts import.meta.vitest
+* import { Cause } from "effect"
+*
+* Cause.pretty(Cause.fail("something went wrong")).includes("something went wrong") // => true
+* ```
+*
+* @see {@link prettyErrors} — get the individual `Error` instances
+*
+* @category formatting
+* @since 2.0.0
+*/
+const pretty = causePretty;
+/**
 * Checks whether an arbitrary value is a `Done` signal.
 *
 * **Example** (Checking the runtime type)
@@ -11619,11 +11703,11 @@ const currentTimeMillis = currentTimeMillis$1;
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/dateTime.js
 /** @internal */
-const TypeId$41 = "~effect/DateTime";
+const TypeId$42 = "~effect/DateTime";
 /** @internal */
 const TimeZoneTypeId = "~effect/DateTime/TimeZone";
 const Proto$17 = {
-	[TypeId$41]: TypeId$41,
+	[TypeId$42]: TypeId$42,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -11691,7 +11775,7 @@ const makeZonedProto = (epochMillis, zone, partsUtc) => {
 	return self;
 };
 /** @internal */
-const isDateTime$1 = (u) => hasProperty(u, TypeId$41);
+const isDateTime$1 = (u) => hasProperty(u, TypeId$42);
 const isDateTimeArgs = (args) => isDateTime$1(args[0]);
 /** @internal */
 const isUtc$1 = (self) => self._tag === "Utc";
@@ -11732,7 +11816,7 @@ const makeUnsafe$4 = (input) => {
 */
 const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input);
 /** @internal */
-const make$41 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
+const make$42 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
 /** @internal */
 const now$1 = /*#__PURE__*/ map$5(currentTimeMillis, makeUtc);
 /** @internal */
@@ -12044,7 +12128,7 @@ const matchEffect$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 }));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Schedule.js
-const TypeId$40 = "~effect/Schedule";
+const TypeId$41 = "~effect/Schedule";
 /**
 * Context reference containing metadata for the currently running schedule step.
 *
@@ -12069,7 +12153,7 @@ const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata
 	elapsedSincePrevious: 0
 }) });
 const ScheduleProto = {
-	[TypeId$40]: {
+	[TypeId$41]: {
 		_Out: identity,
 		_In: identity,
 		_Env: identity
@@ -12098,7 +12182,7 @@ const ScheduleProto = {
 * @category guards
 * @since 2.0.0
 */
-const isSchedule = (u) => hasProperty(u, TypeId$40);
+const isSchedule = (u) => hasProperty(u, TypeId$41);
 /**
 * Creates a Schedule from a step function that returns a Pull.
 *
@@ -12245,7 +12329,7 @@ const toStepWithMetadata = (schedule) => clockWith((clock) => map$5(toStep(sched
 			const meta = metaFn(now, input);
 			meta.output = output;
 			meta.duration = duration;
-			return as$1(sleep(duration), meta);
+			return as$1(sleep$1(duration), meta);
 		});
 	});
 }));
@@ -12622,7 +12706,7 @@ const all$1 = all$2;
 * @category sequencing
 * @since 2.0.0
 */
-const forEach = forEach$1;
+const forEach$1 = forEach$2;
 /**
 * Executes a body effect repeatedly while a condition holds true.
 *
@@ -12970,7 +13054,7 @@ const void_$1 = void_$3;
 * @category constructors
 * @since 4.0.0
 */
-const callback = callback$1;
+const callback$1 = callback$2;
 /**
 * Returns an effect that will never produce anything. The moral equivalent of
 * `while(true) {}`, only without the wasted CPU cycles.
@@ -14186,6 +14270,49 @@ const retry = retry$1;
 */
 const sandbox = sandbox$1;
 /**
+* Discards both the success and failure values of an effect.
+*
+* **When to use**
+*
+* Use when an effect should run for its side effects while both success and
+* failure values are discarded.
+*
+* **Details**
+*
+* Use the `log` option to emit the full {@link Cause} when the effect fails,
+* and `message` to prepend a custom log message.
+*
+* **Example** (Discarding success and failure values)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+*
+* //      ┌─── Effect<number, string, never>
+* //      ▼
+* const task = Effect.fail("Uh oh!").pipe(Effect.as(5))
+*
+* //      ┌─── Effect<void, never, never>
+* //      ▼
+* const program = task.pipe(Effect.ignore)
+* Effect.runSync(program) // => undefined
+* ```
+*
+* **Example** (Logging failures while ignoring results)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+*
+* const task = Effect.fail("Uh oh!")
+*
+* const program = task.pipe(Effect.ignore)
+* Effect.runSync(program) // => undefined
+* ```
+*
+* @category error handling
+* @since 2.0.0
+*/
+const ignore$1 = ignore$2;
+/**
 * Ignores the effect's failure cause, including defects and interruptions.
 *
 * **When to use**
@@ -14286,6 +14413,55 @@ const orElseSucceed = orElseSucceed$1;
 * @since 2.0.0
 */
 const timeout = timeout$1;
+/**
+* Returns an effect that suspends the current fiber for the specified duration
+* without blocking a JavaScript thread.
+*
+* **Example** (Pausing without blocking)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+* const output: Array<unknown> = []
+*
+* const program = Effect.gen(function*() {
+*   yield* Effect.sync(() => { output.push("Start") })
+*   yield* Effect.sleep(0)
+*   yield* Effect.sync(() => { output.push("End") })
+* })
+*
+* await Effect.runPromise(program)
+* output // => ["Start", "End"]
+* ```
+*
+* @category delays & timeouts
+* @since 2.0.0
+*/
+const sleep = sleep$1;
+/**
+* Returns the runtime duration of an effect together with its result.
+*
+* **Details**
+*
+* The original success, failure, or interruption is preserved; only the success
+* value is paired with the duration.
+*
+* **Example** (Measuring execution time)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const [, value] = yield* Effect.timed(Effect.succeed("ok"))
+*   return value
+* })
+*
+* Effect.runSync(program) // => "ok"
+* ```
+*
+* @category delays & timeouts
+* @since 2.0.0
+*/
+const timed = timed$1;
 /**
 * Races two effects and returns the result of the first one to complete, whether
 * it succeeds or fails.
@@ -14868,6 +15044,119 @@ const scoped = scoped$1;
 * @since 3.11.0
 */
 const scopedWith = scopedWith$1;
+/**
+* Constructs a scoped resource from an acquisition effect and a release
+* finalizer.
+*
+* **When to use**
+*
+* Use to acquire a scoped resource with an explicit release finalizer.
+*
+* **Details**
+*
+* If acquisition succeeds, the release finalizer is added to the current scope
+* and is guaranteed to run when that scope closes. The finalizer receives the
+* `Exit` value used to close the scope.
+*
+* By default, acquisition is protected by an uninterruptible region. Pass
+* `{ interruptible: true }` to allow the acquisition effect to be interrupted.
+*
+* **Example** (Acquiring and releasing a resource)
+*
+* ```ts import.meta.vitest
+* import { Effect, Exit } from "effect"
+* const output: Array<unknown> = []
+*
+* // Simulate a resource that needs cleanup
+* interface FileHandle {
+*   readonly path: string
+*   readonly content: string
+* }
+*
+* // Acquire a file handle
+* const acquire = Effect.gen(function*() {
+*   yield* Effect.sync(() => { output.push("Opening file") })
+*   return { path: "/tmp/file.txt", content: "file content" }
+* })
+*
+* // Release the file handle
+* const release = (handle: FileHandle, exit: Exit.Exit<unknown, unknown>) =>
+*   Effect.sync(() => { output.push(
+*     `Closing file ${handle.path} with exit: ${
+*       Exit.isSuccess(exit) ? "success" : "failure"
+*     }`
+*   ) })
+*
+* // Create a scoped resource
+* const resource = Effect.acquireRelease(acquire, release)
+*
+* // Use the resource within a scope
+* const program = Effect.scoped(
+*   Effect.gen(function*() {
+*     const handle = yield* resource
+*     yield* Effect.sync(() => { output.push(`Using file: ${handle.path}`) })
+*     return handle.content
+*   })
+* )
+*
+* void output.push(Effect.runSync(program))
+* output // => ["Opening file", "Using file: /tmp/file.txt", "Closing file /tmp/file.txt with exit: success", "file content"]
+* ```
+*
+* @see {@link acquireDisposable} for resources that implement JavaScript disposal protocols
+* @see {@link acquireUseRelease} for bracketing acquire, use, and release in one effect
+*
+* @category resource management
+* @since 2.0.0
+*/
+const acquireRelease = acquireRelease$1;
+/**
+* Adds a finalizer to the current scope.
+*
+* **When to use**
+*
+* Use to register low-level cleanup in the current scope.
+*
+* **Details**
+*
+* The finalizer runs when the surrounding scope is closed and receives the
+* `Exit` value used to close the scope.
+*
+* **Example** (Registering scope finalizers)
+*
+* ```ts import.meta.vitest
+* import { Effect, Exit } from "effect"
+* const output: Array<unknown> = []
+*
+* const program = Effect.scoped(
+*   Effect.gen(function*() {
+*     // Add a finalizer that runs when the scope closes
+*     yield* Effect.addFinalizer((exit) =>
+*       Effect.sync(() => { output.push(
+*         Exit.isSuccess(exit)
+*           ? "Cleanup: Operation completed successfully"
+*           : "Cleanup: Operation failed, cleaning up resources"
+*       ) })
+*     )
+*
+*     yield* Effect.sync(() => { output.push("Performing main operation...") })
+*
+*     // This could succeed or fail
+*     return "operation result"
+*   })
+* )
+*
+* void output.push(Effect.runSync(program))
+* output // => ["Performing main operation...", "Cleanup: Operation completed successfully", "operation result"]
+* ```
+*
+* @see {@link acquireRelease} for resource acquisition with a release finalizer
+* @see {@link ensuring} for attaching a finalizer to one effect
+*
+* @category resource management
+* @since 2.0.0
+*/
+const addFinalizer = addFinalizer$2;
 /**
 * Returns an effect that, if this effect _starts_ execution, then the
 * specified `finalizer` is guaranteed to be executed, whether this effect
@@ -16032,6 +16321,68 @@ const annotateLogs = /*#__PURE__*/ dual((args) => isEffect(args[0]), (effect, ..
 	return newAnnotations;
 }));
 /**
+* Converts an error-first callback API into a function that returns an
+* `Effect`.
+*
+* **Details**
+*
+* The original function is called with the supplied arguments plus a final
+* callback. A non-null callback error fails the returned effect, while a
+* successful callback value becomes the effect success. Use `onError` to map
+* callback errors and `onSyncError` to turn synchronous throws into typed
+* failures; otherwise synchronous throws become defects.
+*
+* **Example** (Converting callbacks to effects)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+*
+* const uppercase = (
+*   input: string,
+*   callback: (error: Error | null, value?: string) => void
+* ) => queueMicrotask(() => callback(null, input.toUpperCase()))
+*
+* const effectfulUppercase = Effect.effectify(uppercase)
+* const program = effectfulUppercase("hello")
+*
+* await Effect.runPromise(program) // => "HELLO"
+* ```
+*
+* **Example** (Mapping callback errors to typed failures)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+*
+* const fail = (
+*   input: string,
+*   callback: (error: Error | null, value?: string) => void
+* ) => queueMicrotask(() => callback(new Error("unavailable")))
+*
+* const effectfulFail = Effect.effectify(
+*   fail,
+*   (error, args) => new Error(`Failed to process ${args[0]}: ${error.message}`)
+* )
+*
+* const program = Effect.flip(effectfulFail("hello"))
+*
+* const error = await Effect.runPromise(program)
+* error.message // => "Failed to process hello: unavailable"
+* ```
+*
+* @category converting
+* @since 4.0.0
+*/
+const effectify = (fn, onError, onSyncError) => (...args) => callback$1((resume) => {
+	try {
+		fn(...args, (err, result) => {
+			if (err) resume(fail$3(onError ? onError(err, args) : err));
+			else resume(succeed$3(result));
+		});
+	} catch (err) {
+		resume(onSyncError ? fail$3(onSyncError(err, args)) : die(err));
+	}
+});
+/**
 * Applies `map` eagerly when an effect is already resolved.
 *
 * **When to use**
@@ -16266,6 +16617,72 @@ const catchEager = catchEager$1;
 * @since 4.0.0
 */
 const fnUntracedEager = fnUntracedEager$1;
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/BigInt.js
+/**
+* Exposes the global bigint constructor for JavaScript bigint coercion.
+*
+* **When to use**
+*
+* Use to access native JavaScript bigint constructor coercion from the Effect
+* module namespace.
+*
+* **Gotchas**
+*
+* This follows native `BigInt` coercion rules. It throws for invalid strings or
+* non-integral numbers, and whitespace-only strings coerce to `0n`.
+*
+* @see {@link fromString} for parsing strings into an `Option`
+* @see {@link fromNumber} for converting safe integers into an `Option`
+*
+* **Example** (Constructing bigints)
+*
+* ```ts import.meta.vitest
+* import { BigInt } from "effect"
+*
+* BigInt.BigInt(123) // => 123n
+* BigInt.BigInt("456") // => 456n
+* ```
+*
+* @category constructors
+* @since 4.0.0
+*/
+const BigInt$4 = globalThis.BigInt;
+/**
+* Converts a `bigint` to a `number` safely.
+*
+* **When to use**
+*
+* Use to convert a `bigint` to a JavaScript number only when it is a safe
+* integer.
+*
+* **Details**
+*
+* If the `bigint` is outside the safe integer range for JavaScript (`Number.MAX_SAFE_INTEGER`
+* and `Number.MIN_SAFE_INTEGER`), it returns `Option.none()`.
+*
+* **Example** (Converting bigints to numbers)
+*
+* ```ts import.meta.vitest
+* import { BigInt as BI, Option } from "effect"
+*
+* BI.toNumber(42n) // => Option.some(42)
+* BI.toNumber(9007199254740992n) // => Option.none()
+* BI.toNumber(-9007199254740992n) // => Option.none()
+* ```
+*
+* @see {@link fromNumber} for converting a safe integer number to `bigint`
+*
+* @category converting
+* @since 2.0.0
+*/
+const toNumber = (b) => {
+	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none();
+	return some(Number(b));
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/ByteSize.js
+const bigint0$1 = /*#__PURE__*/ BigInt(0);
 const bigint1$1 = /*#__PURE__*/ BigInt(1);
 const decimalBase = /*#__PURE__*/ BigInt(1e3);
 const binaryBase = /*#__PURE__*/ BigInt(1024);
@@ -16445,7 +16862,50 @@ const binaryUnits = [
 		]
 	}
 ];
-[...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
+const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
+const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
+const make$41 = (value) => value;
+const invalid = (message) => {
+	throw new Error(`Invalid ByteSize: ${message}`);
+};
+const fromNumber = (input) => {
+	if (!Number.isSafeInteger(input) || input < 0) return invalid(`expected a non-negative safe integer, received ${input}`);
+	return make$41(BigInt(input));
+};
+const parse$2 = (input) => {
+	const match = /^\s*(\d+)(?:\.(\d+))?\s*([A-Za-z]+)\s*$/.exec(input);
+	if (match === null) return invalid(`unsupported syntax ${JSON.stringify(input)}`);
+	const unit = unitsByName.get(match[3]);
+	if (unit === void 0) return invalid(`unsupported unit ${JSON.stringify(match[3])}`);
+	const fraction = match[2] ?? "";
+	const scale = BigInt(10) ** BigInt(fraction.length);
+	const numerator = BigInt(match[1] + fraction) * unit.factor;
+	if (numerator % scale !== bigint0$1) return invalid(`${JSON.stringify(input)} does not represent an integral number of bytes`);
+	return make$41(numerator / scale);
+};
+/**
+* Decodes a trusted input into a byte size and throws for invalid input.
+*
+* @category constructors
+* @since 4.0.0
+*/
+const fromInputUnsafe = (input) => {
+	switch (typeof input) {
+		case "bigint":
+			if (input < bigint0$1) return invalid(`expected a non-negative bigint, received ${input}`);
+			return make$41(input);
+		case "number": return fromNumber(input);
+		case "string": return parse$2(input);
+	}
+	return invalid(`unsupported input ${input}`);
+};
+/**
+* Creates a byte size from a non-negative byte count.
+*
+* @category constructors
+* @since 4.0.0
+*/
+const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fromNumber(value);
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/PlatformError.js
 /**
@@ -16459,7 +16919,41 @@ const binaryUnits = [
 *
 * @since 4.0.0
 */
-const TypeId$39 = "~effect/PlatformError";
+const TypeId$40 = "~effect/PlatformError";
+/**
+* Error data for an invalid argument passed to a platform API.
+*
+* **When to use**
+*
+* Use when you need to model caller input rejected before a platform operation
+* runs, including invalid-argument reason data.
+*
+* **Details**
+*
+* The error records the module and method that rejected the argument, with an
+* optional description and cause. It is usually wrapped in `PlatformError`.
+*
+* @see {@link badArgument} for creating a wrapped `PlatformError` whose reason is `BadArgument`
+* @see {@link SystemError} for failures reported by the host platform or operating system
+* @see {@link PlatformError} for the wrapper used by most platform APIs
+*
+* @category errors
+* @since 4.0.0
+*/
+var BadArgument = class extends (/*#__PURE__*/ TaggedError$1("BadArgument")) {
+	/**
+	* Formats the module, method, and optional description that rejected the argument.
+	*
+	* **When to use**
+	*
+	* Use to read the formatted error message for a rejected platform argument.
+	*
+	* @since 4.0.0
+	*/
+	get message() {
+		return `${this.module}.${this.method}${this.description ? `: ${this.description}` : ""}`;
+	}
+};
 /**
 * Error data for a platform or system operation failure.
 *
@@ -16535,7 +17029,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 	*
 	* @since 4.0.0
 	*/
-	[TypeId$39] = TypeId$39;
+	[TypeId$40] = TypeId$40;
 	get message() {
 		return this.reason.message;
 	}
@@ -16552,6 +17046,18 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 * @since 4.0.0
 */
 const systemError = (options) => new PlatformError(new SystemError(options));
+/**
+* Creates a `PlatformError` whose reason is a `BadArgument`.
+*
+* **When to use**
+*
+* Use to report a platform API rejecting caller input before performing the
+* underlying operation.
+*
+* @category constructors
+* @since 4.0.0
+*/
+const badArgument = (options) => new PlatformError(new BadArgument(options));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Fiber.js
 /**
@@ -16722,9 +17228,9 @@ const runIn = fiberRunIn;
 const makeUnsafe$3 = makeLatchUnsafe;
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/MutableRef.js
-const TypeId$38 = "~effect/MutableRef";
+const TypeId$39 = "~effect/MutableRef";
 const MutableRefProto = {
-	[TypeId$38]: TypeId$38,
+	[TypeId$39]: TypeId$39,
 	...PipeInspectableProto,
 	toJSON() {
 		return {
@@ -16765,7 +17271,7 @@ const MutableRefProto = {
 * @category constructors
 * @since 2.0.0
 */
-const make$39 = (value) => {
+const make$40 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
@@ -16824,7 +17330,7 @@ const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
 * @category constructors
 * @since 2.0.0
 */
-const make$38 = () => ({
+const make$39 = () => ({
 	head: void 0,
 	tail: void 0,
 	length: 0
@@ -16953,7 +17459,7 @@ const appendAllUnsafe = (self, messages, mutable = false) => {
 * @category mutations
 * @since 4.0.0
 */
-const clear$1 = (self) => {
+const clear$2 = (self) => {
 	self.head = self.tail = void 0;
 	self.length = 0;
 };
@@ -16989,7 +17495,7 @@ const takeN = (self, n) => {
 	n = Math.min(n, self.length);
 	if (n === self.length && self.head?.offset === 0 && !self.head.next) {
 		const array = self.head.array;
-		clear$1(self);
+		clear$2(self);
 		return array;
 	}
 	const array = new Array(n);
@@ -17003,15 +17509,35 @@ const takeN = (self, n) => {
 			if (index === n) {
 				self.head = chunk;
 				self.length -= n;
-				if (self.length === 0) clear$1(self);
+				if (self.length === 0) clear$2(self);
 				return array;
 			}
 		}
 		chunk = chunk.next;
 	}
-	clear$1(self);
+	clear$2(self);
 	return array;
 };
+/**
+* Takes all elements from the MutableList and returns them as an array.
+* The list becomes empty after this operation. This is equivalent to takeN(list, list.length).
+*
+* **Example** (Draining all elements)
+*
+* ```ts import.meta.vitest
+* import { MutableList } from "effect"
+*
+* const list = MutableList.make<string>()
+* MutableList.appendAll(list, ["apple", "banana", "cherry"])
+*
+* MutableList.takeAll(list) // => ["apple", "banana", "cherry"]
+* list.length // => 0
+* ```
+*
+* @category mutations
+* @since 4.0.0
+*/
+const takeAll$1 = (self) => takeN(self, self.length);
 /**
 * Takes a single element from the beginning of the MutableList.
 * Returns the element if available, or the Empty symbol if the list is empty.
@@ -17041,7 +17567,7 @@ const take$1 = (self) => {
 	self.length--;
 	if (self.head.offset === self.head.array.length) {
 		if (self.head.next) self.head = self.head.next;
-		else clear$1(self);
+		else clear$2(self);
 	}
 	return message;
 };
@@ -17057,7 +17583,7 @@ const take$1 = (self) => {
 *
 * @since 3.8.0
 */
-const TypeId$37 = "~effect/Queue";
+const TypeId$38 = "~effect/Queue";
 const EnqueueTypeId = "~effect/Queue/Enqueue";
 const DequeueTypeId = "~effect/Queue/Dequeue";
 const variance = {
@@ -17065,7 +17591,7 @@ const variance = {
 	_E: identity
 };
 const QueueProto = {
-	[TypeId$37]: variance,
+	[TypeId$38]: variance,
 	[EnqueueTypeId]: variance,
 	[DequeueTypeId]: variance,
 	...PipeInspectableProto,
@@ -17119,12 +17645,12 @@ const QueueProto = {
 * @category constructors
 * @since 4.0.0
 */
-const make$37 = (options) => withFiber$1((fiber) => {
+const make$38 = (options) => withFiber$1((fiber) => {
 	const self = Object.create(QueueProto);
 	self.dispatcher = fiber.currentDispatcher;
 	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
 	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$38();
+	self.messages = make$39();
 	self.scheduleRunning = false;
 	self.state = {
 		_tag: "Open",
@@ -17164,7 +17690,43 @@ const make$37 = (options) => withFiber$1((fiber) => {
 * @category constructors
 * @since 2.0.0
 */
-const bounded = (capacity) => make$37({ capacity });
+const bounded = (capacity) => make$38({ capacity });
+/**
+* Creates an unbounded queue that can grow to any size without blocking producers.
+*
+* **When to use**
+*
+* Use when you need producers to add messages without backpressure and accept
+* unbounded memory growth.
+*
+* **Example** (Creating unbounded queues)
+*
+* ```ts import.meta.vitest
+* import { Effect, Queue } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const queue = yield* Queue.unbounded<string>()
+*
+*   // Producers can always add messages without blocking
+*   yield* Queue.offer(queue, "message1")
+*   yield* Queue.offer(queue, "message2")
+*   yield* Queue.offerAll(queue, ["message3", "message4", "message5"])
+*
+*   // Check current size
+*   const size = yield* Queue.size(queue)
+*
+*   // Take all messages
+*   const messages = yield* Queue.takeAll(queue)
+*   return { size, messages }
+* })
+*
+* await Effect.runPromise(program) // => { size: 5, messages: ["message1", "message2", "message3", "message4", "message5"] }
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const unbounded = () => make$38();
 /**
 * Adds a message to the queue. Returns `false` if the queue is done.
 *
@@ -17491,6 +18053,56 @@ const failCauseUnsafe = (self, cause) => {
 */
 const end = (self) => failCause$1(self, causeFail(Done$2()));
 /**
+* Signals queue completion synchronously.
+*
+* **When to use**
+*
+* Use when implementing low-level queue integrations that must complete a queue
+* without wrapping the operation in `Effect`.
+*
+* **Details**
+*
+* Returns `false` if the queue is already done.
+*
+* **Gotchas**
+*
+* This is an unsafe operation that directly modifies the queue without Effect wrapping.
+*
+* **Example** (Ending queues synchronously)
+*
+* ```ts import.meta.vitest
+* import { Cause, Effect, Queue } from "effect"
+*
+* // Create a queue and use unsafe operations
+* const program = Effect.gen(function*() {
+*   const queue = yield* Queue.bounded<number, Cause.Done>(10)
+*
+*   // Add some messages
+*   Queue.offerUnsafe(queue, 1)
+*   Queue.offerUnsafe(queue, 2)
+*
+*   // End the queue synchronously
+*   const ended = Queue.endUnsafe(queue)
+*
+*   // Existing messages can still be consumed while the queue is closing
+*   const states = [queue.state._tag]
+*
+*   Queue.takeUnsafe(queue)
+*   Queue.takeUnsafe(queue)
+*
+*   // After buffered messages are consumed, the queue is done
+*   states.push(queue.state._tag)
+*   return { ended, states }
+* })
+*
+* await Effect.runPromise(program) // => { ended: true, states: ["Closing", "Done"] }
+* ```
+*
+* @category completion
+* @since 4.0.0
+*/
+const endUnsafe = (self) => failCauseUnsafe(self, causeFail(Done$2()));
+/**
 * Shuts down the queue immediately, discarding buffered messages and resuming
 * pending operations.
 *
@@ -17527,7 +18139,7 @@ const end = (self) => failCause$1(self, causeFail(Done$2()));
 */
 const shutdown = (self) => sync$1(() => {
 	if (self.state._tag === "Done") return true;
-	clear$1(self.messages);
+	clear$2(self.messages);
 	const offers = self.state.offers;
 	finalize(self, self.state._tag === "Open" ? exitInterrupt : self.state.exit);
 	if (offers.size > 0) {
@@ -17536,6 +18148,51 @@ const shutdown = (self) => sync$1(() => {
 		offers.clear();
 	}
 	return true;
+});
+/**
+* Takes and returns all currently buffered messages without waiting for more.
+*
+* **Details**
+*
+* Returns an empty array when the queue is empty or has completed normally. If
+* the queue has failed, the effect fails with the queue's error.
+*
+* **Example** (Clearing queued values)
+*
+* ```ts import.meta.vitest
+* import { Effect, Queue } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const queue = yield* Queue.bounded<number>(10)
+*
+*   // Add several messages
+*   yield* Queue.offerAll(queue, [1, 2, 3, 4, 5])
+*
+*   // Clear all messages from the queue
+*   const messages = yield* Queue.clear(queue)
+*
+*   // Queue is now empty
+*   const size = yield* Queue.size(queue)
+*
+*   // Clearing empty queue returns empty array
+*   const empty = yield* Queue.clear(queue)
+*   return { messages, size, empty }
+* })
+*
+* await Effect.runPromise(program) // => { messages: [1, 2, 3, 4, 5], size: 0, empty: [] }
+* ```
+*
+* @category taking
+* @since 4.0.0
+*/
+const clear$1 = (self) => suspend$3(() => {
+	if (self.state._tag === "Done") {
+		if (isDoneCause(self.state.exit.cause)) return succeed$6([]);
+		return self.state.exit;
+	}
+	const messages = takeAllUnsafe(self);
+	releaseCapacity(self);
+	return succeed$6(messages);
 });
 /**
 * Takes all currently available messages, waiting until at least one message
@@ -17798,7 +18455,7 @@ const takeBetweenUnsafe = (self, min, max) => {
 	}
 };
 const offerRemainingSingle = (self, message) => {
-	return callback$1((resume) => {
+	return callback$2((resume) => {
 		if (self.state._tag !== "Open") return resume(exitFalse);
 		const entry = {
 			_tag: "Single",
@@ -17812,7 +18469,7 @@ const offerRemainingSingle = (self, message) => {
 	});
 };
 const offerRemainingArray = (self, remaining) => {
-	return callback$1((resume) => {
+	return callback$2((resume) => {
 		if (self.state._tag !== "Open") return resume(exitSucceed(remaining));
 		const entry = {
 			_tag: "Array",
@@ -17868,13 +18525,25 @@ const releaseCapacity = (self) => {
 	}
 	return false;
 };
-const awaitTake = (self) => callback$1((resume) => {
+const awaitTake = (self) => callback$2((resume) => {
 	if (self.state._tag === "Done") return resume(self.state.exit);
 	self.state.takers.add(resume);
 	return sync$1(() => {
 		if (self.state._tag !== "Done") self.state.takers.delete(resume);
 	});
 });
+const takeAllUnsafe = (self) => {
+	if (self.messages.length > 0) {
+		const messages = takeAll$1(self.messages);
+		releaseCapacity(self);
+		return messages;
+	} else if (self.state._tag !== "Done" && self.state.offers.size > 0) {
+		const messages = [takeOfferUnsafe(self.state.offers)];
+		releaseCapacity(self);
+		return messages;
+	}
+	return [];
+};
 const finalize = (self, exit) => {
 	if (self.state._tag === "Done") return;
 	const openState = self.state;
@@ -17929,7 +18598,7 @@ const finalize = (self, exit) => {
 * @since 4.0.0
 */
 const makeUnsafe$2 = (permits) => new SemaphoreImpl(permits);
-const waitForPermits = (self, n, effect) => callback$1((resume) => {
+const waitForPermits = (self, n, effect) => callback$2((resume) => {
 	if (self.free >= n) return resume(effect);
 	const observer = () => {
 		if (self.free < n) return;
@@ -18050,7 +18719,7 @@ var SemaphoreImpl = class {
 * @category constructors
 * @since 4.0.0
 */
-const make$36 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+const make$37 = (permits) => sync$1(() => new SemaphoreImpl(permits));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Channel.js
 /**
@@ -18071,7 +18740,7 @@ const make$36 = (permits) => sync$1(() => new SemaphoreImpl(permits));
 * @category type IDs
 * @since 4.0.0
 */
-const TypeId$36 = "~effect/Channel";
+const TypeId$37 = "~effect/Channel";
 /**
 * Checks whether a value is a `Channel`.
 *
@@ -18088,9 +18757,9 @@ const TypeId$36 = "~effect/Channel";
 * @category guards
 * @since 3.5.4
 */
-const isChannel = (u) => hasProperty(u, TypeId$36);
+const isChannel = (u) => hasProperty(u, TypeId$37);
 const ChannelProto = {
-	[TypeId$36]: {
+	[TypeId$37]: {
 		_Env: identity,
 		_InErr: identity,
 		_InElem: identity,
@@ -18170,7 +18839,7 @@ const transformPull$1 = (self, f) => fromTransform$1((upstream, scope) => flatMa
 * @category constructors
 * @since 4.0.0
 */
-const fromPull = (effect) => fromTransform$1((_, __) => effect);
+const fromPull$1 = (effect) => fromTransform$1((_, __) => effect);
 /**
 * Creates a `Channel` from a transformation function that operates on upstream
 * pulls, but also provides a forked scope that closes when the resulting
@@ -18210,6 +18879,30 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 * @since 4.0.0
 */
 const toTransform = (channel) => channel.transform;
+const asyncQueue = (scope, f, options) => make$38({
+	capacity: options?.bufferSize,
+	strategy: options?.strategy
+}).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => forkIn(provide$3(f(queue), scope), scope)));
+/**
+* Creates a `Channel` that interacts with a callback function using a queue, emitting arrays.
+*
+* **Example** (Creating array channels from callbacks)
+*
+* ```ts import.meta.vitest
+* import { Channel, Effect, Queue } from "effect"
+*
+* const channel = Channel.callbackArray<number>(Effect.fn(function*(queue) {
+*   yield* Queue.offer(queue, 1)
+*   yield* Queue.offer(queue, 2)
+*   yield* Queue.end(queue)
+* }))
+* await Effect.runPromise(Channel.runCollect(channel)) // => [[1, 2]]
+* ```
+*
+* @category constructors
+* @since 4.0.0
+*/
+const callbackArray = (f, options) => fromTransform$1((_, scope) => map$3(asyncQueue(scope, f, options), takeAll));
 /**
 * Creates a `Channel` that lazily evaluates to another channel.
 *
@@ -18257,7 +18950,7 @@ const succeed$2 = (value) => fromEffect$1(succeed$3(value));
 * @category constructors
 * @since 2.0.0
 */
-const fail$2 = (error) => fromPull(succeed$3(fail$3(error)));
+const fail$2 = (error) => fromPull$1(succeed$3(fail$3(error)));
 /**
 * Constructs a channel that fails immediately with the specified `Cause`.
 *
@@ -18279,7 +18972,7 @@ const fail$2 = (error) => fromPull(succeed$3(fail$3(error)));
 * @category constructors
 * @since 2.0.0
 */
-const failCause = (cause) => fromPull(failCause$2(cause));
+const failCause = (cause) => fromPull$1(failCause$2(cause));
 /**
 * Uses an effect to write a single value to the channel.
 *
@@ -18297,7 +18990,7 @@ const failCause = (cause) => fromPull(failCause$2(cause));
 * @category constructors
 * @since 2.0.0
 */
-const fromEffect$1 = (effect) => fromPull(sync(() => {
+const fromEffect$1 = (effect) => fromPull$1(sync(() => {
 	let done$18 = false;
 	return suspend$2(() => {
 		if (done$18) return done();
@@ -18326,7 +19019,7 @@ const fromEffect$1 = (effect) => fromPull(sync(() => {
 * @category constructors
 * @since 4.0.0
 */
-const fromQueueArray = (queue) => fromPull(succeed$3(takeAll(queue)));
+const fromQueueArray = (queue) => fromPull$1(succeed$3(takeAll(queue)));
 /**
 * Creates a channel from a lazily supplied Web `ReadableStream`.
 *
@@ -18359,7 +19052,7 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$39(void 0);
+	const exit = options.exit ?? make$40(void 0);
 	const pull = suspend$2(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
@@ -18373,7 +19066,7 @@ const readableStreamToPullUnsafe = (options) => {
 			}
 		});
 	});
-	return as(addFinalizer(options.scope, options.releaseLockOnEnd ? sync(() => reader.releaseLock()) : promise(() => reader.cancel().catch(constVoid))), pull);
+	return as(addFinalizer$1(options.scope, options.releaseLockOnEnd ? sync(() => reader.releaseLock()) : promise(() => reader.cancel().catch(constVoid))), pull);
 };
 /**
 * Maps the output of this channel using the specified function.
@@ -18481,7 +19174,7 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 	const pull = yield* toTransform(self)(upstream, scope);
 	const concurrencyN = options.concurrency === "unbounded" ? Number.MAX_SAFE_INTEGER : options.concurrency;
 	const queue = yield* bounded(0);
-	yield* addFinalizer(forkedScope, shutdown(queue));
+	yield* addFinalizer$1(forkedScope, shutdown(queue));
 	const runFork = runForkWith(yield* context());
 	const trackFiber = runIn(forkedScope);
 	if (options.unordered) {
@@ -18497,7 +19190,7 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 		}), forever({ disableYield: true }), catchCause$1((cause) => semaphore.withPermits(concurrencyN - 1)(failCause$1(queue, cause))), forkIn(forkedScope));
 	} else {
 		const effects = yield* bounded(concurrencyN - 2);
-		yield* addFinalizer(forkedScope, shutdown(effects));
+		yield* addFinalizer$1(forkedScope, shutdown(effects));
 		yield* take(effects).pipe(flatten, flatMap((value) => offer(queue, value)), forever({ disableYield: true }), catchCause$1((cause) => failCause$1(queue, cause)), forkIn(forkedScope));
 		let errorCause;
 		const onExit = (exit) => {
@@ -18699,7 +19392,7 @@ const pipeTo = /*#__PURE__*/ dual(2, (self, that) => fromTransform$1((upstream, 
 * @category constructors
 * @since 2.0.0
 */
-const unwrap$1 = (channel) => fromTransform$1((upstream, scope) => {
+const unwrap$2 = (channel) => fromTransform$1((upstream, scope) => {
 	let pull;
 	return succeed$3(suspend$2(() => {
 		if (pull) return pull;
@@ -18850,7 +19543,7 @@ const runForEach$1 = /*#__PURE__*/ dual(2, (self, f) => runWith(self, (pull) => 
 const toPullScoped = (self, scope) => toTransform(self)(done(), scope);
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/stream.js
-const TypeId$35 = "~effect/Stream";
+const TypeId$36 = "~effect/Stream";
 const streamVariance = {
 	_R: identity,
 	_E: identity,
@@ -18860,7 +19553,7 @@ const Stream$1 = function(channel) {
 	this.channel = channel;
 };
 Stream$1.prototype = {
-	[TypeId$35]: streamVariance,
+	[TypeId$36]: streamVariance,
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
@@ -18869,7 +19562,8 @@ Stream$1.prototype = {
 const fromChannel$2 = (channel) => new Stream$1(channel);
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Sink.js
-const TypeId$34 = "~effect/Sink";
+const TypeId$35 = "~effect/Sink";
+const endVoid = /*#__PURE__*/ succeed$3([void 0]);
 const sinkVariance = {
 	_A: identity,
 	_In: identity,
@@ -18878,7 +19572,7 @@ const sinkVariance = {
 	_R: identity
 };
 const SinkProto = {
-	[TypeId$34]: sinkVariance,
+	[TypeId$35]: sinkVariance,
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
@@ -18928,6 +19622,25 @@ const fromTransform = (transform) => {
 	return self;
 };
 /**
+* Creates a `Channel` from a Sink.
+*
+* **Example** (Running a sink as a channel)
+*
+* ```ts import.meta.vitest
+* import { Channel, Effect, Sink, Stream } from "effect"
+*
+* const channel = Stream.toChannel(Stream.make(1, 2, 3)).pipe(
+*   Channel.pipeTo(Sink.toChannel(Sink.sum))
+* )
+*
+* await Effect.runPromise(Channel.runDrain(channel)) // => [6]
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const toChannel$1 = (self) => fromTransform$1((upstream, scope) => succeed$3(flatMap(self.transform(upstream, scope), done)));
+/**
 * A sink that reduces its inputs using the provided function `f` starting from
 * the specified `initial` state.
 *
@@ -18966,11 +19679,80 @@ const last_ = /*#__PURE__*/ reduceArray(none, (_, arr) => last$1(arr));
 * @since 2.0.0
 */
 const last = () => last_;
+/**
+* A sink that executes the provided effectful function for every item fed
+* to it.
+*
+* **Example** (Running effects for each item)
+*
+* ```ts import.meta.vitest
+* import { Effect, Sink, Stream } from "effect"
+*
+* const processed: Array<number> = []
+* const sink = Sink.forEach((item: number) => Effect.sync(() => processed.push(item)))
+*
+* // Use it with a stream
+* const stream = Stream.make(1, 2, 3)
+* await Effect.runPromise(Stream.run(stream, sink))
+* processed // => [1, 2, 3]
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const forEach = (f) => forEachArray(forEach$1((_) => f(_), { discard: true }));
+/**
+* A sink that executes the provided effectful function for every Chunk fed
+* to it.
+*
+* **Example** (Running effects for each chunk)
+*
+* ```ts import.meta.vitest
+* import { Effect, Sink, Stream } from "effect"
+*
+* const processed: Array<Array<number>> = []
+* const sink = Sink.forEachArray((chunk: ReadonlyArray<number>) => Effect.sync(() => processed.push([...chunk])))
+*
+* // Use it with a stream
+* const stream = Stream.make(1, 2, 3, 4, 5)
+* await Effect.runPromise(Stream.run(stream, sink))
+* processed // => [[1, 2, 3, 4, 5]]
+* ```
+*
+* @category constructors
+* @since 4.0.0
+*/
+const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f), forever({ disableYield: true }), catchDone(() => endVoid)));
+/**
+* Creates a sink produced from a scoped effect.
+*
+* **Example** (Unwrapping a sink effect)
+*
+* ```ts import.meta.vitest
+* import { Effect, Sink, Stream } from "effect"
+*
+* // Create a sink from an effect that produces a sink
+* const processed: Array<number> = []
+* const sinkEffect = Effect.succeed(
+*   Sink.forEach((item: number) => Effect.sync(() => processed.push(item)))
+* )
+* const sink = Sink.unwrap(sinkEffect)
+*
+* // Use it with a stream
+* const stream = Stream.make(1, 2, 3)
+* await Effect.runPromise(Stream.run(stream, sink))
+* processed // => [1, 2, 3]
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$3(effect, toChannel$1)));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/MutableHashMap.js
-const TypeId$33 = "~effect/MutableHashMap";
+const TypeId$34 = "~effect/MutableHashMap";
 const MutableHashMapProto = {
-	[TypeId$33]: TypeId$33,
+	[TypeId$34]: TypeId$34,
 	[Symbol.iterator]() {
 		return this.backing[Symbol.iterator]();
 	},
@@ -19190,7 +19972,7 @@ const getRefKey = (bucket, key) => {
 * @category mutations
 * @since 2.0.0
 */
-const remove$1 = /*#__PURE__*/ dual(2, (self, key_) => {
+const remove$2 = /*#__PURE__*/ dual(2, (self, key_) => {
 	if (isSimpleKey(key_)) {
 		self.backing.delete(key_);
 		return self;
@@ -19300,9 +20082,9 @@ const size = (self) => self.backing.size;
 *
 * @since 3.5.0
 */
-const TypeId$32 = "~effect/RcMap";
+const TypeId$33 = "~effect/RcMap";
 const makeUnsafe$1 = (options) => ({
-	[TypeId$32]: TypeId$32,
+	[TypeId$33]: TypeId$33,
 	lookup: options.lookup,
 	context: options.context,
 	scope: options.scope,
@@ -19367,7 +20149,7 @@ const makeUnsafe$1 = (options) => ({
 * @category constructors
 * @since 3.5.0
 */
-const make$35 = (options) => withFiber((fiber) => {
+const make$36 = (options) => withFiber((fiber) => {
 	const context = fiber.context;
 	const scope = get$2(context, Scope);
 	const self = makeUnsafe$1({
@@ -19381,7 +20163,7 @@ const make$35 = (options) => withFiber((fiber) => {
 		if (self.state._tag === "Closed") return void_$1;
 		const map = self.state.map;
 		self.state = { _tag: "Closed" };
-		return forEach(map, ([, entry]) => exit(closeEntry(entry))).pipe(tap(() => sync(() => {
+		return forEach$1(map, ([, entry]) => exit(closeEntry(entry))).pipe(tap(() => sync(() => {
 			clear(map);
 		})));
 	}), self);
@@ -19461,7 +20243,7 @@ const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) =
 		suspend$2(() => self.lookup(key)).pipe(runForkWith(makeUnsafe$7(context)), runIn(entry.scope)).addObserver((exit) => doneUnsafe(entry.deferred, exit));
 	}
 	const scope = getUnsafe(parent.context, Scope);
-	return addFinalizer(scope, entry.finalizer).pipe(andThen(restore(_await(entry.deferred))));
+	return addFinalizer$1(scope, entry.finalizer).pipe(andThen(restore(_await(entry.deferred))));
 }));
 const closeEntry = (entry) => entry.fiber ? interrupt(entry.fiber).pipe(andThen(close(entry.scope, void_$2))) : close(entry.scope, void_$2);
 const release = (self, key, entry) => withFiber((fiber) => {
@@ -19471,7 +20253,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 	const o = get$1(self.state.map, key);
 	if (o._tag === "None" || o.value !== entry) return closeEntry(entry);
 	else if (isZero$1(entry.idleTimeToLive)) {
-		remove$1(self.state.map, key);
+		remove$2(self.state.map, key);
 		return closeEntry(entry);
 	} else if (!isFinite$2(entry.idleTimeToLive)) return void_$1;
 	const clock = fiber.getRef(Clock);
@@ -19484,7 +20266,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 			if (self.state._tag === "Closed" || entry.refCount > 0) return void_$1;
 			const o = get$1(self.state.map, key);
 			if (o._tag === "None" || o.value !== entry) return void_$1;
-			remove$1(self.state.map, key);
+			remove$2(self.state.map, key);
 			return restore(close(entry.scope, void_$2));
 		}
 		return flatMap(clock.sleep(millis(remaining)), () => loop(restore));
@@ -19521,7 +20303,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 * @category type IDs
 * @since 4.0.0
 */
-const TypeId$31 = "~effect/Stream";
+const TypeId$32 = "~effect/Stream";
 /**
 * Checks whether a value is a Stream.
 *
@@ -19537,7 +20319,7 @@ const TypeId$31 = "~effect/Stream";
 * @category guards
 * @since 4.0.0
 */
-const isStream = (u) => hasProperty(u, TypeId$31);
+const isStream = (u) => hasProperty(u, TypeId$32);
 /**
 * Creates a stream from a array-emitting `Channel`.
 *
@@ -19571,6 +20353,35 @@ const fromChannel = fromChannel$2;
 * @since 2.0.0
 */
 const fromEffect = (effect) => fromChannel(fromEffect$1(map$3(effect, of)));
+/**
+* Creates a stream from a pull effect, such as one produced by `Stream.toPull`.
+*
+* **Details**
+*
+* A pull effect yields chunks on demand and completes when the upstream stream ends.
+* See `Stream.toPull` for a matching producer.
+*
+* **Example** (Creating a stream from a pull effect)
+*
+* ```ts import.meta.vitest
+* import { Effect, Stream } from "effect"
+*
+* const program = Effect.scoped(
+*   Effect.gen(function*() {
+*     const source = Stream.make(1, 2, 3)
+*     const pull = yield* Stream.toPull(source)
+*     const stream = Stream.fromPull(Effect.succeed(pull))
+*     return yield* Stream.runCollect(stream)
+*   })
+* )
+*
+* await Effect.runPromise(program) // => [1, 2, 3]
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const fromPull = (pull) => fromChannel(fromPull$1(pull));
 /**
 * Derives a stream by transforming its pull effect.
 *
@@ -19607,6 +20418,41 @@ const transformPull = (self, f) => fromChannel(fromTransform$1((_, scope) => fla
 * @since 2.0.0
 */
 const toChannel = (stream) => stream.channel;
+/**
+* Creates a stream from a callback that can emit values into a queue.
+*
+* **When to use**
+*
+* Use when you need callback-based code to emit stream values by offering to a
+* `Queue`, or signal stream completion through the `Queue` module APIs.
+*
+* By default it uses an "unbounded" buffer size.
+* You can customize the buffer size and strategy by passing an object as the
+* second argument with the `bufferSize` and `strategy` fields.
+*
+* **Example** (Creating a stream from a callback that can emit values into a queue)
+*
+* ```ts import.meta.vitest
+* import { Effect, Queue, Stream } from "effect"
+*
+* const stream = Stream.callback<number>((queue) =>
+*   Effect.sync(() => {
+*     // Emit values to the stream
+*     Queue.offerUnsafe(queue, 1)
+*     Queue.offerUnsafe(queue, 2)
+*     Queue.offerUnsafe(queue, 3)
+*     // Signal completion
+*     Queue.endUnsafe(queue)
+*   })
+* )
+*
+* await Effect.runPromise(Stream.runCollect(stream)) // => [1, 2, 3]
+* ```
+*
+* @category constructors
+* @since 4.0.0
+*/
+const callback = (f, options) => fromChannel(callbackArray(f, options));
 /**
 * Creates a single-valued pure stream.
 *
@@ -19751,7 +20597,7 @@ const fromReadableStream = (options) => fromChannel(fromReadableStream$1(options
 * @category constructors
 * @since 2.0.0
 */
-const unwrap = (effect) => fromChannel(unwrap$1(map$3(effect, toChannel)));
+const unwrap = (effect) => fromChannel(unwrap$2(map$3(effect, toChannel)));
 /**
 * Transforms the elements of this stream using the supplied function.
 *
@@ -20121,6 +20967,187 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 * @since 2.0.0
 */
 const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$3(context(), (context) => toReadableStreamWith(self, context, options)));
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/FileSystem.js
+/**
+* Defines the portable file system service for Effect programs.
+*
+* `FileSystem` is the boundary between Effect code and the host file system.
+* Platform packages provide concrete layers, while this module defines the
+* operations for reading, writing, inspecting, streaming, and watching files.
+* Operations return `Effect`, `Stream`, or `Sink` values and fail with
+* `PlatformError`. The module also includes file handles, open flags, watch
+* events, and the watch backend service.
+*
+* @since 4.0.0
+*/
+const TypeId$31 = "~effect/FileSystem";
+/**
+* Service tag for platform file-system operations.
+*
+* **When to use**
+*
+* Use to access or provide operations for files, directories, permissions,
+* streams, and sinks through the Effect context.
+*
+* **Details**
+*
+* This key is used to provide and access the FileSystem service in the Effect context.
+*
+* **Example** (Accessing and providing FileSystem)
+*
+* ```ts import.meta.vitest
+* import { Effect, FileSystem } from "effect"
+*
+* const customFs = FileSystem.makeNoop({
+*   exists: () => Effect.succeed(true),
+*   readFileString: () => Effect.succeed("contents")
+* })
+*
+* // Access the FileSystem service
+* const program = Effect.gen(function*() {
+*   const fs = yield* FileSystem.FileSystem
+*
+*   const exists = yield* fs.exists("./data.txt")
+*   return exists ? yield* fs.readFileString("./data.txt") : undefined
+* })
+*
+* const withCustomFs = Effect.provideService(
+*   program,
+*   FileSystem.FileSystem,
+*   customFs
+* )
+* Effect.runSync(withCustomFs) // => "contents"
+* ```
+*
+* @category services
+* @since 4.0.0
+*/
+const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
+/**
+* Creates a FileSystem implementation from a partial implementation.
+*
+* **When to use**
+*
+* Use to build a concrete `FileSystem` service from platform-specific core
+* operations while deriving the convenience methods that can be implemented
+* from them.
+*
+* **Details**
+*
+* This function takes a partial FileSystem implementation and automatically provides
+* default implementations for `exists`, `readFileString`, `stream`, `sink`, and
+* `writeFileString` methods based on the provided core methods.
+*
+* @see {@link makeNoop} for a testing stub that accepts method overrides without requiring a complete implementation
+* @see {@link layerNoop} for providing a no-op `FileSystem` as a `Layer` in tests
+*
+* @category constructors
+* @since 4.0.0
+*/
+const make$35 = (impl) => FileSystem.of({
+	...impl,
+	[TypeId$31]: TypeId$31,
+	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
+	readFileString: (path, encoding) => flatMap(impl.readFile(path), (_) => try_({
+		try: () => new TextDecoder(encoding).decode(_),
+		catch: (cause) => badArgument({
+			module: "FileSystem",
+			method: "readFileString",
+			description: "invalid encoding",
+			cause
+		})
+	})),
+	stream: fnUntraced(function* (path, options) {
+		const file = yield* impl.open(path, { flag: "r" });
+		const offset = options?.offset === void 0 ? void 0 : fromInputUnsafe(options.offset);
+		if (offset) yield* file.seek(offset, "start");
+		const bytesToRead = options?.bytesToRead === void 0 ? void 0 : fromInputUnsafe(options.bytesToRead);
+		let totalBytesRead = BigInt(0);
+		const chunkSize = Number(BigInt(options?.chunkSize ?? 65536));
+		const readChunk = file.readAlloc(chunkSize);
+		return fromPull(succeed$3(flatMap(suspend$2(() => {
+			if (bytesToRead !== void 0 && bytesToRead <= totalBytesRead) return done();
+			return bytesToRead !== void 0 && bytesToRead - totalBytesRead < chunkSize ? file.readAlloc(Number(bytesToRead - totalBytesRead)) : readChunk;
+		}), match$3({
+			onNone: () => done(),
+			onSome: (buf) => {
+				totalBytesRead += BigInt(buf.length);
+				return succeed$3(of(buf));
+			}
+		}))));
+	}, unwrap),
+	sink: (path, options) => pipe(impl.open(path, {
+		...options,
+		flag: options?.flag ?? "w"
+	}), map$3((file) => forEach((_) => file.writeAll(_))), unwrap$1),
+	writeFileString: (path, data, options) => flatMap(try_({
+		try: () => new TextEncoder().encode(data),
+		catch: (cause) => badArgument({
+			module: "FileSystem",
+			method: "writeFileString",
+			description: "could not encode string",
+			cause
+		})
+	}), (_) => impl.writeFile(path, _, options))
+});
+/**
+* Runtime type identifier attached to `FileSystem.File` handles and used by
+* `isFile` to recognize them.
+*
+* **Details**
+*
+* This marker is part of the runtime representation of file handles. Prefer
+* `isFile` when narrowing unknown values.
+*
+* @see {@link File} for the open file handle shape that carries this marker
+* @see {@link isFile} for the public guard that checks this marker
+*
+* @category type IDs
+* @since 4.0.0
+*/
+const FileTypeId = "~effect/FileSystem/File";
+/**
+* Service key for file system watch backend implementations.
+*
+* **Details**
+*
+* This service provides the low-level file watching capabilities that can be
+* implemented differently on various platforms (e.g., inotify on Linux,
+* FSEvents on macOS, etc.).
+*
+* **Example** (Providing a custom watch backend)
+*
+* ```ts import.meta.vitest
+* import { Effect, FileSystem, Option, Stream } from "effect"
+*
+* // Custom watch backend implementation
+* const customWatchBackend = {
+*   register: (path: string, stat: FileSystem.File.Info) => {
+*     // Implementation would depend on platform
+*     return Option.some(Stream.empty) // Placeholder implementation
+*   }
+* }
+*
+* const program = Effect.gen(function*() {
+*   const backend = yield* FileSystem.WatchBackend
+*   return Option.isSome(
+*     backend.register("./directory", { type: "Directory" } as FileSystem.File.Info)
+*   )
+* })
+*
+* const withCustomBackend = Effect.provideService(
+*   program,
+*   FileSystem.WatchBackend,
+*   customWatchBackend
+* )
+* Effect.runSync(withCustomBackend) // => true
+* ```
+*
+* @category services
+* @since 4.0.0
+*/
+var WatchBackend = class extends (/*#__PURE__*/ Service$1()("effect/FileSystem/WatchBackend")) {};
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/annotations.js
 /** @internal */
@@ -20815,7 +21842,7 @@ const makeUnsafe = makeUnsafe$4;
 * @category constructors
 * @since 3.6.0
 */
-const make$34 = make$41;
+const make$34 = make$42;
 /**
 * Gets the current time using the `Clock` service and converts it to a `DateTime`.
 *
@@ -21273,7 +22300,7 @@ function omit$1() {
 * @category transforming
 * @since 4.0.0
 */
-function withDefault(defaultValue) {
+function withDefault$1(defaultValue) {
 	return new Getter((o) => {
 		const filtered = filter(o, isNotUndefined);
 		return isSome(filtered) ? succeed$3(filtered) : mapEager(defaultValue, some);
@@ -21713,7 +22740,7 @@ const abs = (n) => n.value < bigint0 ? make$33(-n.value, n.scale) : n;
 * @category instances
 * @since 2.0.0
 */
-const Equivalence$2 = /*#__PURE__*/ make$47((self, that) => compare(self, that) === 0);
+const Equivalence$2 = /*#__PURE__*/ make$48((self, that) => compare(self, that) === 0);
 /**
 * Checks whether two `BigDecimal`s are equal.
 *
@@ -24027,7 +25054,7 @@ const optionalKeyLastLink = /*#__PURE__*/ applyToLastLink(optionalKey$1);
 const optional$6 = /*#__PURE__*/ memoize((ast) => optionalKey$1(new Union$1([ast, undefined_])));
 /** @internal */
 function withConstructorDefault$1(ast, defaultValue) {
-	const transformation = new Transformation(withDefault(defaultValue), passthrough$1());
+	const transformation = new Transformation(withDefault$1(defaultValue), passthrough$1());
 	const constructorDefault = new Link(unknown, transformation);
 	return replaceContext(ast, ast.context ? new Context(ast.context.isOptional, ast.context.isMutable, constructorDefault, ast.context.annotations) : new Context(false, false, constructorDefault));
 }
@@ -24484,6 +25511,41 @@ const unknownToStringTree = /*#__PURE__*/ new Link(/* @__PURE__ */ new Declarati
 	toCodecStringTree: () => void 0
 }), /*#__PURE__*/ passthrough());
 //#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/internal/utils.js
+/** @internal */
+const handleErrnoException = (module, method) => (err, [path]) => {
+	let reason = "Unknown";
+	switch (err.code) {
+		case "ENOENT":
+			reason = "NotFound";
+			break;
+		case "EACCES":
+			reason = "PermissionDenied";
+			break;
+		case "EEXIST":
+			reason = "AlreadyExists";
+			break;
+		case "EISDIR":
+			reason = "BadResource";
+			break;
+		case "ENOTDIR":
+			reason = "BadResource";
+			break;
+		case "EBUSY":
+			reason = "Busy";
+			break;
+		case "ELOOP": reason = "BadResource";
+	}
+	return systemError({
+		_tag: reason,
+		module,
+		method,
+		pathOrDescriptor: path,
+		syscall: err.syscall,
+		cause: err
+	});
+};
+//#endregion
 //#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/NodeSink.js
 /**
 * Creates a `Sink` that writes chunks to a Node writable stream, respecting
@@ -24528,7 +25590,7 @@ const fromWritableChannel = (options) => fromTransform$1((pull) => {
 */
 const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
 	let i = 0;
-	return callback((resume) => {
+	return callback$1((resume) => {
 		let cancelled = false;
 		const loop = () => {
 			for (; i < chunk.length;) {
@@ -24548,7 +25610,7 @@ const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
 	});
 }), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
 	if ("closed" in options.writable && options.writable.closed) return done(_);
-	return callback((resume) => {
+	return callback$1((resume) => {
 		const onFinish = () => resume(done(_));
 		options.writable.once("finish", onFinish);
 		options.writable.end();
@@ -24556,7 +25618,7 @@ const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
 			options.writable.off("finish", onFinish);
 		});
 	});
-}) : identity, raceFirst(callback((resume) => {
+}) : identity, raceFirst(callback$1((resume) => {
 	const onError = (error) => resume(fail$3(options.onError(error)));
 	options.writable.once("error", onError);
 	return sync(() => {
@@ -24603,7 +25665,7 @@ const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableT
 const readableToPullUnsafe = (options) => {
 	const readable = options.readable;
 	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$39(void 0);
+	const exit = options.exit ?? make$40(void 0);
 	const latch = options.latch ?? makeUnsafe$3(false);
 	function onReadable() {
 		latch.openUnsafe();
@@ -24635,7 +25697,7 @@ const readableToPullUnsafe = (options) => {
 		}
 		return succeed$3(chunk);
 	});
-	return as(addFinalizer(options.scope, sync(() => {
+	return as(addFinalizer$1(options.scope, sync(() => {
 		readable.off("readable", onReadable);
 		readable.off("error", onError);
 		readable.off("end", onEnd);
@@ -24972,7 +26034,7 @@ const value$2 = value$3;
 * @category instances
 * @since 4.0.0
 */
-const makeEquivalence = (isEquivalent) => make$47((x, y) => isEquivalent(value$2(x), value$2(y)));
+const makeEquivalence = (isEquivalent) => make$48((x, y) => isEquivalent(value$2(x), value$2(y)));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/Headers.js
 /**
@@ -25112,7 +26174,7 @@ const merge = /*#__PURE__*/ dual(2, (self, headers) => {
 * @category combinators
 * @since 4.0.0
 */
-const remove = /*#__PURE__*/ dual(2, (self, key) => {
+const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	const out = make$30(self);
 	delete out[key.toLowerCase()];
 	return out;
@@ -26888,7 +27950,7 @@ const fromInputNested = (input) => {
 * @category instances
 * @since 4.0.0
 */
-const Equivalence = /*#__PURE__*/ make$47((a, b) => arrayEquivalence(a.params, b.params));
+const Equivalence = /*#__PURE__*/ make$48((a, b) => arrayEquivalence(a.params, b.params));
 const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ strictEqual()]));
 /**
 * An empty `UrlParams` value.
@@ -28070,7 +29132,7 @@ function decodeTo(to, transformation) {
 * @internal
 */
 function linkDecoding() {
-	return (to, decode) => link()(to, {
+	return (to, decode) => link$1()(to, {
 		decode,
 		encode: forbiddenEncoding
 	});
@@ -28196,7 +29258,7 @@ function withDecodingDefault(defaultValue, options) {
 	const encode = options?.encodingStrategy === "omit" ? omit$1() : passthrough$1();
 	return (self) => {
 		return optional$5(toEncoded(self)).pipe(decodeTo(self, {
-			decode: withDefault(toIssueEffect(defaultValue)),
+			decode: withDefault$1(toIssueEffect(defaultValue)),
 			encode
 		}));
 	};
@@ -28334,7 +29396,7 @@ function instanceOf(constructor, annotations) {
 * @category transforming
 * @since 4.0.0
 */
-function link() {
+function link$1() {
 	return (encodeTo, transformation) => {
 		return new Link(encodeTo.ast, make$32(transformation));
 	};
@@ -28780,7 +29842,7 @@ const Uint8Array$2 = /*#__PURE__*/ instanceOf(globalThis.Uint8Array, {
 		Type: `globalThis.Uint8Array`
 	}),
 	expected: "Uint8Array",
-	toCodecJson: () => link()(Base64String, uint8ArrayFromBase64String)
+	toCodecJson: () => link$1()(Base64String, uint8ArrayFromBase64String)
 });
 /**
 * Schema that decodes a base64 encoded string into a
@@ -28843,7 +29905,7 @@ function CauseReason(error, defect) {
 			importDeclarations: [`import * as Cause from "effect/Cause"`]
 		}),
 		expected: "Cause.Failure",
-		toCodec: ([error, defect]) => link()(Union([
+		toCodec: ([error, defect]) => link$1()(Union([
 			Struct({
 				_tag: Literal("Fail"),
 				error
@@ -28914,7 +29976,7 @@ function Cause(error, defect) {
 			importDeclarations: [`import * as Cause from "effect/Cause"`]
 		}),
 		expected: "Cause",
-		toCodec: ([error, defect]) => link()(ArraySchema(CauseReason(error, defect)), transform$1({
+		toCodec: ([error, defect]) => link$1()(ArraySchema(CauseReason(error, defect)), transform$1({
 			decode: fromReasons,
 			encode: ({ reasons: failures }) => failures
 		}))
@@ -28982,7 +30044,7 @@ const DateTimeUtc = /*#__PURE__*/ declare((u) => isDateTime(u) && isUtc(u), {
 		const [minimum, maximum] = dateTimeArbitraryBounds(constraint, arbitraryMinimumDateTimestamp, arbitraryMaximumDateTimestamp);
 		return linkDecoding()(dateTimeArbitraryInteger(minimum, maximum), transform$2(makeUnsafe));
 	},
-	toCodecJson: () => link()(String$2, dateTimeUtcFromString),
+	toCodecJson: () => link$1()(String$2, dateTimeUtcFromString),
 	toFormatter: () => (utc) => utc.toString()
 });
 /**
@@ -29016,7 +30078,7 @@ const Duration = /*#__PURE__*/ declare(isDuration, {
 		importDeclarations: [`import * as Duration from "effect/Duration"`]
 	}),
 	expected: "Duration",
-	toCodecJson: () => link()(Union([
+	toCodecJson: () => link$1()(Union([
 		Struct({ _tag: Literal("Infinity") }),
 		Struct({ _tag: Literal("NegativeInfinity") }),
 		Struct({
@@ -29095,7 +30157,7 @@ function Exit(value, error, defect) {
 			importDeclarations: [`import * as Exit from "effect/Exit"`]
 		}),
 		expected: "Exit",
-		toCodec: ([value, error, defect]) => link()(Union([Struct({
+		toCodec: ([value, error, defect]) => link$1()(Union([Struct({
 			_tag: Literal("Success"),
 			value
 		}), Struct({
@@ -29162,7 +30224,7 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 	}),
 	expected: "UrlParams",
 	toEquivalence: () => Equivalence,
-	toCodec: () => link()(ArraySchema(Tuple([String$2, String$2])), transform$1({
+	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform$1({
 		decode: make$27,
 		encode: (self) => self.params
 	}))
@@ -29220,7 +30282,7 @@ function Redacted$1(value, options) {
 			importDeclarations: [`import * as Redacted from "effect/Redacted"`]
 		}),
 		expected: "Redacted",
-		toCodecJson: ([value]) => link()(value, {
+		toCodecJson: ([value]) => link$1()(value, {
 			decode: transform$2((e) => make$31(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$2(value$2)
 		}),
@@ -29629,6 +30691,21 @@ const TypeId$20 = "~effect/http/HttpBody";
 * @since 4.0.0
 */
 const isHttpBody = (u) => hasProperty(u, TypeId$20);
+const HttpBodyErrorTypeId = "~effect/http/HttpBody/HttpBodyError";
+/**
+* Error produced while constructing an HTTP body from JSON or schema-encoded input.
+*
+* @category errors
+* @since 4.0.0
+*/
+var HttpBodyError = class extends (/*#__PURE__*/ TaggedError$1("HttpBodyError")) {
+	/**
+	* Marks this value as an HTTP body error for runtime guards.
+	*
+	* @since 4.0.0
+	*/
+	[HttpBodyErrorTypeId] = HttpBodyErrorTypeId;
+};
 var Proto$12 = class {
 	[TypeId$20];
 	constructor() {
@@ -29734,6 +30811,23 @@ const text = (body, contentType) => {
 	const bytes = encoder.encode(body);
 	return new Uint8Array$1(bytes, contentType ?? "text/plain", bytes.length, body);
 };
+/**
+* Creates a JSON HTTP body in an `Effect`.
+*
+* **Details**
+*
+* `JSON.stringify` failures are captured as `HttpBodyError` values, and the content type defaults to `application/json`.
+*
+* @category constructors
+* @since 4.0.0
+*/
+const json = (body, contentType) => try_({
+	try: () => text(JSON.stringify(body), contentType ?? "application/json"),
+	catch: (cause) => new HttpBodyError({
+		reason: { _tag: "JsonError" },
+		cause
+	})
+});
 /**
 * Creates an `application/x-www-form-urlencoded` HTTP body from `UrlParams`.
 *
@@ -30006,9 +31100,9 @@ const allShort = [
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/internal/httpBody.js
 /** @internal */
 const updateHeaders = (headers, body) => {
-	if (body._tag === "Empty" || body._tag === "FormData") return remove(remove(headers, "content-type"), "content-length");
-	headers = body.contentType === void 0 ? remove(headers, "content-type") : set(headers, "content-type", body.contentType);
-	return body.contentLength === void 0 ? remove(headers, "content-length") : set(headers, "content-length", body.contentLength.toString());
+	if (body._tag === "Empty" || body._tag === "FormData") return remove$1(remove$1(headers, "content-type"), "content-length");
+	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set(headers, "content-type", body.contentType);
+	return body.contentLength === void 0 ? remove$1(headers, "content-length") : set(headers, "content-length", body.contentLength.toString());
 };
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/Url.js
@@ -30099,6 +31193,13 @@ const make$24 = (method) => (url, options) => modify(empty$1, {
 	url,
 	...options ?? void 0
 });
+/**
+* Creates a `POST` request for the specified URL.
+*
+* @category constructors
+* @since 4.0.0
+*/
+const post$1 = /*#__PURE__*/ make$24("POST");
 /**
 * Applies request options to an `HttpClientRequest`, returning a new request.
 *
@@ -30219,6 +31320,13 @@ const setHash = /*#__PURE__*/ dual(2, (self, hash) => makeWith$2(self.method, se
 const setBody = /*#__PURE__*/ dual(2, (self, body) => {
 	return makeWith$2(self.method, self.url, self.urlParams, self.hash, updateHeaders(self.headers, body), body);
 });
+/**
+* Encodes a value as a JSON request body and sets it on the request, failing with `HttpBodyError` if encoding fails.
+*
+* @category combinators
+* @since 4.0.0
+*/
+const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$3(json(body), (body) => setBody(self, body)));
 /**
 * Sets a `FormData` request body.
 *
@@ -32512,7 +33620,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 	const scope = get$2(services, Scope);
 	const entries = /* @__PURE__ */ new Map();
 	let isShutdown = false;
-	yield* addFinalizer(scope, withFiber((parent) => {
+	yield* addFinalizer$1(scope, withFiber((parent) => {
 		isShutdown = true;
 		return clearEntries(interrupt$2(parent.id));
 	}));
@@ -32559,7 +33667,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 		});
 		if (discard) return send;
 		let fiber;
-		return onInterrupt(callback((resume) => {
+		return onInterrupt(callback$1((resume) => {
 			const entry = {
 				_tag: "Effect",
 				rpc,
@@ -32637,7 +33745,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 			});
 		};
 	};
-	const sendInterrupt = (requestId, interruptors, context) => callback((resume) => {
+	const sendInterrupt = (requestId, interruptors, context) => callback$1((resume) => {
 		const parentFiber = getCurrent();
 		options.onFromClient({
 			message: {
@@ -32801,7 +33909,7 @@ const make$15 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 			});
 			case "ClientProtocolError": {
 				const exit = fail$5(message.error);
-				return forEach(entries.keys(), (requestId) => write({
+				return forEach$1(entries.keys(), (requestId) => write({
 					_tag: "Exit",
 					clientId: 0,
 					requestId,
@@ -32949,11 +34057,11 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$36(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$37(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
 	const shutdownLatch = makeUnsafe$3(false);
-	yield* addFinalizer(scope, withFiber((parent) => {
+	yield* addFinalizer$1(scope, withFiber((parent) => {
 		isShutdown = true;
 		for (const client of clients.values()) {
 			client.ended = true;
@@ -33205,7 +34313,7 @@ const make$13 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
 	const encodeDefectUnsafe = encodeSync(codecFor(Defect()));
 	const services = yield* context();
-	const scope = yield* make$42();
+	const scope = yield* make$43();
 	const server = yield* makeNoSerialization(group, {
 		...options,
 		disableClientAcks: !supportsAck,
@@ -33381,7 +34489,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 	const fiber = getCurrent();
 	const serialization = yield* RpcSerialization;
 	return yield* Protocol.make(fnUntraced(function* (writeRequest) {
-		const queue = yield* make$37();
+		const queue = yield* make$38();
 		const parser = serialization.makeUnsafe();
 		yield* stdio.stdin.pipe(runForEach((data) => {
 			const decoded = parser.decode(data);
@@ -33395,7 +34503,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 		}), sandbox, tapError(logError), retry(spaced(500)), ensuring$2(forkDetach(interrupt(fiber), { startImmediately: true })), forkScoped);
 		yield* fromQueue(queue).pipe(run$1(stdio.stdout()), retry(spaced(500)), forkScoped);
 		return {
-			disconnects: yield* make$37(),
+			disconnects: yield* make$38(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -33517,7 +34625,7 @@ const RpcGroupProto = {
 		});
 	},
 	annotateRpcs(service, value) {
-		return this.annotateRpcsMerge(make$45(service, value));
+		return this.annotateRpcsMerge(make$46(service, value));
 	},
 	annotateMerge(context) {
 		return makeProto$4({
@@ -34054,6 +35162,42 @@ const resolveRecord = (results) => {
 	if (firstAbsent !== void 0) return hasInput ? fail$3(evaluationFailure(firstAbsent.error, true)) : succeed$3(firstAbsent);
 	return succeed$3(resolved(values, hasInput));
 };
+/**
+* Provides a fallback value when the config cannot resolve because none of its
+* relevant input is present.
+*
+* **When to use**
+*
+* Use when you need to make a config key optional with a sensible default.
+*
+* **Gotchas**
+*
+* Validation errors and partially supplied groups still propagate. A schema
+* that successfully decodes absent input also keeps its decoded value instead
+* of using the default. Schema configs first represent a missing or
+* incompatible provider shape as `undefined`; the default is used only when
+* the schema rejects that value and no relevant input was found.
+*
+* **Example** (Defaulting a missing port)
+*
+* ```ts import.meta.vitest
+* import { Config, ConfigProvider, Effect } from "effect"
+*
+* const port = Config.Number("port").pipe(Config.withDefault(3000))
+*
+* const provider = ConfigProvider.fromUnknown({})
+* Effect.runSync(port.parse(provider)) // => 3000
+* ```
+*
+* @see {@link option} – returns `Option` instead of a default value
+* @see {@link orElse} – catches all errors, not just absent input
+*
+* @category combinators
+* @since 2.0.0
+*/
+const withDefault = /*#__PURE__*/ dual(2, (self, defaultValue) => {
+	return make$10((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => resolution._tag === "Absent" ? resolved(defaultValue, false) : resolution));
+});
 const cursorToString = () => "<configuration>";
 const loadCursor = (provider, path) => provider.load(path).pipe(orDie, mapEager((node) => ({
 	provider,
@@ -34298,6 +35442,399 @@ function Redacted(name) {
 	return schema(Redacted$1(String$2), name);
 }
 //#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
+/**
+* Shared Node-compatible implementation of Effect's `FileSystem` service.
+*
+* This module adapts Node's `node:fs`, `node:os`, and `node:path` APIs into a
+* `FileSystem` layer for Effect programs running on Node-compatible runtimes.
+* Platform packages use it to provide file and directory I/O, permissions,
+* links, metadata, temporary files and directories, and file watching through
+* the shared `FileSystem` service.
+*
+* @since 4.0.0
+*/
+const handleBadArgument = (method) => (err) => badArgument({
+	module: "FileSystem",
+	method,
+	description: err.message ?? String(err)
+});
+const bigintToNumber = (value, field) => {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number)) throw new RangeError(`${field} exceeds the safe integer range: ${value}`);
+	return number;
+};
+const bigintToNumberOption = (value) => flatMap$3(fromNullishOr(value), toNumber);
+const positionToNumber = (position, method) => try_({
+	try: () => bigintToNumber(position, "position"),
+	catch: handleBadArgument(method)
+});
+const access = /*#__PURE__*/ (() => {
+	const nodeAccess = /*#__PURE__*/ effectify(NFS.access, /*#__PURE__*/ handleErrnoException("FileSystem", "access"), /*#__PURE__*/ handleBadArgument("access"));
+	return (path, options) => {
+		let mode = NFS.constants.F_OK;
+		if (options?.readable) mode |= NFS.constants.R_OK;
+		if (options?.writable) mode |= NFS.constants.W_OK;
+		return nodeAccess(path, mode);
+	};
+})();
+const copy = /*#__PURE__*/ (() => {
+	const nodeCp = /*#__PURE__*/ effectify(NFS.cp, /*#__PURE__*/ handleErrnoException("FileSystem", "copy"), /*#__PURE__*/ handleBadArgument("copy"));
+	return (fromPath, toPath, options) => nodeCp(fromPath, toPath, {
+		force: options?.overwrite ?? false,
+		preserveTimestamps: options?.preserveTimestamps ?? false,
+		recursive: true
+	});
+})();
+const copyFile = /*#__PURE__*/ (() => {
+	const nodeCopyFile = /*#__PURE__*/ effectify(NFS.copyFile, /*#__PURE__*/ handleErrnoException("FileSystem", "copyFile"), /*#__PURE__*/ handleBadArgument("copyFile"));
+	return (fromPath, toPath) => nodeCopyFile(fromPath, toPath);
+})();
+const chmod = /*#__PURE__*/ (() => {
+	const nodeChmod = /*#__PURE__*/ effectify(NFS.chmod, /*#__PURE__*/ handleErrnoException("FileSystem", "chmod"), /*#__PURE__*/ handleBadArgument("chmod"));
+	return (path, mode) => nodeChmod(path, mode);
+})();
+const chown = /*#__PURE__*/ (() => {
+	const nodeChown = /*#__PURE__*/ effectify(NFS.chown, /*#__PURE__*/ handleErrnoException("FileSystem", "chown"), /*#__PURE__*/ handleBadArgument("chown"));
+	return (path, uid, gid) => nodeChown(path, uid, gid);
+})();
+const glob = /*#__PURE__*/ (() => {
+	const nodeGlob = /*#__PURE__*/ effectify(NFS.glob, /*#__PURE__*/ handleErrnoException("FileSystem", "glob"), /*#__PURE__*/ handleBadArgument("glob"));
+	return (pattern, options) => nodeGlob(pattern, {
+		cwd: options?.root,
+		exclude: options?.exclude
+	});
+})();
+const link = /*#__PURE__*/ (() => {
+	const nodeLink = /*#__PURE__*/ effectify(NFS.link, /*#__PURE__*/ handleErrnoException("FileSystem", "link"), /*#__PURE__*/ handleBadArgument("link"));
+	return (existingPath, newPath) => nodeLink(existingPath, newPath);
+})();
+const makeDirectory = /*#__PURE__*/ (() => {
+	const nodeMkdir = /*#__PURE__*/ effectify(NFS.mkdir, /*#__PURE__*/ handleErrnoException("FileSystem", "makeDirectory"), /*#__PURE__*/ handleBadArgument("makeDirectory"));
+	return (path, options) => nodeMkdir(path, {
+		recursive: options?.recursive ?? false,
+		mode: options?.mode
+	});
+})();
+const makeTempDirectoryFactory = (method) => {
+	const nodeMkdtemp = effectify(NFS.mkdtemp, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (options) => suspend$2(() => {
+		const prefix = options?.prefix ?? "";
+		const directory = typeof options?.directory === "string" ? Path.join(options.directory, ".") : OS.tmpdir();
+		return nodeMkdtemp(prefix ? Path.join(directory, prefix) : directory + "/");
+	});
+};
+const makeTempDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectory");
+const removeFactory = (method) => {
+	const nodeRm = effectify(NFS.rm, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (path, options) => nodeRm(path, {
+		recursive: options?.recursive ?? false,
+		force: options?.force ?? false
+	});
+};
+const remove = /*#__PURE__*/ removeFactory("remove");
+const makeTempDirectoryScoped = /*#__PURE__*/ (() => {
+	const makeDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectoryScoped");
+	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempDirectoryScoped");
+	return (options) => acquireRelease(makeDirectory(options), (directory) => orDie(removeDirectory(directory, { recursive: true })));
+})();
+const openFactory = (method) => {
+	const nodeOpen = effectify(NFS.open, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeClose = effectify(NFS.close, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (path, options) => pipe(acquireRelease(nodeOpen(path, options?.flag ?? "r", options?.mode), (fd) => orDie(nodeClose(fd))), map$3((fd) => makeFile(fd, options?.flag?.startsWith("a") ?? false)));
+};
+const open = /*#__PURE__*/ openFactory("open");
+const makeFile = /*#__PURE__*/ (() => {
+	const nodeReadFactory = (method) => effectify(NFS.read, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeRead = /*#__PURE__*/ nodeReadFactory("read");
+	const nodeReadAlloc = /*#__PURE__*/ nodeReadFactory("readAlloc");
+	const nodeStat = /*#__PURE__*/ effectify(NFS.fstat, /*#__PURE__*/ handleErrnoException("FileSystem", "stat"), /*#__PURE__*/ handleBadArgument("stat"));
+	const nodeTruncate = /*#__PURE__*/ effectify(NFS.ftruncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
+	const nodeSync = /*#__PURE__*/ effectify(NFS.fsync, /*#__PURE__*/ handleErrnoException("FileSystem", "sync"), /*#__PURE__*/ handleBadArgument("sync"));
+	const nodeWriteFactory = (method) => effectify(NFS.write, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeWrite = /*#__PURE__*/ nodeWriteFactory("write");
+	const nodeWriteAll = /*#__PURE__*/ nodeWriteFactory("writeAll");
+	class FileImpl {
+		[FileTypeId];
+		fd;
+		append;
+		position = /*#__PURE__*/ BigInt(0);
+		constructor(fd, append) {
+			this[FileTypeId] = FileTypeId;
+			this.fd = fd;
+			this.append = append;
+		}
+		get stat() {
+			return flatMap(nodeStat(this.fd, { bigint: true }), makeFileInfo);
+		}
+		get sync() {
+			return nodeSync(this.fd);
+		}
+		seek(offset, from) {
+			return suspend$2(() => {
+				const position = from === "start" ? offset : this.position + offset;
+				if (position < BigInt(0)) return fail$3(badArgument({
+					module: "FileSystem",
+					method: "seek",
+					description: "Cannot seek before the start of the file"
+				}));
+				this.position = position;
+				return succeed$3(position);
+			});
+		}
+		read(buffer) {
+			return suspend$2(() => {
+				const position = this.position;
+				return map$3(nodeRead(this.fd, {
+					buffer,
+					position
+				}), (bytesRead) => {
+					this.position = position + BigInt(bytesRead);
+					return bytesRead;
+				});
+			});
+		}
+		readAlloc(size) {
+			return suspend$2(() => {
+				try {
+					if (!Number.isInteger(size) || size < 0) throw new RangeError("size must be a non-negative integer");
+					const buffer = Buffer.allocUnsafeSlow(size);
+					const position = this.position;
+					return map$3(nodeReadAlloc(this.fd, {
+						buffer,
+						position
+					}), (bytesRead) => {
+						if (bytesRead === 0) return none();
+						this.position = position + BigInt(bytesRead);
+						if (bytesRead === size) return some(buffer);
+						const dst = Buffer.allocUnsafeSlow(bytesRead);
+						buffer.copy(dst, 0, 0, bytesRead);
+						return some(dst);
+					});
+				} catch (cause) {
+					return fail$3(handleBadArgument("readAlloc")(cause));
+				}
+			});
+		}
+		truncate(length) {
+			return map$3(nodeTruncate(this.fd, length || void 0), () => {
+				if (!this.append) {
+					const len = BigInt(length ?? 0);
+					if (this.position > len) this.position = len;
+				}
+			});
+		}
+		write(buffer) {
+			return suspend$2(() => {
+				const position = this.position;
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$3(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+					if (!this.append) this.position = position + BigInt(bytesWritten);
+					return bytesWritten;
+				}));
+			});
+		}
+		writeAllChunk(buffer) {
+			return suspend$2(() => {
+				const position = this.position;
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "writeAll"), (nodePosition) => flatMap(nodeWriteAll(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+					if (bytesWritten === 0) return fail$3(systemError({
+						module: "FileSystem",
+						method: "writeAll",
+						_tag: "WriteZero",
+						pathOrDescriptor: this.fd,
+						description: "write returned 0 bytes written"
+					}));
+					if (!this.append) this.position = position + BigInt(bytesWritten);
+					return bytesWritten < buffer.length ? this.writeAllChunk(buffer.subarray(bytesWritten)) : void_$1;
+				}));
+			});
+		}
+		writeAll(buffer) {
+			return buffer.length === 0 ? void_$1 : this.writeAllChunk(buffer);
+		}
+	}
+	return (fd, append) => new FileImpl(fd, append);
+})();
+const makeTempFileFactory = (method) => {
+	const makeDirectory = makeTempDirectoryFactory(method);
+	return fnUntraced(function* (options) {
+		const directory = yield* makeDirectory(options);
+		const random = Crypto.randomBytes(6).toString("hex");
+		const name = Path.join(directory, options?.suffix ? `${random}${options.suffix}` : random);
+		yield* writeFile(name, /* @__PURE__ */ new Uint8Array(0));
+		return name;
+	});
+};
+const makeTempFile = /*#__PURE__*/ makeTempFileFactory("makeTempFile");
+const makeTempFileScoped = /*#__PURE__*/ (() => {
+	const makeFile = /*#__PURE__*/ makeTempFileFactory("makeTempFileScoped");
+	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempFileScoped");
+	return (options) => acquireRelease(makeFile(options), (file) => orDie(removeDirectory(Path.dirname(file), { recursive: true })));
+})();
+const readDirectory = (path, options) => tryPromise({
+	try: () => NFS.promises.readdir(path, options),
+	catch: (err) => handleErrnoException("FileSystem", "readDirectory")(err, [path])
+});
+const readFile = (path) => callback$1((resume, signal) => {
+	try {
+		NFS.readFile(path, { signal }, (err, data) => {
+			if (err) resume(fail$3(handleErrnoException("FileSystem", "readFile")(err, [path])));
+			else resume(succeed$3(data));
+		});
+	} catch (err) {
+		resume(fail$3(handleBadArgument("readFile")(err)));
+	}
+});
+const readLink = /*#__PURE__*/ (() => {
+	const nodeReadLink = /*#__PURE__*/ effectify(NFS.readlink, /*#__PURE__*/ handleErrnoException("FileSystem", "readLink"), /*#__PURE__*/ handleBadArgument("readLink"));
+	return (path) => nodeReadLink(path);
+})();
+const realPath = /*#__PURE__*/ (() => {
+	const nodeRealPath = /*#__PURE__*/ effectify(NFS.realpath, /*#__PURE__*/ handleErrnoException("FileSystem", "realPath"), /*#__PURE__*/ handleBadArgument("realPath"));
+	return (path) => nodeRealPath(path);
+})();
+const rename = /*#__PURE__*/ (() => {
+	const nodeRename = /*#__PURE__*/ effectify(NFS.rename, /*#__PURE__*/ handleErrnoException("FileSystem", "rename"), /*#__PURE__*/ handleBadArgument("rename"));
+	return (oldPath, newPath) => nodeRename(oldPath, newPath);
+})();
+const makeFileInfo = (stat) => try_({
+	try: () => ({
+		type: stat.isFile() ? "File" : stat.isDirectory() ? "Directory" : stat.isSymbolicLink() ? "SymbolicLink" : stat.isBlockDevice() ? "BlockDevice" : stat.isCharacterDevice() ? "CharacterDevice" : stat.isFIFO() ? "FIFO" : stat.isSocket() ? "Socket" : "Unknown",
+		mtime: fromNullishOr(stat.mtime),
+		atime: fromNullishOr(stat.atime),
+		birthtime: fromNullishOr(stat.birthtime),
+		dev: bigintToNumber(stat.dev, "dev"),
+		rdev: bigintToNumberOption(stat.rdev),
+		ino: bigintToNumberOption(stat.ino),
+		mode: bigintToNumber(stat.mode, "mode"),
+		nlink: bigintToNumberOption(stat.nlink),
+		uid: bigintToNumberOption(stat.uid),
+		gid: bigintToNumberOption(stat.gid),
+		size: bytes(stat.size),
+		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none(),
+		blocks: bigintToNumberOption(stat.blocks)
+	}),
+	catch: handleBadArgument("stat")
+});
+const stat = /*#__PURE__*/ (() => {
+	const nodeStat = /*#__PURE__*/ effectify(NFS.stat, /*#__PURE__*/ handleErrnoException("FileSystem", "stat"), /*#__PURE__*/ handleBadArgument("stat"));
+	return (path) => flatMap(nodeStat(path, { bigint: true }), makeFileInfo);
+})();
+const symlink = /*#__PURE__*/ (() => {
+	const nodeSymlink = /*#__PURE__*/ effectify(NFS.symlink, /*#__PURE__*/ handleErrnoException("FileSystem", "symlink"), /*#__PURE__*/ handleBadArgument("symlink"));
+	return (target, path) => nodeSymlink(target, path);
+})();
+const truncate = /*#__PURE__*/ (() => {
+	const nodeTruncate = /*#__PURE__*/ effectify(NFS.truncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
+	return (path, length) => nodeTruncate(path, length);
+})();
+const utimes = /*#__PURE__*/ (() => {
+	const nodeUtimes = /*#__PURE__*/ effectify(NFS.utimes, /*#__PURE__*/ handleErrnoException("FileSystem", "utime"), /*#__PURE__*/ handleBadArgument("utime"));
+	return (path, atime, mtime) => nodeUtimes(path, atime, mtime);
+})();
+const watchNode = (path, info, options) => callback((queue) => acquireRelease(sync(() => {
+	const directory = info.type === "Directory" ? path : Path.dirname(path);
+	const watcher = NFS.watch(path, { recursive: options?.recursive ?? false }, (event, path) => {
+		if (!path) return;
+		switch (event) {
+			case "rename":
+				runFork(matchEffect(stat(Path.resolve(directory, path)), {
+					onSuccess: (_) => offer(queue, {
+						_tag: "Create",
+						path
+					}),
+					onFailure: (_) => offer(queue, {
+						_tag: "Remove",
+						path
+					})
+				}));
+				return;
+			case "change":
+				offerUnsafe(queue, {
+					_tag: "Update",
+					path
+				});
+				return;
+		}
+	});
+	watcher.on("error", (error) => {
+		failCauseUnsafe(queue, fail$4(systemError({
+			module: "FileSystem",
+			_tag: "Unknown",
+			method: "watch",
+			pathOrDescriptor: path,
+			cause: error
+		})));
+	});
+	watcher.on("close", () => {
+		endUnsafe(queue);
+	});
+	return watcher;
+}), (watcher) => sync(() => watcher.close())));
+const watch = (backend, path, options) => stat(path).pipe(map$3((stat) => backend.pipe(flatMap$3((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
+const writeFile = (path, data, options) => callback$1((resume, signal) => {
+	try {
+		NFS.writeFile(path, data, {
+			signal,
+			flag: options?.flag,
+			mode: options?.mode
+		}, (err) => {
+			if (err) resume(fail$3(handleErrnoException("FileSystem", "writeFile")(err, [path])));
+			else resume(void_$1);
+		});
+	} catch (err) {
+		resume(fail$3(handleBadArgument("writeFile")(err)));
+	}
+});
+const makeFileSystem = /*#__PURE__*/ map$3(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$35({
+	access,
+	chmod,
+	chown,
+	copy,
+	copyFile,
+	glob,
+	link,
+	makeDirectory,
+	makeTempDirectory,
+	makeTempDirectoryScoped,
+	makeTempFile,
+	makeTempFileScoped,
+	open,
+	readDirectory,
+	readFile,
+	readLink,
+	realPath,
+	remove,
+	rename,
+	stat,
+	symlink,
+	truncate,
+	utimes,
+	watch(path, options) {
+		return watch(backend, path, options);
+	},
+	writeFile
+}));
+//#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.115_effect@4.0.0-rc.115_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+/**
+* Node.js `FileSystem` layer for programs that perform real filesystem I/O.
+*
+* The exported layer satisfies the platform-independent `FileSystem` service
+* with Node-backed operations for files, directories, metadata, permissions,
+* links, temporary paths, and path watching. Effects still call the service from
+* `effect/FileSystem`; this module only chooses the Node implementation.
+*
+* @since 4.0.0
+*/
+/**
+* Provides the `FileSystem` service backed by Node filesystem APIs.
+*
+* @category layers
+* @since 4.0.0
+*/
+const layer$4 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
+//#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/FetchHttpClient.js
 /**
 * Fetch-based implementation of the Effect HTTP client service.
@@ -34369,7 +35906,7 @@ const layer$3 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__P
 	const fetch = fiber.getRef(Fetch);
 	const options = getOrUndefined(fiber.context, RequestInit) ?? {};
 	let headers = options.headers ? merge(fromInput$1(options.headers), request.headers) : request.headers;
-	if (headers["content-length"]) headers = remove(headers, "content-length");
+	if (headers["content-length"]) headers = remove$1(headers, "content-length");
 	const send = (body) => map$3(tryPromise({
 		try: () => fetch(url, {
 			...options,
@@ -39462,7 +40999,7 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 		api,
 		instance: credentials.instance
 	}))));
-	static layerConfig = unwrap$2(all({
+	static layerConfig = unwrap$3(all({
 		apiKey: Redacted("TIPEE_API_KEY"),
 		instance: String$1("TIPEE_INSTANCE")
 	}).pipe(map$3((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
@@ -41480,7 +43017,7 @@ const Proto = {
 						})));
 					}
 					const decodedParams = decodedParamsResult.success;
-					const queue = yield* make$37();
+					const queue = yield* make$38();
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -41684,7 +43221,7 @@ const Service = () => (id, options) => {
 const optionalWithDefault = (schema, defaultValue) => {
 	const effect = sync(defaultValue);
 	return optionalKey(schema).pipe(decode$2({
-		decode: withDefault(effect),
+		decode: withDefault$1(effect),
 		encode: passthrough$1()
 	}), withConstructorDefault(effect));
 };
@@ -44296,7 +45833,7 @@ const protocol$3 = /*#__PURE__*/ make$1({
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			const messages = yield* forEach(result.messages, (message) => projectContent$3(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent$3(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -44342,7 +45879,7 @@ const protocol$3 = /*#__PURE__*/ make$1({
 				...call,
 				arguments: call.arguments ?? {}
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach(result.content, projectContent$3).pipe(mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(result.content, projectContent$3).pipe(mapError$2(ProtocolError.fromTool));
 			return CallToolResult$3.make({
 				content,
 				isError: result.isError,
@@ -44651,7 +46188,7 @@ const protocol$2 = /*#__PURE__*/ make$1({
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			const messages = yield* forEach(result.messages, (message) => projectContent$2(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent$2(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -44702,7 +46239,7 @@ const protocol$2 = /*#__PURE__*/ make$1({
 				...call,
 				arguments: call.arguments ?? {}
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach(result.content, projectContent$2).pipe(mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(result.content, projectContent$2).pipe(mapError$2(ProtocolError.fromTool));
 			return CallToolResult$2.make({
 				content,
 				isError: result.isError,
@@ -45179,7 +46716,7 @@ const protocol$1 = /*#__PURE__*/ make$1({
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			const messages = yield* forEach(result.messages, (message) => projectContent$1(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent$1(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -45237,7 +46774,7 @@ const protocol$1 = /*#__PURE__*/ make$1({
 				...call,
 				arguments: call.arguments ?? {}
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach(result.content, projectContent$1).pipe(mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(result.content, projectContent$1).pipe(mapError$2(ProtocolError.fromTool));
 			const structuredContent = yield* projectStructuredContent$1(result.structuredContent).pipe(mapError$2(ProtocolError.fromTool));
 			return CallToolResult$1.make({
 				content,
@@ -45751,7 +47288,7 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			const messages = yield* forEach(result.messages, (message) => projectContent(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -45816,7 +47353,7 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 				})],
 				isError: true
 			}))), mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach(result.content, projectContent).pipe(mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(result.content, projectContent).pipe(mapError$2(ProtocolError.fromTool));
 			const structuredContent = yield* projectStructuredContent(result.structuredContent).pipe(mapError$2(ProtocolError.fromTool));
 			return CallToolResult.make({
 				content,
@@ -46001,7 +47538,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$37();
+		const notificationsQueue = yield* make$38();
 		const listChangedHandles = /* @__PURE__ */ new Map();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
@@ -46249,7 +47786,7 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 		sessions,
 		protocolRegistry
 	}));
-	const clients = yield* make$35({
+	const clients = yield* make$36({
 		lookup: fnUntraced(function* (key) {
 			const selectedProtocol = protocolRegistry.select(key.profile.protocolVersion);
 			let write;
@@ -46337,7 +47874,7 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 			const request = request_;
 			const httpRequest = isHttp ? getOrUndefined(fiber.context, HttpServerRequest) : void 0;
 			if (httpRequest !== void 0 && request._tag !== "Eof") appendPreResponseHandlerUnsafe(httpRequest, (_, response) => succeed$3(response.status === 200 && response.body._tag === "Uint8Array" && response.body.contentLength === 0 ? empty({
-				headers: remove(response.headers, "content-type"),
+				headers: remove$1(response.headers, "content-type"),
 				status: 202
 			}) : response));
 			switch (request._tag) {
@@ -46973,6 +48510,87 @@ const protocolForInternalTag = (registry, tag) => {
 };
 const getProtocolForClient = (clientProtocols, clientId, registry) => clientProtocols.get(clientId) ?? registry.protocols[0];
 //#endregion
+//#region ../../packages/mcp/src/Telemetry.ts
+/** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
+const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
+const POSTHOG_HOST = "https://eu.i.posthog.com";
+const INTERVAL = "2 seconds";
+const SEND_TIMEOUT = "5 seconds";
+const DRAIN_TIMEOUT = "2 seconds";
+const ID_FILE = "telemetry-id";
+const settings = all({
+	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
+	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY)),
+	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
+});
+const silent = {
+	capture: () => void_$1,
+	exception: () => void_$1,
+	flush: void_$1
+};
+const installationId = (fs, stateDir) => gen(function* () {
+	const file = path.join(stateDir, ID_FILE);
+	const kept = yield* option(fs.readFileString(file));
+	const found = filter(map$8(kept, (text) => text.trim()), (text) => text !== "");
+	if (isSome(found)) return found.value;
+	const id = randomUUID();
+	yield* option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, `${id}\n`)));
+	return id;
+});
+var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
+	static layerOff = succeed$4(Telemetry, silent);
+	static layer = (base) => effect(Telemetry, gen(function* () {
+		const read = yield* option(settings);
+		if (isNone(read)) return silent;
+		const config = read.value;
+		if (config.key === "") return silent;
+		const fs = yield* FileSystem;
+		const http = yield* HttpClient;
+		const distinctId = yield* installationId(fs, config.stateDir);
+		const queue = yield* unbounded();
+		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
+			api_key: config.key,
+			batch: batch.map((event) => ({
+				...event,
+				distinct_id: distinctId
+			}))
+		}), flatMap((request) => http.execute(request)), timeout(SEND_TIMEOUT), ignore$1);
+		const drain = flatMap(clear$1(queue), (batch) => send(batch));
+		yield* forkScoped(forever(andThen(sleep(INTERVAL), drain)));
+		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
+		const properties = (own) => ({
+			$lib: "tipee-mcp",
+			$process_person_profile: false,
+			arch,
+			node_version: version,
+			os: platform,
+			...base,
+			...own
+		});
+		const capture = (event, own) => asVoid(offer(queue, {
+			event,
+			properties: properties(own),
+			timestamp: (/* @__PURE__ */ new Date()).toISOString()
+		}));
+		return {
+			capture,
+			exception: (type, message, own) => asVoid(offer(queue, {
+				event: "$exception",
+				properties: {
+					...properties(own),
+					$exception_list: [{
+						mechanism: { handled: true },
+						type,
+						value: message
+					}]
+				},
+				timestamp: (/* @__PURE__ */ new Date()).toISOString()
+			})),
+			flush: drain
+		};
+	}));
+};
+//#endregion
 //#region ../../packages/mcp/src/Tools.ts
 /** What a tool returns when Tipee answers with no content (201/204). */
 const Done = Struct({ done: Literal(true) });
@@ -47092,11 +48710,57 @@ const check = fn("check")(function* ({ from, to }) {
 		ok: reports.every((report) => report.status !== "failed")
 	};
 });
+const REPORTED = /* @__PURE__ */ new Set([
+	"UnexpectedShape",
+	"UnexpectedStatus",
+	"InvalidRequest"
+]);
+const caller = map$3(serviceOption(McpServerClient), (client) => match$3(client, {
+	onNone: () => ({}),
+	onSome: ({ clientInfo, protocolVersion }) => ({
+		mcp_client: clientInfo.name,
+		mcp_client_version: clientInfo.version,
+		mcp_protocol: protocolVersion
+	})
+}));
+const observed = (telemetry, tool, run) => fn("observed")(function* (params) {
+	const [duration, exit$2] = yield* timed(exit(run(params)));
+	const common = {
+		...yield* caller,
+		duration_ms: Math.round(toMillis(duration)),
+		tool
+	};
+	if (isSuccess(exit$2)) {
+		yield* telemetry.capture("tool_called", {
+			...common,
+			outcome: "ok"
+		});
+		return exit$2.value;
+	}
+	const failure = findError(exit$2.cause);
+	if (isSuccess$1(failure)) {
+		const { reason } = failure.success;
+		yield* telemetry.capture("tool_called", {
+			...common,
+			outcome: "failed",
+			reason: reason._tag
+		});
+		if (REPORTED.has(reason._tag)) yield* telemetry.exception(`Tipee${reason._tag}`, reason.message, { tool });
+	} else {
+		yield* telemetry.capture("tool_called", {
+			...common,
+			outcome: "crashed"
+		});
+		yield* telemetry.exception("Defect", pretty(exit$2.cause).split("\n")[0] ?? "unknown", { tool });
+	}
+	return yield* failCause$2(exit$2.cause);
+});
 const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 	const client = yield* TipeeClient;
+	const telemetry = yield* Telemetry;
 	const withClient = (effect) => provideService(effect, TipeeClient, client);
-	const handlers = { check: (params) => withClient(check(params)) };
-	for (const target of operations) handlers[target.name] = (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true }));
+	const handlers = { check: observed(telemetry, "check", (params) => withClient(check(params))) };
+	for (const target of operations) handlers[target.name] = observed(telemetry, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
 }));
 //#endregion
@@ -47112,17 +48776,25 @@ const SetupPrompt = prompt({
 	name: SETUP_PROMPT.name
 });
 //#endregion
+//#region ../../packages/mcp/src/Server.ts
+const SERVER_NAME = "tipee";
+const SERVER_VERSION = "0.3.0";
+const Started = effectDiscard(flatMap(Telemetry, (telemetry) => telemetry.capture("server_started")));
+//#endregion
 //#region src/main.ts
-runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
-	description: "Read-only access to Tipee plannings: people, teams, shifts, absences, on-calls.",
-	name: "tipee",
+runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
+	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
+	name: SERVER_NAME,
 	protocols: [
 		v2025_11_25,
 		v2025_06_18,
 		v2025_03_26,
 		v2024_11_05
 	],
-	version: "0.2.3"
-})), provide$2(TipeeClient.layerConfig), provide$2(layer$3), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
+	version: SERVER_VERSION
+})), provide$2(TipeeClient.layerConfig), provide$2(Telemetry.layer({
+	$lib_version: SERVER_VERSION,
+	server_version: SERVER_VERSION
+})), provide$2(layer$3), provide$2(layer$4), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
 //#endregion
 export {};

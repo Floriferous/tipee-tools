@@ -31,14 +31,16 @@ const manifest = {
   keywords: ['tipee', 'hr', 'planning', 'shifts'],
   license: 'MIT',
   long_description:
-    'Read-only access to one Tipee instance. The server keeps only planning fields: no ' +
-    'birth dates, addresses or contact details ever reach the conversation. Nothing writes ' +
-    'to Tipee.\n\n' +
+    'Give Claude access to your Tipee: people, teams, shifts, absences, on-calls, ' +
+    'activities and time clock, reading and changing. Claude asks before changing ' +
+    'anything.\n\n' +
     'The API key belongs to an integration created in the Tipee admin panel. It needs the ' +
-    'authorization "Se connecter avec des applications externes" plus read access to the ' +
-    'Planning and Cœur RH modules. After saving, use the "check-tipee-setup" prompt or ask ' +
-    'Claude to run tipee_check: it explains any missing authorization in plain words.\n\n' +
-    'Not affiliated with Tipee.',
+    'authorization "Se connecter avec des applications externes" plus the module rights ' +
+    'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
+    'run check: it names the integration, links where its rights are set, and explains ' +
+    'anything missing in plain words.\n\n' +
+    'The extension collects anonymous usage data to help improve it; nothing about your ' +
+    'instance, your people or your key is sent. Not affiliated with Tipee.',
   manifest_version: '0.3',
   name: 'tipee',
   prompts: [

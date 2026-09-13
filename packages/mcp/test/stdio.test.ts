@@ -21,7 +21,13 @@ describe('stdio transport', () => {
     'initializes and lists the tools',
     async () => {
       const child = spawn(process.execPath, [ENTRY], {
-        env: { ...process.env, TIPEE_API_KEY: 'unused-in-this-test', TIPEE_INSTANCE: 'acme' },
+        env: {
+          ...process.env,
+          TIPEE_API_KEY: 'unused-in-this-test',
+          TIPEE_INSTANCE: 'acme',
+          // Nowhere to send telemetry: the connection is refused and ignored.
+          TIPEE_POSTHOG_HOST: 'http://127.0.0.1:1',
+        },
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       const stderr: Array<string> = [];

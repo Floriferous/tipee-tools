@@ -73,6 +73,12 @@ Claude looks things up freely. Before it changes anything it tells you
 exactly what will change and waits for your yes, and Claude Desktop asks for
 your permission on each tool the first time it is used.
 
+## Telemetry
+
+The plugin collects anonymous usage data to help improve it: which tools
+were called, how long they took, and the errors they hit. It never sends
+your instance name, your key, or anything Tipee answered.
+
 ## Development
 
 Requires Node 24 and pnpm (`corepack enable`).

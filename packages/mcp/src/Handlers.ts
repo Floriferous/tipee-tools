@@ -1,11 +1,15 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
 // `invoke`; `check` probes the main read endpoints and reports shape
-// Mismatches without aborting.
+// Mismatches without aborting. Each call is timed and its outcome recorded
+// By the telemetry, which never sees the parameters or the answer.
 
 import { TipeeClient, integrationLink, invoke, operation, operations } from '@tipee-tools/core';
 import type { TipeeError } from '@tipee-tools/core';
-import { DateTime, Effect } from 'effect';
+import { Cause, DateTime, Duration, Effect, Exit, Option, Result } from 'effect';
+import { McpSchema } from 'effect/unstable/ai';
 
+import { Telemetry } from './Telemetry.ts';
+import type { Properties, Sink } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
 import type { EndpointReport } from './Tools.ts';
 
@@ -102,19 +106,75 @@ const check = Effect.fn('check')(function* ({ from, to }: { from?: string; to?: 
 });
 
 type Handlers = Parameters<typeof TipeeToolkit.of>[0];
+type Handler = (params: unknown) => Effect.Effect<unknown, TipeeError>;
+
+// Failures that mean a bug here or a change at Tipee, not a user's mistake.
+const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest']);
+
+// Which client is calling, for the record: Claude Desktop, Claude Code…
+const caller: Effect.Effect<Properties> = Effect.map(
+  Effect.serviceOption(McpSchema.McpServerClient),
+  (client) =>
+    Option.match(client, {
+      onNone: () => ({}),
+      onSome: ({ clientInfo, protocolVersion }) => ({
+        mcp_client: clientInfo.name,
+        mcp_client_version: clientInfo.version,
+        mcp_protocol: protocolVersion,
+      }),
+    }),
+);
+
+// Runs a handler and records one `tool_called` event: name, duration and
+// Outcome, plus the failure's reason tag. Parameters and answers stay out.
+const observed = (telemetry: Sink, tool: string, run: Handler): Handler =>
+  Effect.fn('observed')(function* (params: unknown) {
+    const [duration, exit] = yield* Effect.timed(Effect.exit(run(params)));
+    const common = {
+      ...(yield* caller),
+      duration_ms: Math.round(Duration.toMillis(duration)),
+      tool,
+    };
+    if (Exit.isSuccess(exit)) {
+      yield* telemetry.capture('tool_called', { ...common, outcome: 'ok' });
+      return exit.value;
+    }
+    const failure = Cause.findError(exit.cause);
+    if (Result.isSuccess(failure)) {
+      const { reason } = failure.success;
+      yield* telemetry.capture('tool_called', {
+        ...common,
+        outcome: 'failed',
+        reason: reason._tag,
+      });
+      if (REPORTED.has(reason._tag)) {
+        yield* telemetry.exception(`Tipee${reason._tag}`, reason.message, { tool });
+      }
+    } else {
+      yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });
+      yield* telemetry.exception('Defect', Cause.pretty(exit.cause).split('\n')[0] ?? 'unknown', {
+        tool,
+      });
+    }
+    return yield* Effect.failCause(exit.cause);
+  });
 
 export const TipeeToolkitLayer = TipeeToolkit.toLayer(
   Effect.gen(function* () {
     const client = yield* TipeeClient;
+    const telemetry = yield* Telemetry;
     const withClient = <A, E>(effect: Effect.Effect<A, E, TipeeClient>): Effect.Effect<A, E> =>
       Effect.provideService(effect, TipeeClient, client);
 
-    const handlers: Record<string, (params: unknown) => Effect.Effect<unknown, TipeeError>> = {
-      check: (params) => withClient(check(params as { from?: string; to?: string })),
+    const handlers: Record<string, Handler> = {
+      check: observed(telemetry, 'check', (params) =>
+        withClient(check(params as { from?: string; to?: string })),
+      ),
     };
     for (const target of operations) {
-      handlers[target.name] = (params) =>
-        withClient(invoke(target, params)).pipe(Effect.map((result) => result ?? { done: true }));
+      handlers[target.name] = observed(telemetry, target.name, (params) =>
+        withClient(invoke(target, params)).pipe(Effect.map((result) => result ?? { done: true })),
+      );
     }
     return TipeeToolkit.of(handlers as unknown as Handlers);
   }),
