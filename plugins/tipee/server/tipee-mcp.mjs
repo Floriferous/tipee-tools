@@ -39584,9 +39584,7 @@ const explain = (error, target) => gen(function* () {
 	});
 	return error;
 });
-const invoke = (target, params) => gen(function* () {
-	return yield* call(target, params).pipe(catch_$2((error) => flatMap(explain(error, target), fail$3)));
-});
+const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target), fail$3)));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/AiError.js
 /**

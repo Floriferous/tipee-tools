@@ -245,8 +245,8 @@ export const invoke = (
   target: Operation,
   params: unknown,
 ): Effect.Effect<unknown, TipeeError, TipeeClient> =>
-  Effect.gen(function* () {
-    return yield* call(target, params).pipe(
-      Effect.catch((error) => Effect.flatMap(explain(error, target), Effect.fail)),
-    );
-  });
+  call(target, params).pipe(
+    Effect.catchTag('TipeeError', (failure) =>
+      Effect.flatMap(explain(failure, target), Effect.fail),
+    ),
+  );
