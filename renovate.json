@@ -1,0 +1,27 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "npm dependencies via Renovate (Dependabot cannot run pnpm 12 in its sandbox); GitHub Actions stay with Dependabot.",
+  "extends": ["config:recommended", ":pinAllExceptPeerDependencies", "group:allNonMajor"],
+  "timezone": "Europe/Zurich",
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "7 days",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "github-actions": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "description": "Effect 4 is pinned to a release candidate on purpose; bump it by hand.",
+      "matchPackageNames": ["effect", "@effect/**"],
+      "enabled": false
+    },
+    {
+      "description": "Node types follow the Node 24 runtime pinned in .node-version.",
+      "matchPackageNames": ["@types/node"],
+      "allowedVersions": "24.x"
+    }
+  ]
+}

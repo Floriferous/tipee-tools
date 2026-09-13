@@ -225,10 +225,12 @@ parameter on the tools; both plug into the same `Config` seam.
   `@effect/tsgo` patches it and the type-aware lint at install time
   (`prepare`), so `tsc`, oxlint and the editor all report Effect-specific
   diagnostics, the way Effect's own repository is set up.
-- **Dependencies stay current and safe.** Dependabot proposes grouped weekly
-  updates behind a one-week cooldown; pnpm's supply-chain policy refuses
-  versions younger than a day, trust downgrades, and exotic transitive
-  sources. Node is pinned in `.node-version`, read by CI and by mise.
+- **Dependencies stay current and safe.** Renovate proposes grouped weekly
+  npm updates behind a one-week cooldown (Dependabot cannot run pnpm 12 in
+  its sandbox, so it only covers GitHub Actions); pnpm's supply-chain policy
+  refuses versions younger than a day, trust downgrades, and exotic
+  transitive sources. Node is pinned in `.node-version`, read by CI and by
+  mise.
 
 ## Release pipeline
 

@@ -72,8 +72,9 @@ agents with `npx skills add`.
 TypeScript 7 on [Effect](https://effect.website) 4, with Node 24 running the
 sources directly. [ARCHITECTURE.md](ARCHITECTURE.md) explains the design and
 where it is going; the skills in `.claude/skills` brief agents working here.
-Dependencies are kept current by Dependabot behind a one-week cooldown, and
-pnpm refuses versions younger than a day.
+Dependencies are kept current by Renovate (npm) and Dependabot (GitHub
+Actions) behind a one-week cooldown, and pnpm refuses versions younger than a
+day.
 
 ```bash
 pnpm install
