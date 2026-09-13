@@ -151,6 +151,17 @@ thing that works for a handful of users and needs no npm account, no
 publishing pipeline and no lockfile dance. The generated file in git is the
 price, paid knowingly.
 
+**The same bundle is the Claude Desktop extension.** `pnpm pack` (a Turborepo
+task after `build`) generates an MCPB manifest from the toolkit, so tool names
+and descriptions cannot drift, copies the bundle next to it, validates and
+packs `dist/tipee-<version>.mcpb`. Claude Desktop collects the two values
+through its own dialog, stores the key in the system keychain, and runs the
+server with its bundled Node ([MCPB][mcpb]). This is the channel for
+non-technical users; on Team and Enterprise plans an owner can upload the
+extension once and allowlist it for the organisation. Skills are not read by
+Claude Desktop, so the guidance lives in the tool descriptions and the
+manifest's long description. Signing is deferred.
+
 **Two skills, on purpose.** `.claude/skills/tipee` explains this repository
 to whoever develops it. `plugins/tipee/skills/tipee` explains the _product_
 to whoever uses it: the tools, the read-only guardrails, the token-rights
@@ -164,7 +175,7 @@ never mentions this repo's internals.
 | Claude Code user (v1)                 | MCP server, skill, credential prompt              | `/plugin marketplace add Floriferous/tipee-tools`, then `/plugin install tipee@tipee-tools`; Node 24 on the machine |
 | Codex, Cursor, other agents (phase 2) | Skill, plus the server via `.mcp.json` or the CLI | `npx skills add <direct path to plugins/tipee/skills/tipee>`, plus `npm i -g @tipee-tools/cli`                      |
 | Human at a terminal (phase 2)         | CLI                                               | `npm i -g @tipee-tools/cli`, later a Homebrew tap                                                                   |
-| Claude Desktop user (phase 3)         | MCP server with a config dialog                   | `.mcpb` bundle from GitHub Releases                                                                                 |
+| Claude Desktop user (v1)              | MCP server with a config dialog, no Node install  | `tipee-<version>.mcpb` from the CI artifact, later from GitHub Releases                                             |
 
 Updates: Claude Code users receive a new plugin when its `version` is bumped;
 the marketplace refreshes in the background once per session.
@@ -230,16 +241,19 @@ only, and asks for Node 24 on the machine.
 
 ## Phases
 
-1. **Done: MCP server and plugin.** Effect 4 core (`TipeeClient`, schemas,
-   tagged errors), `@tipee-tools/mcp` (eight read-only tools including
-   `tipee_check`), the plugin with `userConfig` and the bundled server, the
-   repository as marketplace, the two skills, `pnpm verify`.
+1. **Done: MCP server, plugin, Desktop extension.** Effect 4 core
+   (`TipeeClient`, schemas, tagged errors), `@tipee-tools/mcp` (eight
+   read-only tools including `tipee_check`), the plugin with `userConfig`
+   and the bundled server, the repository as marketplace, the two skills, the
+   `.mcpb` packed by CI, `pnpm verify` through Turborepo.
 2. **Beyond Claude Code.** Triggered by the first user on another agent or
    in a terminal: tsdown builds for npm, OIDC publishing, a CLI on
    `effect/unstable/cli` sharing the core, profile store, `npx skills add`
    instructions.
-3. **Node-free and desktop.** Bun binary and Homebrew tap, `.mcpb` bundle
-   for Claude Desktop, Keychain storage in the CLI.
+3. **Distribution polish.** GitHub Releases carrying the `.mcpb` and a
+   signed extension, Bun binary and Homebrew tap for the CLI, Keychain
+   storage in the CLI, and a hosted connector (remote MCP with OAuth, one
+   Tipee key per organisation) if a company wants a zero-install rollout.
 4. **Writes, opt-in.** Shift creation behind an explicit flag and the
    integration's "Planifier" right, with the guardrails from the skills
    enforced in code.

@@ -22,6 +22,16 @@ Claude Code asks for two values when it enables the plugin:
 
 Then ask Claude to run `tipee_check`. When every line says `ok`, you are done.
 
+## Claude Desktop instead of Claude Code
+
+The same server is packaged as a Claude Desktop extension (`.mcpb`), built
+by CI and downloadable from the "tipee-mcpb" artifact of the latest Verify
+run. Install it from Settings → Extensions → Advanced settings → Install
+Extension…, fill in the same two values, and ask Claude to run
+`tipee_check`. Claude Desktop brings its own Node runtime, so nothing else
+is needed. The extension is unsigned for now; Claude Desktop warns about that
+before installing.
+
 ## Creating the integration in Tipee
 
 An integration is a service account. In the Tipee admin panel, create it like

@@ -58,3 +58,12 @@ jobs:
       # Freshness check (the committed plugin server must match the sources).
       - name: Verify
         run: pnpm verify
+
+      # The Claude Desktop extension built by `pnpm verify`, downloadable from
+      # The run for manual installs until releases are automated.
+      - name: Upload the Claude Desktop extension
+        uses: actions/upload-artifact@v7
+        with:
+          name: tipee-mcpb
+          path: plugins/tipee/dist/*.mcpb
+          if-no-files-found: error

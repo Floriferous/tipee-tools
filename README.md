@@ -6,7 +6,9 @@ templates, shifts, absences and on-call duties.
 
 It is built for agents, not for humans at a terminal. The plugin bundles a
 read-only [MCP](https://modelcontextprotocol.io) server and a skill that tells
-Claude when and how to use it. There is no command-line tool.
+Claude when and how to use it. The same server ships as a Claude Desktop
+extension for people who do not use Claude Code. There is no command-line
+tool.
 
 Works with any Tipee instance. Not affiliated with Tipee.
 
@@ -27,6 +29,17 @@ Claude to run `tipee_check`: when every endpoint reports `ok`, you are set.
 The key belongs to an _integration_ created in your Tipee admin panel, and
 it needs one authorization that is easy to miss. The
 [plugin README](plugins/tipee/README.md) walks through it.
+
+## Claude Desktop, without a terminal
+
+Download `tipee-<version>.mcpb` from the latest
+[Verify run](https://github.com/Floriferous/tipee-tools/actions/workflows/verify.yml)
+(artifact "tipee-mcpb"), then in Claude Desktop open Settings → Extensions →
+Advanced settings → Install Extension… and pick the file. Claude Desktop
+asks for the same two values, keeps the key in the system keychain, and runs
+the server with its own bundled Node, so nothing else is installed. The
+extension is not signed yet, so Claude Desktop shows a warning before
+installing.
 
 ## What Claude can do with it
 

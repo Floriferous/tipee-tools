@@ -35,6 +35,10 @@
     },
     "transit": {
       "dependsOn": ["^transit"]
+    },
+    "pack": {
+      "dependsOn": ["build"],
+      "outputs": ["dist/**"]
     }
   }
 }

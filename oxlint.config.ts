@@ -36,6 +36,14 @@ export default defineConfig({
         'node/no-process-env': 'off',
       },
     },
+    {
+      // The MCPB manifest carries literal `${__dirname}` / `${user_config.x}`
+      // Placeholders that Claude Desktop substitutes at install time.
+      files: ['plugins/*/scripts/**/*.ts'],
+      rules: {
+        'eslint/no-template-curly-in-string': 'off',
+      },
+    },
   ],
   // This list replaces the default plugin set; it repeats the defaults and adds
   // `import`, `jsdoc`, `node` and `promise`.

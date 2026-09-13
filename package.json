@@ -19,9 +19,10 @@
     "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages plugins oxlint.config.ts",
     "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages plugins oxlint.config.ts",
     "mcp": "pnpm --filter @tipee-tools/mcp start",
+    "pack": "turbo run pack",
     "plugin:validate": "claude plugin validate ./plugins/tipee --strict && claude plugin validate . --strict",
     "test": "turbo run test",
-    "verify": "turbo run lint:check format:check check test build --continue && pnpm build:check"
+    "verify": "turbo run lint:check format:check check test build pack --continue && pnpm build:check"
   },
   "devDependencies": {
     "@effect/language-service": "^0.87.2",
