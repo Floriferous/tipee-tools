@@ -1,0 +1,207 @@
+[
+  {
+    "id": "1000000000000000126",
+    "resource_id": "1000000000000000104",
+    "team_id": "1000000000000000105",
+    "time_ranges": [
+      {
+        "time_range": "2026-08-31T09:30/2026-08-31T13:45",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": null,
+          "before_end": null,
+          "after_end": "PT10M"
+        },
+        "paid_break": null
+      }
+    ],
+    "schedule_template": {
+      "id": "1000000000000000127",
+      "name": "930",
+      "description": "9h30 à 13h45",
+      "color": "#FFFDC4"
+    },
+    "remark": "",
+    "modified": false,
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "break_time": null,
+    "options": {
+      "employee_resident_ratio": false,
+      "text_color": "",
+      "special_time_range": null
+    }
+  },
+  {
+    "id": "1000000000000000128",
+    "resource_id": "1000000000000000104",
+    "team_id": "1000000000000000105",
+    "time_ranges": [
+      {
+        "time_range": "2026-08-31T14:45/2026-08-31T19:00",
+        "auto_correct": {
+          "before_start": "PT50M",
+          "after_start": null,
+          "before_end": null,
+          "after_end": "PT10M"
+        },
+        "paid_break": null
+      }
+    ],
+    "schedule_template": {
+      "id": "1000000000000000129",
+      "name": "1445",
+      "description": "14h45 à 19h",
+      "color": "#FFF37F"
+    },
+    "remark": "",
+    "modified": false,
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "break_time": null,
+    "options": {
+      "employee_resident_ratio": false,
+      "text_color": "",
+      "special_time_range": null
+    }
+  },
+  {
+    "id": "1000000000000000130",
+    "resource_id": "1000000000000000104",
+    "team_id": "1000000000000000105",
+    "time_ranges": [
+      {
+        "time_range": "2026-09-04T08:30/2026-09-04T12:45",
+        "auto_correct": null,
+        "paid_break": null
+      }
+    ],
+    "schedule_template": {
+      "id": "1000000000000000131",
+      "name": "830",
+      "description": "8h30-12h45",
+      "color": "#FFFFCC"
+    },
+    "remark": "",
+    "modified": false,
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "break_time": null,
+    "options": {
+      "employee_resident_ratio": false,
+      "text_color": "",
+      "special_time_range": null
+    }
+  },
+  {
+    "id": "1000000000000000132",
+    "resource_id": "1000000000000000106",
+    "team_id": "1000000000000000102",
+    "time_ranges": [
+      {
+        "time_range": "2026-09-04T08:30/2026-09-04T12:45",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": "PT5M",
+          "before_end": "PT1H",
+          "after_end": "PT5M"
+        },
+        "paid_break": null
+      }
+    ],
+    "schedule_template": {
+      "id": "1000000000000000133",
+      "name": "830",
+      "description": "8h30-12h45",
+      "color": "#FFFFCC"
+    },
+    "remark": "",
+    "modified": false,
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "break_time": null,
+    "options": {
+      "employee_resident_ratio": false,
+      "text_color": "",
+      "special_time_range": null
+    }
+  },
+  {
+    "id": "1000000000000000134",
+    "resource_id": "1000000000000000106",
+    "team_id": "1000000000000000102",
+    "time_ranges": [
+      {
+        "time_range": "2026-09-04T13:45/2026-09-04T18:00",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": "PT5M",
+          "before_end": "PT1H",
+          "after_end": "PT5M"
+        },
+        "paid_break": null
+      }
+    ],
+    "schedule_template": {
+      "id": "1000000000000000135",
+      "name": "1345",
+      "description": "13h45 - 18h00",
+      "color": "#FFF37F"
+    },
+    "remark": "",
+    "modified": false,
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "break_time": null,
+    "options": {
+      "employee_resident_ratio": false,
+      "text_color": "",
+      "special_time_range": null
+    }
+  },
+  {
+    "id": "1000000000000000136",
+    "resource_id": "1000000000000000106",
+    "team_id": "1000000000000000102",
+    "time_ranges": [
+      {
+        "time_range": "2026-09-11T08:30/2026-09-11T12:45",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": "PT5M",
+          "before_end": "PT1H",
+          "after_end": "PT5M"
+        },
+        "paid_break": null
+      }
+    ],
+    "schedule_template": {
+      "id": "1000000000000000133",
+      "name": "830",
+      "description": "8h30-12h45",
+      "color": "#FFFFCC"
+    },
+    "remark": "",
+    "modified": false,
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "break_time": null,
+    "options": {
+      "employee_resident_ratio": false,
+      "text_color": "",
+      "special_time_range": null
+    }
+  }
+]

@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+
+# Tipee API keys live here — local only, never committed
+.env
+packages/*/.env
+
+# logs
+*.log
+
+# editors and OS
+.DS_Store
+.idea/
+.claude/worktrees/

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1000000000000000101",
+    "machine_name": "employee"
+  },
+  {
+    "id": "1000000000000000147",
+    "machine_name": "resident"
+  },
+  {
+    "id": "1000000000000000148",
+    "machine_name": "client"
+  },
+  {
+    "id": "1000000000000000149",
+    "machine_name": "thing"
+  },
+  {
+    "id": "1000000000000000150",
+    "machine_name": "extern"
+  },
+  {
+    "id": "1000000000000000151",
+    "machine_name": "integration"
+  }
+]

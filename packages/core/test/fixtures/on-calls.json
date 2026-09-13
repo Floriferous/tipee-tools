@@ -1,0 +1,28 @@
+[
+  {
+    "id": "1000000000000000143",
+    "resource_id": "1000000000000000100",
+    "team_id": "1000000000000000105",
+    "time_range": "2026-01-04T07:00/2026-01-04T23:00",
+    "schedule_template": {
+      "id": "1000000000000000144",
+      "name": "Piq",
+      "description": "Piquet de remplacement (week-end)",
+      "color": "#5E5CD1"
+    },
+    "remark": "placeholder"
+  },
+  {
+    "id": "1000000000000000145",
+    "resource_id": "1000000000000000103",
+    "team_id": "1000000000000000102",
+    "time_range": "2026-01-04T07:00/2026-01-04T23:00",
+    "schedule_template": {
+      "id": "1000000000000000146",
+      "name": "Piq",
+      "description": "Piquet de remplacement (week-end)",
+      "color": "#5E5CD1"
+    },
+    "remark": "placeholder"
+  }
+]

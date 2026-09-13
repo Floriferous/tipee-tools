@@ -1,0 +1,52 @@
+[
+  {
+    "average_rate": 90,
+    "date_range": "2026-01-20/2026-07-31",
+    "activity_rate_patterns": [
+      {
+        "monday": 18,
+        "tuesday": 18,
+        "wednesday": 18,
+        "thursday": 18,
+        "friday": 18,
+        "saturday": null,
+        "sunday": null
+      }
+    ],
+    "work_regime": null,
+    "paid_hourly": false,
+    "apprentice": false,
+    "trainee": false,
+    "indemnity_enabled": {
+      "redacted": "forbidden"
+    },
+    "compensation_enabled": {
+      "redacted": "forbidden"
+    }
+  },
+  {
+    "average_rate": 80,
+    "date_range": "2026-08-01/-",
+    "activity_rate_patterns": [
+      {
+        "monday": 16,
+        "tuesday": 16,
+        "wednesday": 16,
+        "thursday": 16,
+        "friday": 16,
+        "saturday": null,
+        "sunday": null
+      }
+    ],
+    "work_regime": null,
+    "paid_hourly": false,
+    "apprentice": false,
+    "trainee": false,
+    "indemnity_enabled": {
+      "redacted": "forbidden"
+    },
+    "compensation_enabled": {
+      "redacted": "forbidden"
+    }
+  }
+]

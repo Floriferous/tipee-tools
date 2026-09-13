@@ -1,0 +1,658 @@
+[
+  {
+    "id": "1000000000000000100",
+    "kind_id": "1000000000000000101",
+    "label": "Alice (AP1) Placeholder",
+    "short_label": "AP1",
+    "sort_label": "Placeholder Alice",
+    "picture": {
+      "shape": "round",
+      "initial": "AP",
+      "url": null
+    },
+    "attributes": {
+      "civility": null,
+      "last_name": "Placeholder",
+      "first_name": "Alice",
+      "gender": "female",
+      "description": null,
+      "work_email": "alice@example.com",
+      "work_phone": null,
+      "job": "Opératrice",
+      "regrouping": "X",
+      "resolved_regrouping": "X",
+      "tag_id": null,
+      "work_mobile_phone": null,
+      "is_apprentice": false,
+      "is_trainee": false,
+      "is_paid_hourly": false,
+      "activity_rate": 80,
+      "schedule_period": "civil-year",
+      "full_address": {
+        "redacted": "confidential"
+      },
+      "address": {
+        "redacted": "confidential"
+      },
+      "zip": {
+        "redacted": "confidential"
+      },
+      "city": {
+        "redacted": "confidential"
+      },
+      "state": {
+        "redacted": "confidential"
+      },
+      "country": {
+        "redacted": "confidential"
+      },
+      "avs": {
+        "redacted": "confidential"
+      },
+      "private_email": {
+        "redacted": "confidential"
+      },
+      "private_phone": {
+        "redacted": "confidential"
+      },
+      "mobile_phone": {
+        "redacted": "confidential"
+      },
+      "fax": {
+        "redacted": "confidential"
+      },
+      "nationality": {
+        "redacted": "confidential"
+      },
+      "birthdate": {
+        "redacted": "confidential"
+      },
+      "work_permit": {
+        "redacted": "confidential"
+      },
+      "work_permit_expiration_date": {
+        "redacted": "confidential"
+      },
+      "rh_status": {
+        "redacted": "confidential"
+      },
+      "rh_wedding_date": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_name": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_birthdate": {
+        "redacted": "confidential"
+      },
+      "rh_education_level": {
+        "redacted": "confidential"
+      },
+      "rh_driver_licence": {
+        "redacted": "confidential"
+      },
+      "rh_specific_skills": {
+        "redacted": "confidential"
+      },
+      "has_compensation": {
+        "redacted": "confidential"
+      },
+      "has_indemnity": {
+        "redacted": "confidential"
+      },
+      "seniority": {
+        "redacted": "confidential"
+      },
+      "work_regime": {
+        "redacted": "confidential"
+      },
+      "weekly_worked_hours": {
+        "redacted": "confidential"
+      },
+      "holiday_regime": {
+        "redacted": "confidential"
+      },
+      "holiday_right": {
+        "redacted": "confidential"
+      },
+      "timecheck_mode": {
+        "redacted": "confidential"
+      },
+      "balance_mode": {
+        "redacted": "confidential"
+      },
+      "work_display_date_mode": {
+        "redacted": "confidential"
+      },
+      "holiday_display_unit_mode": {
+        "redacted": "confidential"
+      },
+      "username": {
+        "redacted": "confidential"
+      },
+      "last_authentication": {
+        "redacted": "confidential"
+      },
+      "last_password_change": {
+        "redacted": "confidential"
+      },
+      "is_two_factor_configured": {
+        "redacted": "confidential"
+      },
+      "has_mobile_app_connection": {
+        "redacted": "confidential"
+      },
+      "comment": {
+        "redacted": "confidential"
+      },
+      "external_id": {
+        "redacted": "confidential"
+      },
+      "joining_date": {
+        "redacted": "confidential"
+      },
+      "departure_date": {
+        "redacted": "confidential"
+      }
+    },
+    "teams": [
+      {
+        "id": "1000000000000000102",
+        "head": true,
+        "name": "Opérations  GE"
+      }
+    ]
+  },
+  {
+    "id": "1000000000000000103",
+    "kind_id": "1000000000000000101",
+    "label": "Bruno (BE2) Exemple",
+    "short_label": "BE2",
+    "sort_label": "Exemple Bruno",
+    "picture": {
+      "shape": "round",
+      "initial": "BE",
+      "url": null
+    },
+    "attributes": {
+      "civility": "placeholder",
+      "last_name": "Exemple",
+      "first_name": "Bruno",
+      "gender": "female",
+      "description": null,
+      "work_email": "bruno@example.com",
+      "work_phone": null,
+      "job": "Opératrice",
+      "regrouping": "X",
+      "resolved_regrouping": "X",
+      "tag_id": null,
+      "work_mobile_phone": null,
+      "is_apprentice": false,
+      "is_trainee": false,
+      "is_paid_hourly": false,
+      "activity_rate": 90,
+      "schedule_period": "civil-year",
+      "full_address": {
+        "redacted": "confidential"
+      },
+      "address": {
+        "redacted": "confidential"
+      },
+      "zip": {
+        "redacted": "confidential"
+      },
+      "city": {
+        "redacted": "confidential"
+      },
+      "state": {
+        "redacted": "confidential"
+      },
+      "country": {
+        "redacted": "confidential"
+      },
+      "avs": {
+        "redacted": "confidential"
+      },
+      "private_email": {
+        "redacted": "confidential"
+      },
+      "private_phone": {
+        "redacted": "confidential"
+      },
+      "mobile_phone": {
+        "redacted": "confidential"
+      },
+      "fax": {
+        "redacted": "confidential"
+      },
+      "nationality": {
+        "redacted": "confidential"
+      },
+      "birthdate": {
+        "redacted": "confidential"
+      },
+      "work_permit": {
+        "redacted": "confidential"
+      },
+      "work_permit_expiration_date": {
+        "redacted": "confidential"
+      },
+      "rh_status": {
+        "redacted": "confidential"
+      },
+      "rh_wedding_date": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_name": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_birthdate": {
+        "redacted": "confidential"
+      },
+      "rh_education_level": {
+        "redacted": "confidential"
+      },
+      "rh_driver_licence": {
+        "redacted": "confidential"
+      },
+      "rh_specific_skills": {
+        "redacted": "confidential"
+      },
+      "has_compensation": {
+        "redacted": "confidential"
+      },
+      "has_indemnity": {
+        "redacted": "confidential"
+      },
+      "seniority": {
+        "redacted": "confidential"
+      },
+      "work_regime": {
+        "redacted": "confidential"
+      },
+      "weekly_worked_hours": {
+        "redacted": "confidential"
+      },
+      "holiday_regime": {
+        "redacted": "confidential"
+      },
+      "holiday_right": {
+        "redacted": "confidential"
+      },
+      "timecheck_mode": {
+        "redacted": "confidential"
+      },
+      "balance_mode": {
+        "redacted": "confidential"
+      },
+      "work_display_date_mode": {
+        "redacted": "confidential"
+      },
+      "holiday_display_unit_mode": {
+        "redacted": "confidential"
+      },
+      "username": {
+        "redacted": "confidential"
+      },
+      "last_authentication": {
+        "redacted": "confidential"
+      },
+      "last_password_change": {
+        "redacted": "confidential"
+      },
+      "is_two_factor_configured": {
+        "redacted": "confidential"
+      },
+      "has_mobile_app_connection": {
+        "redacted": "confidential"
+      },
+      "comment": {
+        "redacted": "confidential"
+      },
+      "external_id": {
+        "redacted": "confidential"
+      },
+      "joining_date": {
+        "redacted": "confidential"
+      },
+      "departure_date": {
+        "redacted": "confidential"
+      }
+    },
+    "teams": [
+      {
+        "id": "1000000000000000102",
+        "head": true,
+        "name": "Opérations  GE"
+      }
+    ]
+  },
+  {
+    "id": "1000000000000000104",
+    "kind_id": "1000000000000000101",
+    "label": "Chloé (CT3) Témoin",
+    "short_label": "CT3",
+    "sort_label": "Témoin Chloé",
+    "picture": {
+      "shape": "round",
+      "initial": "CT",
+      "url": null
+    },
+    "attributes": {
+      "civility": null,
+      "last_name": "Témoin",
+      "first_name": "Chloé",
+      "gender": "female",
+      "description": null,
+      "work_email": "chloé@example.com",
+      "work_phone": null,
+      "job": "Opératrice",
+      "regrouping": "X",
+      "resolved_regrouping": "X",
+      "tag_id": null,
+      "work_mobile_phone": null,
+      "is_apprentice": false,
+      "is_trainee": false,
+      "is_paid_hourly": false,
+      "activity_rate": 80,
+      "schedule_period": "civil-year",
+      "full_address": {
+        "redacted": "confidential"
+      },
+      "address": {
+        "redacted": "confidential"
+      },
+      "zip": {
+        "redacted": "confidential"
+      },
+      "city": {
+        "redacted": "confidential"
+      },
+      "state": {
+        "redacted": "confidential"
+      },
+      "country": {
+        "redacted": "confidential"
+      },
+      "avs": {
+        "redacted": "confidential"
+      },
+      "private_email": {
+        "redacted": "confidential"
+      },
+      "private_phone": {
+        "redacted": "confidential"
+      },
+      "mobile_phone": {
+        "redacted": "confidential"
+      },
+      "fax": {
+        "redacted": "confidential"
+      },
+      "nationality": {
+        "redacted": "confidential"
+      },
+      "birthdate": {
+        "redacted": "confidential"
+      },
+      "work_permit": {
+        "redacted": "confidential"
+      },
+      "work_permit_expiration_date": {
+        "redacted": "confidential"
+      },
+      "rh_status": {
+        "redacted": "confidential"
+      },
+      "rh_wedding_date": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_name": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_birthdate": {
+        "redacted": "confidential"
+      },
+      "rh_education_level": {
+        "redacted": "confidential"
+      },
+      "rh_driver_licence": {
+        "redacted": "confidential"
+      },
+      "rh_specific_skills": {
+        "redacted": "confidential"
+      },
+      "has_compensation": {
+        "redacted": "confidential"
+      },
+      "has_indemnity": {
+        "redacted": "confidential"
+      },
+      "seniority": {
+        "redacted": "confidential"
+      },
+      "work_regime": {
+        "redacted": "confidential"
+      },
+      "weekly_worked_hours": {
+        "redacted": "confidential"
+      },
+      "holiday_regime": {
+        "redacted": "confidential"
+      },
+      "holiday_right": {
+        "redacted": "confidential"
+      },
+      "timecheck_mode": {
+        "redacted": "confidential"
+      },
+      "balance_mode": {
+        "redacted": "confidential"
+      },
+      "work_display_date_mode": {
+        "redacted": "confidential"
+      },
+      "holiday_display_unit_mode": {
+        "redacted": "confidential"
+      },
+      "username": {
+        "redacted": "confidential"
+      },
+      "last_authentication": {
+        "redacted": "confidential"
+      },
+      "last_password_change": {
+        "redacted": "confidential"
+      },
+      "is_two_factor_configured": {
+        "redacted": "confidential"
+      },
+      "has_mobile_app_connection": {
+        "redacted": "confidential"
+      },
+      "comment": {
+        "redacted": "confidential"
+      },
+      "external_id": {
+        "redacted": "confidential"
+      },
+      "joining_date": {
+        "redacted": "confidential"
+      },
+      "departure_date": {
+        "redacted": "confidential"
+      }
+    },
+    "teams": [
+      {
+        "id": "1000000000000000105",
+        "head": true,
+        "name": "Opérations FR"
+      }
+    ]
+  },
+  {
+    "id": "1000000000000000106",
+    "kind_id": "1000000000000000101",
+    "label": "Non attribué",
+    "short_label": "Non attribué",
+    "sort_label": "Non attribué",
+    "picture": {
+      "shape": "round",
+      "initial": "N",
+      "url": null
+    },
+    "attributes": {
+      "civility": null,
+      "last_name": "",
+      "first_name": "Non attribué",
+      "gender": null,
+      "description": null,
+      "work_email": null,
+      "work_phone": null,
+      "job": null,
+      "regrouping": "X",
+      "resolved_regrouping": "X",
+      "tag_id": null,
+      "work_mobile_phone": null,
+      "is_apprentice": false,
+      "is_trainee": true,
+      "is_paid_hourly": false,
+      "activity_rate": 0,
+      "schedule_period": "civil-year",
+      "full_address": {
+        "redacted": "confidential"
+      },
+      "address": {
+        "redacted": "confidential"
+      },
+      "zip": {
+        "redacted": "confidential"
+      },
+      "city": {
+        "redacted": "confidential"
+      },
+      "state": {
+        "redacted": "confidential"
+      },
+      "country": {
+        "redacted": "confidential"
+      },
+      "avs": {
+        "redacted": "confidential"
+      },
+      "private_email": {
+        "redacted": "confidential"
+      },
+      "private_phone": {
+        "redacted": "confidential"
+      },
+      "mobile_phone": {
+        "redacted": "confidential"
+      },
+      "fax": {
+        "redacted": "confidential"
+      },
+      "nationality": {
+        "redacted": "confidential"
+      },
+      "birthdate": {
+        "redacted": "confidential"
+      },
+      "work_permit": {
+        "redacted": "confidential"
+      },
+      "work_permit_expiration_date": {
+        "redacted": "confidential"
+      },
+      "rh_status": {
+        "redacted": "confidential"
+      },
+      "rh_wedding_date": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_name": {
+        "redacted": "confidential"
+      },
+      "rh_spouse_birthdate": {
+        "redacted": "confidential"
+      },
+      "rh_education_level": {
+        "redacted": "confidential"
+      },
+      "rh_driver_licence": {
+        "redacted": "confidential"
+      },
+      "rh_specific_skills": {
+        "redacted": "confidential"
+      },
+      "has_compensation": {
+        "redacted": "confidential"
+      },
+      "has_indemnity": {
+        "redacted": "confidential"
+      },
+      "seniority": {
+        "redacted": "confidential"
+      },
+      "work_regime": {
+        "redacted": "confidential"
+      },
+      "weekly_worked_hours": {
+        "redacted": "confidential"
+      },
+      "holiday_regime": {
+        "redacted": "confidential"
+      },
+      "holiday_right": {
+        "redacted": "confidential"
+      },
+      "timecheck_mode": {
+        "redacted": "confidential"
+      },
+      "balance_mode": {
+        "redacted": "confidential"
+      },
+      "work_display_date_mode": {
+        "redacted": "confidential"
+      },
+      "holiday_display_unit_mode": {
+        "redacted": "confidential"
+      },
+      "username": {
+        "redacted": "confidential"
+      },
+      "last_authentication": {
+        "redacted": "confidential"
+      },
+      "last_password_change": {
+        "redacted": "confidential"
+      },
+      "is_two_factor_configured": {
+        "redacted": "confidential"
+      },
+      "has_mobile_app_connection": {
+        "redacted": "confidential"
+      },
+      "comment": {
+        "redacted": "confidential"
+      },
+      "external_id": {
+        "redacted": "confidential"
+      },
+      "joining_date": {
+        "redacted": "confidential"
+      },
+      "departure_date": {
+        "redacted": "confidential"
+      }
+    },
+    "teams": [
+      {
+        "id": "1000000000000000102",
+        "head": true,
+        "name": "Opérations  GE"
+      }
+    ]
+  }
+]

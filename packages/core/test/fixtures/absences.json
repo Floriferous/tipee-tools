@@ -1,0 +1,50 @@
+[
+  {
+    "id": "1000000000000000137",
+    "absence_type": {
+      "id": "1000000000000000138",
+      "name": "Vacances",
+      "short_name": "",
+      "machine_name": "vacances",
+      "color": "#DDDDDD"
+    },
+    "resource_id": "1000000000000000100",
+    "remark": "placeholder",
+    "date": "2026-08-31",
+    "percentage": 100,
+    "time_range": null,
+    "repetition_id": 2552
+  },
+  {
+    "id": "1000000000000000139",
+    "absence_type": {
+      "id": "1000000000000000140",
+      "name": "Maladie",
+      "short_name": "",
+      "machine_name": "maladie",
+      "color": "#DDDDDD"
+    },
+    "resource_id": "1000000000000000103",
+    "remark": null,
+    "date": "2026-09-09",
+    "percentage": 100,
+    "time_range": null,
+    "repetition_id": null
+  },
+  {
+    "id": "1000000000000000141",
+    "absence_type": {
+      "id": "1000000000000000142",
+      "name": "Congé",
+      "short_name": "",
+      "machine_name": "conge",
+      "color": "#DDDDDD"
+    },
+    "resource_id": "1000000000000000104",
+    "remark": null,
+    "date": "2026-09-01",
+    "percentage": 100,
+    "time_range": "2026-09-01T12:00/2026-09-01T18:00",
+    "repetition_id": null
+  }
+]

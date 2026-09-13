@@ -1,0 +1,11 @@
+# Pre-commit: apply the fixers, restage what they rewrote, then run the checks
+# That have no fixer. CI runs `pnpm verify` instead, which only checks.
+pre-commit:
+  commands:
+    fix:
+      priority: 1
+      run: pnpm fix
+      stage_fixed: true
+    check:
+      priority: 2
+      run: pnpm check && pnpm test

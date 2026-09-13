@@ -1,0 +1,23 @@
+{
+  "name": "@tipee-tools/core",
+  "version": "0.0.1",
+  "description": "TypeScript client and zod schemas for the Tipee HR API (read-only for now)",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./test/testing.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "msw": "^2.15.0",
+    "vitest": "^5.0.0"
+  }
+}

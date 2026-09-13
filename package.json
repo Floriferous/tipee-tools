@@ -1,0 +1,33 @@
+{
+  "name": "tipee-tools",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Floriferous/tipee-tools.git"
+  },
+  "type": "module",
+  "scripts": {
+    "check": "pnpm -r check",
+    "fix": "pnpm lint && pnpm format",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages oxlint.config.ts",
+    "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages oxlint.config.ts",
+    "test": "pnpm -r test",
+    "tipee": "pnpm --filter @tipee-tools/cli tipee",
+    "verify": "pnpm lint:check && pnpm format:check && pnpm check && pnpm test"
+  },
+  "devDependencies": {
+    "lefthook": "2.1.10",
+    "oxfmt": "0.65.0",
+    "oxlint": "1.80.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "typescript": "6.0.3"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@12.0.0+sha512.9e2e3dc3911995868dc94b8175c217c27e95408fa03b4a22749778f2b34f773b77cdd3b39ede8171b22fcd53be6a35342e9fac9948a68ef58df6488ce89a7e67"
+}

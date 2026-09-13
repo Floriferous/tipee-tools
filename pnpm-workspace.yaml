@@ -1,0 +1,9 @@
+packages:
+  - 'packages/*'
+
+# pnpm 12 refuses to run a dependency's install scripts unless it is listed here.
+allowBuilds:
+  lefthook: true
+  # msw's postinstall only refreshes browser service-worker copies; our tests
+  # run in Node and never use one.
+  msw: false

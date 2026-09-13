@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Keep repository formatting explicit and stable.
+  "singleQuote": true,
+  "semi": true,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "sortImports": null,
+  "sortPackageJson": {
+    "sortScripts": true,
+  },
+  "ignorePatterns": [
+    ".git/**",
+    "**/.git/**",
+    "node_modules/**",
+    "**/node_modules/**",
+    "dist/**",
+    "**/dist/**",
+    ".claude/**",
+    "**/.claude/**",
+  ],
+}

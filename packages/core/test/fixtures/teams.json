@@ -1,0 +1,86 @@
+[
+  {
+    "id": "1000000000000000107",
+    "parent_id": null,
+    "name": "Acme SA",
+    "short_name": null,
+    "color": null
+  },
+  {
+    "id": "1000000000000000108",
+    "parent_id": "1000000000000000107",
+    "name": "Acme",
+    "short_name": null,
+    "color": null
+  },
+  {
+    "id": "1000000000000000109",
+    "parent_id": "1000000000000000107",
+    "name": "Acme Logistique",
+    "short_name": null,
+    "color": null
+  },
+  {
+    "id": "1000000000000000110",
+    "parent_id": "1000000000000000108",
+    "name": "Admin",
+    "short_name": "",
+    "color": "#"
+  },
+  {
+    "id": "1000000000000000111",
+    "parent_id": "1000000000000000108",
+    "name": "Administration",
+    "short_name": null,
+    "color": "#"
+  },
+  {
+    "id": "1000000000000000102",
+    "parent_id": "1000000000000000108",
+    "name": "Opérations  GE",
+    "short_name": "GE",
+    "color": "#9fc6e7"
+  },
+  {
+    "id": "1000000000000000105",
+    "parent_id": "1000000000000000108",
+    "name": "Opérations FR",
+    "short_name": "FR",
+    "color": "#9fe1e7"
+  },
+  {
+    "id": "1000000000000000112",
+    "parent_id": "1000000000000000108",
+    "name": "Boutique",
+    "short_name": null,
+    "color": "#"
+  },
+  {
+    "id": "1000000000000000113",
+    "parent_id": "1000000000000000108",
+    "name": "Consultants",
+    "short_name": "CST",
+    "color": "#"
+  },
+  {
+    "id": "1000000000000000114",
+    "parent_id": "1000000000000000108",
+    "name": "Acme Tech",
+    "short_name": "AT",
+    "color": "#4986e7"
+  },
+  {
+    "id": "1000000000000000115",
+    "parent_id": "1000000000000000109",
+    "name": "Logistique",
+    "short_name": "LOG",
+    "color": "#"
+  },
+  {
+    "id": "1000000000000000116",
+    "parent_id": "1000000000000000108",
+    "name": "Support client",
+    "short_name": "SUP",
+    "color": "#"
+  }
+]

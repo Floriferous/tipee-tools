@@ -1,0 +1,271 @@
+[
+  {
+    "id": "1000000000000000117",
+    "name": {
+      "fr": "2300"
+    },
+    "description": {
+      "fr": "23h-24h"
+    },
+    "team_id": "1000000000000000102",
+    "type": {
+      "id": "1000000000000000118",
+      "name": {
+        "de": "Veille",
+        "en": "Night shift",
+        "fr": "Veille"
+      },
+      "machine_name": "nightshift",
+      "display_mode": "normal",
+      "is_on_call": false
+    },
+    "color": "#0066FF",
+    "hour_ranges": [
+      {
+        "hour_range": "23:00/PT1H",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": null,
+          "before_end": null,
+          "after_end": null
+        },
+        "paid_break": null
+      }
+    ],
+    "adjustment": {
+      "value": "PT6M",
+      "time": null
+    },
+    "tag_ids": [],
+    "break_time": null,
+    "validity_date_range": null,
+    "options": {
+      "counts_in_balances": true,
+      "timecheck_counted": true,
+      "employee_resident_ratio": false,
+      "auto_completable": true
+    }
+  },
+  {
+    "id": "1000000000000000119",
+    "name": {
+      "fr": "0000"
+    },
+    "description": {
+      "fr": "24h-07h"
+    },
+    "team_id": "1000000000000000102",
+    "type": {
+      "id": "1000000000000000118",
+      "name": {
+        "de": "Veille",
+        "en": "Night shift",
+        "fr": "Veille"
+      },
+      "machine_name": "nightshift",
+      "display_mode": "normal",
+      "is_on_call": false
+    },
+    "color": "#0099FF",
+    "hour_ranges": [
+      {
+        "hour_range": "00:00/PT7H",
+        "auto_correct": {
+          "before_start": null,
+          "after_start": null,
+          "before_end": null,
+          "after_end": "PT10M"
+        },
+        "paid_break": null
+      }
+    ],
+    "adjustment": {
+      "value": "PT42M",
+      "time": null
+    },
+    "tag_ids": [],
+    "break_time": null,
+    "validity_date_range": null,
+    "options": {
+      "counts_in_balances": true,
+      "timecheck_counted": true,
+      "employee_resident_ratio": false,
+      "auto_completable": true
+    }
+  },
+  {
+    "id": "1000000000000000120",
+    "name": {
+      "fr": "700"
+    },
+    "description": {
+      "fr": "7h-11h15"
+    },
+    "team_id": "1000000000000000102",
+    "type": {
+      "id": "1000000000000000121",
+      "name": {
+        "de": "Normal",
+        "en": "Normal",
+        "fr": "Normal"
+      },
+      "machine_name": "normal",
+      "display_mode": "normal",
+      "is_on_call": false
+    },
+    "color": "#FFFFCC",
+    "hour_ranges": [
+      {
+        "hour_range": "07:00/PT4H15M",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": null,
+          "before_end": null,
+          "after_end": "PT5M"
+        },
+        "paid_break": null
+      }
+    ],
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "tag_ids": [],
+    "break_time": null,
+    "validity_date_range": null,
+    "options": {
+      "counts_in_balances": true,
+      "timecheck_counted": true,
+      "employee_resident_ratio": false,
+      "auto_completable": true
+    }
+  },
+  {
+    "id": "1000000000000000122",
+    "name": {
+      "fr": "1415"
+    },
+    "description": {
+      "fr": "14h15-18h30"
+    },
+    "team_id": "1000000000000000102",
+    "type": {
+      "id": "1000000000000000121",
+      "name": {
+        "de": "Normal",
+        "en": "Normal",
+        "fr": "Normal"
+      },
+      "machine_name": "normal",
+      "display_mode": "normal",
+      "is_on_call": false
+    },
+    "color": "#56b4d1",
+    "hour_ranges": [
+      {
+        "hour_range": "14:15/PT4H15M",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": null,
+          "before_end": null,
+          "after_end": "PT1H"
+        },
+        "paid_break": null
+      }
+    ],
+    "adjustment": {
+      "value": "PT-15M",
+      "time": null
+    },
+    "tag_ids": [],
+    "break_time": null,
+    "validity_date_range": "2017-01-01/2032-01-01",
+    "options": {
+      "counts_in_balances": true,
+      "timecheck_counted": true,
+      "employee_resident_ratio": false,
+      "auto_completable": true
+    }
+  },
+  {
+    "id": "1000000000000000123",
+    "name": {
+      "fr": "1900"
+    },
+    "description": {
+      "fr": "19h-23h"
+    },
+    "team_id": "1000000000000000102",
+    "type": {
+      "id": "1000000000000000121",
+      "name": {
+        "de": "Normal",
+        "en": "Normal",
+        "fr": "Normal"
+      },
+      "machine_name": "normal",
+      "display_mode": "normal",
+      "is_on_call": false
+    },
+    "color": "#5694d1",
+    "hour_ranges": [
+      {
+        "hour_range": "19:00/PT4H",
+        "auto_correct": {
+          "before_start": "PT1H",
+          "after_start": null,
+          "before_end": null,
+          "after_end": "PT5M"
+        },
+        "paid_break": null
+      }
+    ],
+    "adjustment": null,
+    "tag_ids": [],
+    "break_time": null,
+    "validity_date_range": null,
+    "options": {
+      "counts_in_balances": true,
+      "timecheck_counted": true,
+      "employee_resident_ratio": false,
+      "auto_completable": true
+    }
+  },
+  {
+    "id": "1000000000000000124",
+    "name": {
+      "fr": "Piq"
+    },
+    "description": {
+      "fr": "Piquet de remplacement"
+    },
+    "team_id": "1000000000000000102",
+    "type": {
+      "id": "1000000000000000125",
+      "name": {
+        "fr": "Piquet"
+      },
+      "machine_name": "piquet",
+      "display_mode": "corner",
+      "is_on_call": true
+    },
+    "color": "#FF3366",
+    "hour_ranges": [
+      {
+        "hour_range": "07:00/PT16H",
+        "auto_correct": null,
+        "paid_break": null
+      }
+    ],
+    "adjustment": null,
+    "tag_ids": [],
+    "break_time": null,
+    "validity_date_range": null,
+    "options": {
+      "counts_in_balances": false,
+      "timecheck_counted": true,
+      "employee_resident_ratio": false,
+      "auto_completable": true
+    }
+  }
+]
