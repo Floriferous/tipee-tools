@@ -26,6 +26,7 @@ const manifest = {
   display_name: 'Tipee',
   documentation: 'https://github.com/Floriferous/tipee-tools/blob/main/plugins/tipee/README.md',
   homepage: 'https://github.com/Floriferous/tipee-tools',
+  // Tipee's square mark, from the favicon on tipee.ch.
   icon: 'icon.png',
   keywords: ['tipee', 'hr', 'planning', 'shifts'],
   license: 'MIT',

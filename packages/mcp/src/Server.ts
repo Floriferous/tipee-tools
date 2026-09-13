@@ -15,7 +15,7 @@ import { SetupPrompt } from './Prompts.ts';
 import { TipeeToolkit } from './Tools.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.1.1';
+export const SERVER_VERSION = '0.1.2';
 
 export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), SetupPrompt).pipe(
   Layer.provide(TipeeToolkitLayer),

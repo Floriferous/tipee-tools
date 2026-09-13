@@ -42262,7 +42262,7 @@ runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(Tipee
 		v2025_03_26,
 		v2024_11_05
 	],
-	version: "0.1.1"
+	version: "0.1.2"
 })), provide$2(TipeeClient.layerConfig), provide$2(layer$3), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
 //#endregion
 export {};
