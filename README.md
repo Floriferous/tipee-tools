@@ -1,16 +1,16 @@
 # tipee-tools
 
-Read your company's [Tipee](https://tipee.ch) plannings from Claude. A Claude
-Code plugin bundles an MCP server that exposes people, teams, shift templates,
-shifts, absences and on-call duties as read-only tools, plus a skill that
-teaches Claude how to use them. Written in TypeScript on
-[Effect](https://effect.website) 4.
+A [Claude Code](https://claude.com/claude-code) plugin that lets Claude read
+your company's [Tipee](https://tipee.ch) plannings: people, teams, shift
+templates, shifts, absences and on-call duties.
 
-Works against **any Tipee instance**: you provide the subdomain and an
-integration key when installing, nothing else is company-specific. Nothing
-here is affiliated with Tipee.
+It is built for agents, not for humans at a terminal. The plugin bundles a
+read-only [MCP](https://modelcontextprotocol.io) server and a skill that tells
+Claude when and how to use it. There is no command-line tool.
 
-## Install the plugin
+Works with any Tipee instance. Not affiliated with Tipee.
+
+## Install
 
 Requires [Node.js](https://nodejs.org) 24 or newer (`brew install node`).
 In Claude Code:
@@ -20,72 +20,50 @@ In Claude Code:
 /plugin install tipee@tipee-tools
 ```
 
-Claude Code asks for your Tipee instance and API key, stores the key in your
-keychain, and starts the server. Ask Claude to run `tipee_check`: when every
-endpoint reports `ok`, you are set. The
-[plugin README](plugins/tipee/README.md) explains how to create the
-integration in Tipee and which authorizations it needs (the
-`token_rights_missing` trap).
+Claude Code asks for your Tipee instance (the subdomain you sign in at) and
+an API key, keeps the key in your keychain, and starts the server. Then ask
+Claude to run `tipee_check`: when every endpoint reports `ok`, you are set.
 
-## What is in the repository
+The key belongs to an _integration_ created in your Tipee admin panel, and
+it needs one authorization that is easy to miss. The
+[plugin README](plugins/tipee/README.md) walks through it.
 
-| Path                              | What it is                                                                                                                                                                                                                                                      |
-| :-------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/core`                   | `@tipee-tools/core`: the `TipeeClient` service, Effect schemas describing what Tipee really sends, typed errors, and a test kit (`@tipee-tools/core/testing`): a fake Tipee built with [MSW](https://mswjs.io) over anonymised fixtures for a fictional company |
-| `packages/mcp`                    | `@tipee-tools/mcp`: the MCP toolkit and stdio server, built on Effect's `McpServer`                                                                                                                                                                             |
-| `plugins/tipee`                   | `@tipee-tools/plugin`: the Claude Code plugin — manifest with the credential prompt, `.mcp.json`, the user-facing skill, and the bundled server (`server/tipee-mcp.mjs`, built here by `pnpm build`, committed)                                                 |
-| `.claude-plugin/marketplace.json` | Makes this repository its own plugin marketplace                                                                                                                                                                                                                |
-| `ARCHITECTURE.md`                 | The target architecture and the reasoning behind it                                                                                                                                                                                                             |
+## What Claude can do with it
 
-Everything is **read-only**: only `*.list` / `*.show-*` endpoints are called.
+Ask about a week's shifts, who is on call, who is absent, a person's
+employment rate, or the shape of a team. Behind the questions are eight
+read-only tools: `tipee_teams`, `tipee_people`, `tipee_templates`,
+`tipee_shifts`, `tipee_absences`, `tipee_on_calls`, `tipee_activity_rates`
+and `tipee_check`.
 
-## Design notes
+Nothing writes to Tipee, and nothing private leaves it: the server keeps
+only planning fields, so birth dates, addresses and contact details never
+reach the conversation.
 
-- **Schemas double as data minimisation.** Decoding keeps only the planning
-  fields, so birth dates and private contact details never leave the client.
-  Values the integration may not see arrive as `{"redacted": …}`.
-- **Every response is validated.** `tipee_check` is the early warning for the
-  day Tipee changes a shape, and the tool descriptions come from the same
-  schemas the client validates.
-- **Errors explain themselves.** One tagged `TipeeError` with a tagged reason
-  (`ApiKeyRejected`, `RightsMissing`, `UnexpectedShape`, …); the MCP layer
-  returns its message, which says what to do.
-- **The server is one Layer.** Toolkit, handlers, client, HTTP, stdio and
-  logging (to stderr) are composed with `Layer.provide`; there is no
-  imperative wiring.
-- **No build step to develop.** Node 24 runs the TypeScript directly. The
-  only build is the plugin bundle, a single file with Effect included, so
-  installing the plugin installs nothing.
+## Other agents
 
-## Development
+The server is a plain MCP server over stdio. Any MCP client can run it with
+two environment variables:
+
+```bash
+TIPEE_INSTANCE=acme TIPEE_API_KEY=… node plugins/tipee/server/tipee-mcp.mjs
+```
+
+The skill in `plugins/tipee/skills/tipee` follows the
+[Agent Skills](https://agentskills.io) format and installs into other
+agents with `npx skills add`.
+
+## Contributing
+
+TypeScript on [Effect](https://effect.website) 4, with Node running the
+sources directly. [ARCHITECTURE.md](ARCHITECTURE.md) explains the design and
+where it is going; the skills in `.claude/skills` brief agents working here.
 
 ```bash
 pnpm install
-cp packages/mcp/.env.example packages/mcp/.env   # to run against a real instance
-pnpm mcp                                          # the server on stdio, from source
-pnpm fix                                          # lint + format fixers, rebuild the bundle
-pnpm verify                                       # check-only: exactly what CI runs
-pnpm plugin:validate                              # claude plugin validate, strict
-pnpm docs:effect                                  # Effect sources and docs in opensrc/
+pnpm verify          # lint, format, types, tests, bundle — what CI runs
+pnpm fix             # apply fixers and rebuild the plugin bundle
+pnpm mcp             # run the server from source (needs packages/mcp/.env)
 ```
 
-Tasks run through [Turborepo](https://turborepo.dev): `check`, `test` and
-`build` are cached per package, and a package's tasks are invalidated when a
-workspace dependency's sources change (transit nodes in `turbo.json`), since
-packages consume each other's TypeScript directly. Lint and format run once
-for the whole repo as root tasks. CI restores the `.turbo` cache between
-runs; set `TURBO_TOKEN` and `TURBO_TEAM` to use Vercel's remote cache instead.
-
-Iterate on the plugin with `claude --plugin-dir ./plugins/tipee` and
-`/reload-plugins`. The pre-commit hook runs `pnpm fix`, restages what it
-rewrote (including the bundle), then the cached type-check and tests.
-
-Tests use [`@effect/vitest`](https://github.com/Effect-TS/effect/tree/main/packages/vitest)
-and assert on what services return, never on the requests they make: the fake
-Tipee enforces the real API's rules (401 for a bad key, 422 when pagination
-filters change between pages), so a wrong request fails the way it would in
-production. Retries run against the test clock.
-
-Effect 4 is used at its release candidate, pinned exactly. The
-`.claude/skills/effect-v4` skill records the v4 idioms and RC gotchas for
-anyone (human or agent) working here.
+Iterate on the plugin with `claude --plugin-dir ./plugins/tipee`.
