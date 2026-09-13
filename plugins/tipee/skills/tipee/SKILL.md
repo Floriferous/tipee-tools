@@ -1,68 +1,45 @@
 ---
 name: tipee
-description: Using the Tipee HR API through the Tipee MCP tools — people, teams, shifts, absences, on-calls, activities, timeclock, and their writes. Use whenever a task mentions Tipee, plannings, shifts, absences, on-call duties, timesheets, projects, or employee activity rates.
+description: Tipee HR plannings and timesheets through the Tipee MCP tools — reading them, changing them, and repairing a failing setup. Use when a task mentions Tipee, shifts, absences, on-calls, timesheets or activities.
 ---
 
-# Tipee via the MCP tools
+# Tipee through the MCP tools
 
-Tipee is a Swiss HR tool. The tools mirror its API one to one: every
-operation of Tipee's API document is a tool named `<resource>_<verb>`
-(`schedules_list`, `absences_create`, `resources_show_activity_rates`).
-Tool descriptions, parameters and results come from that document, so the
-schema you see is the truth about what Tipee accepts and returns.
+Every operation of Tipee's API is a tool named `<resource>_<verb>`:
+`schedules_list`, `absences_create`, `resources_show_activity_rates`. The
+tool's schema is the truth about what Tipee accepts and returns; this file
+carries only what the schema cannot say.
 
-## Start here
+## Working a request
 
-- **`check` first** when the tools are new to this machine or when any tool
-  fails. It calls the main read endpoints and either reports all `ok`,
-  explains a missing authorization in plain words, or lists which response
-  shapes no longer match (Tipee changed its API, not the data).
-- **Ids come from other tools.** Team ids from `teams_list`, person ids from
-  `resources_list` (with `kind_id` of the `employee` kind from `kinds_list`),
-  template ids from `schedule_templates_list`. Never guess an id.
-- **Dates** are `YYYY-MM-DD`; a `date_range` is `from/to`, inclusive.
+1. **Earn the ids.** Every id in a call comes from an earlier result: team
+   ids from `teams_list`, template ids from `schedule_templates_list`, person
+   ids from `resources_list` filtered on the `employee` kind found with
+   `kinds_list`. Done when each id in the planned call traces to a result.
+2. **Read before you write.** `schedules_list` for the day, `absences_list`
+   for the person, so the change is described against what is there now.
+3. **Confirm the change, once.** State exactly what will change and for whom,
+   in one sentence, and wait for a yes. Skip the wait only when the user
+   already asked for that precise change. Then make one precise call.
+4. **Report Tipee's answer**: the created id, or `done`, and what changed.
+   Done when the user can see the outcome without opening Tipee.
 
-## Reading
+A failing tool ends the sequence: read [errors.md](errors.md), which maps
+each error message to the fix.
 
-- Reads are the `*_list` and `*_show*` tools; they are marked read-only.
-- `resources_list` is paginated: always send `pagination` (`limit`, and
-  `next_token: null` on the first page), explicit `orders`, and the same
-  filters and orders on every page, or Tipee answers 422. A non-null
-  `next_token` can come back on the last full page; the next page is then
-  empty.
-- Values the integration may not see arrive as `{"redacted": "forbidden"}`
-  or `{"redacted": "confidential"}`. Say the value is not accessible; do not
-  treat it as missing data.
-- Date-time intervals carry no seconds (`2026-09-07T23:00/2026-09-08T00:00`);
-  date ranges can be open (`2026-08-01/-`); durations follow ISO 8601 and can
-  be negative (`PT-15M`).
+## What the schema cannot say
 
-## Writing
-
-- The `*_create`, `*_update`, `*_delete` and workflow tools (`*_submit`,
-  `*_validate`, `*_reject`, …) change data in Tipee. Before calling one,
-  state exactly what will change and for whom, and let the user confirm,
-  unless they have already asked for that precise change.
-- Prefer one precise write over several exploratory ones. Read first
-  (`schedules_list` for the day, `resources_list` for the person) so ids,
-  team and dates are known before writing.
-- Shift templates are history: old templates are referenced by past
-  plannings. A new need means a new template, never an edit of an old one.
-- Writes need the integration to have the corresponding right (Planning →
-  "Planifier" for shifts); a "lacks the permission" message means that right
-  is missing, not that the request was wrong.
-
-## When a tool fails
-
-The error text says what to do. The common cases:
-
-- _"rejected the API key"_: the key is wrong or belongs to another instance.
-- _"has no permissions yet"_: the integration lacks **Configurations
-  générales → "Se connecter avec des applications externes"**. No other role
-  fixes this; once granted, the tools work without reinstalling.
-- _"lacks the permission"_: grant the integration the module right the
-  operation needs (Planning, Cœur RH, Activités, Timbrages…).
-- _"Tipee rejected the request"_: Tipee's own validation refused it; the
-  message quotes the reason.
-- _"does not match its API description"_: Tipee changed a shape. Run `check`,
-  report which endpoints fail, and suggest updating the plugin.
+- **Setup**: `check` first when the tools are new to this machine. All `ok`
+  means the setup is complete; anything else is explained in its report.
+- **Withheld values**: `{"redacted": "forbidden"}` or `"confidential"` in
+  place of a value means Tipee withheld it from this integration. Report it
+  as withheld.
+- **Reality versus the document**: date-time intervals carry no seconds
+  (`2026-09-07T23:00/2026-09-08T00:00`); date ranges can be open on either
+  side (`2026-08-01/-`); durations can carry negative parts (`PT-15M`).
+- **Pages of people**: `resources_list` takes explicit `pagination`
+  (`next_token: null` on the first page) and explicit `orders`, identical
+  filters and orders on every page, and can hand out a cursor on the last
+  full page whose next page is empty.
+- **Templates are history.** Past plannings reference old templates; a new
+  need means a new template.
