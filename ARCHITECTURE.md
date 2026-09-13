@@ -221,6 +221,14 @@ parameter on the tools; both plug into the same `Config` seam.
 - **Effect's sources at hand.** `pnpm docs:effect` mirrors the Effect
   repository into `opensrc/` (git-ignored) for its agent docs and migration
   notes; the exact RC sources are in `node_modules/effect/src`.
+- **Effect diagnostics everywhere.** TypeScript 7 is the native compiler;
+  `@effect/tsgo` patches it and the type-aware lint at install time
+  (`prepare`), so `tsc`, oxlint and the editor all report Effect-specific
+  diagnostics, the way Effect's own repository is set up.
+- **Dependencies stay current and safe.** Dependabot proposes grouped weekly
+  updates behind a one-week cooldown; pnpm's supply-chain policy refuses
+  versions younger than a day, trust downgrades, and exotic transitive
+  sources. Node is pinned in `.node-version`, read by CI and by mise.
 
 ## Release pipeline
 

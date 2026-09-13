@@ -82,6 +82,14 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
   in `.claude/skills` lists the idioms and RC gotchas. Read Effect's sources
   in `node_modules/effect/src` (exact version) and its docs in
   `opensrc/effect` (`pnpm docs:effect`) rather than memory.
+- TypeScript 7 (native compiler) with `@effect/tsgo`: `pnpm install` runs
+  `effect-tsgo patch`, after which `tsc` and the type-aware lint report
+  Effect diagnostics (for example preferTypedSchemaDecoder). Fix them rather
+  than silencing them; severities live in each package's `tsconfig.json`.
+- Dependencies: Dependabot opens grouped weekly PRs (one-week cooldown);
+  `pnpm-workspace.yaml` enforces minimumReleaseAge, no trust downgrades and
+  no exotic sub-dependencies. Effect is excluded from Dependabot on purpose:
+  bump the RC by hand in the three manifests and rerun `pnpm verify`.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the
   server into `plugins/tipee/server/` (the plugin is the workspace package

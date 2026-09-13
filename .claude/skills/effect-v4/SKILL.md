@@ -66,6 +66,15 @@ Modules under `effect/unstable/*` (http, ai, cli, …) may still break in a
 minor release; `Schema`, `Config`, `Layer`, `Effect` are stable. Bump the
 pin deliberately and rerun `pnpm verify`.
 
+## Type-checking and diagnostics
+
+TypeScript 7 is the native compiler. `@effect/tsgo` is installed at the root
+and patched into `typescript` and `oxlint-tsgolint` by the `prepare` script,
+so `pnpm check`, `pnpm lint` and the editor (VS Code with the TypeScript 7
+extension, see `.vscode/settings.json`) all surface Effect diagnostics.
+`pnpm exec effect-tsgo diagnostics --project <tsconfig> --strict` prints them
+on their own. Do not add `@effect/language-service`: it is the pre-7 plugin.
+
 ## Lint
 
 `oxlint.config.ts` documents every rule relaxed for Effect (capitalised

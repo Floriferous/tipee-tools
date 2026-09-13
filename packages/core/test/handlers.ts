@@ -45,7 +45,7 @@ const load = <S extends Schema.ConstraintDecoder<unknown>>(
   name: FixtureName,
 ): ReadonlyArray<Loaded<S['Type']>> => {
   const raw = Schema.decodeUnknownSync(Schema.Array(Schema.Json))(readFixture(name));
-  const rows = Schema.decodeUnknownSync(Schema.Array(schema))(raw);
+  const rows = Schema.decodeSync(Schema.Array(schema))(raw);
   return rows.map((row, index) => ({ raw: raw[index] ?? null, row }));
 };
 
@@ -134,7 +134,7 @@ const endpoint = <S extends Schema.ConstraintDecoder<unknown>>(
     if (rejection !== undefined) {
       return rejection;
     }
-    const query = Schema.decodeUnknownResult(schema)(await request.json());
+    const query = Schema.decodeResult(schema)(await request.json());
     if (Result.isFailure(query)) {
       return unprocessable(query.failure.message);
     }

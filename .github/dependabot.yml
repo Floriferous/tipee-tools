@@ -1,0 +1,30 @@
+# Weekly dependency updates, grouped into one PR per ecosystem. The cooldown
+# Mirrors pnpm's minimumReleaseAge: a release must age before it is proposed.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      dependencies:
+        patterns:
+          - '*'
+    # Effect 4 is pinned to a release candidate on purpose; bump it by hand.
+    ignore:
+      - dependency-name: effect
+      - dependency-name: '@effect/*'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - '*'

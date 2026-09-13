@@ -23,7 +23,7 @@ import {
 import { readFixture } from './fixtures.ts';
 
 const accepts = (schema: Schema.ConstraintDecoder<unknown>, value: string): boolean =>
-  Result.isSuccess(Schema.decodeUnknownResult(schema)(value));
+  Result.isSuccess(Schema.decodeResult(schema)(value));
 
 describe('interval formats', () => {
   it('accepts date-time intervals with or without seconds', () => {
