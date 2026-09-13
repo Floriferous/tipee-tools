@@ -2,34 +2,23 @@
 
 What an integration can do is the sum of the rights ticked on it at
 `https://<instance>.tipee.net/hr-core/integrations`. The names below are
-the ones shown on that screen, in the language of the admin panel.
+the ones shown on that screen, in the language of the admin panel. The
+screen only lists the modules enabled on an instance, so this list may not
+be exhaustive; the screen is the authority.
 
 ## Which rights the tools need
 
 Each tool belongs to one API module; the integration needs that module's
 access right plus the view or manage right matching what the tool does.
 
-| Tools                                                                                | Module                   | To read                                                                              | To change                                                             |
-| :----------------------------------------------------------------------------------- | :----------------------- | :----------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
-| every tool                                                                           | Configurations générales | Se connecter avec des applications externes                                          | same                                                                  |
-| `resources_*`, `teams_*`, `kinds_*`, `tags_*`                                        | Cœur RH                  | Accéder au module Cœur RH, Voir les collaborateurs                                   | Gérer les collaborateurs; Gérer les tags                              |
-| `schedules_*`, `absences_*`, `on_calls_*`, `schedule_templates_*`, `absence_types_*` | Planning                 | Accéder au module Planning, Voir les plannings                                       | Planifier; Gérer les modèles horaires; Gérer les types d'absence      |
-| `timechecks_*`                                                                       | Saisie des heures        | Voir les timbrages                                                                   | Valider l'ensemble des timbrages des personnes; Supprimer un timbrage |
-| `work_regimes_*`                                                                     | Calcul des soldes        | Voir les soldes                                                                      |                                                                       |
-| `projects_*`, `tasks_*`, `activities_*`, `day_tasks_*`                               | Activités                | the module's rights, listed on the screen once the module is enabled on the instance |                                                                       |
-
-## Chapters this list does not cover
-
-The rights screen only shows the modules enabled on the instance the list
-was copied from. Tipee publishes no complete list, so rights for the
-following modules are known to exist but are not listed here; read them on
-the screen of an instance that has the module.
-
-- **Activités** (projects, tasks, activities, day tasks): the module behind
-  the `projects_*`, `tasks_*`, `activities_*` and `day_tasks_*` tools.
-- **Notes de frais**: includes at least "prendre la main sur les notes de
-  frais" (release of 30 June 2026).
-- **Agenda**.
+| Tools                                                                                | Module                   | To read                                            | To change                                                             |
+| :----------------------------------------------------------------------------------- | :----------------------- | :------------------------------------------------- | :-------------------------------------------------------------------- |
+| every tool                                                                           | Configurations générales | Se connecter avec des applications externes        | same                                                                  |
+| `resources_*`, `teams_*`, `kinds_*`, `tags_*`                                        | Cœur RH                  | Accéder au module Cœur RH, Voir les collaborateurs | Gérer les collaborateurs; Gérer les tags                              |
+| `schedules_*`, `absences_*`, `on_calls_*`, `schedule_templates_*`, `absence_types_*` | Planning                 | Accéder au module Planning, Voir les plannings     | Planifier; Gérer les modèles horaires; Gérer les types d'absence      |
+| `timechecks_*`                                                                       | Saisie des heures        | Voir les timbrages                                 | Valider l'ensemble des timbrages des personnes; Supprimer un timbrage |
+| `work_regimes_*`                                                                     | Calcul des soldes        | Voir les soldes                                    |                                                                       |
+| `projects_*`, `tasks_*`, `activities_*`, `day_tasks_*`                               | Activités                | the module's rights as shown on the screen         |                                                                       |
 
 ## Configurations générales
 
