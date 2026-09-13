@@ -5,8 +5,7 @@
 import { NodeFileSystem, NodeStdio } from '@effect/platform-node';
 import { TipeeClient } from '@tipee-tools/core';
 import type { ConfigurationMissing } from '@tipee-tools/core';
-import { Effect, Layer, Logger } from 'effect';
-import type { Cause } from 'effect';
+import { Cause, Effect, Layer, Logger, Result } from 'effect';
 import { McpProtocol, McpServer } from 'effect/unstable/ai';
 import { FetchHttpClient } from 'effect/unstable/http';
 
@@ -16,7 +15,7 @@ import { Telemetry } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.3.0';
+export const SERVER_VERSION = '0.3.1';
 
 // One event per start, so versions in use can be told apart.
 const Started = Layer.effectDiscard(
@@ -51,6 +50,37 @@ export const ServerLayer = Layer.mergeAll(
   Layer.provide(Layer.succeed(Logger.LogToStderr, true)),
 );
 
+const Standalone = Layer.mergeAll(FetchHttpClient.layer, NodeFileSystem.layer);
+
+// Reports why the server stopped, from a telemetry of its own: the server's
+// May never have been built. An expected failure (missing configuration) is
+// A `server_failed` event with its reason; anything else is an unhandled
+// Exception. Never fails, never takes more than the flush timeout.
+export const reportCrash = (cause: Cause.Cause<unknown>): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const telemetry = yield* Telemetry;
+    const failure = Cause.findError(cause);
+    if (Result.isSuccess(failure)) {
+      const error: unknown = failure.success;
+      const reason =
+        typeof error === 'object' && error !== null && '_tag' in error
+          ? String(error._tag)
+          : 'Unknown';
+      yield* telemetry.capture('server_failed', { reason });
+    } else if (Cause.hasDies(cause)) {
+      yield* telemetry.exception(Cause.squash(cause), { handled: false });
+    }
+    yield* telemetry.flush;
+  }).pipe(
+    Effect.provide(
+      Telemetry.layer({ $lib_version: SERVER_VERSION, server_version: SERVER_VERSION }).pipe(
+        Layer.provide(Standalone),
+      ),
+    ),
+    Effect.scoped,
+    Effect.ignore,
+  );
+
 /** The whole server as one effect that runs until the client disconnects. */
 export const main: Effect.Effect<never, ConfigurationMissing | Cause.IllegalArgumentError> =
-  Layer.launch(ServerLayer);
+  Layer.launch(ServerLayer).pipe(Effect.tapCause((cause) => reportCrash(cause)));

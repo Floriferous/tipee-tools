@@ -1,16 +1,19 @@
 // Usage data that helps improve the plugin: which tools run, how long they
 // Take, how they fail, and the errors worth a look (Tipee drifting from its
-// Document, crashes). Nothing about the instance, its people or the key
-// Leaves the machine: the only identifier is a random id kept in the user's
-// Home directory. Events are batched to PostHog in the background and never
-// Delay a tool; every failure of the telemetry itself is swallowed.
+// Document, crashes), as PostHog product analytics and error tracking.
+// Nothing about the instance, its people or the key leaves the machine: the
+// Only identifier is a random id kept in the user's home directory, and
+// Stack frames are cut down to the bundle. Events are batched to PostHog in
+// The background and never delay a tool; every failure of the telemetry
+// Itself is swallowed.
 
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { arch, platform, version as nodeVersion } from 'node:process';
 
-import { Config, Context, Effect, FileSystem, Layer, Option, Queue } from 'effect';
+import { TipeeError } from '@tipee-tools/core';
+import { Config, Context, Effect, FileSystem, Layer, Option, Queue, Schedule } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
 
 /** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
@@ -28,15 +31,17 @@ export type PropertyValue =
   | { readonly [key: string]: PropertyValue };
 export type Properties = Readonly<Record<string, PropertyValue>>;
 
+export interface ExceptionOptions {
+  /** False when nothing caught it on purpose: a defect, a crash. */
+  readonly handled: boolean;
+  readonly properties?: Properties;
+}
+
 export interface Sink {
   /** Records an event; returns at once. */
   readonly capture: (event: string, properties?: Properties) => Effect.Effect<void>;
-  /** Records an error for PostHog's error tracking; the message only, never a stack. */
-  readonly exception: (
-    type: string,
-    message: string,
-    properties?: Properties,
-  ) => Effect.Effect<void>;
+  /** Records an error for PostHog's error tracking: type, message and scrubbed frames. */
+  readonly exception: (error: unknown, options: ExceptionOptions) => Effect.Effect<void>;
   /** Sends what is queued now; the background loop does this on its own. */
   readonly flush: Effect.Effect<void>;
 }
@@ -47,10 +52,22 @@ interface Event {
   readonly timestamp: string;
 }
 
+// An intersection, so a frame is also a plain property value on the wire.
+type Frame = Readonly<Record<string, PropertyValue>> & {
+  readonly colno?: number;
+  readonly filename: string;
+  readonly function: string;
+  readonly in_app: boolean;
+  readonly lineno?: number;
+  readonly platform: 'node:javascript';
+};
+
 const INTERVAL = '2 seconds';
 const SEND_TIMEOUT = '5 seconds';
 const DRAIN_TIMEOUT = '2 seconds';
+const SEND_RETRIES = 2;
 const ID_FILE = 'telemetry-id';
+const FRAME_LIMIT = 30;
 
 // Overridable so tests and forks can point elsewhere.
 const settings = Config.all({
@@ -89,11 +106,62 @@ const installationId = (fs: FileSystem.FileSystem, stateDir: string): Effect.Eff
     return id;
   });
 
+// "    at fn (file:line:col)" or "    at file:line:col"; the file is cut down
+// To what is ours (the bundle or a source file), so no user path travels.
+const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
+const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
+
+const scrubbed = (file: string): { readonly filename: string; readonly inApp: boolean } => {
+  const ours = OURS.exec(file)?.groups?.tail;
+  if (ours !== undefined) {
+    return { filename: ours, inApp: true };
+  }
+  return { filename: file.startsWith('node:') ? file : path.basename(file), inApp: false };
+};
+
+// The frames of an error's stack, scrubbed; empty when there is no stack.
+export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
+  (stack ?? '')
+    .split('\n')
+    .flatMap((line) => {
+      const groups = FRAME.exec(line)?.groups;
+      if (groups?.file === undefined) {
+        return [];
+      }
+      const { filename, inApp } = scrubbed(groups.file);
+      return [
+        {
+          ...(groups.col === undefined ? {} : { colno: Number(groups.col) }),
+          filename,
+          function: groups.fn ?? '<anonymous>',
+          in_app: inApp,
+          ...(groups.line === undefined ? {} : { lineno: Number(groups.line) }),
+          platform: 'node:javascript' as const,
+        },
+      ];
+    })
+    .slice(0, FRAME_LIMIT);
+
+// What PostHog's error tracking groups on: a type and a message, plus frames
+// When the error carries a stack worth reading (a TipeeError's does not).
+const describe = (
+  error: unknown,
+): { readonly type: string; readonly value: string; readonly frames: ReadonlyArray<Frame> } => {
+  if (error instanceof TipeeError) {
+    return { frames: [], type: `Tipee${error.reason._tag}`, value: error.reason.message };
+  }
+  if (error instanceof Error) {
+    return { frames: framesOf(error.stack), type: error.name, value: error.message };
+  }
+  return { frames: [], type: 'Unknown', value: String(error) };
+};
+
 export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/mcp/Telemetry') {
   // Records nothing: for tests.
   public static readonly layerOff: Layer.Layer<Telemetry> = Layer.succeed(Telemetry, silent);
 
-  // Sends to PostHog; `base` is added to every event.
+  // Sends to PostHog; `base` is added to every event, as is a launch id that
+  // Ties one process's events together.
   public static readonly layer = (
     base: Properties,
   ): Layer.Layer<Telemetry, never, HttpClient.HttpClient | FileSystem.FileSystem> =>
@@ -101,16 +169,19 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
       Telemetry,
       Effect.gen(function* () {
         const read = yield* Effect.option(settings);
-        if (Option.isNone(read)) {
+        if (Option.isNone(read) || read.value.key === '') {
           return silent;
         }
         const config = read.value;
-        if (config.key === '') {
-          return silent;
-        }
         const fs = yield* FileSystem.FileSystem;
-        const http = yield* HttpClient.HttpClient;
+        const http = (yield* HttpClient.HttpClient).pipe(
+          HttpClient.retryTransient({
+            schedule: Schedule.exponential('500 millis'),
+            times: SEND_RETRIES,
+          }),
+        );
         const distinctId = yield* installationId(fs, config.stateDir);
+        const launchId = randomUUID();
         const queue = yield* Queue.unbounded<Event>();
 
         const send = (batch: ReadonlyArray<Event>): Effect.Effect<void> =>
@@ -135,12 +206,13 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
           $lib: 'tipee-mcp',
           $process_person_profile: false,
           arch,
+          launch_id: launchId,
           node_version: nodeVersion,
           os: platform,
           ...base,
           ...own,
         });
-        const capture = (event: string, own?: Properties): Effect.Effect<void> =>
+        const enqueue = (event: string, own: Properties | undefined): Effect.Effect<void> =>
           Effect.asVoid(
             Queue.offer(queue, {
               event,
@@ -149,18 +221,22 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
             }),
           );
         return {
-          capture,
-          exception: (type, message, own) =>
-            Effect.asVoid(
-              Queue.offer(queue, {
-                event: '$exception',
-                properties: {
-                  ...properties(own),
-                  $exception_list: [{ mechanism: { handled: true }, type, value: message }],
+          capture: enqueue,
+          exception: (error, { handled, properties: own }) => {
+            const { frames, type, value } = describe(error);
+            return enqueue('$exception', {
+              ...own,
+              $exception_level: 'error',
+              $exception_list: [
+                {
+                  mechanism: { handled, type: 'generic' },
+                  ...(frames.length === 0 ? {} : { stacktrace: { frames, type: 'raw' } }),
+                  type,
+                  value,
                 },
-                timestamp: new Date().toISOString(),
-              }),
-            ),
+              ],
+            });
+          },
           flush: drain,
         };
       }),

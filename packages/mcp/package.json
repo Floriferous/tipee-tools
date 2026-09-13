@@ -1,6 +1,6 @@
 {
   "name": "@tipee-tools/mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "MCP server giving Claude the whole Tipee API",
   "license": "MIT",
   "type": "module",

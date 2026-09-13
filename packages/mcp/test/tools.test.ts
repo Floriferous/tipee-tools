@@ -43,9 +43,12 @@ const recording = Layer.succeed(Telemetry, {
     Effect.sync(() => {
       recorded.push({ event, properties: { ...properties } });
     }),
-  exception: (type, message, properties) =>
+  exception: (error, { handled, properties }) =>
     Effect.sync(() => {
-      recorded.push({ event: '$exception', properties: { ...properties, message, type } });
+      recorded.push({
+        event: '$exception',
+        properties: { ...properties, handled, message: String(error) },
+      });
     }),
   flush: Effect.void,
 });
@@ -79,12 +82,29 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
         reason: 'UnexpectedShape',
         tool: 'schedules_list',
       });
-      expect(recorded[2]?.properties).toMatchObject({
-        tool: 'schedules_list',
-        type: 'TipeeUnexpectedShape',
-      });
+      expect(recorded[2]?.properties).toMatchObject({ handled: true, tool: 'schedules_list' });
+      expect(recorded[2]?.properties.message).toMatch(/does not match/u);
       expect(JSON.stringify(recorded)).not.toContain(WEEK);
       expect(JSON.stringify(recorded)).not.toContain('Opérations');
+    }),
+  );
+
+  it.effect('check reports a response shape that changed, and still succeeds', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      server.use(
+        http.post(
+          `${BASE}/api/schedule/schedule-templates.list`,
+          () => HttpResponse.json([{ id: 'not-a-template' }]),
+          { once: true },
+        ),
+      );
+      const report = (yield* call('check', {})) as { ok: boolean };
+
+      expect(report.ok).toBe(false);
+      expect(recorded.map((entry) => entry.event)).toEqual(['$exception', 'tool_called']);
+      expect(recorded[0]?.properties).toMatchObject({ handled: true, tool: 'check' });
+      expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check' });
     }),
   );
 });

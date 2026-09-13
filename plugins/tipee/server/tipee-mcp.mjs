@@ -8142,7 +8142,7 @@ const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$2(s
 /** @internal */
 const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
 /** @internal */
-const catchIf = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$2(self, (cause) => {
+const catchIf$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$2(self, (cause) => {
 	const error = findError$1(cause);
 	if (isFailure$1(error)) return failCause$4(error.failure);
 	if (!predicate(error.success)) return orElse ? internalCall(() => orElse(error.success)) : failCause$4(cause);
@@ -8159,7 +8159,7 @@ const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, fil
 /** @internal */
 const catchTag$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
 	const pred = Array.isArray(k) ? (e) => hasProperty(e, "_tag") && k.includes(e._tag) : isTagged(k);
-	return catchIf(self, pred, f, orElse);
+	return catchIf$1(self, pred, f, orElse);
 });
 /** @internal */
 const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cases, orElse) => {
@@ -8170,7 +8170,7 @@ const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cas
 	}, (e) => internalCall(() => cases[e["_tag"]](e)), orElse);
 });
 /** @internal */
-const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
+const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$1(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
 	const reason = e.reason;
 	if (isTagged(reason, reasonTag)) return f(reason, e);
 	return orElse ? internalCall(() => orElse(reason, e)) : fail$6(e);
@@ -11433,50 +11433,6 @@ const interruptors = causeInterruptors;
 */
 const prettyErrors = causePrettyErrors;
 /**
-* Formats a `Cause` as a human-readable string for logging or debugging.
-*
-* **When to use**
-*
-* Use to render a whole cause as one human-readable string for logs or
-* diagnostics.
-*
-* **Details**
-*
-* Delegates to {@link prettyErrors} to convert each reason to an `Error`,
-* then joins their stack traces with newlines. Nested `Error.cause` chains
-* are rendered inline with indentation:
-*
-* ```text
-* ErrorName: message
-*     at ...
-*     at ... {
-*   [cause]: NestedError: message
-*       at ...
-* }
-* ```
-*
-* Span annotations are appended to the relevant stack frames when available.
-*
-* **Gotchas**
-*
-* Rendering an empty cause produces an empty string because there are no
-* errors to render.
-*
-* **Example** (Rendering a cause)
-*
-* ```ts import.meta.vitest
-* import { Cause } from "effect"
-*
-* Cause.pretty(Cause.fail("something went wrong")).includes("something went wrong") // => true
-* ```
-*
-* @see {@link prettyErrors} — get the individual `Error` instances
-*
-* @category formatting
-* @since 2.0.0
-*/
-const pretty = causePretty;
-/**
 * Checks whether an arbitrary value is a `Done` signal.
 *
 * **Example** (Checking the runtime type)
@@ -14047,6 +14003,51 @@ const catchCause$1 = catchCause$2;
 * @since 4.0.0
 */
 const catchDefect = catchDefect$1;
+/**
+* Recovers from specific errors using a `Predicate` or `Refinement`.
+*
+* **When to use**
+*
+* Use when you need to recover from errors that match a condition.
+*
+* **Details**
+*
+* Use a `Refinement` for type narrowing or a `Predicate` for simple boolean
+* matching. Non-matching errors re-fail with the original cause. Defects and
+* interrupts are not caught.
+*
+* **Example** (Recovering when a predicate matches)
+*
+* ```ts import.meta.vitest
+* import { Data, Effect, Filter } from "effect"
+*
+* class NotFound extends Data.TaggedError("NotFound")<{ id: string }> {}
+*
+* const program = Effect.fail(new NotFound({ id: "user-1" }))
+*
+* // With a refinement
+* const recovered = program.pipe(
+*   Effect.catchIf(
+*     (error): error is NotFound => error._tag === "NotFound",
+*     (error) => Effect.succeed(`missing:${error.id}`)
+*   )
+* )
+*
+* // With a Filter
+* const recovered2 = program.pipe(
+*   Effect.catchFilter(
+*     Filter.tagged("NotFound"),
+*     (error) => Effect.succeed(`missing:${error.id}`)
+*   )
+* )
+*
+* Effect.runSync(Effect.all([recovered, recovered2])) // => ['missing:user-1', 'missing:user-1']
+* ```
+*
+* @category error handling
+* @since 2.0.0
+*/
+const catchIf = catchIf$1;
 /**
 * Transforms the failure value of an effect without changing its success value.
 *
@@ -41022,14 +41023,14 @@ const successSchema = (successes) => {
 		if (body !== void 0) return body;
 	}
 };
-const describe = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
+const describe$1 = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
 const collect = () => {
 	const found = [];
 	reflect(Tipee, {
 		onEndpoint: ({ endpoint, group, mergedAnnotations, successes }) => {
 			const verb = verbOf(endpoint.path);
 			found.push({
-				description: describe(mergedAnnotations, endpoint.path),
+				description: describe$1(mergedAnnotations, endpoint.path),
 				destructive: verb.startsWith("delete"),
 				endpoint: endpoint.identifier,
 				group: group.identifier,
@@ -48517,7 +48518,9 @@ const POSTHOG_HOST = "https://eu.i.posthog.com";
 const INTERVAL = "2 seconds";
 const SEND_TIMEOUT = "5 seconds";
 const DRAIN_TIMEOUT = "2 seconds";
+const SEND_RETRIES = 2;
 const ID_FILE = "telemetry-id";
+const FRAME_LIMIT = 30;
 const settings = all({
 	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
 	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY)),
@@ -48537,16 +48540,62 @@ const installationId = (fs, stateDir) => gen(function* () {
 	yield* option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, `${id}\n`)));
 	return id;
 });
+const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
+const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
+const scrubbed = (file) => {
+	const ours = OURS.exec(file)?.groups?.tail;
+	if (ours !== void 0) return {
+		filename: ours,
+		inApp: true
+	};
+	return {
+		filename: file.startsWith("node:") ? file : path.basename(file),
+		inApp: false
+	};
+};
+const framesOf = (stack) => (stack ?? "").split("\n").flatMap((line) => {
+	const groups = FRAME.exec(line)?.groups;
+	if (groups?.file === void 0) return [];
+	const { filename, inApp } = scrubbed(groups.file);
+	return [{
+		...groups.col === void 0 ? {} : { colno: Number(groups.col) },
+		filename,
+		function: groups.fn ?? "<anonymous>",
+		in_app: inApp,
+		...groups.line === void 0 ? {} : { lineno: Number(groups.line) },
+		platform: "node:javascript"
+	}];
+}).slice(0, FRAME_LIMIT);
+const describe = (error) => {
+	if (error instanceof TipeeError) return {
+		frames: [],
+		type: `Tipee${error.reason._tag}`,
+		value: error.reason.message
+	};
+	if (error instanceof Error) return {
+		frames: framesOf(error.stack),
+		type: error.name,
+		value: error.message
+	};
+	return {
+		frames: [],
+		type: "Unknown",
+		value: String(error)
+	};
+};
 var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
 	static layerOff = succeed$4(Telemetry, silent);
 	static layer = (base) => effect(Telemetry, gen(function* () {
 		const read = yield* option(settings);
-		if (isNone(read)) return silent;
+		if (isNone(read) || read.value.key === "") return silent;
 		const config = read.value;
-		if (config.key === "") return silent;
 		const fs = yield* FileSystem;
-		const http = yield* HttpClient;
+		const http = (yield* HttpClient).pipe(retryTransient({
+			schedule: exponential("500 millis"),
+			times: SEND_RETRIES
+		}));
 		const distinctId = yield* installationId(fs, config.stateDir);
+		const launchId = randomUUID();
 		const queue = yield* unbounded();
 		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
 			api_key: config.key,
@@ -48562,30 +48611,38 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 			$lib: "tipee-mcp",
 			$process_person_profile: false,
 			arch,
+			launch_id: launchId,
 			node_version: version,
 			os: platform,
 			...base,
 			...own
 		});
-		const capture = (event, own) => asVoid(offer(queue, {
+		const enqueue = (event, own) => asVoid(offer(queue, {
 			event,
 			properties: properties(own),
 			timestamp: (/* @__PURE__ */ new Date()).toISOString()
 		}));
 		return {
-			capture,
-			exception: (type, message, own) => asVoid(offer(queue, {
-				event: "$exception",
-				properties: {
-					...properties(own),
+			capture: enqueue,
+			exception: (error, { handled, properties: own }) => {
+				const { frames, type, value } = describe(error);
+				return enqueue("$exception", {
+					...own,
+					$exception_level: "error",
 					$exception_list: [{
-						mechanism: { handled: true },
+						mechanism: {
+							handled,
+							type: "generic"
+						},
+						...frames.length === 0 ? {} : { stacktrace: {
+							frames,
+							type: "raw"
+						} },
 						type,
-						value: message
+						value
 					}]
-				},
-				timestamp: (/* @__PURE__ */ new Date()).toISOString()
-			})),
+				});
+			},
 			flush: drain
 		};
 	}));
@@ -48650,9 +48707,12 @@ const probe = (name, params) => invoke(operation(name), params).pipe(map$3((resu
 		status: "ok"
 	},
 	result
-})), catchReason("TipeeError", "UnexpectedShape", (reason) => succeed$3({
+})), catchIf((failure) => failure.reason._tag === "UnexpectedShape", (failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
+	handled: true,
+	properties: { tool: "check" }
+})), {
 	report: {
-		error: reason.message,
+		error: failure.reason.message,
 		name,
 		status: "failed"
 	},
@@ -48745,20 +48805,26 @@ const observed = (telemetry, tool, run) => fn("observed")(function* (params) {
 			outcome: "failed",
 			reason: reason._tag
 		});
-		if (REPORTED.has(reason._tag)) yield* telemetry.exception(`Tipee${reason._tag}`, reason.message, { tool });
+		if (REPORTED.has(reason._tag)) yield* telemetry.exception(failure.success, {
+			handled: true,
+			properties: { tool }
+		});
 	} else {
 		yield* telemetry.capture("tool_called", {
 			...common,
 			outcome: "crashed"
 		});
-		yield* telemetry.exception("Defect", pretty(exit$2.cause).split("\n")[0] ?? "unknown", { tool });
+		yield* telemetry.exception(squash(exit$2.cause), {
+			handled: false,
+			properties: { tool }
+		});
 	}
 	return yield* failCause$2(exit$2.cause);
 });
 const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 	const client = yield* TipeeClient;
 	const telemetry = yield* Telemetry;
-	const withClient = (effect) => provideService(effect, TipeeClient, client);
+	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry));
 	const handlers = { check: observed(telemetry, "check", (params) => withClient(check(params))) };
 	for (const target of operations) handlers[target.name] = observed(telemetry, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
@@ -48778,11 +48844,9 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.0";
+const SERVER_VERSION = "0.3.1";
 const Started = effectDiscard(flatMap(Telemetry, (telemetry) => telemetry.capture("server_started")));
-//#endregion
-//#region src/main.ts
-runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
+const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	name: SERVER_NAME,
 	protocols: [
@@ -48795,6 +48859,23 @@ runMain(launch(mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provid
 })), provide$2(TipeeClient.layerConfig), provide$2(Telemetry.layer({
 	$lib_version: SERVER_VERSION,
 	server_version: SERVER_VERSION
-})), provide$2(layer$3), provide$2(layer$4), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)))));
+})), provide$2(layer$3), provide$2(layer$4), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)));
+const Standalone = mergeAll(layer$3, layer$4);
+const reportCrash = (cause) => gen(function* () {
+	const telemetry = yield* Telemetry;
+	const failure = findError(cause);
+	if (isSuccess$1(failure)) {
+		const error = failure.success;
+		const reason = typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : "Unknown";
+		yield* telemetry.capture("server_failed", { reason });
+	} else if (hasDies(cause)) yield* telemetry.exception(squash(cause), { handled: false });
+	yield* telemetry.flush;
+}).pipe(provide(Telemetry.layer({
+	$lib_version: SERVER_VERSION,
+	server_version: SERVER_VERSION
+}).pipe(provide$2(Standalone))), scoped, ignore$1);
+//#endregion
+//#region src/main.ts
+runMain(launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause))));
 //#endregion
 export {};

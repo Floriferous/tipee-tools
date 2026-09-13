@@ -43,20 +43,31 @@ interface Probe {
   readonly report: typeof EndpointReport.Type;
 }
 
-// One report line per endpoint. Shape mismatches are reported as failures
-// And a module that is off or a missing right as skipped; auth and network
-// Errors abort the whole check so the user sees their explanation once.
-const probe = (name: string, params: unknown): Effect.Effect<Probe, TipeeError, TipeeClient> =>
+// One report line per endpoint. Shape mismatches are reported as failures,
+// And to the telemetry, since they mean Tipee changed; a module that is off
+// Or a missing right is skipped; auth and network errors abort the whole
+// Check so the user sees their explanation once.
+const probe = (
+  name: string,
+  params: unknown,
+): Effect.Effect<Probe, TipeeError, TipeeClient | Telemetry> =>
   invoke(operation(name), params).pipe(
     Effect.map((result): Probe => ({
       report: { count: countOf(result), name, status: 'ok' },
       result,
     })),
-    Effect.catchReason('TipeeError', 'UnexpectedShape', (reason) =>
-      Effect.succeed<Probe>({
-        report: { error: reason.message, name, status: 'failed' },
-        result: undefined,
-      }),
+    Effect.catchIf(
+      (failure) => failure.reason._tag === 'UnexpectedShape',
+      (failure) =>
+        Effect.as(
+          Effect.flatMap(Telemetry, (telemetry) =>
+            telemetry.exception(failure, { handled: true, properties: { tool: 'check' } }),
+          ),
+          {
+            report: { error: failure.reason.message, name, status: 'failed' },
+            result: undefined,
+          } satisfies Probe,
+        ),
     ),
     Effect.catchReason('TipeeError', 'Forbidden', (reason) =>
       Effect.succeed<Probe>({
@@ -148,12 +159,13 @@ const observed = (telemetry: Sink, tool: string, run: Handler): Handler =>
         reason: reason._tag,
       });
       if (REPORTED.has(reason._tag)) {
-        yield* telemetry.exception(`Tipee${reason._tag}`, reason.message, { tool });
+        yield* telemetry.exception(failure.success, { handled: true, properties: { tool } });
       }
     } else {
       yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });
-      yield* telemetry.exception('Defect', Cause.pretty(exit.cause).split('\n')[0] ?? 'unknown', {
-        tool,
+      yield* telemetry.exception(Cause.squash(exit.cause), {
+        handled: false,
+        properties: { tool },
       });
     }
     return yield* Effect.failCause(exit.cause);
@@ -163,8 +175,13 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
   Effect.gen(function* () {
     const client = yield* TipeeClient;
     const telemetry = yield* Telemetry;
-    const withClient = <A, E>(effect: Effect.Effect<A, E, TipeeClient>): Effect.Effect<A, E> =>
-      Effect.provideService(effect, TipeeClient, client);
+    const withClient = <A, E>(
+      effect: Effect.Effect<A, E, TipeeClient | Telemetry>,
+    ): Effect.Effect<A, E> =>
+      effect.pipe(
+        Effect.provideService(TipeeClient, client),
+        Effect.provideService(Telemetry, telemetry),
+      );
 
     const handlers: Record<string, Handler> = {
       check: observed(telemetry, 'check', (params) =>
