@@ -1,5 +1,6 @@
-// What leaves the machine. The fake PostHog records the batches it receives;
-// The assertions read them, never the requests.
+// What leaves the machine: the instance and an installation id, never the
+// Key. The fake PostHog records the batches it receives; the assertions
+// Read them, never the requests.
 
 import { mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -84,8 +85,10 @@ describe('telemetry', () => {
       const [first, , exception] = batch?.batch ?? [];
       expect(first?.distinct_id).toMatch(/^[0-9a-f-]{36}$/u);
       expect(first?.properties).toMatchObject({
+        $groups: { instance: INSTANCE },
         $lib: 'tipee-mcp',
-        $process_person_profile: false,
+        $set: { instance: INSTANCE, server_version: '0.0.0-test' },
+        instance: INSTANCE,
         server_version: '0.0.0-test',
       });
       expect(first?.properties.launch_id).toBe(exception?.properties.launch_id);
@@ -104,7 +107,6 @@ describe('telemetry', () => {
       expect(listed?.stacktrace.frames.some((frame) => frame.in_app)).toBe(true);
       expect(JSON.stringify(listed)).not.toContain(homedir());
       const wire = JSON.stringify(received);
-      expect(wire).not.toContain(INSTANCE);
       expect(wire).not.toContain(API_KEY);
     }),
   );

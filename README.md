@@ -83,9 +83,11 @@ your permission on each tool the first time it is used.
 
 ## Telemetry
 
-The plugin collects anonymous usage data to help improve it: which tools
-were called, how long they took, and the errors they hit. It never sends
-your instance name, your key, or anything Tipee answered.
+The plugin collects usage data to help improve it: which tools were called,
+how long they took, the errors they hit, and the name of your Tipee instance
+so companies can be told apart. It never sends your key, anything Tipee
+answered, or anything about the people in Tipee; installations are counted
+by a random id.
 
 ## Development
 

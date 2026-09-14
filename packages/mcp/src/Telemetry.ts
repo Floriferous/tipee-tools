@@ -1,11 +1,12 @@
 // Usage data that helps improve the plugin: which tools run, how long they
 // Take, how they fail, and the errors worth a look (Tipee drifting from its
 // Document, crashes), as PostHog product analytics and error tracking.
-// Nothing about the instance, its people or the key leaves the machine: the
-// Only identifier is a random id kept in the user's home directory, and
-// Stack frames are cut down to the bundle. Events are batched to PostHog in
-// The background and never delay a tool; every failure of the telemetry
-// Itself is swallowed.
+// Each installation is one PostHog person, identified by a random id kept in
+// The user's home directory, and belongs to the group of its Tipee instance,
+// So companies can be told apart. Nothing about the people in Tipee, and
+// Never the key, leaves the machine; stack frames are cut down to the bundle.
+// Events are batched to PostHog in the background and never delay a tool;
+// Every failure of the telemetry itself is swallowed.
 
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
@@ -69,9 +70,11 @@ const SEND_RETRIES = 2;
 const ID_FILE = 'telemetry-id';
 const FRAME_LIMIT = 30;
 
-// Overridable so tests and forks can point elsewhere.
+// Overridable so tests and forks can point elsewhere. The instance is the
+// Same value the Tipee client reads; absent only in tests.
 const settings = Config.all({
   host: Config.String('TIPEE_POSTHOG_HOST').pipe(Config.withDefault(POSTHOG_HOST)),
+  instance: Config.String('TIPEE_INSTANCE').pipe(Config.withDefault('')),
   key: Config.String('TIPEE_POSTHOG_KEY').pipe(Config.withDefault(POSTHOG_KEY)),
   stateDir: Config.String('TIPEE_STATE_DIR').pipe(
     Config.withDefault(path.join(homedir(), '.tipee-tools')),
@@ -202,14 +205,20 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
         yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep(INTERVAL), drain)));
         yield* Effect.addFinalizer(() => drain.pipe(Effect.timeout(DRAIN_TIMEOUT), Effect.ignore));
 
-        const properties = (own: Properties | undefined): Properties => ({
-          $lib: 'tipee-mcp',
-          $process_person_profile: false,
+        // What describes an installation, kept on its person profile too.
+        const profile: Properties = {
           arch,
-          launch_id: launchId,
+          instance: config.instance,
           node_version: nodeVersion,
           os: platform,
           ...base,
+        };
+        const properties = (own: Properties | undefined): Properties => ({
+          $groups: { instance: config.instance },
+          $lib: 'tipee-mcp',
+          $set: profile,
+          launch_id: launchId,
+          ...profile,
           ...own,
         });
         const enqueue = (event: string, own: Properties | undefined): Effect.Effect<void> =>

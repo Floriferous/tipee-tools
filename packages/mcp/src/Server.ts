@@ -16,7 +16,7 @@ import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.3.2';
+export const SERVER_VERSION = '0.3.3';
 
 // One event per start, so versions in use can be told apart.
 const Started = Layer.effectDiscard(

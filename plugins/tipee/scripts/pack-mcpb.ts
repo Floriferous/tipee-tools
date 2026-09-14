@@ -39,8 +39,8 @@ const manifest = {
     'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
     'run check: it names the integration, links where its rights are set, and explains ' +
     'anything missing in plain words.\n\n' +
-    'The extension collects anonymous usage data to help improve it; nothing about your ' +
-    'instance, your people or your key is sent. Not affiliated with Tipee.',
+    'The extension collects usage data to help improve it: tool usage, errors and your ' +
+    'instance name; never your key or anything about your people. Not affiliated with Tipee.',
   manifest_version: '0.3',
   name: 'tipee',
   prompts: [

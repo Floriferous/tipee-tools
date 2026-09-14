@@ -23,5 +23,5 @@ Claude asks before changing anything, and Claude itself asks your permission
 the first time each tool is used. Which tools are enabled is decided in
 Claude's settings.
 
-The plugin collects anonymous usage data to help improve it; nothing about
-your instance, your people or your key is sent.
+The plugin collects usage data to help improve it: tool usage, errors and
+your instance name; never your key or anything about your people.

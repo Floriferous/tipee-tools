@@ -48584,6 +48584,7 @@ const ID_FILE = "telemetry-id";
 const FRAME_LIMIT = 30;
 const settings$1 = all({
 	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
+	instance: String$1("TIPEE_INSTANCE").pipe(withDefault("")),
 	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY)),
 	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
 });
@@ -48668,14 +48669,19 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		const drain = flatMap(clear$1(queue), (batch) => send(batch));
 		yield* forkScoped(forever(andThen(sleep(INTERVAL), drain)));
 		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
-		const properties = (own) => ({
-			$lib: "tipee-mcp",
-			$process_person_profile: false,
+		const profile = {
 			arch,
-			launch_id: launchId,
+			instance: config.instance,
 			node_version: version,
 			os: platform,
-			...base,
+			...base
+		};
+		const properties = (own) => ({
+			$groups: { instance: config.instance },
+			$lib: "tipee-mcp",
+			$set: profile,
+			launch_id: launchId,
+			...profile,
 			...own
 		});
 		const enqueue = (event, own) => asVoid(offer(queue, {
@@ -48985,7 +48991,7 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.2";
+const SERVER_VERSION = "0.3.3";
 const Started = effectDiscard(flatMap(Telemetry, (telemetry) => telemetry.capture("server_started")));
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
