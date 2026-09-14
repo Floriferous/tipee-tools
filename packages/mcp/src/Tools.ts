@@ -26,12 +26,18 @@ export const IntegrationReport = Schema.Struct({
   roles_page: Schema.String,
 });
 
+export const UpdateReport = Schema.Struct({
+  url: Schema.String,
+  version: Schema.String,
+});
+
 export const Check = Tool.make('check', {
   description:
     'Call the main read endpoints of Tipee and validate the response shapes. Run it first ' +
     'after installing, or when another tool fails: it names the integration the key belongs ' +
-    'to and where its rights are set, explains missing authorizations, and detects the day ' +
-    'Tipee changes a response shape. Stores nothing.',
+    'to and where its rights are set, explains missing authorizations, detects the day ' +
+    'Tipee changes a response shape, and says when a newer version of the plugin exists. ' +
+    'Stores nothing.',
   failure: TipeeError,
   parameters: Schema.Struct({
     from: Schema.optionalKey(
@@ -50,6 +56,11 @@ export const Check = Tool.make('check', {
       }),
     ),
     ok: Schema.Boolean,
+    update: Schema.optionalKey(
+      UpdateReport.annotate({
+        description: 'A newer version of this plugin, when one exists, and where to download it.',
+      }),
+    ),
   }),
 })
   .annotate(Tool.Readonly, true)

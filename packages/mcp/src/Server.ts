@@ -13,9 +13,10 @@ import { TipeeToolkitLayer } from './Handlers.ts';
 import { SetupPrompt } from './Prompts.ts';
 import { Telemetry } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
+import { Updates } from './Updates.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.3.1';
+export const SERVER_VERSION = '0.3.2';
 
 // One event per start, so versions in use can be told apart.
 const Started = Layer.effectDiscard(
@@ -44,6 +45,7 @@ export const ServerLayer = Layer.mergeAll(
   ),
   Layer.provide(TipeeClient.layerConfig),
   Layer.provide(Telemetry.layer({ $lib_version: SERVER_VERSION, server_version: SERVER_VERSION })),
+  Layer.provide(Updates.layer(SERVER_VERSION)),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(NodeFileSystem.layer),
   Layer.provide(NodeStdio.layer),

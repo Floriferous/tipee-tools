@@ -33,7 +33,8 @@ each error message to the fix.
 - **Setup**: `check` first when the tools are new to this machine. `ok`
   means the setup is complete; a `skipped` endpoint is a module this
   instance does not have. The report names the integration the key belongs
-  to and links its Roles tab. Which rights an integration needs for which
+  to and links its Roles tab. When it reports an `update`, tell the user the
+  version and the link once. Which rights an integration needs for which
   tools, and every right Tipee offers, is in [roles.md](roles.md).
 - **Withheld values**: `{"redacted": "forbidden"}` or `"confidential"` in
   place of a value means Tipee withheld it from this integration. Report it

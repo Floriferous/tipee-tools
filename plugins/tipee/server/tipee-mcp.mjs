@@ -8106,6 +8106,8 @@ const provideService$1 = function() {
 };
 const provideServiceImpl = (self, service, implementation) => updateContext$1(self, add$2(service, implementation));
 /** @internal */
+const filterOrFail$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, orFailWith) => filterOrElse(self, predicate, orFailWith ? (a) => fail$6(orFailWith(a)) : () => fail$6(new NoSuchElementError())));
+/** @internal */
 const forever$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => whileLoop$1({
 	while: constTrue,
 	body: constant(options?.disableYield ? self : flatMap$2(self, (_) => yieldNow)),
@@ -8721,6 +8723,8 @@ const forEachConcurrent = /*#__PURE__*/ iterateConcurrentImpl({
 		else if (state.out) state.out[index] = exit.value;
 	}
 });
+/** @internal */
+const filterOrElse = /*#__PURE__*/ dual(3, (self, predicate, orElse) => flatMap$2(self, (a) => predicate(a) ? succeed$6(a) : orElse(a)));
 /** @internal */
 const forkChild$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => {
 	interruptChildrenPatch();
@@ -14501,6 +14505,37 @@ const timed = timed$1;
 * @since 2.0.0
 */
 const raceFirst = raceFirst$1;
+/**
+* Filters an effect, failing with a custom error if the predicate fails.
+*
+* **Details**
+*
+* This function applies a predicate to the result of an effect. If the
+* predicate evaluates to `false`, the effect fails with either a custom
+* error (if `orFailWith` is provided) or a `NoSuchElementError`.
+*
+* **Example** (Filtering with a custom failure)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+*
+* // An effect that produces a number
+* const program = Effect.succeed(5)
+*
+* // Filter for even numbers, fail for odd numbers
+* const filtered = Effect.filterOrFail(
+*   program,
+*   (n) => n % 2 === 0,
+*   (n) => `Expected even number, got ${n}`
+* )
+*
+* Effect.runSync(Effect.flip(filtered)) // => "Expected even number, got 5"
+* ```
+*
+* @category filtering
+* @since 2.0.0
+*/
+const filterOrFail = filterOrFail$1;
 /**
 * Handles failures with access to the cause and allows performing side effects.
 *
@@ -31356,6 +31391,17 @@ function toUrl(self) {
 */
 const TypeId$17 = "~effect/http/HttpIncomingMessage";
 /**
+* Creates a decoder that reads an incoming message's JSON body and decodes it with the supplied schema.
+*
+* @category schemas
+* @since 4.0.0
+*/
+const schemaBodyJson = (schema, options) => {
+	const decode = decodeEffect(toCodecJson(schema));
+	const decodeJson = options?.reviver === void 0 ? void 0 : decodeEffect(fromJsonString(toCodecJson(schema), options));
+	return (self) => decodeJson === void 0 ? flatMap(self.json, (u) => decode(u, options)) : flatMap(self.text, (body) => body === "" ? flatMap(self.json, (u) => decode(u, options)) : decodeJson(body, options));
+};
+/**
 * Builds an inspectable object for an incoming message, redacting headers and including a synchronously readable JSON or text body when available.
 *
 * @category converting
@@ -31405,6 +31451,21 @@ const TypeId$16 = "~effect/http/HttpClientResponse";
 * @since 4.0.0
 */
 const fromWeb = (request, source) => new WebHttpClientResponse(request, source);
+/**
+* Creates a decoder for a response's status, headers, and JSON body using the supplied schema.
+*
+* @category schemas
+* @since 4.0.0
+*/
+const schemaJson = (schema, options) => {
+	const decode = decodeEffect(toCodecJson(schema), options);
+	const decodeBody = schemaBodyJson(Unknown, options);
+	return (self) => flatMap(decodeBody(self), (body) => decode({
+		status: self.status,
+		headers: self.headers,
+		body
+	}));
+};
 var WebHttpClientResponse = class extends Class$2 {
 	[TypeId$17];
 	[TypeId$16];
@@ -48521,7 +48582,7 @@ const DRAIN_TIMEOUT = "2 seconds";
 const SEND_RETRIES = 2;
 const ID_FILE = "telemetry-id";
 const FRAME_LIMIT = 30;
-const settings = all({
+const settings$1 = all({
 	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
 	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY)),
 	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
@@ -48586,7 +48647,7 @@ const describe = (error) => {
 var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
 	static layerOff = succeed$4(Telemetry, silent);
 	static layer = (base) => effect(Telemetry, gen(function* () {
-		const read = yield* option(settings);
+		const read = yield* option(settings$1);
 		if (isNone(read) || read.value.key === "") return silent;
 		const config = read.value;
 		const fs = yield* FileSystem;
@@ -48667,8 +48728,12 @@ const IntegrationReport = Struct({
 	label: String$2,
 	roles_page: String$2
 });
+const UpdateReport = Struct({
+	url: String$2,
+	version: String$2
+});
 const Check = make$4("check", {
-	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when another tool fails: it names the integration the key belongs to and where its rights are set, explains missing authorizations, and detects the day Tipee changes a response shape. Stores nothing.",
+	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when another tool fails: it names the integration the key belongs to and where its rights are set, explains missing authorizations, detects the day Tipee changes a response shape, and says when a newer version of the plugin exists. Stores nothing.",
 	failure: TipeeError,
 	parameters: Struct({
 		from: optionalKey(LocalDate.annotate({ description: "First day of the range, YYYY-MM-DD" })),
@@ -48678,7 +48743,8 @@ const Check = make$4("check", {
 		date_range: String$2,
 		endpoints: ArraySchema(EndpointReport),
 		integration: optionalKey(IntegrationReport.annotate({ description: "The integration the key belongs to and the page where its rights are ticked." })),
-		ok: Boolean
+		ok: Boolean,
+		update: optionalKey(UpdateReport.annotate({ description: "A newer version of this plugin, when one exists, and where to download it." }))
 	})
 }).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
 const toolFor = (operation) => dynamic(operation.name, {
@@ -48688,6 +48754,78 @@ const toolFor = (operation) => dynamic(operation.name, {
 	success: operation.success ?? Done
 }).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
 const TipeeToolkit = make$3(Check, ...operations.map((operation) => toolFor(operation)));
+//#endregion
+//#region ../../packages/mcp/src/Updates.ts
+const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
+/** A release newer than the one running. */
+var Update = class extends Class("Update")({
+	/** Where to get it. */
+	url: String$2,
+	version: String$2
+}) {};
+const Release = Struct({ body: Struct({
+	html_url: String$2,
+	tag_name: String$2
+}) });
+const CachedJson = fromJsonString(Struct({
+	checked_at: String$2,
+	url: String$2,
+	version: String$2
+}));
+/** The cached answer is older than a day. */
+var Stale = class extends TaggedError()("Stale", {}) {};
+const CACHE_FILE = "latest-release.json";
+const CACHE_TTL_MS = 864e5;
+const FETCH_TIMEOUT = "3 seconds";
+const settings = all({
+	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL)),
+	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
+});
+const PART = /^\d+$/u;
+const isNewer = (candidate, current) => {
+	const parse = (version) => {
+		const parts = version.replace(/^v/u, "").split(".");
+		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
+	};
+	const left = parse(candidate);
+	const right = parse(current);
+	if (left === void 0 || right === void 0) return false;
+	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+		const difference = (left[index] ?? 0) - (right[index] ?? 0);
+		if (difference !== 0) return difference > 0;
+	}
+	return false;
+};
+var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
+	static layerNone = succeed$4(Updates, { available: succeedNone });
+	static layer = (current) => effect(Updates, gen(function* () {
+		const fs = yield* FileSystem;
+		const http = yield* HttpClient;
+		const config = yield* option(settings);
+		if (isNone(config)) return { available: succeedNone };
+		const { releasesUrl, stateDir } = config.value;
+		const file = path.join(stateDir, CACHE_FILE);
+		const cached = fs.readFileString(file).pipe(flatMap(decodeEffect(CachedJson)), filterOrFail((entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS, () => new Stale()), map$3((entry) => ({
+			url: entry.url,
+			version: entry.version
+		})));
+		const fetched = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$3(({ body }) => ({
+			url: body.html_url,
+			version: body.tag_name.replace(/^v/u, "")
+		})), tap((latest) => option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, JSON.stringify({
+			checked_at: (/* @__PURE__ */ new Date()).toISOString(),
+			...latest
+		}))))));
+		return { available: gen(function* () {
+			const known = yield* option(cached);
+			const latest = isSome(known) ? known.value : yield* fetched;
+			return isNewer(latest.version, current) ? some(new Update({
+				url: latest.url,
+				version: latest.version
+			})) : none();
+		}).pipe(orElseSucceed(() => none())) };
+	}));
+};
 //#endregion
 //#region ../../packages/mcp/src/Handlers.ts
 const PAGE_SIZE = 100;
@@ -48763,11 +48901,13 @@ const check = fn("check")(function* ({ from, to }) {
 	];
 	for (const [name, params] of probes) reports.push((yield* probe(name, params)).report);
 	const integration = yield* integrationLink;
+	const update = yield* flatMap(Updates, (updates) => updates.available);
 	return {
 		date_range: dateRange,
 		endpoints: reports,
 		...integration === void 0 ? {} : { integration },
-		ok: reports.every((report) => report.status !== "failed")
+		ok: reports.every((report) => report.status !== "failed"),
+		...isSome(update) ? { update: update.value } : {}
 	};
 });
 const REPORTED = /* @__PURE__ */ new Set([
@@ -48824,7 +48964,8 @@ const observed = (telemetry, tool, run) => fn("observed")(function* (params) {
 const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 	const client = yield* TipeeClient;
 	const telemetry = yield* Telemetry;
-	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry));
+	const updates = yield* Updates;
+	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry), provideService(Updates, updates));
 	const handlers = { check: observed(telemetry, "check", (params) => withClient(check(params))) };
 	for (const target of operations) handlers[target.name] = observed(telemetry, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
@@ -48834,7 +48975,7 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 const SETUP_PROMPT = {
 	description: "Check that the Tipee connection works and explain any missing authorization.",
 	name: "check-tipee-setup",
-	text: "Run the check tool with no arguments. Then explain the result for someone who is not technical. If every endpoint is ok, say the setup is complete and give three examples of questions I can ask about my plannings. If the tool fails or an endpoint reports an error, quote the message, say exactly which authorization to grant in the Tipee admin panel (Configurations générales → \"Se connecter avec des applications externes\", then access to the modules concerned, such as Planning → \"Accéder au module Planning\" and \"Voir les plannings\", or Cœur RH → \"Accéder au module Cœur RH\" and \"Voir les collaborateurs\"), and tell me to run this check again afterwards. If the message says the key was rejected, tell me to re-enter the instance and the key in the extension settings."
+	text: "Run the check tool with no arguments. Then explain the result for someone who is not technical. If every endpoint is ok, say the setup is complete and give three examples of questions I can ask about my plannings. If the tool fails or an endpoint reports an error, quote the message, say exactly which authorization to grant in the Tipee admin panel (Configurations générales → \"Se connecter avec des applications externes\", then access to the modules concerned, such as Planning → \"Accéder au module Planning\" and \"Voir les plannings\", or Cœur RH → \"Accéder au module Cœur RH\" and \"Voir les collaborateurs\"), and tell me to run this check again afterwards. If the message says the key was rejected, tell me to re-enter the instance and the key in the extension settings. If the result mentions an update, tell me the new version and the link in one sentence."
 };
 const SetupPrompt = prompt({
 	content: () => succeed$3(SETUP_PROMPT.text),
@@ -48844,7 +48985,7 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.1";
+const SERVER_VERSION = "0.3.2";
 const Started = effectDiscard(flatMap(Telemetry, (telemetry) => telemetry.capture("server_started")));
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
@@ -48859,7 +49000,7 @@ const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(p
 })), provide$2(TipeeClient.layerConfig), provide$2(Telemetry.layer({
 	$lib_version: SERVER_VERSION,
 	server_version: SERVER_VERSION
-})), provide$2(layer$3), provide$2(layer$4), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)));
+})), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$3), provide$2(layer$4), provide$2(layer$1), provide$2(succeed$4(LogToStderr, true)));
 const Standalone = mergeAll(layer$3, layer$4);
 const reportCrash = (cause) => gen(function* () {
 	const telemetry = yield* Telemetry;

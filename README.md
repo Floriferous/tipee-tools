@@ -58,6 +58,14 @@ If you use Claude Code, ask it to install the `tipee` plugin from the
 It asks for the same two values, and comes with a skill that teaches Claude
 how to work with Tipee. Then ask it to run `check`.
 
+## Updating
+
+Claude tells you when a newer version exists, whenever you run the setup
+check. In Claude Desktop, download the new file and open it: your instance
+and key are kept. In Claude Code, run `/plugin marketplace update tipee-tools`
+then `/plugin update tipee`, or turn on auto-update for the marketplace once
+under `/plugin`.
+
 ## 3. Ask away
 
 Some things people ask:

@@ -27,6 +27,7 @@ describe('stdio transport', () => {
           TIPEE_INSTANCE: 'acme',
           // Nowhere to send telemetry: the connection is refused and ignored.
           TIPEE_POSTHOG_HOST: 'http://127.0.0.1:1',
+          TIPEE_RELEASES_URL: 'http://127.0.0.1:1/releases',
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       });

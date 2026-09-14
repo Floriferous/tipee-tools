@@ -1,6 +1,6 @@
 {
   "name": "tipee-tools",
-  "description": "Tools for the Tipee HR API: read your plannings from Claude.",
+  "description": "Tipee for Claude: the whole Tipee HR API as tools.",
   "owner": {
     "name": "Florian Bienefelt",
     "url": "https://github.com/Floriferous"
@@ -9,7 +9,7 @@
     {
       "name": "tipee",
       "source": "./plugins/tipee",
-      "description": "Read-only access to your Tipee plannings from Claude: people, teams, shifts, absences, on-calls."
+      "description": "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing."
     }
   ]
 }

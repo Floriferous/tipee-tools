@@ -5,4 +5,5 @@ export * from './Handlers.ts';
 export * from './Prompts.ts';
 export * from './Server.ts';
 export * from './Telemetry.ts';
+export * from './Updates.ts';
 export * from './Tools.ts';

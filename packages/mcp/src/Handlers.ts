@@ -12,6 +12,7 @@ import { Telemetry } from './Telemetry.ts';
 import type { Properties, Sink } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
 import type { EndpointReport } from './Tools.ts';
+import { Updates } from './Updates.ts';
 
 const DAYS_PER_WEEK = 7;
 const PAGE_SIZE = 100;
@@ -108,11 +109,13 @@ const check = Effect.fn('check')(function* ({ from, to }: { from?: string; to?: 
     reports.push((yield* probe(name, params)).report);
   }
   const integration = yield* integrationLink;
+  const update = yield* Effect.flatMap(Updates, (updates) => updates.available);
   return {
     date_range: dateRange,
     endpoints: reports,
     ...(integration === undefined ? {} : { integration }),
     ok: reports.every((report) => report.status !== 'failed'),
+    ...(Option.isSome(update) ? { update: update.value } : {}),
   };
 });
 
@@ -175,12 +178,14 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
   Effect.gen(function* () {
     const client = yield* TipeeClient;
     const telemetry = yield* Telemetry;
+    const updates = yield* Updates;
     const withClient = <A, E>(
-      effect: Effect.Effect<A, E, TipeeClient | Telemetry>,
+      effect: Effect.Effect<A, E, TipeeClient | Telemetry | Updates>,
     ): Effect.Effect<A, E> =>
       effect.pipe(
         Effect.provideService(TipeeClient, client),
         Effect.provideService(Telemetry, telemetry),
+        Effect.provideService(Updates, updates),
       );
 
     const handlers: Record<string, Handler> = {

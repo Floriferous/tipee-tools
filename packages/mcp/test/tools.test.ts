@@ -9,7 +9,7 @@ import { Tool } from 'effect/unstable/ai';
 import { FetchHttpClient } from 'effect/unstable/http';
 import { HttpResponse, http } from 'msw';
 
-import { Telemetry, TipeeToolkit, TipeeToolkitLayer } from '../src/index.ts';
+import { Telemetry, TipeeToolkit, TipeeToolkitLayer, Updates } from '../src/index.ts';
 
 const CHLOE = '1000000000000000104';
 const WEEK = '2026-09-07/2026-09-13';
@@ -20,6 +20,7 @@ const clientFor = (apiKey: string) =>
   TipeeToolkitLayer.pipe(
     Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(apiKey), instance: 'acme' })),
     Layer.provide(Telemetry.layerOff),
+    Layer.provide(Updates.layerNone),
     Layer.provide(FetchHttpClient.layer),
   );
 
@@ -55,6 +56,7 @@ const recording = Layer.succeed(Telemetry, {
 const recordingClient = TipeeToolkitLayer.pipe(
   Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
   Layer.provide(recording),
+  Layer.provide(Updates.layerNone),
   Layer.provide(FetchHttpClient.layer),
 );
 
