@@ -3,8 +3,14 @@
 // Mismatches without aborting. Each call is timed and its outcome recorded
 // By the telemetry, which never sees the parameters or the answer.
 
-import { TipeeClient, integrationLink, invoke, operation, operations } from '@tipee-tools/core';
-import type { TipeeError } from '@tipee-tools/core';
+import {
+  TipeeClient,
+  TipeeError,
+  integrationLink,
+  invoke,
+  operation,
+  operations,
+} from '@tipee-tools/core';
 import { Cause, DateTime, Duration, Effect, Exit, Option, Result } from 'effect';
 import { McpSchema } from 'effect/unstable/ai';
 
@@ -13,6 +19,7 @@ import type { Properties, Sink } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
 import type { EndpointReport } from './Tools.ts';
 import { Updates } from './Updates.ts';
+import type { Installed, UpdateFailed } from './Updates.ts';
 
 const DAYS_PER_WEEK = 7;
 const PAGE_SIZE = 100;
@@ -119,8 +126,32 @@ const check = Effect.fn('check')(function* ({ from, to }: { from?: string; to?: 
   };
 });
 
+// What the user hears after an update attempt.
+const said = (outcome: Installed): string => {
+  if (outcome.status === 'opened') {
+    return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
+  }
+  if (outcome.status === 'downloaded') {
+    return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
+  }
+  if (outcome.status === 'instructions') {
+    return `Version ${outcome.version} is available. In Claude Code, run /plugin marketplace update tipee-tools, then /plugin update tipee. Release notes: ${outcome.url}`;
+  }
+  return 'This plugin is already the latest version.';
+};
+
+const update = Effect.map(
+  Effect.flatMap(Updates, (updates) => updates.install),
+  (outcome) => ({ message: said(outcome), outcome }),
+);
+
 type Handlers = Parameters<typeof TipeeToolkit.of>[0];
-type Handler = (params: unknown) => Effect.Effect<unknown, TipeeError>;
+type Failure = TipeeError | UpdateFailed;
+type Handler = (params: unknown) => Effect.Effect<unknown, Failure>;
+
+// The tag telemetry files a failure under.
+const reasonOf = (failure: Failure): string =>
+  failure instanceof TipeeError ? failure.reason._tag : failure._tag;
 
 // Failures that mean a bug here or a change at Tipee, not a user's mistake.
 const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest']);
@@ -155,13 +186,9 @@ const observed = (telemetry: Sink, tool: string, run: Handler): Handler =>
     }
     const failure = Cause.findError(exit.cause);
     if (Result.isSuccess(failure)) {
-      const { reason } = failure.success;
-      yield* telemetry.capture('tool_called', {
-        ...common,
-        outcome: 'failed',
-        reason: reason._tag,
-      });
-      if (REPORTED.has(reason._tag)) {
+      const reason = reasonOf(failure.success);
+      yield* telemetry.capture('tool_called', { ...common, outcome: 'failed', reason });
+      if (REPORTED.has(reason)) {
         yield* telemetry.exception(failure.success, { handled: true, properties: { tool } });
       }
     } else {
@@ -192,6 +219,7 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
       check: observed(telemetry, 'check', (params) =>
         withClient(check(params as { from?: string; to?: string })),
       ),
+      update: observed(telemetry, 'update', () => withClient(update)),
     };
     for (const target of operations) {
       handlers[target.name] = observed(telemetry, target.name, (params) =>

@@ -115,7 +115,7 @@ describe('toolkit', () => {
   it('has one tool per operation of the API document, plus check', () => {
     const tools = Object.values(TipeeToolkit.tools);
 
-    expect(tools).toHaveLength(operations.length + 1);
+    expect(tools).toHaveLength(operations.length + 2);
     expect(tools.map((tool) => tool.name)).toContain('schedules_create');
     expect(tools.map((tool) => tool.name)).toContain('day_tasks_submit_for_contributor');
     expect(tools.map((tool) => tool.name)).toContain('check');

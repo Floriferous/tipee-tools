@@ -34,8 +34,10 @@ each error message to the fix.
   means the setup is complete; a `skipped` endpoint is a module this
   instance does not have. The report names the integration the key belongs
   to and links its Roles tab. When it reports an `update`, tell the user the
-  version and the link once. Which rights an integration needs for which
-  tools, and every right Tipee offers, is in [roles.md](roles.md).
+  version once and ask whether to install it; on a yes, call `update` and
+  relay its message (Claude Desktop asks the user to confirm in its own
+  dialog). Which rights an integration needs for which tools, and every
+  right Tipee offers, is in [roles.md](roles.md).
 - **Withheld values**: `{"redacted": "forbidden"}` or `"confidential"` in
   place of a value means Tipee withheld it from this integration. Report it
   as withheld.

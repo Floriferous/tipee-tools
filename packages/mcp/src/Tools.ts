@@ -8,6 +8,8 @@ import type { Operation } from '@tipee-tools/core';
 import { Schema } from 'effect';
 import { Tool, Toolkit } from 'effect/unstable/ai';
 
+import { Installed, UpdateFailed } from './Updates.ts';
+
 /** What a tool returns when Tipee answers with no content (201/204). */
 export const Done = Schema.Struct({ done: Schema.Literal(true) });
 
@@ -67,6 +69,30 @@ export const Check = Tool.make('check', {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true);
 
+export const InstallUpdate = Tool.make('update', {
+  description:
+    'Installs the newer version of this plugin that check reported. In Claude Desktop it ' +
+    'downloads the release, verifies it and opens it, and Claude Desktop then asks the user to ' +
+    'confirm; the instance and key are kept. In Claude Code it answers with the commands to ' +
+    'run. Call it only after the user agreed to update.',
+  failure: UpdateFailed,
+  // An empty struct would not render as an object schema, which MCP requires.
+  parameters: Schema.Struct({
+    version: Schema.optionalKey(
+      Schema.String.annotate({
+        description: 'The version check reported, for the record; the latest release is installed.',
+      }),
+    ),
+  }),
+  success: Schema.Struct({
+    message: Schema.String,
+    outcome: Installed,
+  }),
+})
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
 const toolFor = (operation: Operation) =>
   Tool.dynamic(operation.name, {
     description: operation.description,
@@ -80,5 +106,6 @@ const toolFor = (operation: Operation) =>
 
 export const TipeeToolkit = Toolkit.make(
   Check,
+  InstallUpdate,
   ...operations.map((operation) => toolFor(operation)),
 );

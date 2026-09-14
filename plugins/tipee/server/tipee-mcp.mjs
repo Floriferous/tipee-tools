@@ -1,11 +1,12 @@
+import { spawn } from "node:child_process";
 import * as Crypto from "node:crypto";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import * as NFS from "node:fs";
 import * as OS from "node:os";
 import { homedir } from "node:os";
 import * as Path from "node:path";
 import path from "node:path";
-import { arch, platform, version } from "node:process";
+import { arch, argv, platform, version } from "node:process";
 //#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Pipeable.js
 /**
 * The `Pipeable` module defines the shared interface and implementation helpers
@@ -31466,6 +31467,17 @@ const schemaJson = (schema, options) => {
 		body
 	}));
 };
+/**
+* Succeeds with the response only when its status is in the 2xx range, otherwise fails with `HttpClientError`.
+*
+* @category filtering
+* @since 4.0.0
+*/
+const filterStatusOk$1 = (self) => self.status >= 200 && self.status < 300 ? succeed$3(self) : fail$3(new HttpClientError({ reason: new StatusCodeError({
+	response: self,
+	request: self.request,
+	description: "non 2xx status code"
+}) }));
 var WebHttpClientResponse = class extends Class$2 {
 	[TypeId$17];
 	[TypeId$16];
@@ -31624,6 +31636,13 @@ const HttpClient = /*#__PURE__*/ Service$1("effect/HttpClient");
 * @since 4.0.0
 */
 const transformResponse$1 = /*#__PURE__*/ dual(2, (self, f) => makeWith$1((request) => f(self.postprocess(request)), self.preprocess));
+/**
+* Filters responses that return a 2xx status code.
+*
+* @category filtering
+* @since 4.0.0
+*/
+const filterStatusOk = /*#__PURE__*/ transformResponse$1(/*#__PURE__*/ flatMap(filterStatusOk$1));
 /**
 * Constructs an `HttpClient.With` from a preprocessing function and a postprocessing function.
 *
@@ -41084,14 +41103,14 @@ const successSchema = (successes) => {
 		if (body !== void 0) return body;
 	}
 };
-const describe$1 = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
+const describe$2 = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
 const collect = () => {
 	const found = [];
 	reflect(Tipee, {
 		onEndpoint: ({ endpoint, group, mergedAnnotations, successes }) => {
 			const verb = verbOf(endpoint.path);
 			found.push({
-				description: describe$1(mergedAnnotations, endpoint.path),
+				description: describe$2(mergedAnnotations, endpoint.path),
 				destructive: verb.startsWith("delete"),
 				endpoint: endpoint.identifier,
 				group: group.identifier,
@@ -48628,7 +48647,7 @@ const framesOf = (stack) => (stack ?? "").split("\n").flatMap((line) => {
 		platform: "node:javascript"
 	}];
 }).slice(0, FRAME_LIMIT);
-const describe = (error) => {
+const describe$1 = (error) => {
 	if (error instanceof TipeeError) return {
 		frames: [],
 		type: `Tipee${error.reason._tag}`,
@@ -48692,7 +48711,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		return {
 			capture: enqueue,
 			exception: (error, { handled, properties: own }) => {
-				const { frames, type, value } = describe(error);
+				const { frames, type, value } = describe$1(error);
 				return enqueue("$exception", {
 					...own,
 					$exception_level: "error",
@@ -48711,6 +48730,169 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 				});
 			},
 			flush: drain
+		};
+	}));
+};
+//#endregion
+//#region ../../packages/mcp/src/Updates.ts
+const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
+const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
+/** A release newer than the one running. */
+var Update = class extends Class("Update")({
+	/** Where to get it. */
+	url: String$2,
+	version: String$2
+}) {};
+/** The update could not be installed; the detail says why. */
+var UpdateFailed = class extends TaggedError()("UpdateFailed", { detail: String$2 }) {
+	get message() {
+		return `The update could not be installed: ${this.detail}`;
+	}
+};
+/** What installing did: the tool's answer builds its message from this. */
+const Installed = Union([
+	Struct({ status: Literal("up_to_date") }),
+	Struct({
+		path: String$2,
+		status: Literal("opened"),
+		version: String$2
+	}),
+	Struct({
+		path: String$2,
+		status: Literal("downloaded"),
+		version: String$2
+	}),
+	Struct({
+		status: Literal("instructions"),
+		url: String$2,
+		version: String$2
+	})
+]);
+const Release = Struct({ body: Struct({
+	html_url: String$2,
+	tag_name: String$2
+}) });
+const CachedJson = fromJsonString(Struct({
+	checked_at: String$2,
+	url: String$2,
+	version: String$2
+}));
+/** The cached answer is older than a day. */
+var Stale = class extends TaggedError()("Stale", {}) {};
+const CACHE_FILE = "latest-release.json";
+const CACHE_TTL_MS = 864e5;
+const FETCH_TIMEOUT = "3 seconds";
+const DOWNLOAD_TIMEOUT = "60 seconds";
+const BUNDLE_LIMIT = 52428800;
+const CHECKSUMS = "SHA256SUMS";
+const detectedChannel = (argv[1] ?? "").includes("Claude Extensions") ? "desktop" : "plugin";
+const settings = all({
+	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(detectedChannel)),
+	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
+	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
+	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL)),
+	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
+});
+const PART = /^\d+$/u;
+const isNewer = (candidate, current) => {
+	const parse = (version) => {
+		const parts = version.replace(/^v/u, "").split(".");
+		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
+	};
+	const left = parse(candidate);
+	const right = parse(current);
+	if (left === void 0 || right === void 0) return false;
+	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+		const difference = (left[index] ?? 0) - (right[index] ?? 0);
+		if (difference !== 0) return difference > 0;
+	}
+	return false;
+};
+const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
+const failed = (detail) => new UpdateFailed({ detail });
+const describe = (error) => error instanceof Error ? error.message : String(error);
+var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
+	static layerNone = succeed$4(Updates, {
+		available: succeedNone,
+		install: succeed$3({ status: "up_to_date" })
+	});
+	static layer = (current) => effect(Updates, gen(function* () {
+		const fs = yield* FileSystem;
+		const http = (yield* HttpClient).pipe(filterStatusOk);
+		const config = yield* option(settings);
+		if (isNone(config)) return {
+			available: succeedNone,
+			install: succeed$3({ status: "up_to_date" })
+		};
+		const { channel, downloadBase, opener, releasesUrl, stateDir } = config.value;
+		const file = path.join(stateDir, CACHE_FILE);
+		const cached = fs.readFileString(file).pipe(flatMap(decodeEffect(CachedJson)), filterOrFail((entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS, () => new Stale()), map$3((entry) => ({
+			url: entry.url,
+			version: entry.version
+		})));
+		const fetched = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$3(({ body }) => ({
+			url: body.html_url,
+			version: body.tag_name.replace(/^v/u, "")
+		})), tap((latest) => option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, JSON.stringify({
+			checked_at: (/* @__PURE__ */ new Date()).toISOString(),
+			...latest
+		}))))));
+		const available = gen(function* () {
+			const known = yield* option(cached);
+			const latest = isSome(known) ? known.value : yield* fetched;
+			return isNewer(latest.version, current) ? some(new Update({
+				url: latest.url,
+				version: latest.version
+			})) : none();
+		}).pipe(orElseSucceed(() => none()));
+		const download = (version) => gen(function* () {
+			const asset = `tipee-${version}.mcpb`;
+			const base = `${downloadBase}/v${version}`;
+			const sums = yield* http.get(`${base}/${CHECKSUMS}`).pipe(flatMap((response) => response.text));
+			const expected = checksumOf(sums, asset);
+			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
+			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
+			if (bytes.byteLength > BUNDLE_LIMIT) return yield* failed(`${asset} is larger than expected`);
+			const content = new Uint8Array(bytes);
+			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
+			const target = path.join(stateDir, "updates", asset);
+			yield* fs.makeDirectory(path.dirname(target), { recursive: true });
+			yield* fs.writeFile(target, content);
+			return target;
+		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe(cause))));
+		const open = (target) => try_({
+			catch: (cause) => failed(`could not open ${target}: ${describe(cause)}`),
+			try: () => {
+				spawn(opener, [target], {
+					detached: true,
+					stdio: "ignore"
+				}).unref();
+			}
+		});
+		return {
+			available,
+			install: gen(function* () {
+				const latest = yield* available;
+				if (isNone(latest)) return { status: "up_to_date" };
+				const { url, version } = latest.value;
+				if (channel !== "desktop") return {
+					status: "instructions",
+					url,
+					version
+				};
+				const target = yield* download(version);
+				if (opener === "") return {
+					path: target,
+					status: "downloaded",
+					version
+				};
+				yield* open(target);
+				return {
+					path: target,
+					status: "opened",
+					version
+				};
+			})
 		};
 	}));
 };
@@ -48753,85 +48935,22 @@ const Check = make$4("check", {
 		update: optionalKey(UpdateReport.annotate({ description: "A newer version of this plugin, when one exists, and where to download it." }))
 	})
 }).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
+const InstallUpdate = make$4("update", {
+	description: "Installs the newer version of this plugin that check reported. In Claude Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks the user to confirm; the instance and key are kept. In Claude Code it answers with the commands to run. Call it only after the user agreed to update.",
+	failure: UpdateFailed,
+	parameters: Struct({ version: optionalKey(String$2.annotate({ description: "The version check reported, for the record; the latest release is installed." })) }),
+	success: Struct({
+		message: String$2,
+		outcome: Installed
+	})
+}).annotate(Readonly, false).annotate(Destructive, false).annotate(Idempotent, true);
 const toolFor = (operation) => dynamic(operation.name, {
 	description: operation.description,
 	failure: TipeeError,
 	parameters: operation.parameters,
 	success: operation.success ?? Done
 }).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
-const TipeeToolkit = make$3(Check, ...operations.map((operation) => toolFor(operation)));
-//#endregion
-//#region ../../packages/mcp/src/Updates.ts
-const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
-/** A release newer than the one running. */
-var Update = class extends Class("Update")({
-	/** Where to get it. */
-	url: String$2,
-	version: String$2
-}) {};
-const Release = Struct({ body: Struct({
-	html_url: String$2,
-	tag_name: String$2
-}) });
-const CachedJson = fromJsonString(Struct({
-	checked_at: String$2,
-	url: String$2,
-	version: String$2
-}));
-/** The cached answer is older than a day. */
-var Stale = class extends TaggedError()("Stale", {}) {};
-const CACHE_FILE = "latest-release.json";
-const CACHE_TTL_MS = 864e5;
-const FETCH_TIMEOUT = "3 seconds";
-const settings = all({
-	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL)),
-	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
-});
-const PART = /^\d+$/u;
-const isNewer = (candidate, current) => {
-	const parse = (version) => {
-		const parts = version.replace(/^v/u, "").split(".");
-		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
-	};
-	const left = parse(candidate);
-	const right = parse(current);
-	if (left === void 0 || right === void 0) return false;
-	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
-		const difference = (left[index] ?? 0) - (right[index] ?? 0);
-		if (difference !== 0) return difference > 0;
-	}
-	return false;
-};
-var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
-	static layerNone = succeed$4(Updates, { available: succeedNone });
-	static layer = (current) => effect(Updates, gen(function* () {
-		const fs = yield* FileSystem;
-		const http = yield* HttpClient;
-		const config = yield* option(settings);
-		if (isNone(config)) return { available: succeedNone };
-		const { releasesUrl, stateDir } = config.value;
-		const file = path.join(stateDir, CACHE_FILE);
-		const cached = fs.readFileString(file).pipe(flatMap(decodeEffect(CachedJson)), filterOrFail((entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS, () => new Stale()), map$3((entry) => ({
-			url: entry.url,
-			version: entry.version
-		})));
-		const fetched = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$3(({ body }) => ({
-			url: body.html_url,
-			version: body.tag_name.replace(/^v/u, "")
-		})), tap((latest) => option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, JSON.stringify({
-			checked_at: (/* @__PURE__ */ new Date()).toISOString(),
-			...latest
-		}))))));
-		return { available: gen(function* () {
-			const known = yield* option(cached);
-			const latest = isSome(known) ? known.value : yield* fetched;
-			return isNewer(latest.version, current) ? some(new Update({
-				url: latest.url,
-				version: latest.version
-			})) : none();
-		}).pipe(orElseSucceed(() => none())) };
-	}));
-};
+const TipeeToolkit = make$3(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)));
 //#endregion
 //#region ../../packages/mcp/src/Handlers.ts
 const PAGE_SIZE = 100;
@@ -48916,6 +49035,17 @@ const check = fn("check")(function* ({ from, to }) {
 		...isSome(update) ? { update: update.value } : {}
 	};
 });
+const said = (outcome) => {
+	if (outcome.status === "opened") return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
+	if (outcome.status === "downloaded") return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
+	if (outcome.status === "instructions") return `Version ${outcome.version} is available. In Claude Code, run /plugin marketplace update tipee-tools, then /plugin update tipee. Release notes: ${outcome.url}`;
+	return "This plugin is already the latest version.";
+};
+const update = map$3(flatMap(Updates, (updates) => updates.install), (outcome) => ({
+	message: said(outcome),
+	outcome
+}));
+const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
 const REPORTED = /* @__PURE__ */ new Set([
 	"UnexpectedShape",
 	"UnexpectedStatus",
@@ -48945,13 +49075,13 @@ const observed = (telemetry, tool, run) => fn("observed")(function* (params) {
 	}
 	const failure = findError(exit$2.cause);
 	if (isSuccess$1(failure)) {
-		const { reason } = failure.success;
+		const reason = reasonOf(failure.success);
 		yield* telemetry.capture("tool_called", {
 			...common,
 			outcome: "failed",
-			reason: reason._tag
+			reason
 		});
-		if (REPORTED.has(reason._tag)) yield* telemetry.exception(failure.success, {
+		if (REPORTED.has(reason)) yield* telemetry.exception(failure.success, {
 			handled: true,
 			properties: { tool }
 		});
@@ -48972,7 +49102,10 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 	const telemetry = yield* Telemetry;
 	const updates = yield* Updates;
 	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry), provideService(Updates, updates));
-	const handlers = { check: observed(telemetry, "check", (params) => withClient(check(params))) };
+	const handlers = {
+		check: observed(telemetry, "check", (params) => withClient(check(params))),
+		update: observed(telemetry, "update", () => withClient(update))
+	};
 	for (const target of operations) handlers[target.name] = observed(telemetry, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
 }));
@@ -48981,7 +49114,7 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 const SETUP_PROMPT = {
 	description: "Check that the Tipee connection works and explain any missing authorization.",
 	name: "check-tipee-setup",
-	text: "Run the check tool with no arguments. Then explain the result for someone who is not technical. If every endpoint is ok, say the setup is complete and give three examples of questions I can ask about my plannings. If the tool fails or an endpoint reports an error, quote the message, say exactly which authorization to grant in the Tipee admin panel (Configurations générales → \"Se connecter avec des applications externes\", then access to the modules concerned, such as Planning → \"Accéder au module Planning\" and \"Voir les plannings\", or Cœur RH → \"Accéder au module Cœur RH\" and \"Voir les collaborateurs\"), and tell me to run this check again afterwards. If the message says the key was rejected, tell me to re-enter the instance and the key in the extension settings. If the result mentions an update, tell me the new version and the link in one sentence."
+	text: "Run the check tool with no arguments. Then explain the result for someone who is not technical. If every endpoint is ok, say the setup is complete and give three examples of questions I can ask about my plannings. If the tool fails or an endpoint reports an error, quote the message, say exactly which authorization to grant in the Tipee admin panel (Configurations générales → \"Se connecter avec des applications externes\", then access to the modules concerned, such as Planning → \"Accéder au module Planning\" and \"Voir les plannings\", or Cœur RH → \"Accéder au module Cœur RH\" and \"Voir les collaborateurs\"), and tell me to run this check again afterwards. If the message says the key was rejected, tell me to re-enter the instance and the key in the extension settings. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call the update tool and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there."
 };
 const SetupPrompt = prompt({
 	content: () => succeed$3(SETUP_PROMPT.text),
@@ -48991,7 +49124,7 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.3";
+const SERVER_VERSION = "0.3.4";
 const Started = effectDiscard(flatMap(Telemetry, (telemetry) => telemetry.capture("server_started")));
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",

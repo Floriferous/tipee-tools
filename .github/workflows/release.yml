@@ -2,7 +2,7 @@ name: Release
 
 # Pushing a tag such as v0.2.1 builds the extension and publishes it on a
 # GitHub Release under two names: the versioned file, and tipee.mcpb, which
-# The README's "latest" link resolves to.
+# The README's "latest" link resolves to, plus their SHA256SUMS.
 on:
   push:
     tags:
@@ -45,6 +45,8 @@ jobs:
           set -euo pipefail
           file=$(ls plugins/tipee/dist/*.mcpb)
           cp "$file" plugins/tipee/dist/tipee.mcpb
-          gh release create "$GITHUB_REF_NAME" "$file" plugins/tipee/dist/tipee.mcpb \
+          # The plugin's update tool verifies the bundle against these.
+          (cd plugins/tipee/dist && sha256sum tipee-*.mcpb tipee.mcpb > SHA256SUMS)
+          gh release create "$GITHUB_REF_NAME" "$file" plugins/tipee/dist/tipee.mcpb plugins/tipee/dist/SHA256SUMS \
             --title "Tipee for Claude ${GITHUB_REF_NAME#v}" \
             --generate-notes
