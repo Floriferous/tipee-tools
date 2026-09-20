@@ -16,18 +16,11 @@ import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.3.4';
+export const SERVER_VERSION = '0.3.5';
 
-// One event per start, so versions in use can be told apart.
-const Started = Layer.effectDiscard(
-  Effect.flatMap(Telemetry, (telemetry) => telemetry.capture('server_started')),
-);
-
-export const ServerLayer = Layer.mergeAll(
-  McpServer.toolkit(TipeeToolkit),
-  SetupPrompt,
-  Started,
-).pipe(
+// Nothing is recorded on a start: Claude launches the server many times over
+// On its own. The first tool call of a launch reports the session instead.
+export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), SetupPrompt).pipe(
   Layer.provide(TipeeToolkitLayer),
   Layer.provide(
     McpServer.layerStdio({

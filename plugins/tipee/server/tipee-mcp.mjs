@@ -3,7 +3,7 @@ import * as Crypto from "node:crypto";
 import { createHash, randomUUID } from "node:crypto";
 import * as NFS from "node:fs";
 import * as OS from "node:os";
-import { homedir } from "node:os";
+import { homedir, hostname, userInfo } from "node:os";
 import * as Path from "node:path";
 import path from "node:path";
 import { arch, argv, platform, version } from "node:process";
@@ -48591,6 +48591,29 @@ const protocolForInternalTag = (registry, tag) => {
 };
 const getProtocolForClient = (clientProtocols, clientId, registry) => clientProtocols.get(clientId) ?? registry.protocols[0];
 //#endregion
+//#region ../../packages/mcp/src/Install.ts
+const UUID_PARTS = [
+	8,
+	4,
+	4,
+	4,
+	12
+];
+const channelOf = (entry) => {
+	if (entry.includes("Claude Extensions")) return "desktop";
+	return entry.includes("/plugins/") ? "plugin" : "dev";
+};
+const channel = channelOf(argv[1] ?? "");
+const shaped = (hex) => {
+	let at = 0;
+	return UUID_PARTS.map((length) => {
+		const part = hex.slice(at, at + length);
+		at += length;
+		return part;
+	}).join("-");
+};
+const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${userInfo().username}`).digest("hex"));
+//#endregion
 //#region ../../packages/mcp/src/Telemetry.ts
 /** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
 const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
@@ -48599,28 +48622,17 @@ const INTERVAL = "2 seconds";
 const SEND_TIMEOUT = "5 seconds";
 const DRAIN_TIMEOUT = "2 seconds";
 const SEND_RETRIES = 2;
-const ID_FILE = "telemetry-id";
 const FRAME_LIMIT = 30;
 const settings$1 = all({
 	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
 	instance: String$1("TIPEE_INSTANCE").pipe(withDefault("")),
-	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY)),
-	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
+	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY))
 });
 const silent = {
 	capture: () => void_$1,
 	exception: () => void_$1,
 	flush: void_$1
 };
-const installationId = (fs, stateDir) => gen(function* () {
-	const file = path.join(stateDir, ID_FILE);
-	const kept = yield* option(fs.readFileString(file));
-	const found = filter(map$8(kept, (text) => text.trim()), (text) => text !== "");
-	if (isSome(found)) return found.value;
-	const id = randomUUID();
-	yield* option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, `${id}\n`)));
-	return id;
-});
 const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
 const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
 const scrubbed = (file) => {
@@ -48670,12 +48682,11 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		const read = yield* option(settings$1);
 		if (isNone(read) || read.value.key === "") return silent;
 		const config = read.value;
-		const fs = yield* FileSystem;
 		const http = (yield* HttpClient).pipe(retryTransient({
 			schedule: exponential("500 millis"),
 			times: SEND_RETRIES
 		}));
-		const distinctId = yield* installationId(fs, config.stateDir);
+		const distinctId = installationId();
 		const launchId = randomUUID();
 		const queue = yield* unbounded();
 		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
@@ -48690,6 +48701,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
 		const profile = {
 			arch,
+			channel,
 			instance: config.instance,
 			node_version: version,
 			os: platform,
@@ -48785,9 +48797,8 @@ const FETCH_TIMEOUT = "3 seconds";
 const DOWNLOAD_TIMEOUT = "60 seconds";
 const BUNDLE_LIMIT = 52428800;
 const CHECKSUMS = "SHA256SUMS";
-const detectedChannel = (argv[1] ?? "").includes("Claude Extensions") ? "desktop" : "plugin";
 const settings = all({
-	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(detectedChannel)),
+	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(channel)),
 	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
 	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
 	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL)),
@@ -49059,10 +49070,12 @@ const caller = map$3(serviceOption(McpServerClient), (client) => match$3(client,
 		mcp_protocol: protocolVersion
 	})
 }));
-const observed = (telemetry, tool, run) => fn("observed")(function* (params) {
+const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function* (params) {
+	const who = yield* caller;
+	yield* announce(who);
 	const [duration, exit$2] = yield* timed(exit(run(params)));
 	const common = {
-		...yield* caller,
+		...who,
 		duration_ms: Math.round(toMillis(duration)),
 		tool
 	};
@@ -49101,12 +49114,22 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 	const client = yield* TipeeClient;
 	const telemetry = yield* Telemetry;
 	const updates = yield* Updates;
+	let announced = false;
+	const announce = (who) => suspend$2(() => {
+		if (announced) return void_$1;
+		announced = true;
+		return telemetry.capture("session_started", who);
+	});
+	const watcher = {
+		announce,
+		telemetry
+	};
 	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry), provideService(Updates, updates));
 	const handlers = {
-		check: observed(telemetry, "check", (params) => withClient(check(params))),
-		update: observed(telemetry, "update", () => withClient(update))
+		check: observed(watcher, "check", (params) => withClient(check(params))),
+		update: observed(watcher, "update", () => withClient(update))
 	};
-	for (const target of operations) handlers[target.name] = observed(telemetry, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
+	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
 }));
 //#endregion
@@ -49124,9 +49147,8 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.4";
-const Started = effectDiscard(flatMap(Telemetry, (telemetry) => telemetry.capture("server_started")));
-const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt, Started).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
+const SERVER_VERSION = "0.3.5";
+const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	name: SERVER_NAME,
 	protocols: [

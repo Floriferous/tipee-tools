@@ -73,19 +73,20 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       yield* Effect.flip(call('schedules_list', { date_range: WEEK }));
 
       expect(recorded.map((entry) => entry.event)).toEqual([
+        'session_started',
         'tool_called',
         'tool_called',
         '$exception',
       ]);
-      expect(recorded[0]?.properties).toMatchObject({ outcome: 'ok', tool: 'teams_list' });
-      expect(recorded[0]?.properties.duration_ms).toBeTypeOf('number');
-      expect(recorded[1]?.properties).toMatchObject({
+      expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'teams_list' });
+      expect(recorded[1]?.properties.duration_ms).toBeTypeOf('number');
+      expect(recorded[2]?.properties).toMatchObject({
         outcome: 'failed',
         reason: 'UnexpectedShape',
         tool: 'schedules_list',
       });
-      expect(recorded[2]?.properties).toMatchObject({ handled: true, tool: 'schedules_list' });
-      expect(recorded[2]?.properties.message).toMatch(/does not match/u);
+      expect(recorded[3]?.properties).toMatchObject({ handled: true, tool: 'schedules_list' });
+      expect(recorded[3]?.properties.message).toMatch(/does not match/u);
       expect(JSON.stringify(recorded)).not.toContain(WEEK);
       expect(JSON.stringify(recorded)).not.toContain('Opérations');
     }),
@@ -104,6 +105,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       const report = (yield* call('check', {})) as { ok: boolean };
 
       expect(report.ok).toBe(false);
+      // No second session_started: the test above already opened this one.
       expect(recorded.map((entry) => entry.event)).toEqual(['$exception', 'tool_called']);
       expect(recorded[0]?.properties).toMatchObject({ handled: true, tool: 'check' });
       expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check' });

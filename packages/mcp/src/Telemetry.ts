@@ -1,21 +1,23 @@
 // Usage data that helps improve the plugin: which tools run, how long they
 // Take, how they fail, and the errors worth a look (Tipee drifting from its
 // Document, crashes), as PostHog product analytics and error tracking.
-// Each installation is one PostHog person, identified by a random id kept in
-// The user's home directory, and belongs to the group of its Tipee instance,
-// So companies can be told apart. Nothing about the people in Tipee, and
+// Each installation is one PostHog person, identified by a hash of the
+// Machine and account, and belongs to the group of its Tipee instance, so
+// Companies and people can be told apart. Nothing about the people in Tipee, and
 // Never the key, leaves the machine; stack frames are cut down to the bundle.
 // Events are batched to PostHog in the background and never delay a tool;
 // Every failure of the telemetry itself is swallowed.
 
 import { randomUUID } from 'node:crypto';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { arch, platform, version as nodeVersion } from 'node:process';
 
 import { TipeeError } from '@tipee-tools/core';
-import { Config, Context, Effect, FileSystem, Layer, Option, Queue, Schedule } from 'effect';
+import type { FileSystem } from 'effect';
+import { Config, Context, Effect, Layer, Option, Queue, Schedule } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
+
+import { channel, installationId } from './Install.ts';
 
 /** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
 export const POSTHOG_KEY = 'phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y';
@@ -67,7 +69,6 @@ const INTERVAL = '2 seconds';
 const SEND_TIMEOUT = '5 seconds';
 const DRAIN_TIMEOUT = '2 seconds';
 const SEND_RETRIES = 2;
-const ID_FILE = 'telemetry-id';
 const FRAME_LIMIT = 30;
 
 // Overridable so tests and forks can point elsewhere. The instance is the
@@ -76,9 +77,6 @@ const settings = Config.all({
   host: Config.String('TIPEE_POSTHOG_HOST').pipe(Config.withDefault(POSTHOG_HOST)),
   instance: Config.String('TIPEE_INSTANCE').pipe(Config.withDefault('')),
   key: Config.String('TIPEE_POSTHOG_KEY').pipe(Config.withDefault(POSTHOG_KEY)),
-  stateDir: Config.String('TIPEE_STATE_DIR').pipe(
-    Config.withDefault(path.join(homedir(), '.tipee-tools')),
-  ),
 });
 
 const silent: Sink = {
@@ -86,28 +84,6 @@ const silent: Sink = {
   exception: () => Effect.void,
   flush: Effect.void,
 };
-
-// A random id per installation, so usage can be counted without knowing who
-// Uses it. A machine that cannot keep the file gets a fresh id every start.
-const installationId = (fs: FileSystem.FileSystem, stateDir: string): Effect.Effect<string> =>
-  Effect.gen(function* () {
-    const file = path.join(stateDir, ID_FILE);
-    const kept = yield* Effect.option(fs.readFileString(file));
-    const found = Option.filter(
-      Option.map(kept, (text) => text.trim()),
-      (text) => text !== '',
-    );
-    if (Option.isSome(found)) {
-      return found.value;
-    }
-    const id = randomUUID();
-    yield* Effect.option(
-      Effect.flatMap(fs.makeDirectory(stateDir, { recursive: true }), () =>
-        fs.writeFileString(file, `${id}\n`),
-      ),
-    );
-    return id;
-  });
 
 // "    at fn (file:line:col)" or "    at file:line:col"; the file is cut down
 // To what is ours (the bundle or a source file), so no user path travels.
@@ -176,14 +152,13 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
           return silent;
         }
         const config = read.value;
-        const fs = yield* FileSystem.FileSystem;
         const http = (yield* HttpClient.HttpClient).pipe(
           HttpClient.retryTransient({
             schedule: Schedule.exponential('500 millis'),
             times: SEND_RETRIES,
           }),
         );
-        const distinctId = yield* installationId(fs, config.stateDir);
+        const distinctId = installationId();
         const launchId = randomUUID();
         const queue = yield* Queue.unbounded<Event>();
 
@@ -208,6 +183,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
         // What describes an installation, kept on its person profile too.
         const profile: Properties = {
           arch,
+          channel,
           instance: config.instance,
           node_version: nodeVersion,
           os: platform,

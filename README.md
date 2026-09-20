@@ -87,8 +87,9 @@ your permission on each tool the first time it is used.
 The plugin collects usage data to help improve it: which tools were called,
 how long they took, the errors they hit, and the name of your Tipee instance
 so companies can be told apart. It never sends your key, anything Tipee
-answered, or anything about the people in Tipee; installations are counted
-by a random id.
+answered, or anything about the people in Tipee. Installations are counted
+by a one-way hash of your computer and account names, which are themselves
+never sent.
 
 ## Development
 

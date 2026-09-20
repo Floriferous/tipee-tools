@@ -170,13 +170,23 @@ const caller: Effect.Effect<Properties> = Effect.map(
     }),
 );
 
+/** Reports the session on its first tool call, and nothing on later ones. */
+type Announce = (who: Properties) => Effect.Effect<void>;
+
+interface Watcher {
+  readonly telemetry: Sink;
+  readonly announce: Announce;
+}
+
 // Runs a handler and records one `tool_called` event: name, duration and
 // Outcome, plus the failure's reason tag. Parameters and answers stay out.
-const observed = (telemetry: Sink, tool: string, run: Handler): Handler =>
+const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler): Handler =>
   Effect.fn('observed')(function* (params: unknown) {
+    const who = yield* caller;
+    yield* announce(who);
     const [duration, exit] = yield* Effect.timed(Effect.exit(run(params)));
     const common = {
-      ...(yield* caller),
+      ...who,
       duration_ms: Math.round(Duration.toMillis(duration)),
       tool,
     };
@@ -206,6 +216,18 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
     const client = yield* TipeeClient;
     const telemetry = yield* Telemetry;
     const updates = yield* Updates;
+    // Claude starts the server repeatedly and uses only some of those
+    // Launches, so a session begins at the first tool call, not at startup.
+    let announced = false;
+    const announce: Announce = (who) =>
+      Effect.suspend(() => {
+        if (announced) {
+          return Effect.void;
+        }
+        announced = true;
+        return telemetry.capture('session_started', who);
+      });
+    const watcher: Watcher = { announce, telemetry };
     const withClient = <A, E>(
       effect: Effect.Effect<A, E, TipeeClient | Telemetry | Updates>,
     ): Effect.Effect<A, E> =>
@@ -216,13 +238,13 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
       );
 
     const handlers: Record<string, Handler> = {
-      check: observed(telemetry, 'check', (params) =>
+      check: observed(watcher, 'check', (params) =>
         withClient(check(params as { from?: string; to?: string })),
       ),
-      update: observed(telemetry, 'update', () => withClient(update)),
+      update: observed(watcher, 'update', () => withClient(update)),
     };
     for (const target of operations) {
-      handlers[target.name] = observed(telemetry, target.name, (params) =>
+      handlers[target.name] = observed(watcher, target.name, (params) =>
         withClient(invoke(target, params)).pipe(Effect.map((result) => result ?? { done: true })),
       );
     }

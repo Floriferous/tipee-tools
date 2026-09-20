@@ -11,10 +11,12 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { argv, platform } from 'node:process';
+import { platform } from 'node:process';
 
 import { Config, Context, Effect, FileSystem, Layer, Option, Schema } from 'effect';
 import { HttpClient, HttpClientResponse } from 'effect/unstable/http';
+
+import { channel as detectedChannel } from './Install.ts';
 
 export const RELEASES_URL = 'https://api.github.com/repos/Floriferous/tipee-tools/releases/latest';
 export const DOWNLOAD_BASE = 'https://github.com/Floriferous/tipee-tools/releases/download';
@@ -78,10 +80,6 @@ const FETCH_TIMEOUT = '3 seconds';
 const DOWNLOAD_TIMEOUT = '60 seconds';
 const BUNDLE_LIMIT = 50 * 1024 * 1024;
 const CHECKSUMS = 'SHA256SUMS';
-
-// A Claude Desktop extension runs from Claude's extensions folder; anything
-// Else is the Claude Code plugin, which has no file to open.
-const detectedChannel = (argv[1] ?? '').includes('Claude Extensions') ? 'desktop' : 'plugin';
 
 // Overridable so tests and forks can point elsewhere; the opener is what
 // Hands the downloaded bundle to Claude Desktop (macOS only for now).

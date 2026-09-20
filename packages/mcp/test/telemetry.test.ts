@@ -1,6 +1,6 @@
-// What leaves the machine: the instance and an installation id, never the
-// Key. The fake PostHog records the batches it receives; the assertions
-// Read them, never the requests.
+// What leaves the machine: the instance, the channel and an installation id,
+// Never the key. The fake PostHog records the batches it receives; the
+// Assertions read them, never the requests.
 
 import { mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -87,7 +87,8 @@ describe('telemetry', () => {
       expect(first?.properties).toMatchObject({
         $groups: { instance: INSTANCE },
         $lib: 'tipee-mcp',
-        $set: { instance: INSTANCE, server_version: '0.0.0-test' },
+        $set: { channel: 'dev', instance: INSTANCE, server_version: '0.0.0-test' },
+        channel: 'dev',
         instance: INSTANCE,
         server_version: '0.0.0-test',
       });
@@ -115,9 +116,9 @@ describe('telemetry', () => {
     Effect.gen(function* () {
       received.length = 0;
       server.use(fakePostHog, fakePostHog);
-      const stateDir = mkdtempSync(path.join(tmpdir(), 'tipee-telemetry-'));
-      yield* record({ TIPEE_STATE_DIR: stateDir });
-      yield* record({ TIPEE_STATE_DIR: stateDir });
+      // Different state directories: the id comes from the machine, not a file.
+      yield* record();
+      yield* record();
 
       const ids = received.map((batch) => batch.batch[0]?.distinct_id);
       expect(ids).toHaveLength(2);
