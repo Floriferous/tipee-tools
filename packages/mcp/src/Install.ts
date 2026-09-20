@@ -13,12 +13,14 @@ export type Channel = 'desktop' | 'plugin' | 'dev';
 
 const UUID_PARTS = [8, 4, 4, 4, 12] as const;
 
-// Reads the channel off the path the server was started from.
+// Reads the channel off the path the server was started from. Claude Code
+// Keeps plugins under its own directory; this repository also has a
+// `plugins/` folder, so only Claude's own path counts as an install.
 export const channelOf = (entry: string): Channel => {
   if (entry.includes('Claude Extensions')) {
     return 'desktop';
   }
-  return entry.includes('/plugins/') ? 'plugin' : 'dev';
+  return entry.includes('.claude/plugins/') ? 'plugin' : 'dev';
 };
 
 export const channel: Channel = channelOf(argv[1] ?? '');

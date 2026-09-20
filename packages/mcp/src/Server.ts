@@ -16,7 +16,7 @@ import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 export const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '0.3.5';
+export const SERVER_VERSION = '0.3.6';
 
 // Nothing is recorded on a start: Claude launches the server many times over
 // On its own. The first tool call of a launch reports the session instead.

@@ -48601,7 +48601,7 @@ const UUID_PARTS = [
 ];
 const channelOf = (entry) => {
 	if (entry.includes("Claude Extensions")) return "desktop";
-	return entry.includes("/plugins/") ? "plugin" : "dev";
+	return entry.includes(".claude/plugins/") ? "plugin" : "dev";
 };
 const channel = channelOf(argv[1] ?? "");
 const shaped = (hex) => {
@@ -49147,7 +49147,7 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.5";
+const SERVER_VERSION = "0.3.6";
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	name: SERVER_NAME,

@@ -11,10 +11,13 @@ describe('install', () => {
     const plugin =
       '/Users/someone/.claude/plugins/cache/tipee-tools/tipee/0.3.5/server/tipee-mcp.mjs';
     const repo = '/Users/someone/dev/tipee-tools/packages/mcp/src/main.ts';
+    // This repository builds into its own plugins/ folder: still not an install.
+    const built = '/Users/someone/dev/tipee-tools/plugins/tipee/server/tipee-mcp.mjs';
 
     expect(channelOf(desktop)).toBe('desktop');
     expect(channelOf(plugin)).toBe('plugin');
     expect(channelOf(repo)).toBe('dev');
+    expect(channelOf(built)).toBe('dev');
     expect(channelOf('')).toBe('dev');
   });
 
