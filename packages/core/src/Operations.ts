@@ -6,8 +6,8 @@
 
 import { Context, Effect, Option, Schema } from 'effect';
 import { constVoid } from 'effect/Function';
-import { HttpApi, HttpApiSchema, OpenApi } from 'effect/unstable/httpapi';
-import type { HttpApiEndpoint } from 'effect/unstable/httpapi';
+import { HttpApi, HttpApiSchema, OpenApi } from 'effect/http-api';
+import type { HttpApiEndpoint } from 'effect/http-api';
 
 import { InvalidRequest, TipeeError } from './Errors.ts';
 import { Tipee } from './generated/TipeeApi.ts';

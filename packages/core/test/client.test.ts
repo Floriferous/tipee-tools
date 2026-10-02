@@ -5,7 +5,7 @@
 
 import { describe, expect, it, layer } from '@effect/vitest';
 import { ConfigProvider, Effect, Layer, Redacted } from 'effect';
-import { FetchHttpClient } from 'effect/unstable/http';
+import { FetchHttpClient } from 'effect/http';
 
 import type { TipeeError } from '../src/index.ts';
 import { TipeeClient, invoke, operation } from '../src/index.ts';

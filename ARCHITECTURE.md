@@ -90,16 +90,17 @@ Each of these was checked against primary sources in September 2026.
 Effect replaces four hand-rolled pieces with one coherent model, and the
 MCP server becomes a composition of layers rather than a program:
 
-| Concern                                                             | Effect 4 module                                       | What it replaced                      |
-| :------------------------------------------------------------------ | :---------------------------------------------------- | :------------------------------------ |
-| Wire validation, tool parameter and output JSON Schema, error types | `Schema`                                              | zod schemas plus separate MCP schemas |
-| HTTP with retries and typed failures                                | `HttpClient` (`effect/unstable/http`)                 | fetch and a retry loop                |
-| Credentials                                                         | `Config.String`, `Config.Redacted`                    | reading `process.env`                 |
-| MCP server, tool annotations, stdio transport                       | `McpServer`, `Tool`, `Toolkit` (`effect/unstable/ai`) | the MCP SDK                           |
-| Tests on a controllable clock                                       | `@effect/vitest`, `TestClock`                         | fake timers                           |
+| Concern                                                             | Effect 4 module                              | What it replaced                      |
+| :------------------------------------------------------------------ | :------------------------------------------- | :------------------------------------ |
+| Wire validation, tool parameter and output JSON Schema, error types | `Schema`                                     | zod schemas plus separate MCP schemas |
+| HTTP with retries and typed failures                                | `HttpClient` (`effect/http`)                 | fetch and a retry loop                |
+| Credentials                                                         | `Config.String`, `Config.Redacted`           | reading `process.env`                 |
+| MCP server, tool annotations, stdio transport                       | `McpServer`, `Tool`, `Toolkit` (`effect/ai`) | the MCP SDK                           |
+| Tests on a controllable clock                                       | `@effect/vitest`, `TestClock`                | fake timers                           |
 
 The cost: v4 is a release candidate ([announcement][effect-rc]), and the
-`unstable/*` modules we depend on may still change in a minor release. The
+modules we depend on that Effect marks `@stability unstable` (`http`,
+`http-api`, `ai`) may still change in a minor release. The
 version is pinned exactly, the touchpoints are few, and
 `.claude/skills/effect-v4` records the idioms and renames so agents don't
 write v3 from memory. The MSW fake Tipee survived the rewrite: `FetchHttpClient`

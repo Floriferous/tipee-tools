@@ -5,7 +5,7 @@ description: Writing idiomatic Effect 4 (release candidate) code in this repo �
 
 # Effect 4 in tipee-tools
 
-This repo pins `effect@4.0.0-rc.115` (and `@effect/platform-node`,
+This repo pins `effect@4.0.0-rc.118` (and `@effect/platform-node`,
 `@effect/vitest` at the same version). v4 renamed and merged a lot; most
 model training data describes v3. **Read the installed sources, not memory**:
 `node_modules/effect/src/<Module>.ts` (JSDoc with examples on every export)
@@ -30,12 +30,12 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
   `Schema.Union([…])`. Decoding strips unknown keys by default. Types:
   `typeof S.Type`. Descriptions via `.annotate({ description })` (they reach
   the MCP JSON Schema).
-- HttpClient (`effect/unstable/http`): take `yield* HttpClient.HttpClient`,
+- HttpClient (`effect/http`): take `yield* HttpClient.HttpClient`,
   shape it with `HttpClient.mapRequest(flow(prependUrl, acceptJson, bearerToken, setHeader))`
   and `HttpClient.retryTransient({ schedule, times })`; decode with
   `HttpClientResponse.schemaBodyJson(schema)`. Provide `FetchHttpClient.layer`
   (MSW intercepts it in tests).
-- MCP (`effect/unstable/ai`): `Tool.make(name, { description, parameters, success, failure })`
+- MCP (`effect/ai`): `Tool.make(name, { description, parameters, success, failure })`
   `.annotate(Tool.Readonly, true)`, `Toolkit.make(...)`, handlers with
   `toolkit.toLayer(Effect.gen(…))`, server with `McpServer.toolkit(toolkit)`
   provided `McpServer.layerStdio({ name, version, protocols: [McpProtocol.v2025_11_25, …] })`,
@@ -49,7 +49,7 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
 
 ## RC renames and gotchas met in this repo
 
-| Looking for (v3 / memory) | In v4 rc.115 |
+| Looking for (v3 / memory) | In v4 rc.118 |
 | :-- | :-- |
 | `Context.Tag`, `Effect.Service`, `ServiceMap.Service` | `Context.Service<Self, Shape>()("id")` |
 | `Effect.fork`, `forkDaemon` | `Effect.forkChild`, `Effect.forkDetach` |
@@ -59,12 +59,15 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
 | `Schema.Schema.Any` as a generic bound | `Schema.Constraint`; for `decodeUnknownSync` use `Schema.ConstraintDecoder<unknown>` |
 | `ParseResult.TreeFormatter` | `error.message` on `SchemaError` already formats the issue |
 | `HttpClientResponse.isOk` | compare `response.status` yourself, or `HttpClient.filterStatusOk` |
-| `@effect/platform` imports | `effect/unstable/http`, `effect/unstable/ai`; Node bits from `@effect/platform-node` |
+| `@effect/platform` imports | `effect/http`, `effect/ai`; Node bits from `@effect/platform-node` |
 | `Effect.fork` in `it.effect` without adjusting the clock | nothing happens: `TestClock` starts at the epoch and never advances on its own |
 
-Modules under `effect/unstable/*` (http, ai, cli, …) may still break in a
-minor release; `Schema`, `Config`, `Layer`, `Effect` are stable. Bump the
-pin deliberately and rerun `pnpm verify`.
+Since rc.118 the former `effect/unstable/*` modules live at the top level
+(`effect/http`, `effect/http-api`, `effect/ai`, `effect/cli`, …) but are still
+marked `@stability unstable` and may break in a minor release; `Schema`,
+`Config`, `Layer`, `Effect` are stable. The tsconfigs turn off the
+`unstableApiUsage` diagnostic because depending on them is deliberate. Bump
+the pin deliberately and rerun `pnpm verify`.
 
 ## Type-checking and diagnostics
 

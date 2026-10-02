@@ -2,7 +2,7 @@
 // Setup prompt is the first thing a non-technical user should run.
 
 import { Effect } from 'effect';
-import { McpServer } from 'effect/unstable/ai';
+import { McpServer } from 'effect/ai';
 
 export const SETUP_PROMPT = {
   description: 'Check that the Tipee connection works and explain any missing authorization.',

@@ -15,7 +15,7 @@ import { arch, platform, version as nodeVersion } from 'node:process';
 import { TipeeError } from '@tipee-tools/core';
 import type { FileSystem } from 'effect';
 import { Config, Context, Effect, Layer, Option, Queue, Schedule } from 'effect';
-import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
+import { HttpClient, HttpClientRequest } from 'effect/http';
 
 import { channel, installationId } from './Install.ts';
 

@@ -5,9 +5,9 @@
 
 import { Config, Context, Effect, Layer, Schedule, flow } from 'effect';
 import type { Redacted } from 'effect';
-import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
-import { HttpApiClient } from 'effect/unstable/httpapi';
-import type { HttpApi } from 'effect/unstable/httpapi';
+import { HttpClient, HttpClientRequest } from 'effect/http';
+import { HttpApiClient } from 'effect/http-api';
+import type { HttpApi } from 'effect/http-api';
 
 import { ConfigurationMissing } from './Errors.ts';
 import { Tipee } from './generated/TipeeApi.ts';

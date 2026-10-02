@@ -6,8 +6,8 @@ import { NodeFileSystem, NodeStdio } from '@effect/platform-node';
 import { TipeeClient } from '@tipee-tools/core';
 import type { ConfigurationMissing } from '@tipee-tools/core';
 import { Cause, Effect, Layer, Logger, Result } from 'effect';
-import { McpProtocol, McpServer } from 'effect/unstable/ai';
-import { FetchHttpClient } from 'effect/unstable/http';
+import { McpProtocol, McpServer } from 'effect/ai';
+import { FetchHttpClient } from 'effect/http';
 
 import { TipeeToolkitLayer } from './Handlers.ts';
 import { SetupPrompt } from './Prompts.ts';

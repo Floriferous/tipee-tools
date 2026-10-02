@@ -3,8 +3,8 @@
 
 import { expect, layer } from '@effect/vitest';
 import { Effect, Fiber, Layer, Redacted } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { TestClock } from 'effect/testing';
-import { FetchHttpClient } from 'effect/unstable/http';
 import { HttpResponse, http } from 'msw';
 
 import type { TipeeError } from '../src/index.ts';

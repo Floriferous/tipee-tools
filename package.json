@@ -27,7 +27,7 @@
     "verify": "turbo run generate lint:check format:check check test build pack --continue && pnpm build:check"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.45.0",
+    "@effect/tsgo": "0.47.2",
     "lefthook": "2.1.12",
     "oxfmt": "0.67.0",
     "oxlint": "1.82.0",

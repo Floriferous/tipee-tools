@@ -12,7 +12,7 @@ import {
   operations,
 } from '@tipee-tools/core';
 import { Cause, DateTime, Duration, Effect, Exit, Option, Result } from 'effect';
-import { McpSchema } from 'effect/unstable/ai';
+import { McpSchema } from 'effect/ai';
 
 import { Telemetry } from './Telemetry.ts';
 import type { Properties, Sink } from './Telemetry.ts';

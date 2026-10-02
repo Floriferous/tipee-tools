@@ -10,7 +10,7 @@ import { NodeFileSystem } from '@effect/platform-node';
 import { describe, expect, it } from '@effect/vitest';
 import { server } from '@tipee-tools/core/testing';
 import { Cause, ConfigProvider, Effect, Layer } from 'effect';
-import { FetchHttpClient } from 'effect/unstable/http';
+import { FetchHttpClient } from 'effect/http';
 import { HttpResponse, http } from 'msw';
 
 import { Telemetry, framesOf, reportCrash } from '../src/index.ts';

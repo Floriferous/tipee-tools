@@ -7,7 +7,7 @@ import { homedir, hostname, userInfo } from "node:os";
 import * as Path from "node:path";
 import path from "node:path";
 import { arch, argv, platform, version } from "node:process";
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Pipeable.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Pipeable.js
 /**
 * The `Pipeable` module defines the shared interface and implementation helpers
 * for values that support Effect-style method chaining with `.pipe(...)`.
@@ -109,7 +109,7 @@ const Class$3 = /*#__PURE__*/ function() {
 	return PipeableBase;
 }();
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Function.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Function.js
 /**
 * Creates a function that can be called in data-first style or data-last
 * (`pipe`-friendly) style.
@@ -419,12 +419,12 @@ function memoizeIdempotent(f) {
 		if (cached !== void 0) return cached;
 		const result = f(a);
 		cache.set(a, result);
-		cache.set(result, result);
+		if (result !== a) cache.set(result, result);
 		return result;
 	};
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/equal.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/equal.js
 /** @internal */
 const getAllObjectKeys = (obj) => {
 	const keys = new Set(Reflect.ownKeys(obj));
@@ -442,8 +442,22 @@ const getAllObjectKeys = (obj) => {
 };
 /** @internal */
 const byReferenceInstances = /*#__PURE__*/ new WeakSet();
+/** @internal */
+const viewBytes = (view) => new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Predicate.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/hash.js
+/**
+* Back-edge count used to avoid caching entry-point-dependent hashes.
+*
+* @internal
+*/
+let backEdges = 0;
+/** @internal */
+const addBackEdge = () => {
+	backEdges++;
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Predicate.js
 /**
 * Defines runtime checks for values.
 *
@@ -873,6 +887,38 @@ function isObject(input) {
 	return typeof input === "object" && input !== null && !Array.isArray(input);
 }
 /**
+* Checks whether a value is a non-null, non-array object and narrows it to a
+* readonly indexable object type.
+*
+* **When to use**
+*
+* Use to narrow unknown input to a readonly view of a non-null, non-array
+* object with a `Predicate` guard.
+*
+* **Details**
+*
+* Readonly-ness is a TypeScript type-level view; it is not observable at
+* runtime. This delegates to `isObject`, so class instances and built-in object
+* instances are accepted.
+*
+* **Example** (Checking readonly objects)
+*
+* ```ts import.meta.vitest
+* import { Predicate } from "effect"
+*
+* const data: unknown = { a: 1 }
+*
+* Predicate.isReadonlyObject(data) // => true
+* ```
+*
+* @see {@link isObject}
+* @category guards
+* @since 4.0.0
+*/
+function isReadonlyObject(input) {
+	return isObject(input);
+}
+/**
 * Checks whether a value is an `object` in the JavaScript sense (objects, arrays, functions).
 *
 * **When to use**
@@ -1047,7 +1093,7 @@ function isIterable(input) {
 */
 const or = /*#__PURE__*/ dual(2, (self, that) => (a) => self(a) || that(a));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Hash.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Hash.js
 /**
 * Computes Effect hash values and defines the interface for objects that want
 * to provide their own hash implementation. Hashes are small numeric
@@ -1115,30 +1161,39 @@ const hash = (self) => {
 		case "number": return number$1(self);
 		case "bigint": return string$1(self.toString(10));
 		case "string": return string$1(self);
-		case "undefined": return string$1("undefined");
 		case "function":
-		case "object": if (self === null) return string$1("null");
+		case "object": if (self === null) break;
 		else if (self instanceof Date) {
 			if (Number.isNaN(self.getTime())) return string$1("Invalid Date");
 			return string$1(self.toISOString());
 		} else if (self instanceof RegExp) return string$1(self.toString());
 		else {
-			if (byReferenceInstances.has(self)) return random(self);
-			if (hashCache.has(self)) return hashCache.get(self);
-			const h = withVisitedTracking$1(self, () => {
-				if (isHash(self)) return self[symbol$3]();
-				else if (typeof self === "function") return random(self);
-				else if (self instanceof DataView) return array(new Uint8Array(self.buffer, self.byteOffset, self.byteLength));
-				else if (Array.isArray(self) || ArrayBuffer.isView(self)) return array(self);
-				else if (self instanceof Map) return hashMap(self);
-				else if (self instanceof Set) return hashSet(self);
-				return structure(self);
-			});
-			hashCache.set(self, h);
+			if (byReferenceInstances.has(self)) return random$1(self);
+			const cached = hashCache.get(self);
+			if (cached !== void 0) return cached;
+			if (visitedObjects.has(self)) {
+				addBackEdge();
+				return string$1("[Circular]");
+			}
+			visitedObjects.add(self);
+			const seen = backEdges;
+			let h;
+			try {
+				if ("~effect/Hash" in self) h = self[symbol$3]();
+				else if (typeof self === "function") h = random$1(self);
+				else if (self instanceof DataView) h = array(viewBytes(self));
+				else if (Array.isArray(self) || ArrayBuffer.isView(self)) h = array(self);
+				else if (self instanceof Map) h = hashMap(self);
+				else if (self instanceof Set) h = hashSet(self);
+				else h = structure(self);
+			} finally {
+				visitedObjects.delete(self);
+			}
+			if (seen === backEdges) hashCache.set(self, h);
 			return h;
 		}
-		default: return string$1(String(self));
 	}
+	return optimize(mix(string$1(String(self))));
 };
 /**
 * Generates a random hash value for an object and caches it.
@@ -1169,9 +1224,16 @@ const hash = (self) => {
 * @category hashing
 * @since 2.0.0
 */
-const random = (self) => {
-	if (!randomHashCache.has(self)) randomHashCache.set(self, number$1(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)));
+const random$1 = (self) => {
+	if (!randomHashCache.has(self)) randomHashCache.set(self, optimize(Math.random() * 4294967296 | 0));
 	return randomHashCache.get(self);
+};
+const mix = (h) => {
+	h ^= h >>> 16;
+	h = Math.imul(h, 2246822507);
+	h ^= h >>> 13;
+	h = Math.imul(h, 3266489909);
+	return h ^ h >>> 16;
 };
 /**
 * Combines two hash values into a single hash value.
@@ -1183,8 +1245,7 @@ const random = (self) => {
 *
 * **Details**
 *
-* Supports both direct and pipeable usage. The implementation combines two
-* hash values with `(self * 53) ^ b`.
+* Supports direct and pipeable usage. Argument order affects the result.
 *
 * **Example** (Combining hash values)
 *
@@ -1204,7 +1265,7 @@ const random = (self) => {
 * @category hashing
 * @since 2.0.0
 */
-const combine$1 = /*#__PURE__*/ dual(2, (self, b) => self * 53 ^ b);
+const combine$1 = /*#__PURE__*/ dual(2, (self, b) => mix(Math.imul(self, 2654435761) + Math.imul(b, 2246822507)));
 /**
 * Applies bit manipulation techniques to optimize a hash value.
 *
@@ -1229,38 +1290,7 @@ const combine$1 = /*#__PURE__*/ dual(2, (self, b) => self * 53 ^ b);
 * @since 2.0.0
 */
 const optimize = (n) => n & 3221225471 | n >>> 1 & 1073741824;
-/**
-* Checks whether a value implements the Hash interface.
-*
-* **When to use**
-*
-* Use to detect whether an unknown value provides a custom hash implementation.
-*
-* **Details**
-*
-* This function determines whether a given value has the Hash symbol property,
-* indicating that it can provide its own hash value implementation.
-*
-* **Example** (Checking for Hash support)
-*
-* ```ts import.meta.vitest
-* import { Hash } from "effect"
-*
-* class MyHashable implements Hash.Hash {
-*   [Hash.symbol]() {
-*     return 42
-*   }
-* }
-*
-* Hash.isHash(new MyHashable()) // => true
-* Hash.isHash({}) // => false
-* Hash.isHash("string") // => false
-* ```
-*
-* @category guards
-* @since 2.0.0
-*/
-const isHash = (u) => hasProperty(u, symbol$3);
+const float64 = /*#__PURE__*/ new DataView(/*#__PURE__*/ new ArrayBuffer(8));
 /**
 * Computes a hash value for a number.
 *
@@ -1270,9 +1300,8 @@ const isHash = (u) => hasProperty(u, symbol$3);
 *
 * **Details**
 *
-* This function creates a hash value for numeric inputs, handling special cases
-* like NaN, Infinity, and -Infinity with distinct hash values. It uses bitwise operations to ensure good distribution
-* of hash values across different numeric inputs.
+* Int32 values hash to themselves. Other numbers hash from their IEEE-754 bits,
+* with a canonical representation for `NaN`.
 *
 * **Example** (Hashing numbers)
 *
@@ -1290,11 +1319,10 @@ const isHash = (u) => hasProperty(u, symbol$3);
 * @since 2.0.0
 */
 const number$1 = (n) => {
-	if (n !== n || n === Infinity || n === -Infinity) return string$1(String(n));
-	let h = n | 0;
-	if (h !== n) h ^= n * 4294967295;
-	while (n > 4294967295) h ^= n /= 4294967295;
-	return optimize(h);
+	const h = n | 0;
+	if (h === n) return optimize(h);
+	float64.setFloat64(0, n !== n ? NaN : n);
+	return optimize(combine$1(float64.getInt32(0), float64.getInt32(4)));
 };
 /**
 * Computes a hash value for a string using the djb2 algorithm.
@@ -1352,8 +1380,8 @@ const string$1 = (str) => {
 * const hash1 = Hash.structureKeys(person, ["name", "age"])
 * const hash2 = Hash.structureKeys(person, ["name", "city"])
 *
-* hash1 // => -590673747
-* hash2 // => 284850673
+* hash1 // => -731887653
+* hash2 // => 148523102
 *
 * const person2 = { name: "John", age: 30, city: "Boston" }
 * const hash3 = Hash.structureKeys(person2, ["name", "age"])
@@ -1389,9 +1417,9 @@ const structureKeys = (o, keys) => {
 * const obj2 = { name: "Jane", age: 25 }
 * const obj3 = { name: "John", age: 30 }
 *
-* Hash.structure(obj1) // => -590673747
-* Hash.structure(obj2) // => -590160631
-* Hash.structure(obj3) // => -590673747
+* Hash.structure(obj1) // => -731887653
+* Hash.structure(obj2) // => -222100417
+* Hash.structure(obj3) // => -731887653
 * Hash.structure(obj1) === Hash.structure(obj3) // => true
 * ```
 *
@@ -1399,7 +1427,7 @@ const structureKeys = (o, keys) => {
 * @since 2.0.0
 */
 const structure = (o) => structureKeys(o, getAllObjectKeys(o));
-const iterableWith = (seed, f) => (iter) => {
+const unordered = (seed, f) => (iter) => {
 	let h = seed;
 	for (const element of iter) h ^= f(element);
 	return optimize(h);
@@ -1413,13 +1441,12 @@ const iterableWith = (seed, f) => (iter) => {
 *
 * **Details**
 *
-* The implementation folds element hashes from the seed `6151` with XOR and
-* then optimizes the final hash.
+* Folds element hashes with {@link combine}, so order and length affect the
+* result.
 *
 * **Gotchas**
 *
-* A hash is not an equality proof. Because this implementation uses XOR,
-* reordered inputs can produce the same hash.
+* A hash is not an equality proof. Distinct inputs can still share a hash.
 *
 * **Example** (Hashing arrays)
 *
@@ -1430,11 +1457,8 @@ const iterableWith = (seed, f) => (iter) => {
 * const arr2 = [1, 2, 3]
 * const arr3 = [3, 2, 1]
 *
-* Hash.array(arr1) // => 6151
-* Hash.array(arr2) // => 6151
-* Hash.array(arr3) // => 6151
 * Hash.array(arr1) === Hash.array(arr2) // => true
-* Hash.array(arr1) === Hash.array(arr3) // => true
+* Hash.array(arr1) === Hash.array(arr3) // => false
 * ```
 *
 * @see {@link hash} for the general-purpose hash dispatcher
@@ -1442,21 +1466,19 @@ const iterableWith = (seed, f) => (iter) => {
 * @category hashing
 * @since 2.0.0
 */
-const array = /*#__PURE__*/ iterableWith(6151, hash);
-const hashMap = /*#__PURE__*/ iterableWith(/*#__PURE__*/ string$1("Map"), ([k, v]) => combine$1(hash(k), hash(v)));
-const hashSet = /*#__PURE__*/ iterableWith(/*#__PURE__*/ string$1("Set"), hash);
+const array = (arr) => {
+	let h = 6151;
+	for (const element of arr) h = combine$1(h, hash(element));
+	return optimize(h);
+};
+const hashMap = /*#__PURE__*/ unordered(/*#__PURE__*/ string$1("Map"), ([k, v]) => combine$1(hash(k), hash(v)));
+const setSeed = /*#__PURE__*/ string$1("Set");
+const hashSet = /*#__PURE__*/ unordered(setSeed, (element) => combine$1(setSeed, hash(element)));
 const randomHashCache = /*#__PURE__*/ new WeakMap();
 const hashCache = /*#__PURE__*/ new WeakMap();
 const visitedObjects = /*#__PURE__*/ new WeakSet();
-function withVisitedTracking$1(obj, fn) {
-	if (visitedObjects.has(obj)) return string$1("[Circular]");
-	visitedObjects.add(obj);
-	const result = fn();
-	visitedObjects.delete(obj);
-	return result;
-}
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Equal.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Equal.js
 /**
 * Defines the unique string identifier for the `Equal` interface.
 *
@@ -1496,7 +1518,7 @@ function withVisitedTracking$1(obj, fn) {
 * @since 2.0.0
 */
 const symbol$2 = "~effect/Equal";
-function equals$2() {
+function equals$1() {
 	if (arguments.length === 1) return (self) => compareBoth(self, arguments[0]);
 	return compareBoth(arguments[0], arguments[1]);
 }
@@ -1508,80 +1530,59 @@ function compareBoth(self, that) {
 	if (selfType === "number" && self !== self && that !== that) return true;
 	if (selfType !== "object" && selfType !== "function") return false;
 	if (byReferenceInstances.has(self) || byReferenceInstances.has(that)) return false;
-	return withCache(self, that, compareObjects);
+	return compareObjects(self, that);
 }
-/** Helper to run comparison with proper visited tracking */
-function withVisitedTracking(self, that, fn) {
-	const hasLeft = visitedLeft.has(self);
-	const hasRight = visitedRight.has(that);
-	if (hasLeft && hasRight) return true;
-	if (hasLeft || hasRight) return false;
-	visitedLeft.add(self);
-	visitedRight.add(that);
-	const result = fn();
-	visitedLeft.delete(self);
-	visitedRight.delete(that);
+function compareObjects(self, that) {
+	const depth = pathLeft.length;
+	for (let i = depth; i-- > 0;) if (pathLeft[i] === self && pathRight[i] === that) return true;
+	if (depth) return compareOnPath(self, that);
+	let known = results.get(self);
+	if (!known) results.set(self, known = /* @__PURE__ */ new WeakMap());
+	let result = known.get(that);
+	if (result === void 0) known.set(that, result = compareOnPath(self, that));
 	return result;
 }
-const visitedLeft = /*#__PURE__*/ new WeakSet();
-const visitedRight = /*#__PURE__*/ new WeakSet();
-/** Helper to perform cached object comparison */
-function compareObjects(self, that) {
+function compareOnPath(self, that) {
+	pathLeft.push(self);
+	pathRight.push(that);
+	try {
+		return compareStructure(self, that);
+	} finally {
+		pathLeft.pop();
+		pathRight.pop();
+	}
+}
+const pathLeft = [];
+const pathRight = [];
+const results = /*#__PURE__*/ new WeakMap();
+function compareStructure(self, that) {
 	if (hash(self) !== hash(that)) return false;
 	else if (self instanceof Date) {
 		if (!(that instanceof Date)) return false;
 		const selfTime = self.getTime();
 		const thatTime = that.getTime();
 		return selfTime === thatTime || Number.isNaN(selfTime) && Number.isNaN(thatTime);
-	} else if (self instanceof RegExp) {
-		if (!(that instanceof RegExp)) return false;
-		return self.toString() === that.toString();
+	} else if (self instanceof RegExp) return that instanceof RegExp && self.toString() === that.toString();
+	const bothEquals = isEqual(self);
+	if (bothEquals !== isEqual(that) || typeof self === "function" && !bothEquals) return false;
+	else if (bothEquals) return self[symbol$2](that);
+	else if (Array.isArray(self)) {
+		if (!Array.isArray(that) || self.length !== that.length) return false;
+		return compareArrays(self, that);
+	} else if (ArrayBuffer.isView(self)) {
+		const selfIsDataView = self instanceof DataView;
+		if (!ArrayBuffer.isView(that) || self.byteLength !== that.byteLength || selfIsDataView !== that instanceof DataView) return false;
+		if (selfIsDataView) return compareTypedArrays(viewBytes(self), viewBytes(that));
+		return compareTypedArrays(self, that);
+	} else if (self instanceof Map) {
+		if (!(that instanceof Map) || self.size !== that.size) return false;
+		return compareHashed(self, that, entryHash, equalEntries);
+	} else if (self instanceof Set) {
+		if (!(that instanceof Set) || self.size !== that.size) return false;
+		return compareHashed(self, that, hash, compareBoth);
 	}
-	const selfIsEqual = isEqual(self);
-	const thatIsEqual = isEqual(that);
-	if (selfIsEqual !== thatIsEqual) return false;
-	const bothEquals = selfIsEqual && thatIsEqual;
-	if (typeof self === "function" && !bothEquals) return false;
-	return withVisitedTracking(self, that, () => {
-		if (bothEquals) return self[symbol$2](that);
-		else if (Array.isArray(self)) {
-			if (!Array.isArray(that) || self.length !== that.length) return false;
-			return compareArrays(self, that);
-		} else if (ArrayBuffer.isView(self)) {
-			const selfIsDataView = self instanceof DataView;
-			if (!ArrayBuffer.isView(that) || self.byteLength !== that.byteLength || selfIsDataView !== that instanceof DataView) return false;
-			if (selfIsDataView) {
-				const thatDataView = that;
-				return compareTypedArrays(new Uint8Array(self.buffer, self.byteOffset, self.byteLength), new Uint8Array(thatDataView.buffer, thatDataView.byteOffset, thatDataView.byteLength));
-			}
-			return compareTypedArrays(self, that);
-		} else if (self instanceof Map) {
-			if (!(that instanceof Map) || self.size !== that.size) return false;
-			return compareMaps(self, that);
-		} else if (self instanceof Set) {
-			if (!(that instanceof Set) || self.size !== that.size) return false;
-			return compareSets(self, that);
-		}
-		return compareRecords(self, that);
-	});
+	return compareRecords(self, that);
 }
-function withCache(self, that, f) {
-	let selfMap = equalityCache.get(self);
-	if (!selfMap) {
-		selfMap = /* @__PURE__ */ new WeakMap();
-		equalityCache.set(self, selfMap);
-	} else if (selfMap.has(that)) return selfMap.get(that);
-	const result = f(self, that);
-	selfMap.set(that, result);
-	let thatMap = equalityCache.get(that);
-	if (!thatMap) {
-		thatMap = /* @__PURE__ */ new WeakMap();
-		equalityCache.set(that, thatMap);
-	}
-	thatMap.set(self, result);
-	return result;
-}
-const equalityCache = /*#__PURE__*/ new WeakMap();
 function compareArrays(self, that) {
 	for (let i = 0; i < self.length; i++) if (!compareBoth(self[i], that[i])) return false;
 	return true;
@@ -1598,48 +1599,29 @@ function compareRecords(self, that) {
 	for (const key of selfKeys) if (!thatKeys.has(key) || !compareBoth(self[key], that[key])) return false;
 	return true;
 }
-/** @internal */
-function makeCompareMap(keyEquivalence, valueEquivalence) {
-	return function compareMaps(self, that) {
-		const thatEntries = Array.from(that);
-		for (const [selfKey, selfValue] of self) {
-			let found = false;
-			for (let i = 0; i < thatEntries.length; i++) {
-				const [thatKey, thatValue] = thatEntries[i];
-				if (keyEquivalence(selfKey, thatKey) && valueEquivalence(selfValue, thatValue)) {
-					thatEntries[i] = thatEntries[thatEntries.length - 1];
-					thatEntries.pop();
-					found = true;
-					break;
-				}
+function compareHashed(self, that, hashOf, equivalent) {
+	const groups = /* @__PURE__ */ new Map();
+	for (const item of that) {
+		const h = hashOf(item);
+		const group = groups.get(h);
+		if (group) group.push(item);
+		else groups.set(h, [item]);
+	}
+	outer: for (const item of self) {
+		const group = groups.get(hashOf(item));
+		if (group) {
+			for (let i = 0; i < group.length; i++) if (equivalent(item, group[i])) {
+				group[i] = group[group.length - 1];
+				group.pop();
+				continue outer;
 			}
-			if (!found) return false;
 		}
-		return true;
-	};
+		return false;
+	}
+	return true;
 }
-const compareMaps = /*#__PURE__*/ makeCompareMap(compareBoth, compareBoth);
-/** @internal */
-function makeCompareSet(equivalence) {
-	return function compareSets(self, that) {
-		const thatValues = Array.from(that);
-		for (const selfValue of self) {
-			let found = false;
-			for (let i = 0; i < thatValues.length; i++) {
-				const thatValue = thatValues[i];
-				if (equivalence(selfValue, thatValue)) {
-					thatValues[i] = thatValues[thatValues.length - 1];
-					thatValues.pop();
-					found = true;
-					break;
-				}
-			}
-			if (!found) return false;
-		}
-		return true;
-	};
-}
-const compareSets = /*#__PURE__*/ makeCompareSet(compareBoth);
+const entryHash = (entry) => hash(entry[0]);
+const equalEntries = (self, that) => compareBoth(self[0], that[0]) && compareBoth(self[1], that[1]);
 /**
 * Checks whether a value implements the {@link Equal} interface.
 *
@@ -1682,7 +1664,7 @@ const compareSets = /*#__PURE__*/ makeCompareSet(compareBoth);
 */
 const isEqual = (u) => hasProperty(u, symbol$2);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Redactable.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Redactable.js
 /**
 * Defines the symbol used to identify objects that implement the {@link Redactable}
 * protocol.
@@ -1801,7 +1783,7 @@ const emptyContext$1 = {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Formatter.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Formatter.js
 /**
 * Formats JavaScript values into readable strings.
 *
@@ -1990,8 +1972,10 @@ function safeGet(input, key) {
 * object ancestry. Circular references are replaced with `undefined`, which
 * omits them from object output. `Redactable` values are automatically redacted
 * before serialization. `BigInt` values are stringified with an `n` suffix.
-* Values not supported by JSON otherwise follow standard `JSON.stringify`
-* behavior. The `space` parameter controls indentation and defaults to `0`.
+* `Error` instances without a `toJSON` property include their enumerable
+* properties plus `name` and `message`. Errors with `toJSON` keep their custom
+* representation. Other values follow standard `JSON.stringify` behavior. The
+* `space` parameter controls indentation and defaults to `0`.
 *
 * **Gotchas**
 *
@@ -2038,14 +2022,20 @@ function formatJson(input, options) {
 		const redacted = hasProperty(original, symbolRedactable) ? redact$1(original) : redact$1(value);
 		if (typeof redacted === "bigint") return format$2(redacted);
 		if (typeof redacted !== "object" || redacted === null) return redacted;
+		const current = redacted instanceof Error && !hasProperty(redacted, "toJSON") ? {
+			...redacted,
+			name: redacted.name,
+			message: redacted.message
+		} : redacted;
 		while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop();
 		if (ancestors.includes(redacted)) return;
 		ancestors.push(redacted);
-		return redacted;
+		if (current !== redacted) ancestors.push(current);
+		return current;
 	}, options?.space) ?? "null";
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Inspectable.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Inspectable.js
 /**
 * Controls how values appear in logs and debugging output.
 *
@@ -2265,7 +2255,7 @@ var Class$2 = class {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/stackTraceLimit.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/stackTraceLimit.js
 /**
 * Check if `Error.stackTraceLimit` is writable.
 * Returns `false` if the property is frozen, non-writable, or `Error` is non-extensible.
@@ -2297,9 +2287,10 @@ const setStackTraceLimit = (value) => {
 	if (canWriteStackTraceLimit) Error.stackTraceLimit = value;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Utils.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Utils.js
 /**
-* Yields its wrapped value exactly once through an `IterableIterator`.
+* Yields its wrapped value exactly once, then completes with the value sent
+* back in.
 *
 * **When to use**
 *
@@ -2309,10 +2300,11 @@ const setStackTraceLimit = (value) => {
 *
 * **Details**
 *
-* The first call to `next()` returns `{ value: self, done: false }`. Every
-* subsequent call returns `{ value: a, done: true }` where `a` is the argument
-* passed to `next()`. `[Symbol.iterator]()` returns a **new** `SingleShotGen`
-* wrapping the same value, so the outer type can be iterated multiple times.
+* The first call to `next()` returns a fresh `{ value: self, done: false }`.
+* Every subsequent call returns `{ value: a, done: true }` where `a` is the
+* argument passed to `next()`. To keep `yield*` cheap, the completion result
+* is the iterator itself rather than a new object, so only the iterator and
+* the single yielded result are allocated per `yield*`.
 *
 * **Example** (Yielding a wrapped value in a generator)
 *
@@ -2321,20 +2313,19 @@ const setStackTraceLimit = (value) => {
 *
 * const gen = new Utils.SingleShotGen<string, number>("hello")
 *
-* gen.next(0) // => { value: "hello", done: false }
+* gen.next(0).value // => "hello"
 *
-* gen.next(42) // => { value: 42, done: true }
+* gen.next(42).value // => 42
 * ```
 *
 * @see {@link Gen} for the type-level signature that relies on `SingleShotGen`
 * @category constructors
 * @since 2.0.0
 */
-var SingleShotGen = class SingleShotGen {
-	called = false;
-	self;
+var SingleShotGen = class {
 	constructor(self) {
-		this.self = self;
+		this.value = self;
+		this.done = false;
 	}
 	/**
 	* Yields the stored value once, then completes with the value sent back in.
@@ -2347,26 +2338,15 @@ var SingleShotGen = class SingleShotGen {
 	* @since 2.0.0
 	*/
 	next(a) {
-		return this.called ? {
-			value: a,
-			done: true
-		} : (this.called = true, {
-			value: this.self,
+		if (this.done) {
+			this.value = a;
+			return this;
+		}
+		this.done = true;
+		return {
+			value: this.value,
 			done: false
-		});
-	}
-	/**
-	* Creates a fresh single-shot iterator over the stored value.
-	*
-	* **When to use**
-	*
-	* Use to iterate the wrapped value again without reusing the consumed
-	* iterator state.
-	*
-	* @since 2.0.0
-	*/
-	[Symbol.iterator]() {
-		return new SingleShotGen(this.self);
+		};
 	}
 };
 const pickInternalCall = () => {
@@ -2384,7 +2364,7 @@ const pickInternalCall = () => {
 /** @internal */
 const internalCall = /*#__PURE__*/ pickInternalCall();
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/record.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/record.js
 /** @internal */
 function assignProperty(self, key, value) {
 	if (key === "__proto__") Object.defineProperty(self, key, {
@@ -2400,7 +2380,7 @@ function assignProperties(self, source) {
 	for (const key of Reflect.ownKeys(source)) if (Object.prototype.propertyIsEnumerable.call(source, key)) assignProperty(self, key, source[key]);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/core.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/core.js
 /** @internal */
 const EffectTypeId = `~effect/Effect`;
 /** @internal */
@@ -2491,7 +2471,7 @@ var CauseImpl = class {
 		return this.toJSON();
 	}
 	[symbol$2](that) {
-		return isCause$1(that) && this.reasons.length === that.reasons.length && this.reasons.every((e, i) => equals$2(e, that.reasons[i]));
+		return isCause$1(that) && this.reasons.length === that.reasons.length && this.reasons.every((e, i) => equals$1(e, that.reasons[i]));
 	}
 	[symbol$3]() {
 		return array(this.reasons);
@@ -2552,7 +2532,7 @@ var Fail = class extends ReasonBase {
 		};
 	}
 	[symbol$2](that) {
-		return isFailReason$1(that) && equals$2(this.error, that.error) && equals$2(this.annotations, that.annotations);
+		return isFailReason$1(that) && equals$1(this.error, that.error) && equals$1(this.annotations, that.annotations);
 	}
 	[symbol$3]() {
 		return combine$1(string$1(this._tag))(combine$1(hash(this.error))(hash(this.annotations)));
@@ -2580,7 +2560,7 @@ var Die = class extends ReasonBase {
 		};
 	}
 	[symbol$2](that) {
-		return isDieReason(that) && equals$2(this.defect, that.defect) && equals$2(this.annotations, that.annotations);
+		return isDieReason(that) && equals$1(this.defect, that.defect) && equals$1(this.annotations, that.annotations);
 	}
 	[symbol$3]() {
 		return combine$1(string$1(this._tag))(combine$1(hash(this.defect))(hash(this.annotations)));
@@ -2642,7 +2622,7 @@ const makeExit = (options) => {
 			};
 		},
 		[symbol$2](that) {
-			return isExit$1(that) && that._tag === this._tag && equals$2(this[args], that[args]);
+			return isExit$1(that) && that._tag === this._tag && equals$1(this[args], that[args]);
 		},
 		[symbol$3]() {
 			return combine$1(string$1(options.op), hash(this[args]));
@@ -2773,7 +2753,7 @@ const done$2 = (value) => {
 	return exitFail(Done$2(value));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Equivalence.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Equivalence.js
 /**
 * Creates a custom equivalence relation with an optimized reference equality check.
 *
@@ -2822,7 +2802,7 @@ const done$2 = (value) => {
 * @category constructors
 * @since 2.0.0
 */
-const make$48 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
+const make$51 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 /**
 * Creates an equivalence relation that uses strict equality (`===`) to compare values.
@@ -2930,7 +2910,7 @@ const strictEqual = () => isStrictEquivalent;
 * @since 4.0.0
 */
 function Tuple$1(elements) {
-	return make$48((self, that) => {
+	return make$51((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!elements[i](self[i], that[i])) return false;
 		return true;
@@ -2940,21 +2920,21 @@ function Tuple$1(elements) {
 * @since 4.0.0
 */
 function Array_(item) {
-	return make$48((self, that) => {
+	return make$51((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!item(self[i], that[i])) return false;
 		return true;
 	});
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/array.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/array.js
 /**
 * @since 2.0.0
 */
 /** @internal */
 const isArrayNonEmpty$1 = (self) => self.length > 0;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/count.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/count.js
 /**
 * Normalizes a collection count to a non-negative integer. `NaN` and
 * non-positive values become `0`; positive infinity is preserved.
@@ -2963,13 +2943,13 @@ const isArrayNonEmpty$1 = (self) => self.length > 0;
 */
 const normalize$2 = (n) => n > 0 ? Math.floor(n) : 0;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/option.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/option.js
 /**
 * @since 2.0.0
 */
-const TypeId$48 = "~effect/Option";
+const TypeId$49 = "~effect/Option";
 const CommonProto$1 = {
-	[TypeId$48]: { _A: (_) => _ },
+	[TypeId$49]: { _A: (_) => _ },
 	...PipeInspectableProto,
 	[Symbol.iterator]() {
 		return new SingleShotGen(this);
@@ -2979,7 +2959,7 @@ const SomeProto = /*#__PURE__*/ Object.defineProperty(/*#__PURE__*/ Object.assig
 	_tag: "Some",
 	_op: "Some",
 	[symbol$2](that) {
-		return isOption$1(that) && isSome$1(that) && equals$2(this.value, that.value);
+		return isOption$1(that) && isSome$1(that) && equals$1(this.value, that.value);
 	},
 	[symbol$3]() {
 		return combine$1(hash(this._tag))(hash(this.value));
@@ -3019,7 +2999,7 @@ const NoneProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Common
 	}
 });
 /** @internal */
-const isOption$1 = (input) => hasProperty(input, TypeId$48);
+const isOption$1 = (input) => hasProperty(input, TypeId$49);
 /** @internal */
 const isNone$1 = (fa) => fa._tag === "None";
 /** @internal */
@@ -3034,10 +3014,10 @@ SomeImpl.prototype = SomeProto;
 /** @internal */
 const some$1 = (value) => new SomeImpl(value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/result.js
-const TypeId$47 = "~effect/Result";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/result.js
+const TypeId$48 = "~effect/Result";
 const CommonProto = {
-	[TypeId$47]: {
+	[TypeId$48]: {
 		/* v8 ignore next 2 */
 		_A: (_) => _,
 		_E: (_) => _
@@ -3051,7 +3031,7 @@ const SuccessProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Com
 	_tag: "Success",
 	_op: "Success",
 	[symbol$2](that) {
-		return isResult$1(that) && isSuccess$2(that) && equals$2(this.success, that.success);
+		return isResult$1(that) && isSuccess$2(that) && equals$1(this.success, that.success);
 	},
 	[symbol$3]() {
 		return combine$1(hash(this._tag))(hash(this.success));
@@ -3071,7 +3051,7 @@ const FailureProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Com
 	_tag: "Failure",
 	_op: "Failure",
 	[symbol$2](that) {
-		return isResult$1(that) && isFailure$2(that) && equals$2(this.failure, that.failure);
+		return isResult$1(that) && isFailure$2(that) && equals$1(this.failure, that.failure);
 	},
 	[symbol$3]() {
 		return combine$1(hash(this._tag))(hash(this.failure));
@@ -3088,7 +3068,7 @@ const FailureProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Com
 	}
 });
 /** @internal */
-const isResult$1 = (input) => hasProperty(input, TypeId$47);
+const isResult$1 = (input) => hasProperty(input, TypeId$48);
 /** @internal */
 const isFailure$2 = (result) => result._tag === "Failure";
 /** @internal */
@@ -3106,9 +3086,9 @@ const SuccessImpl = function(success) {
 };
 SuccessImpl.prototype = SuccessProto;
 /** @internal */
-const succeed$8 = (success) => new SuccessImpl(success);
+const succeed$9 = (success) => new SuccessImpl(success);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Order.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Order.js
 /**
 * Defines comparison functions for ordered values.
 *
@@ -3156,9 +3136,37 @@ const succeed$8 = (success) => new SuccessImpl(success);
 * @category constructors
 * @since 2.0.0
 */
-function make$47(compare) {
+function make$50(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
+/**
+* Order instance for strings that compares them lexicographically using JavaScript's `<` operator.
+*
+* **When to use**
+*
+* Use when you need lexicographic string ordering.
+*
+* **Details**
+*
+* Uses lexicographic dictionary ordering. The empty string is less than any
+* non-empty string, and comparisons are case-sensitive.
+*
+* **Example** (Ordering strings)
+*
+* ```ts import.meta.vitest
+* import { Order } from "effect"
+*
+* Order.String("apple", "banana") // => -1
+* Order.String("banana", "apple") // => 1
+* Order.String("apple", "apple") // => 0
+* ```
+*
+* @see {@link mapInput} to compare objects by a string property
+* @see {@link Struct} to combine with other orders for struct comparison
+* @category instances
+* @since 4.0.0
+*/
+const String$5 = /*#__PURE__*/ make$50((self, that) => self < that ? -1 : 1);
 /**
 * Order instance for numbers that compares them numerically.
 *
@@ -3190,7 +3198,7 @@ function make$47(compare) {
 * @category instances
 * @since 4.0.0
 */
-const Number$4 = /*#__PURE__*/ make$47((self, that) => {
+const Number$4 = /*#__PURE__*/ make$50((self, that) => {
 	if (globalThis.Number.isNaN(self) && globalThis.Number.isNaN(that)) return 0;
 	if (globalThis.Number.isNaN(self)) return -1;
 	if (globalThis.Number.isNaN(that)) return 1;
@@ -3228,7 +3236,7 @@ const Number$4 = /*#__PURE__*/ make$47((self, that) => {
 * @category mapping
 * @since 2.0.0
 */
-const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$47((b1, b2) => self(f(b1), f(b2))));
+const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$50((b1, b2) => self(f(b1), f(b2))));
 /**
 * Checks whether one value is strictly less than another according to the given order.
 *
@@ -3351,7 +3359,7 @@ const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1
 */
 const isGreaterThanOrEqualTo$2 = (O) => dual(2, (self, that) => O(self, that) !== -1);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Option.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Option.js
 /**
 * Creates an `Option` representing the absence of a value.
 *
@@ -3790,7 +3798,7 @@ const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(s
 */
 const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Result.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Result.js
 /**
 * Creates a `Result` holding a `Success` value.
 *
@@ -3813,7 +3821,7 @@ const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() 
 * @category constructors
 * @since 4.0.0
 */
-const succeed$7 = succeed$8;
+const succeed$8 = succeed$9;
 /**
 * Creates a `Result` holding a `Failure` value.
 *
@@ -3842,12 +3850,12 @@ const succeed$7 = succeed$8;
 const fail$7 = fail$8;
 const try_$2 = (evaluate) => {
 	if (isFunction(evaluate)) try {
-		return succeed$7(evaluate());
+		return succeed$8(evaluate());
 	} catch (e) {
 		return fail$7(e);
 	}
 	else try {
-		return succeed$7(evaluate.try());
+		return succeed$8(evaluate.try());
 	} catch (e) {
 		return fail$7(evaluate.catch(e));
 	}
@@ -4008,8 +4016,60 @@ const mapError$4 = /*#__PURE__*/ dual(2, (self, f) => isFailure$1(self) ? fail$7
 * @since 2.0.0
 */
 const match$2 = /*#__PURE__*/ dual(2, (self, { onFailure, onSuccess }) => isFailure$1(self) ? onFailure(self.failure) : onSuccess(self.success));
+/**
+* Collects a structure of `Result`s into a single `Result` of collected values.
+*
+* **When to use**
+*
+* Use to collect independent `Result` values into one `Result` while preserving
+* the original structure.
+*
+* **Details**
+*
+* Accepts:
+* - A tuple/array: returns `Result` with a tuple/array of success values
+* - A struct (record): returns `Result` with a struct of success values
+* - An iterable: returns `Result` with an array of success values
+*
+* Short-circuits on the first `Failure` encountered; later elements are not inspected.
+*
+* **Example** (Collecting a tuple and a struct)
+*
+* ```ts import.meta.vitest
+* import { Result } from "effect"
+*
+* // Tuple
+* Result.all([Result.succeed(1), Result.succeed("two")]) // => Result.succeed([1, "two"])
+*
+* // Struct
+* Result.all({ x: Result.succeed(1), y: Result.fail("err") }) // => Result.fail("err")
+* ```
+*
+* @see {@link flatMap} for chaining two Results sequentially
+* @see {@link gen} for generator-based composition of multiple Results
+*
+* @category sequencing
+* @since 2.0.0
+*/
+const all$3 = (input) => {
+	if (Symbol.iterator in input) {
+		const out = [];
+		for (const e of input) {
+			if (isFailure$1(e)) return e;
+			out.push(e.success);
+		}
+		return succeed$8(out);
+	}
+	const out = {};
+	for (const key of Object.keys(input)) {
+		const e = input[key];
+		if (isFailure$1(e)) return e;
+		assignProperty(out, key, e.success);
+	}
+	return succeed$8(out);
+};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Tuple.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Tuple.js
 /**
 * Creates an `Equivalence` for tuples by comparing corresponding elements
 * using the provided per-position `Equivalence`s. Two tuples are equivalent
@@ -4043,7 +4103,7 @@ const match$2 = /*#__PURE__*/ dual(2, (self, { onFailure, onSuccess }) => isFail
 */
 const makeEquivalence$3 = Tuple$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Record.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Record.js
 /**
 * Checks whether a given `key` exists in a record.
 *
@@ -4154,7 +4214,7 @@ const makeEquivalence$2 = (equivalence) => {
 	return (self, that) => is(self, that) && is(that, self);
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Array.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Array.js
 /**
 * Exposes the global array constructor.
 *
@@ -4346,30 +4406,6 @@ function isCanonicalArrayIndex(key) {
 	return String(index) === key && Number.isInteger(index) && index >= 0 && index < 2 ** 32 - 1;
 }
 /**
-* Returns the last element of an array safely wrapped in `Option.some`, or
-* `Option.none` if the array is empty.
-*
-* **When to use**
-*
-* Use to safely get the last element of an array that may be empty.
-*
-* **Example** (Getting the last element)
-*
-* ```ts import.meta.vitest
-* import { Array, Option } from "effect"
-*
-* Array.last([1, 2, 3]) // => Option.some(3)
-* Array.last([]) // => Option.none()
-* ```
-*
-* @see {@link lastNonEmpty} — direct access when array is known non-empty
-* @see {@link head} — get the first element
-*
-* @category getters
-* @since 2.0.0
-*/
-const last$1 = (self) => isReadonlyArrayNonEmpty(self) ? some(lastNonEmpty(self)) : none();
-/**
 * Returns the last element of a `NonEmptyReadonlyArray` directly (no `Option`
 * wrapper).
 *
@@ -4512,7 +4548,7 @@ const map$6 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
 */
 const makeEquivalence$1 = Array_;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Effectable.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Effectable.js
 /**
 * Create a low-level `Effect` prototype.
 *
@@ -4537,7 +4573,7 @@ const Prototype = (options) => makePrimitiveProto({
 	[evaluate]: options.evaluate
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Context.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Context.js
 /**
 * Runtime type identifier attached to `Context` service keys and used by
 * `isKey` to recognize them.
@@ -4630,7 +4666,7 @@ const ServiceProto = {
 		return self;
 	},
 	context(self) {
-		return make$46(this, self);
+		return make$49(this, self);
 	},
 	use(f) {
 		return withFiber$1((fiber) => f(get$2(fiber.context, this)));
@@ -4641,7 +4677,7 @@ const ServiceProto = {
 };
 const cacheKeys = /*#__PURE__*/ new Set();
 const ReferenceTypeId = "~effect/Context/Reference";
-const TypeId$46 = "~effect/Context";
+const TypeId$47 = "~effect/Context";
 const MaxDepth = 8;
 const FlattenAfterBaseHits = 8;
 const makeImpl = (cacheRoot, base, overlay, depth) => {
@@ -4677,7 +4713,7 @@ const lookup = (self, key) => {
 	for (let overlay = impl.overlay; overlay; overlay = overlay.parent) if (overlay.key === key) return overlay.value;
 	const value = impl.base.get(key);
 	if (value === void 0 && !impl.base.has(key)) return notFound;
-	if (impl.overlay && ++impl.baseHits >= FlattenAfterBaseHits) {
+	if (impl.overlay && ++impl.baseHits >= impl.base.size && impl.baseHits >= FlattenAfterBaseHits) {
 		impl.base = flatten$2(impl);
 		impl.overlay = void 0;
 		impl.depth = 0;
@@ -4721,7 +4757,7 @@ const Proto$18 = {
 		return flatten$2(this);
 	},
 	...PipeInspectableProto,
-	[TypeId$46]: { _Services: (_) => _ },
+	[TypeId$47]: { _Services: (_) => _ },
 	toJSON() {
 		return {
 			_id: "Context",
@@ -4736,7 +4772,7 @@ const Proto$18 = {
 		const self = this.mapUnsafe;
 		const other = that.mapUnsafe;
 		if (self.size !== other.size) return false;
-		for (const [key, value] of self) if (!other.has(key) || !equals$2(value, other.get(key))) return false;
+		for (const [key, value] of self) if (!other.has(key) || !equals$1(value, other.get(key))) return false;
 		return true;
 	},
 	[symbol$3]() {
@@ -4776,7 +4812,7 @@ const hasSameCache = (self, that) => self.cacheRoot === that.cacheRoot;
 * @category guards
 * @since 2.0.0
 */
-const isContext = (u) => hasProperty(u, TypeId$46);
+const isContext = (u) => hasProperty(u, TypeId$47);
 /**
 * Checks whether the provided argument is a `Reference`.
 *
@@ -4830,7 +4866,7 @@ const emptyContext = /*#__PURE__*/ makeUnsafe$7(/*#__PURE__*/ new Map());
 * @category constructors
 * @since 2.0.0
 */
-const make$46 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
+const make$49 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
 /**
 * Adds a service to a given `Context`.
 *
@@ -5125,6 +5161,40 @@ const mergeAll$1 = (...ctxs) => {
 	return makeUnsafe$7(map);
 };
 /**
+* Returns a new `Context` with the specified service keys removed.
+*
+* **When to use**
+*
+* Use when you want to remove a denylist of services from a `Context`.
+*
+* **Example** (Omitting services from a context)
+*
+* ```ts import.meta.vitest
+* import { Context, Option, pipe } from "effect"
+*
+* const Port = Context.Service<{ PORT: number }>("Port")
+* const Timeout = Context.Service<{ TIMEOUT: number }>("Timeout")
+*
+* const someContext = pipe(
+*   Context.make(Port, { PORT: 8080 }),
+*   Context.add(Timeout, { TIMEOUT: 5000 })
+* )
+*
+* const context = pipe(someContext, Context.omit(Timeout))
+*
+* Context.getOption(context, Port) // => Option.some({ PORT: 8080 })
+* Context.getOption(context, Timeout) // => Option.none()
+* ```
+*
+* @see {@link pick} for keeping selected services
+*
+* @category filtering
+* @since 2.0.0
+*/
+const omit$2 = (...keys) => (self) => withFlat(self, (map) => {
+	for (let i = 0; i < keys.length; i++) map.delete(keys[i].key);
+});
+/**
 * Creates a context key with a default value.
 *
 * **When to use**
@@ -5172,8 +5242,8 @@ const mergeAll$1 = (...ctxs) => {
 */
 const Reference = Service$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Duration.js
-const TypeId$45 = "~effect/Duration";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Duration.js
+const TypeId$46 = "~effect/Duration";
 const bigint0$3 = /*#__PURE__*/ BigInt(0);
 const bigint1$2 = /*#__PURE__*/ BigInt(1);
 const bigint2 = /*#__PURE__*/ BigInt(2);
@@ -5252,13 +5322,13 @@ const fromInputUnsafe$1 = (input) => {
 		}
 		case "object": {
 			if (input === null) break;
-			if (TypeId$45 in input) return input;
+			if (TypeId$46 in input) return input;
 			if (Array.isArray(input)) {
-				if (input.length !== 2 || !input.every(isNumber)) return invalid$1(input);
+				if (input.length !== 2 || !input.every(isNumber)) return invalid$2(input);
 				if (Number.isNaN(input[0]) || Number.isNaN(input[1])) return zero$1;
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
-				return make$45(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
+				return make$48(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
 			}
 			const obj = input;
 			let millis = 0;
@@ -5268,13 +5338,13 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.minutes) millis += obj.minutes * 6e4;
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
-			if (!obj.microseconds && !obj.nanoseconds) return make$45(millis);
-			return make$45(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
+			if (!obj.microseconds && !obj.nanoseconds) return make$48(millis);
+			return make$48(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
 		}
 	}
-	return invalid$1(input);
+	return invalid$2(input);
 };
-const invalid$1 = (input) => {
+const invalid$2 = (input) => {
 	throw new Error(`Invalid Input: ${input}`);
 };
 const zeroDurationValue = {
@@ -5284,7 +5354,7 @@ const zeroDurationValue = {
 const infinityDurationValue = { _tag: "Infinity" };
 const negativeInfinityDurationValue = { _tag: "NegativeInfinity" };
 const DurationProto = {
-	[TypeId$45]: TypeId$45,
+	[TypeId$46]: TypeId$46,
 	[symbol$3]() {
 		switch (this.value._tag) {
 			case "Millis": {
@@ -5296,7 +5366,7 @@ const DurationProto = {
 		}
 	},
 	[symbol$2](that) {
-		return isDuration(that) && equals$1(this, that);
+		return isDuration(that) && equals(this, that);
 	},
 	toString() {
 		switch (this.value._tag) {
@@ -5335,7 +5405,7 @@ const DurationProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const make$45 = (input) => {
+const make$48 = (input) => {
 	const duration = Object.create(DurationProto);
 	if (typeof input === "number") {
 		if (isNaN(input) || input === 0 || Object.is(input, -0)) duration.value = zeroDurationValue;
@@ -5370,7 +5440,7 @@ const make$45 = (input) => {
 * @category guards
 * @since 2.0.0
 */
-const isDuration = (u) => hasProperty(u, TypeId$45);
+const isDuration = (u) => hasProperty(u, TypeId$46);
 /**
 * Checks whether a Duration is finite (not infinite).
 *
@@ -5426,7 +5496,7 @@ const isZero$1 = (self) => {
 * @category predicates
 * @since 4.0.0
 */
-const isNegative$1 = (self) => {
+const isNegative = (self) => {
 	switch (self.value._tag) {
 		case "Millis": return self.value.millis < 0;
 		case "Nanos": return self.value.nanos < bigint0$3;
@@ -5449,12 +5519,12 @@ const isNegative$1 = (self) => {
 * @category math
 * @since 4.0.0
 */
-const abs$1 = (self) => {
+const abs = (self) => {
 	switch (self.value._tag) {
 		case "Infinity":
 		case "NegativeInfinity": return infinity;
-		case "Millis": return self.value.millis < 0 ? make$45(-self.value.millis) : self;
-		case "Nanos": return self.value.nanos < bigint0$3 ? make$45(-self.value.nanos) : self;
+		case "Millis": return self.value.millis < 0 ? make$48(-self.value.millis) : self;
+		case "Nanos": return self.value.nanos < bigint0$3 ? make$48(-self.value.nanos) : self;
 	}
 };
 /**
@@ -5471,7 +5541,7 @@ const abs$1 = (self) => {
 * @category constructors
 * @since 2.0.0
 */
-const zero$1 = /*#__PURE__*/ make$45(0);
+const zero$1 = /*#__PURE__*/ make$48(0);
 /**
 * A Duration representing infinite time.
 *
@@ -5486,7 +5556,7 @@ const zero$1 = /*#__PURE__*/ make$45(0);
 * @category constructors
 * @since 2.0.0
 */
-const infinity = /*#__PURE__*/ make$45(Infinity);
+const infinity = /*#__PURE__*/ make$48(Infinity);
 /**
 * A Duration representing negative infinite time.
 *
@@ -5501,7 +5571,7 @@ const infinity = /*#__PURE__*/ make$45(Infinity);
 * @category constructors
 * @since 4.0.0
 */
-const negativeInfinity = /*#__PURE__*/ make$45(-Infinity);
+const negativeInfinity = /*#__PURE__*/ make$48(-Infinity);
 /**
 * Creates a Duration from nanoseconds.
 *
@@ -5516,7 +5586,7 @@ const negativeInfinity = /*#__PURE__*/ make$45(-Infinity);
 * @category constructors
 * @since 2.0.0
 */
-const nanos = (nanos) => make$45(nanos);
+const nanos = (nanos) => make$48(nanos);
 /**
 * Creates a Duration from milliseconds.
 *
@@ -5531,7 +5601,7 @@ const nanos = (nanos) => make$45(nanos);
 * @category constructors
 * @since 2.0.0
 */
-const millis = (millis) => make$45(millis);
+const millis = (millis) => make$48(millis);
 /**
 * Creates a Duration from seconds.
 *
@@ -5546,7 +5616,7 @@ const millis = (millis) => make$45(millis);
 * @category constructors
 * @since 2.0.0
 */
-const seconds = (seconds) => make$45(seconds * 1e3);
+const seconds = (seconds) => make$48(seconds * 1e3);
 /**
 * Creates a Duration from minutes.
 *
@@ -5561,7 +5631,7 @@ const seconds = (seconds) => make$45(seconds * 1e3);
 * @category constructors
 * @since 2.0.0
 */
-const minutes = (minutes) => make$45(minutes * 6e4);
+const minutes = (minutes) => make$48(minutes * 6e4);
 /**
 * Creates a Duration from hours.
 *
@@ -5576,7 +5646,7 @@ const minutes = (minutes) => make$45(minutes * 6e4);
 * @category constructors
 * @since 2.0.0
 */
-const hours = (hours) => make$45(hours * 36e5);
+const hours = (hours) => make$48(hours * 36e5);
 /**
 * Creates a Duration from days.
 *
@@ -5591,7 +5661,7 @@ const hours = (hours) => make$45(hours * 36e5);
 * @category constructors
 * @since 2.0.0
 */
-const days = (days) => make$45(days * 864e5);
+const days = (days) => make$48(days * 864e5);
 /**
 * Creates a Duration from weeks.
 *
@@ -5606,7 +5676,7 @@ const days = (days) => make$45(days * 864e5);
 * @category constructors
 * @since 2.0.0
 */
-const weeks = (weeks) => make$45(weeks * 6048e5);
+const weeks = (weeks) => make$48(weeks * 6048e5);
 /**
 * Converts a Duration to milliseconds.
 *
@@ -5737,7 +5807,7 @@ const matchPair = /*#__PURE__*/ dual(3, (self, that, options) => {
 * @category instances
 * @since 2.0.0
 */
-const Equivalence$3 = (self, that) => matchPair(self, that, {
+const Equivalence$2 = (self, that) => matchPair(self, that, {
 	onMillis: (self, that) => self === that,
 	onNanos: (self, that) => self === that,
 	onInfinity: (self, that) => self.value._tag === that.value._tag
@@ -5756,7 +5826,7 @@ const Equivalence$3 = (self, that) => matchPair(self, that, {
 * @category predicates
 * @since 2.0.0
 */
-const equals$1 = /*#__PURE__*/ dual(2, (self, that) => Equivalence$3(self, that));
+const equals = /*#__PURE__*/ dual(2, (self, that) => Equivalence$2(self, that));
 /**
 * Decomposes a `Duration` into normalized signed components.
 *
@@ -5842,7 +5912,7 @@ const format$1 = (self) => {
 	if (self.value._tag === "Infinity") return "Infinity";
 	if (self.value._tag === "NegativeInfinity") return "-Infinity";
 	if (isZero$1(self)) return "0";
-	if (isNegative$1(self)) return "-" + format$1(abs$1(self));
+	if (isNegative(self)) return "-" + format$1(abs(self));
 	const fragments = parts(self);
 	const pieces = [];
 	if (fragments.days !== 0) pieces.push(`${fragments.days}d`);
@@ -5854,7 +5924,7 @@ const format$1 = (self) => {
 	return pieces.join(" ");
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Scheduler.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Scheduler.js
 /**
 * Controls how runnable Effect fiber tasks are dispatched.
 *
@@ -6077,7 +6147,7 @@ const PreventSchedulerYield = /*#__PURE__*/ Reference("effect/Scheduler/PreventS
 	defaultValue: () => false
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Data.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Data.js
 /**
 * Provides a base class for immutable data types.
 *
@@ -6322,13 +6392,9 @@ const Error$2 = Error$3;
 */
 const TaggedError$1 = TaggedError$2;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Encoding.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/encoding/EncodingError.js
 /**
-* Encoding and decoding helpers for Base64, Base64Url, and hexadecimal text.
-* The functions convert between strings, UTF-8 text, and `Uint8Array` bytes.
-* Encode functions return strings directly, while decode functions return
-* `Result.Result` so invalid input is reported as an `EncodingError` instead of
-* being thrown.
+* Shared error type for encoding and decoding operations.
 *
 * @since 4.0.0
 */
@@ -6351,10 +6417,9 @@ const TaggedError$1 = TaggedError$2;
 * @category type IDs
 * @since 4.0.0
 */
-const EncodingErrorTypeId = "~effect/Encoding/EncodingError";
+const EncodingErrorTypeId = "~effect/encoding/EncodingError";
 /**
-* Error returned when an encoding or decoding operation cannot process its
-* input.
+* Error returned when an encoding or decoding operation cannot process its input.
 *
 * **When to use**
 *
@@ -6368,6 +6433,7 @@ const EncodingErrorTypeId = "~effect/Encoding/EncodingError";
 * message.
 *
 * @see {@link isEncodingError} for checking whether a value is an EncodingError
+*
 * @category errors
 * @since 4.0.0
 */
@@ -6383,100 +6449,8 @@ var EncodingError = class extends (/*#__PURE__*/ TaggedError$1("EncodingError"))
 	*/
 	[EncodingErrorTypeId] = EncodingErrorTypeId;
 };
-/**
-* Encodes the given value into a base64 (RFC4648) `string`.
-*
-* **When to use**
-*
-* Use to encode text or bytes as a standard padded Base64 string for storage or
-* transport.
-*
-* **Details**
-*
-* String inputs are encoded as UTF-8 bytes before Base64 encoding.
-* `Uint8Array` inputs are encoded directly. The output uses the standard
-* RFC4648 alphabet with `=` padding.
-*
-* **Example** (Encoding Base64 strings and bytes)
-*
-* ```ts import.meta.vitest
-* import { Encoding } from "effect"
-*
-* // Encode a string
-* Encoding.encodeBase64("hello") // => "aGVsbG8="
-*
-* // Encode binary data
-* const bytes = new Uint8Array([72, 101, 108, 108, 111])
-* Encoding.encodeBase64(bytes) // => "SGVsbG8="
-* ```
-*
-* @see {@link decodeBase64} for decoding standard Base64 to bytes
-* @see {@link decodeBase64String} for decoding standard Base64 to UTF-8 text
-* @see {@link encodeBase64Url} for URL-safe unpadded Base64 output
-*
-* @category encoding
-* @since 2.0.0
-*/
-const encodeBase64$1 = (input) => typeof input === "string" ? base64EncodeUint8Array(encoder$1.encode(input)) : base64EncodeUint8Array(input);
-/**
-* Decodes a base64 (RFC4648) string into bytes safely.
-*
-* **When to use**
-*
-* Use to decode a standard padded Base64 string into bytes without throwing on
-* invalid input.
-*
-* **Details**
-*
-* Returns `Result.succeed` with a `Uint8Array` when decoding succeeds, or
-* `Result.fail` with an `EncodingError` when the input is not valid base64.
-*
-* **Example** (Decoding Base64 bytes)
-*
-* ```ts import.meta.vitest
-* import { Encoding, Result } from "effect"
-*
-* Encoding.decodeBase64("SGVsbG8=") // => Result.succeed(new Uint8Array([72, 101, 108, 108, 111]))
-* ```
-*
-* @category decoding
-* @since 2.0.0
-*/
-const decodeBase64$1 = (str) => {
-	const stripped = stripCrlf(str);
-	const length = stripped.length;
-	if (length % 4 !== 0) return fail$7(new EncodingError({
-		kind: "Decode",
-		module: "Base64",
-		input: stripped,
-		message: `Length must be a multiple of 4, but is ${length}`
-	}));
-	const index = stripped.indexOf("=");
-	if (index !== -1 && (index < length - 2 || index === length - 2 && stripped[length - 1] !== "=")) return fail$7(new EncodingError({
-		kind: "Decode",
-		module: "Base64",
-		input: stripped,
-		message: `Found a '=' character, but it is not at the end`
-	}));
-	try {
-		const missingOctets = stripped.endsWith("==") ? 2 : stripped.endsWith("=") ? 1 : 0;
-		const result = new Uint8Array(3 * (length / 4) - missingOctets);
-		for (let i = 0, j = 0; i < length; i += 4, j += 3) {
-			const buffer = getBase64Code(stripped.charCodeAt(i)) << 18 | getBase64Code(stripped.charCodeAt(i + 1)) << 12 | getBase64Code(stripped.charCodeAt(i + 2)) << 6 | getBase64Code(stripped.charCodeAt(i + 3));
-			result[j] = buffer >> 16;
-			result[j + 1] = buffer >> 8 & 255;
-			result[j + 2] = buffer & 255;
-		}
-		return succeed$7(result);
-	} catch (e) {
-		return fail$7(new EncodingError({
-			kind: "Decode",
-			module: "Base64",
-			input: stripped,
-			message: e instanceof Error ? e.message : "Invalid input"
-		}));
-	}
-};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/encoding/Hex.js
 /**
 * Generates a random lowercase hexadecimal string, optimized for lengths that
 * are multiples of 8.
@@ -6490,264 +6464,42 @@ const decodeBase64$1 = (str) => {
 *
 * This function uses `Math.random()` and is not cryptographically secure. For
 * security-sensitive values, use the `Crypto.Crypto` service's `randomBytes`
-* method and encode the result with {@link encodeHex}.
+* method and encode the result with {@link encode}.
 *
 * @category encoding
 * @since 4.0.0
 */
-const randomHex = (length) => {
+const random = (length) => {
 	switch (length) {
-		case 16: return randomHex16();
-		case 32: return randomHex32();
+		case 16: return random16();
+		case 32: return random32();
 		default: {
 			let result = "";
-			for (let i = length >>> 3; i > 0; i--) result += randomHex8();
+			for (let i = length >>> 3; i > 0; i--) result += random8();
 			return result;
 		}
 	}
 };
 const hexCharCodes = /*#__PURE__*/ Uint8Array.from("0123456789abcdef", (c) => c.charCodeAt(0));
 const randomWord = () => Math.random() * 4294967296 >>> 0;
-const randomHex8 = () => {
+const random8 = () => {
 	const a = randomWord();
 	return String.fromCharCode(hexCharCodes[a >>> 28], hexCharCodes[a >>> 24 & 15], hexCharCodes[a >>> 20 & 15], hexCharCodes[a >>> 16 & 15], hexCharCodes[a >>> 12 & 15], hexCharCodes[a >>> 8 & 15], hexCharCodes[a >>> 4 & 15], hexCharCodes[a & 15]);
 };
-const randomHex16 = () => {
+const random16 = () => {
 	const a = randomWord();
 	const b = randomWord();
 	return String.fromCharCode(hexCharCodes[a >>> 28], hexCharCodes[a >>> 24 & 15], hexCharCodes[a >>> 20 & 15], hexCharCodes[a >>> 16 & 15], hexCharCodes[a >>> 12 & 15], hexCharCodes[a >>> 8 & 15], hexCharCodes[a >>> 4 & 15], hexCharCodes[a & 15], hexCharCodes[b >>> 28], hexCharCodes[b >>> 24 & 15], hexCharCodes[b >>> 20 & 15], hexCharCodes[b >>> 16 & 15], hexCharCodes[b >>> 12 & 15], hexCharCodes[b >>> 8 & 15], hexCharCodes[b >>> 4 & 15], hexCharCodes[b & 15]);
 };
-const randomHex32 = () => {
+const random32 = () => {
 	const a = randomWord();
 	const b = randomWord();
 	const c = randomWord();
 	const d = randomWord();
 	return String.fromCharCode(hexCharCodes[a >>> 28], hexCharCodes[a >>> 24 & 15], hexCharCodes[a >>> 20 & 15], hexCharCodes[a >>> 16 & 15], hexCharCodes[a >>> 12 & 15], hexCharCodes[a >>> 8 & 15], hexCharCodes[a >>> 4 & 15], hexCharCodes[a & 15], hexCharCodes[b >>> 28], hexCharCodes[b >>> 24 & 15], hexCharCodes[b >>> 20 & 15], hexCharCodes[b >>> 16 & 15], hexCharCodes[b >>> 12 & 15], hexCharCodes[b >>> 8 & 15], hexCharCodes[b >>> 4 & 15], hexCharCodes[b & 15], hexCharCodes[c >>> 28], hexCharCodes[c >>> 24 & 15], hexCharCodes[c >>> 20 & 15], hexCharCodes[c >>> 16 & 15], hexCharCodes[c >>> 12 & 15], hexCharCodes[c >>> 8 & 15], hexCharCodes[c >>> 4 & 15], hexCharCodes[c & 15], hexCharCodes[d >>> 28], hexCharCodes[d >>> 24 & 15], hexCharCodes[d >>> 20 & 15], hexCharCodes[d >>> 16 & 15], hexCharCodes[d >>> 12 & 15], hexCharCodes[d >>> 8 & 15], hexCharCodes[d >>> 4 & 15], hexCharCodes[d & 15]);
 };
-const encoder$1 = /*#__PURE__*/ new TextEncoder();
-const stripCrlf = (str) => str.replace(/[\n\r]/g, "");
-const base64EncodeUint8Array = (bytes) => {
-	const length = bytes.length;
-	let result = "";
-	let i = 2;
-	for (; i < length; i += 3) {
-		result += base64abc[bytes[i - 2] >> 2];
-		result += base64abc[(bytes[i - 2] & 3) << 4 | bytes[i - 1] >> 4];
-		result += base64abc[(bytes[i - 1] & 15) << 2 | bytes[i] >> 6];
-		result += base64abc[bytes[i] & 63];
-	}
-	if (i === length + 1) {
-		result += base64abc[bytes[i - 2] >> 2];
-		result += base64abc[(bytes[i - 2] & 3) << 4];
-		result += "==";
-	}
-	if (i === length) {
-		result += base64abc[bytes[i - 2] >> 2];
-		result += base64abc[(bytes[i - 2] & 3) << 4 | bytes[i - 1] >> 4];
-		result += base64abc[(bytes[i - 1] & 15) << 2];
-		result += "=";
-	}
-	return result;
-};
-function getBase64Code(charCode) {
-	if (charCode >= base64codes.length) throw new TypeError(`Invalid character ${String.fromCharCode(charCode)}`);
-	const code = base64codes[charCode];
-	if (code === 255) throw new TypeError(`Invalid character ${String.fromCharCode(charCode)}`);
-	return code;
-}
-const base64abc = [
-	"A",
-	"B",
-	"C",
-	"D",
-	"E",
-	"F",
-	"G",
-	"H",
-	"I",
-	"J",
-	"K",
-	"L",
-	"M",
-	"N",
-	"O",
-	"P",
-	"Q",
-	"R",
-	"S",
-	"T",
-	"U",
-	"V",
-	"W",
-	"X",
-	"Y",
-	"Z",
-	"a",
-	"b",
-	"c",
-	"d",
-	"e",
-	"f",
-	"g",
-	"h",
-	"i",
-	"j",
-	"k",
-	"l",
-	"m",
-	"n",
-	"o",
-	"p",
-	"q",
-	"r",
-	"s",
-	"t",
-	"u",
-	"v",
-	"w",
-	"x",
-	"y",
-	"z",
-	"0",
-	"1",
-	"2",
-	"3",
-	"4",
-	"5",
-	"6",
-	"7",
-	"8",
-	"9",
-	"+",
-	"/"
-];
-const base64codes = [
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	62,
-	255,
-	255,
-	255,
-	63,
-	52,
-	53,
-	54,
-	55,
-	56,
-	57,
-	58,
-	59,
-	60,
-	61,
-	255,
-	255,
-	255,
-	0,
-	255,
-	255,
-	255,
-	0,
-	1,
-	2,
-	3,
-	4,
-	5,
-	6,
-	7,
-	8,
-	9,
-	10,
-	11,
-	12,
-	13,
-	14,
-	15,
-	16,
-	17,
-	18,
-	19,
-	20,
-	21,
-	22,
-	23,
-	24,
-	25,
-	255,
-	255,
-	255,
-	255,
-	255,
-	255,
-	26,
-	27,
-	28,
-	29,
-	30,
-	31,
-	32,
-	33,
-	34,
-	35,
-	36,
-	37,
-	38,
-	39,
-	40,
-	41,
-	42,
-	43,
-	44,
-	45,
-	46,
-	47,
-	48,
-	49,
-	50,
-	51
-];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Tracer.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Tracer.js
 /**
 * Defines the low-level tracing model used by Effect.
 *
@@ -6822,7 +6574,7 @@ var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiber
 * @category constructors
 * @since 2.0.0
 */
-const make$44 = (options) => options;
+const make$47 = (options) => options;
 /**
 * Creates an `ExternalSpan` from trace and span identifiers, defaulting
 * `sampled` to `true` and annotations to an empty context when they are not
@@ -6956,33 +6708,6 @@ const MinimumTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/MinimumTraceLev
 */
 const TracerKey = "effect/Tracer";
 /**
-* Context reference for the active tracer service. By default it uses the
-* native tracer, which creates `NativeSpan` instances.
-*
-* **Example** (Accessing the current tracer)
-*
-* ```ts import.meta.vitest
-* import { Effect, Tracer } from "effect"
-*
-* // Access the current tracer from the context
-* const program = Effect.gen(function*() {
-*   const tracer = yield* Effect.service(Tracer.Tracer)
-*   // Or use the built-in tracer effect
-*   const tracerFromAccessor = yield* Effect.tracer
-*   return tracer === tracerFromAccessor
-* })
-*
-* await Effect.runPromise(program) // => true
-* ```
-*
-* @category services
-* @since 2.0.0
-*/
-const Tracer = /*#__PURE__*/ Reference(TracerKey, {
-	fiberCached: true,
-	defaultValue: () => nativeTracer
-});
-/**
 * The default `Tracer` implementation backing the `Tracer` reference. It
 * creates in-memory `NativeSpan` instances and does not export them anywhere.
 *
@@ -6995,7 +6720,7 @@ const Tracer = /*#__PURE__*/ Reference(TracerKey, {
 * @category references
 * @since 4.0.0
 */
-const nativeTracer = /*#__PURE__*/ make$44({ span: (options) => new NativeSpan(options) });
+const nativeTracer = /*#__PURE__*/ make$47({ span: (options) => new NativeSpan(options) });
 /**
 * Default in-memory `Span` implementation used by the native tracer. It
 * generates span and trace identifiers, stores attributes, events, and links,
@@ -7042,10 +6767,10 @@ var NativeSpan = class {
 		};
 	}
 	get traceId() {
-		return this._traceId ??= getOrUndefined$1(this.parent)?.traceId ?? randomHex(32);
+		return this._traceId ??= getOrUndefined$1(this.parent)?.traceId ?? random(32);
 	}
 	get spanId() {
-		return this._spanId ??= randomHex(16);
+		return this._spanId ??= random(16);
 	}
 	get attributes() {
 		return this._attributes ??= /* @__PURE__ */ new Map();
@@ -7076,11 +6801,11 @@ var NativeSpan = class {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/metric.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/metric.js
 /** @internal */
 const FiberRuntimeMetricsKey = "effect/Metric/FiberRuntimeMetrics";
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/references.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/references.js
 /** @internal */
 const CurrentErrorReporters = /*#__PURE__*/ Reference("effect/ErrorReporter/CurrentErrorReporters", { defaultValue: () => /* @__PURE__ */ new Set() });
 /** @internal */
@@ -7114,7 +6839,7 @@ const MinimumLogLevel = /*#__PURE__*/ Reference("effect/References/MinimumLogLev
 /** @internal */
 const CurrentLogSpans = /*#__PURE__*/ Reference("effect/References/CurrentLogSpans", { defaultValue: () => [] });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/tracer.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/tracer.js
 /** @internal */
 const addSpanStackTrace = (options) => {
 	if (options?.captureStackTrace === false) return options;
@@ -7148,7 +6873,7 @@ const makeStackCleaner = (line) => (stack) => {
 };
 const spanCleaner = /*#__PURE__*/ makeStackCleaner(3);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/effect.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/effect.js
 /** @internal */
 var Interrupt = class extends ReasonBase {
 	constructor(fiberId, annotations = constEmptyAnnotations) {
@@ -7168,7 +6893,7 @@ var Interrupt = class extends ReasonBase {
 		return isInterruptReason(that) && this.fiberId === that.fiberId && this.annotations === that.annotations;
 	}
 	[symbol$3]() {
-		return combine$1(string$1(`${this._tag}:${this.fiberId}`))(random(this.annotations));
+		return combine$1(string$1(`${this._tag}:${this.fiberId}`))(random$1(this.annotations));
 	}
 };
 /** @internal */
@@ -7176,15 +6901,15 @@ const makeInterruptReason$1 = (fiberId) => new Interrupt(fiberId);
 /** @internal */
 const causeInterrupt = (fiberId) => new CauseImpl([new Interrupt(fiberId)]);
 /** @internal */
-const findFail = (self) => {
+const findFail$1 = (self) => {
 	const reason = self.reasons.find(isFailReason$1);
-	return reason ? succeed$7(reason) : fail$7(self);
+	return reason ? succeed$8(reason) : fail$7(self);
 };
 /** @internal */
 const findError$1 = (self) => {
 	for (let i = 0; i < self.reasons.length; i++) {
 		const reason = self.reasons[i];
-		if (reason._tag === "Fail") return succeed$7(reason.error);
+		if (reason._tag === "Fail") return succeed$8(reason.error);
 	}
 	return fail$7(self);
 };
@@ -7193,7 +6918,7 @@ const hasDies$1 = (self) => self.reasons.some(isDieReason);
 /** @internal */
 const findDefect = (self) => {
 	const reason = self.reasons.find(isDieReason);
-	return reason ? succeed$7(reason.defect) : fail$7(self);
+	return reason ? succeed$8(reason.defect) : fail$7(self);
 };
 /** @internal */
 const hasInterrupts$1 = (self) => self.reasons.some(isInterruptReason);
@@ -7206,7 +6931,7 @@ const causeFilterInterruptors = (self) => {
 		interruptors ??= /* @__PURE__ */ new Set();
 		if (f.fiberId !== void 0) interruptors.add(f.fiberId);
 	}
-	return interruptors ? succeed$7(interruptors) : fail$7(self);
+	return interruptors ? succeed$8(interruptors) : fail$7(self);
 };
 /** @internal */
 const causeInterruptors = (self) => {
@@ -7216,6 +6941,8 @@ const causeInterruptors = (self) => {
 const emptySet = /*#__PURE__*/ new Set();
 /** @internal */
 const hasInterruptsOnly$1 = (self) => self.reasons.length > 0 && self.reasons.every(isInterruptReason);
+/** @internal */
+const reasonAnnotations$1 = (self) => makeUnsafe$7(self.annotations);
 const dedupeReasons = (self, that) => {
 	const buckets = /* @__PURE__ */ new Map();
 	const out = [];
@@ -7223,7 +6950,7 @@ const dedupeReasons = (self, that) => {
 		const hash$5 = hash(reason);
 		const bucket = buckets.get(hash$5);
 		if (bucket === void 0) buckets.set(hash$5, [reason]);
-		else if (bucket.some((previous) => equals$2(previous, reason))) continue;
+		else if (bucket.some((previous) => equals$1(previous, reason))) continue;
 		else bucket.push(reason);
 		out.push(reason);
 	}
@@ -7234,7 +6961,7 @@ const causeCombine = /*#__PURE__*/ dual(2, (self, that) => {
 	if (self.reasons.length === 0) return that;
 	else if (that.reasons.length === 0) return self;
 	const newCause = new CauseImpl(dedupeReasons(self.reasons, that.reasons));
-	return equals$2(self, newCause) ? self : newCause;
+	return equals$1(self, newCause) ? self : newCause;
 });
 /** @internal */
 const causeMap = /*#__PURE__*/ dual(2, (self, f) => {
@@ -7249,21 +6976,14 @@ const causeMap = /*#__PURE__*/ dual(2, (self, f) => {
 	return hasFail ? causeFromReasons(failures) : self;
 });
 /** @internal */
-const causePartition = (self) => {
-	const obj = {
-		Fail: [],
-		Die: [],
-		Interrupt: []
-	};
-	for (let i = 0; i < self.reasons.length; i++) obj[self.reasons[i]._tag].push(self.reasons[i]);
-	return obj;
-};
-/** @internal */
 const causeSquash = (self) => {
-	const partitioned = causePartition(self);
-	if (partitioned.Fail.length > 0) return partitioned.Fail[0].error;
-	else if (partitioned.Die.length > 0) return partitioned.Die[0].defect;
-	else if (partitioned.Interrupt.length > 0) return new globalThis.Error("All fibers interrupted without error");
+	let die;
+	for (const reason of self.reasons) {
+		if (reason._tag === "Fail") return reason.error;
+		if (reason._tag === "Die") die ??= reason;
+	}
+	if (die !== void 0) return die.defect;
+	if (self.reasons.length > 0) return new globalThis.Error("All fibers interrupted without error");
 	return new globalThis.Error("Empty cause");
 };
 /** @internal */
@@ -7273,23 +6993,26 @@ const causePrettyErrors = (self, options) => {
 	if (self.reasons.length === 0) return errors;
 	const prevStackLimit = getStackTraceLimit();
 	if (prevStackLimit !== 0) setStackTraceLimit(1);
-	for (const failure of self.reasons) {
-		if (failure._tag === "Interrupt") {
-			interrupts.push(failure);
-			continue;
+	try {
+		for (const failure of self.reasons) {
+			if (failure._tag === "Interrupt") {
+				interrupts.push(failure);
+				continue;
+			}
+			errors.push(causePrettyError(failure._tag === "Die" ? failure.defect : failure.error, failure.annotations, options));
 		}
-		errors.push(causePrettyError(failure._tag === "Die" ? failure.defect : failure.error, failure.annotations, options));
+		if (errors.length === 0) {
+			const cause = /* @__PURE__ */ new Error("The fiber was interrupted by:");
+			cause.name = "InterruptCause";
+			cause.stack = interruptCauseStack(cause, interrupts);
+			const error = new globalThis.Error("All fibers interrupted without error", { cause });
+			error.name = "InterruptError";
+			error.stack = `${error.name}: ${error.message}`;
+			errors.push(causePrettyError(error, interrupts[0].annotations, options));
+		}
+	} finally {
+		if (prevStackLimit !== 0) setStackTraceLimit(prevStackLimit);
 	}
-	if (errors.length === 0) {
-		const cause = /* @__PURE__ */ new Error("The fiber was interrupted by:");
-		cause.name = "InterruptCause";
-		cause.stack = interruptCauseStack(cause, interrupts);
-		const error = new globalThis.Error("All fibers interrupted without error", { cause });
-		error.name = "InterruptError";
-		error.stack = `${error.name}: ${error.message}`;
-		errors.push(causePrettyError(error, interrupts[0].annotations, options));
-	}
-	if (prevStackLimit !== 0) setStackTraceLimit(prevStackLimit);
 	return errors;
 };
 /** @internal */
@@ -7322,7 +7045,7 @@ const cleanErrorStack = (stack, error, annotations) => {
 	const lines = (stack.startsWith(message) ? stack.slice(message.length) : stack).split("\n");
 	const out = [message];
 	for (let i = 1; i < lines.length; i++) {
-		if (/(?:Generator\.next|~effect\/Effect)/.test(lines[i])) break;
+		if (/Generator\.next|~effect\/(?:Effect|Utils)/.test(lines[i])) break;
 		out.push(lines[i]);
 	}
 	return annotations ? addStackAnnotations(out.join("\n"), annotations) : out.join("\n");
@@ -7384,7 +7107,6 @@ const getCurrentFiber = () => globalThis[currentFiberTypeId];
 /** @internal */
 var FiberImpl = class {
 	constructor(context, interruptible = true) {
-		this[FiberTypeId] = fiberVariance;
 		this.setContext(context);
 		this.id = ++fiberIdStore.id;
 		this.currentOpCount = 0;
@@ -7400,22 +7122,9 @@ var FiberImpl = class {
 		this._parent = void 0;
 		this.cache.runtimeMetrics?.recordFiberStart(this.context);
 	}
-	[FiberTypeId];
-	id;
-	interruptible;
-	currentOpCount;
-	_stack;
-	_observers;
-	_exit;
-	_children;
-	_interruptedCause;
-	_yielded;
-	_running;
-	_deferredInterrupt;
-	_parent;
-	context;
-	cache;
-	_dispatcher = void 0;
+	get [FiberTypeId]() {
+		return fiberVariance;
+	}
 	get currentDispatcher() {
 		return this._dispatcher ??= this.cache.scheduler.makeDispatcher();
 	}
@@ -7429,21 +7138,22 @@ var FiberImpl = class {
 		}
 		if (this._observers === void 0) this._observers = [cb];
 		else this._observers.push(cb);
-		return () => {
-			if (this._exit || this._observers === void 0) return;
-			const index = this._observers.indexOf(cb);
-			if (index >= 0) this._observers.splice(index, 1);
-		};
+		return () => this.removeObserver(cb);
+	}
+	removeObserver(cb) {
+		if (this._exit || this._observers === void 0) return;
+		const index = this._observers.indexOf(cb);
+		if (index >= 0) this._observers.splice(index, 1);
 	}
 	interruptUnsafe(fiberId, annotations) {
 		if (this._exit) return;
 		let cause = causeInterrupt(fiberId);
-		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$46(StackTraceKey, this.cache.stackFrame));
+		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$49(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
 		this._interruptedCause = this._interruptedCause ? causeCombine(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
 			if (this._running) this._deferredInterrupt = true;
-			else this.evaluate(failCause$4(this._interruptedCause));
+			else this.evaluate(failCause$6(this._interruptedCause));
 		}
 	}
 	pollUnsafe() {
@@ -7487,7 +7197,7 @@ var FiberImpl = class {
 			while (true) {
 				if (this._deferredInterrupt) {
 					this._deferredInterrupt = false;
-					current = failCause$4(this._interruptedCause);
+					current = failCause$6(this._interruptedCause);
 				}
 				this.currentOpCount++;
 				const cache = this.cache;
@@ -7538,6 +7248,11 @@ var FiberImpl = class {
 			if (op[symbol]) return op;
 		}
 	}
+	succeedWith(value) {
+		if ((++this.currentOpCount & maxInlineSteps - 1) === 0) return exitSucceed(value);
+		const cont = this.getCont(contA);
+		return cont ? cont[contA](value, this) : this.yieldWith(exitSucceed(value));
+	}
 	yieldWith(value) {
 		this._yielded = value;
 		return Yield;
@@ -7554,7 +7269,7 @@ var FiberImpl = class {
 		if (previous !== void 0 && hasSameCache(previous, context)) return;
 		const root = context.cacheRoot;
 		const cache = root._fiberCache ??= makeFiberContextCache(context);
-		if (this.cache !== void 0 && this.cache.scheduler !== cache.scheduler) this._dispatcher = void 0;
+		if (this.cache?.scheduler !== cache.scheduler) this._dispatcher = void 0;
 		this.cache = cache;
 	}
 	get currentSpanLocal() {
@@ -7580,12 +7295,13 @@ const makeFiberContextCache = (context) => {
 };
 const deferredInterruptCont = {
 	[contA](_value, fiber) {
-		return failCause$4(fiber._interruptedCause);
+		return failCause$6(fiber._interruptedCause);
 	},
 	[contE](_cause, fiber) {
-		return failCause$4(fiber._interruptedCause);
+		return failCause$6(fiber._interruptedCause);
 	}
 };
+const maxInlineSteps = 32;
 const fiberMiddleware = { interruptChildren: void 0 };
 const fiberStackAnnotations = (fiber) => {
 	if (!fiber.cache.stackFrame) return void 0;
@@ -7600,10 +7316,10 @@ const fiberInterruptChildren = (fiber) => {
 /** @internal */
 const fiberAwait = (self) => {
 	const impl = self;
-	if (impl._exit) return succeed$6(impl._exit);
+	if (impl._exit) return succeed$7(impl._exit);
 	return callback$2((resume) => {
-		if (impl._exit) return resume(succeed$6(impl._exit));
-		return sync$1(self.addObserver((exit) => resume(succeed$6(exit))));
+		if (impl._exit) return resume(succeed$7(impl._exit));
+		return sync$1(self.addObserver((exit) => resume(succeed$7(exit))));
 	});
 };
 /** @internal */
@@ -7625,7 +7341,7 @@ const fiberAwaitAll = (self) => callback$2((resume) => {
 			});
 			return;
 		}
-		resume(succeed$6(exits));
+		resume(succeed$7(exits));
 	}
 	loop();
 	return sync$1(() => cancel?.());
@@ -7659,9 +7375,9 @@ const fiberInterruptAll = (fibers) => withFiber$1((parent) => {
 	return asVoid$1(fiberAwaitAll(fiberArr));
 });
 /** @internal */
-const succeed$6 = exitSucceed;
+const succeed$7 = exitSucceed;
 /** @internal */
-const failCause$4 = exitFailCause;
+const failCause$6 = exitFailCause;
 /** @internal */
 const fail$6 = exitFail;
 /** @internal */
@@ -7681,11 +7397,11 @@ const suspend$3 = /*#__PURE__*/ makePrimitive({
 	}
 });
 /** @internal */
-const fromOption$1 = /*#__PURE__*/ dual((args) => args.length >= 2 || isOption(args[0]), (option, onNone) => isNone(option) ? fail$6(onNone ? onNone() : new NoSuchElementError("Effect.fromOption: Option.none")) : succeed$6(option.value));
+const fromOption$1 = /*#__PURE__*/ dual((args) => args.length >= 2 || isOption(args[0]), (option, onNone) => isNone(option) ? fail$6(onNone ? onNone() : new NoSuchElementError("Effect.fromOption: Option.none")) : succeed$7(option.value));
 /** @internal */
 const fromResult$1 = /*#__PURE__*/ match$2({
 	onFailure: fail$6,
-	onSuccess: succeed$6
+	onSuccess: succeed$7
 });
 /** @internal */
 const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
@@ -7702,30 +7418,32 @@ const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 	}
 }))(0);
 /** @internal */
-const succeedNone$1 = /*#__PURE__*/ succeed$6(/*#__PURE__*/ none());
+const succeedSome$1 = (a) => succeed$7(some(a));
 /** @internal */
-const failCauseSync$1 = (evaluate) => suspend$3(() => failCause$4(internalCall(evaluate)));
+const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none());
 /** @internal */
-const die$2 = (defect) => exitDie(defect);
+const failCauseSync$1 = (evaluate) => suspend$3(() => failCause$6(evaluate()));
 /** @internal */
-const failSync = (error) => suspend$3(() => fail$6(internalCall(error)));
+const die$3 = (defect) => exitDie(defect);
 /** @internal */
-const void_$3 = /*#__PURE__*/ succeed$6(void 0);
+const failSync = (error) => suspend$3(() => fail$6(error()));
+/** @internal */
+const void_$3 = /*#__PURE__*/ succeed$7(void 0);
 /** @internal */
 const try_$1 = (options) => {
 	const evaluate = typeof options === "function" ? options : options.try;
 	const catcher = typeof options === "function" ? (cause) => new UnknownError$2(cause, "An error occurred in Effect.try") : options.catch;
 	return suspend$3(() => {
 		try {
-			return succeed$6(internalCall(evaluate));
+			return succeed$7(evaluate());
 		} catch (err) {
-			return fail$6(internalCall(() => catcher(err)));
+			return fail$6(catcher(err));
 		}
 	});
 };
 /** @internal */
 const promise$1 = (evaluate) => callbackOptions(function(resume, signal) {
-	internalCall(() => evaluate(signal)).then((a) => resume(succeed$6(a)), (e) => resume(die$2(e)));
+	evaluate(signal).then((a) => resume(succeed$7(a)), (e) => resume(die$3(e)));
 }, evaluate.length !== 0);
 /** @internal */
 const tryPromise$1 = (options) => {
@@ -7736,11 +7454,11 @@ const tryPromise$1 = (options) => {
 			try {
 				resume(fail$6(internalCall(() => catcher(cause))));
 			} catch (err) {
-				resume(die$2(err));
+				resume(die$3(err));
 			}
 		};
 		try {
-			internalCall(() => f(signal)).then((a) => resume(succeed$6(a)), failWithCatch);
+			f(signal).then((a) => resume(succeed$7(a)), failWithCatch);
 		} catch (err) {
 			failWithCatch(err);
 		}
@@ -7752,11 +7470,10 @@ const callbackOptions = /*#__PURE__*/ function() {
 	const Proto = /*#__PURE__*/ makePrimitiveProto({
 		op: "Async",
 		[evaluate](fiber) {
-			const register = internalCall(() => this.register.bind(fiber.cache.scheduler));
 			let resumed = false;
 			let yielded = false;
 			const controller = this.withSignal ? new AbortController() : void 0;
-			const onCancel = register((effect) => {
+			const onCancel = this.register.call(fiber.cache.scheduler, (effect) => {
 				if (resumed) return;
 				resumed = true;
 				if (yielded) fiber.evaluate(effect);
@@ -7794,7 +7511,7 @@ const asyncFinalizer = /*#__PURE__*/ makePrimitive({
 		}
 	},
 	[contE](cause, _fiber) {
-		return hasInterrupts$1(cause) ? flatMap$2(this[args](), () => failCause$4(cause)) : failCause$4(cause);
+		return hasInterrupts$1(cause) ? flatMap$2(this[args](), () => failCause$6(cause)) : failCause$6(cause);
 	}
 });
 /** @internal */
@@ -7843,6 +7560,8 @@ const fn$1 = function() {
 };
 const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) => {
 	const body = typeof bodyOrOptions === "function" ? bodyOrOptions : pipeables.shift().bind(bodyOrOptions.self);
+	const definitionName = `${name} (definition)`;
+	const definitionStack = defError ? fnStackCleaner(() => defError.stack) : constUndefined;
 	return defineFunctionLength(body.length, function(...args) {
 		let result = suspend$3(() => {
 			const iter = body.apply(this, arguments);
@@ -7861,8 +7580,8 @@ const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) 
 			name,
 			stack: callError ? fnStackCleaner(() => callError.stack) : constUndefined,
 			parent: {
-				name: `${name} (definition)`,
-				stack: defError ? fnStackCleaner(() => defError.stack) : constUndefined,
+				name: definitionName,
+				stack: definitionStack,
 				parent: prev
 			}
 		}));
@@ -7882,7 +7601,7 @@ const fromIteratorEagerUnsafe = (evaluate) => {
 		let value = void 0;
 		while (true) {
 			const state = iterator.next(value);
-			if (state.done) return succeed$6(state.value);
+			if (state.done) return succeed$7(state.value);
 			const primitive = state.value;
 			if (primitive && primitive._tag === "Success") {
 				value = primitive.value;
@@ -7899,7 +7618,7 @@ const fromIteratorEagerUnsafe = (evaluate) => {
 			}
 		}
 	} catch (error) {
-		return die$2(error);
+		return die$3(error);
 	}
 };
 const fromIteratorUnsafe = /*#__PURE__*/ function() {
@@ -7909,7 +7628,7 @@ const fromIteratorUnsafe = /*#__PURE__*/ function() {
 			const iter = this.iterator;
 			while (true) {
 				const state = iter.next(value);
-				if (state.done) return succeed$6(state.value);
+				if (state.done) return succeed$7(state.value);
 				if (!effectIsExit(state.value)) {
 					fiber._stack.push(this);
 					return state.value;
@@ -7931,7 +7650,7 @@ const fromIteratorUnsafe = /*#__PURE__*/ function() {
 	};
 }();
 /** @internal */
-const as$1 = /*#__PURE__*/ dual(2, (self, value) => new ContImpl(self, returnPayload, succeed$6(value)));
+const as$1 = /*#__PURE__*/ dual(2, (self, value) => new ContImpl(self, returnPayload, succeed$7(value)));
 const evaluateCont = function(fiber) {
 	fiber._stack.push(this);
 	return this[args];
@@ -7940,11 +7659,6 @@ const OnSuccessProto = /*#__PURE__*/ makePrimitiveProto({
 	op: "OnSuccess",
 	[evaluate]: evaluateCont
 });
-const OnSuccessImpl = function(self, f) {
-	this[args] = self;
-	this[contA] = f;
-};
-OnSuccessImpl.prototype = OnSuccessProto;
 const ContImpl = function(self, cont, payload) {
 	this[args] = self;
 	this[contA] = cont;
@@ -7954,20 +7668,29 @@ ContImpl.prototype = OnSuccessProto;
 const returnPayload = function() {
 	return this.payload;
 };
-const mapCont = function(value) {
+const succeedPayload = function(_value, fiber) {
+	return fiber.succeedWith(this.payload);
+};
+const continuationMarksStack = /*#__PURE__*/ (() => {
+	const marker = "~effect/Effect/stackProbe";
+	return { [marker]: function stackProbe() {
+		return (/* @__PURE__ */ new Error()).stack;
+	} }[marker]()?.includes("[as " + marker + "]") === true;
+})();
+const mapCont = function(value, fiber) {
 	const f = this.payload;
-	return succeed$6(internalCall(() => f(value)));
+	return fiber.succeedWith(continuationMarksStack ? f(value) : internalCall(() => f(value)));
 };
 const andThenCont = function(value) {
 	const f = this.payload;
-	return internalCall(() => f(value));
+	return f(value);
 };
 const tapCont = function(value) {
 	const f = this.payload;
-	return new ContImpl(internalCall(() => f(value)), returnPayload, exitSucceed(value));
+	return new ContImpl(f(value), succeedPayload, value);
 };
 const tapEffectCont = function(value) {
-	return new ContImpl(this.payload, returnPayload, exitSucceed(value));
+	return new ContImpl(this.payload, succeedPayload, value);
 };
 /** @internal */
 const asSome = (self) => map$5(self, some);
@@ -7985,7 +7708,7 @@ const raceAllFirst = (all, options) => withFiber$1((parent) => callback$2((resum
 	const fibers = /* @__PURE__ */ new Set();
 	const onExit = (exit) => {
 		done = true;
-		resume(fibers.size === 0 ? exit : flatMap$2(uninterruptible(fiberInterruptAll(fibers)), () => exit));
+		resume(fibers.size === 0 ? exit : flatMap$2(uninterruptible$1(fiberInterruptAll(fibers)), () => exit));
 	};
 	let i = 0;
 	for (const effect of all) {
@@ -8009,7 +7732,7 @@ const raceAllFirst = (all, options) => withFiber$1((parent) => callback$2((resum
 /** @internal */
 const raceFirst$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[1]), (self, that, options) => raceAllFirst([self, that], options));
 /** @internal */
-const flatMap$2 = /*#__PURE__*/ dual(2, (self, f) => new OnSuccessImpl(self, f.length !== 1 ? (a) => f(a) : f));
+const flatMap$2 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, andThenCont, f));
 /** @internal */
 const effectIsExit = (effect) => effect[ExitTypeId] !== void 0;
 /** @internal */
@@ -8044,7 +7767,7 @@ const exitIsSuccess = (self) => self._tag === "Success";
 /** @internal */
 const exitIsFailure = (self) => self._tag === "Failure";
 /** @internal */
-const exitFilterCause = (self) => self._tag === "Failure" ? succeed$7(self.cause) : fail$7(self);
+const exitFilterCause = (self) => self._tag === "Failure" ? succeed$8(self.cause) : fail$7(self);
 /** @internal */
 const exitVoid = /*#__PURE__*/ exitSucceed(void 0);
 /** @internal */
@@ -8072,16 +7795,17 @@ const exitAsVoidAll = (exits) => {
 	return failures.length === 0 ? exitVoid : exitFailCause(causeFromReasons(failures));
 };
 /** @internal */
-const serviceOption$1 = (service) => withFiber$1((fiber) => succeed$6(getOption(fiber.context, service)));
+const serviceOption$1 = (service) => withFiber$1((fiber) => succeed$7(getOption(fiber.context, service)));
 /** @internal */
 const updateContext$1 = /*#__PURE__*/ dual(2, (self, f) => withFiber$1((fiber) => {
 	const prevContext = fiber.context;
 	const nextContext = f(prevContext);
 	if (prevContext === nextContext) return self;
 	fiber.setContext(nextContext);
-	return onExitPrimitive(self, () => {
+	onExitUnsafe(fiber, () => {
 		fiber.setContext(prevContext);
 	});
+	return self;
 }));
 /** @internal */
 const updateService = /*#__PURE__*/ dual(3, (self, service, f) => updateContext$1(self, (s) => {
@@ -8092,7 +7816,7 @@ const updateService = /*#__PURE__*/ dual(3, (self, service, f) => updateContext$
 }));
 /** @internal */
 const context$1 = () => getContext;
-const getContext = /*#__PURE__*/ withFiber$1((fiber) => succeed$6(fiber.context));
+const getContext = /*#__PURE__*/ withFiber$1((fiber) => succeed$7(fiber.context));
 /** @internal */
 const contextWith$1 = (f) => withFiber$1((fiber) => f(fiber.context));
 /** @internal */
@@ -8108,6 +7832,8 @@ const provideService$1 = function() {
 const provideServiceImpl = (self, service, implementation) => updateContext$1(self, add$2(service, implementation));
 /** @internal */
 const filterOrFail$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, orFailWith) => filterOrElse(self, predicate, orFailWith ? (a) => fail$6(orFailWith(a)) : () => fail$6(new NoSuchElementError())));
+/** @internal */
+const when$3 = /*#__PURE__*/ dual(2, (self, condition) => flatMap$2(condition, (pass) => pass ? asSome(self) : succeedNone$1));
 /** @internal */
 const forever$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => whileLoop$1({
 	while: constTrue,
@@ -8128,36 +7854,36 @@ OnFailureImpl.prototype = OnFailureProto;
 /** @internal */
 const catchCauseFilter$1 = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$2(self, (cause) => {
 	const eb = filter(cause);
-	return isFailure$1(eb) ? failCause$4(eb.failure) : internalCall(() => f(eb.success, cause));
+	return isFailure$1(eb) ? failCause$6(eb.failure) : f(eb.success, cause);
 }));
 /** @internal */
 const catch_$3 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter$1(self, findError$1, (e) => f(e)));
 /** @internal */
 const catchDefect$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter$1(self, findDefect, f));
 /** @internal */
-const tapCause$1 = /*#__PURE__*/ dual(2, (self, f) => catchCause$2(self, (cause) => andThen$1(internalCall(() => f(cause)), failCause$4(cause))));
+const tapCause$1 = /*#__PURE__*/ dual(2, (self, f) => catchCause$2(self, (cause) => andThen$1(f(cause), failCause$6(cause))));
 /** @internal */
 const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$2(self, (cause) => {
 	const result = filter(cause);
-	if (isFailure$1(result)) return failCause$4(cause);
-	return andThen$1(internalCall(() => f(result.success, cause)), failCause$4(cause));
+	if (isFailure$1(result)) return failCause$6(cause);
+	return andThen$1(f(result.success, cause), failCause$6(cause));
 }));
 /** @internal */
 const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
 /** @internal */
 const catchIf$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$2(self, (cause) => {
 	const error = findError$1(cause);
-	if (isFailure$1(error)) return failCause$4(error.failure);
-	if (!predicate(error.success)) return orElse ? internalCall(() => orElse(error.success)) : failCause$4(cause);
-	return internalCall(() => f(error.success));
+	if (isFailure$1(error)) return failCause$6(error.failure);
+	if (!predicate(error.success)) return orElse ? orElse(error.success) : failCause$6(cause);
+	return f(error.success);
 }));
 /** @internal */
 const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, filter, f, orElse) => catchCause$2(self, (cause) => {
 	const error = findError$1(cause);
-	if (isFailure$1(error)) return failCause$4(error.failure);
+	if (isFailure$1(error)) return failCause$6(error.failure);
 	const result = filter(error.success);
-	if (isFailure$1(result)) return orElse ? internalCall(() => orElse(result.failure)) : failCause$4(cause);
-	return internalCall(() => f(result.success));
+	if (isFailure$1(result)) return orElse ? orElse(result.failure) : failCause$6(cause);
+	return f(result.success);
 }));
 /** @internal */
 const catchTag$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
@@ -8169,14 +7895,14 @@ const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cas
 	let keys;
 	return catchFilter(self, (e) => {
 		keys ??= Object.keys(cases);
-		return hasProperty(e, "_tag") && isString(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$7(e) : fail$7(e);
-	}, (e) => internalCall(() => cases[e["_tag"]](e)), orElse);
+		return hasProperty(e, "_tag") && isString(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$7(e);
+	}, (e) => cases[e["_tag"]](e), orElse);
 });
 /** @internal */
 const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$1(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
 	const reason = e.reason;
 	if (isTagged(reason, reasonTag)) return f(reason, e);
-	return orElse ? internalCall(() => orElse(reason, e)) : fail$6(e);
+	return orElse ? orElse(reason, e) : fail$6(e);
 }));
 /** @internal */
 const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => failSync(() => f(error))));
@@ -8186,9 +7912,9 @@ const mapBoth = /*#__PURE__*/ dual(2, (self, options) => matchEffect$2(self, {
 	onSuccess: (a) => sync$1(() => options.onSuccess(a))
 }));
 /** @internal */
-const orDie$1 = (self) => catch_$3(self, die$2);
+const orDie$1 = (self) => catch_$3(self, die$3);
 /** @internal */
-const orElseSucceed$1 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (_) => sync$1(f)));
+const orElseSucceed$1 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => sync$1(() => f(error))));
 /** @internal */
 const ignore$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => {
 	if (!options?.log) return matchEffect$2(self, {
@@ -8198,8 +7924,8 @@ const ignore$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, option
 	const logEffect = logWithLevel(options.log === true ? void 0 : options.log);
 	return matchCauseEffect$1(self, {
 		onFailure(cause) {
-			const failure = findFail(cause);
-			return isFailure$1(failure) ? failCause$4(failure.failure) : options.message === void 0 ? logEffect(cause) : logEffect(options.message, cause);
+			const failure = findFail$1(cause);
+			return isFailure$1(failure) ? failCause$6(failure.failure) : options.message === void 0 ? logEffect(cause) : logEffect(options.message, cause);
 		},
 		onSuccess: (_) => void_$3
 	});
@@ -8224,7 +7950,7 @@ const option$1 = (self) => match(self, {
 /** @internal */
 const result$2 = (self) => matchEager(self, {
 	onFailure: fail$7,
-	onSuccess: succeed$7
+	onSuccess: succeed$8
 });
 /** @internal */
 const matchCauseEffect$1 = /*#__PURE__*/ dual(2, (self, options) => new OnSuccessAndFailureImpl(self, options.onSuccess.length !== 1 ? (a) => options.onSuccess(a) : options.onSuccess, options.onFailure.length !== 1 ? (cause) => options.onFailure(cause) : options.onFailure));
@@ -8238,19 +7964,40 @@ const OnSuccessAndFailureImpl = function(self, onSuccess, onFailure) {
 	this[contE] = onFailure;
 };
 OnSuccessAndFailureImpl.prototype = OnSuccessAndFailureProto;
+const matchSuccess = function(value, fiber) {
+	const handlers = this.payload;
+	return fiber.succeedWith(continuationMarksStack ? handlers.onSuccess(value) : internalCall(() => handlers.onSuccess(value)));
+};
+const makeMatch = (op, onFailure) => {
+	const Proto = makePrimitiveProto({
+		op,
+		[evaluate]: evaluateCont,
+		[contA]: matchSuccess,
+		[contE]: onFailure
+	});
+	const MatchImpl = function(self, handlers) {
+		this[args] = self;
+		this.payload = handlers;
+	};
+	MatchImpl.prototype = Proto;
+	return MatchImpl;
+};
+const MatchImpl = /*#__PURE__*/ makeMatch("Match", function(cause, fiber) {
+	const fail = cause.reasons.find(isFailReason$1);
+	if (fail === void 0) return failCause$6(cause);
+	const handlers = this.payload;
+	return fiber.succeedWith(continuationMarksStack ? handlers.onFailure(fail.error) : internalCall(() => handlers.onFailure(fail.error)));
+});
 /** @internal */
 const matchEffect$2 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self, {
 	onFailure: (cause) => {
 		const fail = cause.reasons.find(isFailReason$1);
-		return fail ? internalCall(() => options.onFailure(fail.error)) : failCause$4(cause);
+		return fail ? options.onFailure(fail.error) : failCause$6(cause);
 	},
 	onSuccess: options.onSuccess
 }));
 /** @internal */
-const match = /*#__PURE__*/ dual(2, (self, options) => matchEffect$2(self, {
-	onFailure: (error) => sync$1(() => options.onFailure(error)),
-	onSuccess: (value) => sync$1(() => options.onSuccess(value))
-}));
+const match = /*#__PURE__*/ dual(2, (self, options) => new MatchImpl(self, options));
 /** @internal */
 const matchEager = /*#__PURE__*/ dual(2, (self, options) => {
 	if (effectIsExit(self)) {
@@ -8269,15 +8016,15 @@ const exitPrimitive = /*#__PURE__*/ makePrimitive({
 		fiber._stack.push(this);
 		return this[args];
 	},
-	[contA](value, _, exit) {
-		return succeed$6(exit ?? exitSucceed(value));
+	[contA](value, fiber, exit) {
+		return fiber.succeedWith(exit ?? exitSucceed(value));
 	},
-	[contE](cause, _, exit) {
-		return succeed$6(exit ?? exitFailCause(cause));
+	[contE](cause, fiber, exit) {
+		return fiber.succeedWith(exit ?? exitFailCause(cause));
 	}
 });
 /** @internal */
-const timeoutOrElse = /*#__PURE__*/ dual(2, (self, options) => flatMap$2(timeoutOption(self, options.duration), (option) => isNone(option) ? options.orElse() : succeed$6(option.value)));
+const timeoutOrElse = /*#__PURE__*/ dual(2, (self, options) => flatMap$2(timeoutOption(self, options.duration), (option) => isNone(option) ? options.orElse() : succeed$7(option.value)));
 /** @internal */
 const timeoutErrorFromDuration = (duration) => new TimeoutError(`Operation timed out after '${format$1(duration)}'`);
 /** @internal */
@@ -8302,27 +8049,35 @@ const ScopeCloseableTypeId = "~effect/Scope/Closeable";
 /** @internal */
 const scopeTag = /*#__PURE__*/ Service$1("effect/Scope");
 /** @internal */
-const scopeClose = (self, exit_) => suspend$3(() => scopeCloseUnsafe(self, exit_) ?? void_$3);
+const scopeClose = (self, exit_) => withFiber$1((fiber) => {
+	const close = scopeCloseUnsafe(self, exit_);
+	if (close === void 0) return void_$3;
+	fiberEnterUninterruptibleUnsafe(fiber);
+	return close;
+});
 /** @internal */
 const scopeCloseUnsafe = (self, exit_) => {
-	if (self.state._tag === "Closed") return;
-	const closed = {
+	const state = self.state;
+	if (state._tag === "Closed") return;
+	self.state = {
 		_tag: "Closed",
 		exit: exit_
 	};
-	if (self.state._tag === "Empty") {
-		self.state = closed;
-		return;
-	}
-	const state = self.state;
-	self.state = closed;
-	if (state.finalizer !== void 0) return state.finalizer(exit_);
+	if (self.parent !== void 0) scopeRemoveFinalizerUnsafe(self.parent, self);
+	if (state._tag === "Empty") return;
+	if (state.finalizer !== void 0) return runFinalizer(state.finalizer, exit_);
 	const finalizers = state.finalizers;
-	if (finalizers === void 0 || finalizers.size === 0) return;
-	else if (finalizers.size === 1) return finalizers.values().next().value(exit_);
+	if (finalizers.size === 1) return runFinalizer(finalizers.values().next().value, exit_);
 	return scopeCloseFinalizers(self, finalizers, exit_);
 };
-const combineFinalizerCause = (exit_, finalizer) => exitIsSuccess(exit_) ? finalizer : catchCause$2(finalizer, (cause) => failCause$4(causeCombine(exit_.cause, cause)));
+const runFinalizer = (finalizer, exit_) => {
+	try {
+		return finalizer(exit_);
+	} catch (defect) {
+		return exitDie(defect);
+	}
+};
+const combineFinalizerCause = (exit_, finalizer) => exitIsSuccess(exit_) ? finalizer : catchCause$2(finalizer, (cause) => failCause$6(causeCombine(exit_.cause, cause)));
 const scopeCloseFinalizers = /*#__PURE__*/ fnUntraced$1(function* (self, finalizers, exit_) {
 	let exits = [];
 	const fibers = [];
@@ -8330,23 +8085,21 @@ const scopeCloseFinalizers = /*#__PURE__*/ fnUntraced$1(function* (self, finaliz
 	const parent = getCurrentFiber();
 	for (let i = arr.length - 1; i >= 0; i--) {
 		const finalizer = arr[i];
-		if (self.strategy === "sequential") exits.push(yield* exit$1(finalizer(exit_)));
-		else fibers.push(forkUnsafe$1(parent, finalizer(exit_), true, true, "inherit"));
+		if (self.strategy === "sequential") exits.push(yield* exit$1(runFinalizer(finalizer, exit_)));
+		else fibers.push(forkUnsafe$1(parent, runFinalizer(finalizer, exit_), true, true, "inherit"));
 	}
 	if (fibers.length > 0) exits = yield* fiberAwaitAll(fibers);
 	return yield* exitAsVoidAll(exits);
 });
 /** @internal */
 const scopeForkUnsafe = (scope, finalizerStrategy) => {
-	const newScope = scopeMakeUnsafe(finalizerStrategy);
+	const child = makeScope(finalizerStrategy, scope);
 	if (scope.state._tag === "Closed") {
-		newScope.state = scope.state;
-		return newScope;
+		child.state = scope.state;
+		return child;
 	}
-	const key = {};
-	scopeAddFinalizerUnsafe(scope, key, (exit) => scopeClose(newScope, exit));
-	scopeAddFinalizerUnsafe(newScope, key, (_) => sync$1(() => scopeRemoveFinalizerUnsafe(scope, key)));
-	return newScope;
+	scopeAddFinalizerUnsafe(scope, child, (exit) => scopeClose(child, exit));
+	return child;
 };
 /** @internal */
 const scopeAddFinalizerExit = (scope, finalizer) => {
@@ -8373,34 +8126,33 @@ const scopeAddFinalizerUnsafe = (scope, key, finalizer) => {
 			state.finalizerKey = void 0;
 			state.finalizer = void 0;
 			state.finalizers.set(key, finalizer);
-		} else if (state.finalizers === void 0) {
-			state.finalizerKey = key;
-			state.finalizer = finalizer;
 		} else state.finalizers.set(key, finalizer);
 	}
 };
 /** @internal */
 const scopeRemoveFinalizerUnsafe = (scope, key) => {
-	if (scope.state._tag === "Open") {
-		const state = scope.state;
-		if (state.finalizerKey === key) {
-			state.finalizerKey = void 0;
-			state.finalizer = void 0;
-		} else if (state.finalizers !== void 0) state.finalizers.delete(key);
+	if (scope.state._tag !== "Open") return;
+	const state = scope.state;
+	if (state.finalizerKey === key) scope.state = constScopeEmpty;
+	else if (state.finalizers !== void 0) {
+		state.finalizers.delete(key);
+		if (state.finalizers.size === 0) scope.state = constScopeEmpty;
 	}
 };
 /** @internal */
-const scopeMakeUnsafe = (finalizerStrategy = "sequential") => ({
+const scopeMakeUnsafe = (finalizerStrategy) => makeScope(finalizerStrategy, void 0);
+const makeScope = (finalizerStrategy = "sequential", parent) => ({
 	[ScopeCloseableTypeId]: ScopeCloseableTypeId,
 	[ScopeTypeId]: ScopeTypeId,
 	strategy: finalizerStrategy,
+	parent,
 	state: constScopeEmpty
 });
 const constScopeEmpty = { _tag: "Empty" };
 /** @internal */
 const scopeMake = (finalizerStrategy) => sync$1(() => scopeMakeUnsafe(finalizerStrategy));
 /** @internal */
-const scope$1 = scopeTag;
+const scope = scopeTag;
 /** @internal */
 const provideScope = /*#__PURE__*/ provideService$1(scopeTag);
 /** @internal */
@@ -8408,10 +8160,11 @@ const scoped$1 = (self) => withFiber$1((fiber) => {
 	const prev = fiber.context;
 	const scope = scopeMakeUnsafe();
 	fiber.setContext(add$2(fiber.context, scopeTag, scope));
-	return onExitPrimitive(self, (exit) => {
+	onExitUnsafe(fiber, (exit) => {
 		fiber.setContext(prev);
 		return scopeCloseUnsafe(scope, exit);
 	});
+	return self;
 });
 /** @internal */
 const scopedWith$1 = (f) => suspend$3(() => {
@@ -8419,11 +8172,10 @@ const scopedWith$1 = (f) => suspend$3(() => {
 	return onExit$2(f(scope), (exit) => suspend$3(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
 });
 /** @internal */
-const acquireRelease$1 = (acquire, release, options) => contextWith$1((context) => uninterruptibleMask$1((restore) => flatMap$2(scope$1, (scope) => tap$1(options?.interruptible ? restore(acquire) : acquire, (a) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(release(a, exit), context))))));
+const acquireRelease$1 = (acquire, release, options) => contextWith$1((context) => uninterruptibleMask$1((restore) => flatMap$2(scope, (scope) => tap$1(options?.interruptible ? restore(acquire) : acquire, (a) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(release(a, exit), context))))));
 /** @internal */
-const addFinalizer$2 = (finalizer) => flatMap$2(scope$1, (scope) => contextWith$1((context) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(finalizer(exit), context))));
-/** @internal */
-const onExitPrimitive = /*#__PURE__*/ function() {
+const addFinalizer$2 = (finalizer) => flatMap$2(scope, (scope) => contextWith$1((context) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(finalizer(exit), context))));
+const OnExitImpl = /*#__PURE__*/ function() {
 	const Proto = /*#__PURE__*/ makePrimitiveProto({
 		op: "OnExit",
 		[evaluate](fiber) {
@@ -8438,12 +8190,22 @@ const onExitPrimitive = /*#__PURE__*/ function() {
 		},
 		[contA](value, _, exit) {
 			exit ??= exitSucceed(value);
-			const eff = this.onExit(exit);
+			let eff;
+			try {
+				eff = this.onExit(exit);
+			} catch (defect) {
+				eff = exitDie(defect);
+			}
 			return eff ? flatMap$2(eff, (_) => exit) : exit;
 		},
 		[contE](cause, _, exit) {
 			exit ??= exitFailCause(cause);
-			const eff = this.onExit(exit);
+			let eff;
+			try {
+				eff = this.onExit(exit);
+			} catch (defect) {
+				eff = exitDie(defect);
+			}
 			return eff ? flatMap$2(combineFinalizerCause(exit, eff), (_) => exit) : exit;
 		}
 	});
@@ -8453,10 +8215,17 @@ const onExitPrimitive = /*#__PURE__*/ function() {
 		this.interruptible = interruptible;
 	};
 	OnExitImpl.prototype = Proto;
-	return function(effect, onExit, interruptible) {
-		return new OnExitImpl(effect, onExit, interruptible);
-	};
+	return OnExitImpl;
 }();
+/** @internal */
+const onExitPrimitive = (effect, onExit, interruptible) => new OnExitImpl(effect, onExit, interruptible);
+/**
+* Pushes an exit finalizer for the current `withFiber` evaluation. Only call inside `withFiber`.
+* @internal
+*/
+const onExitUnsafe = (fiber, f) => {
+	fiber._stack.push(new OnExitImpl(void 0, f, void 0));
+};
 /** @internal */
 const onExit$2 = /*#__PURE__*/ dual(2, onExitPrimitive);
 /** @internal */
@@ -8482,20 +8251,21 @@ const cached$1 = (self) => sync$1(() => {
 	let started = false;
 	let exit;
 	const wait = flatMap$2(latch.await, () => exit);
-	return suspend$3(() => {
+	return withFiber$1((fiber) => {
 		if (exit !== void 0) return exit;
 		if (started) return wait;
 		started = true;
-		return onExit$2(self, (result) => sync$1(() => {
+		onExitUnsafe(fiber, (result) => sync$1(() => {
 			exit = result;
 			latch.openUnsafe();
 		}));
+		return self;
 	});
 });
 /** @internal */
-const interrupt$3 = /*#__PURE__*/ withFiber$1((fiber) => failCause$4(causeInterrupt(fiber.id)));
+const interrupt$3 = /*#__PURE__*/ withFiber$1((fiber) => failCause$6(causeInterrupt(fiber.id)));
 /** @internal */
-const uninterruptible = (self) => withFiber$1((fiber) => {
+const uninterruptible$1 = (self) => withFiber$1((fiber) => {
 	if (!fiber.interruptible) return self;
 	fiber.interruptible = false;
 	fiber._stack.push(setInterruptibleTrue);
@@ -8505,7 +8275,7 @@ const setInterruptible = /*#__PURE__*/ makePrimitive({
 	op: "SetInterruptible",
 	[contAll](fiber) {
 		fiber.interruptible = this[args];
-		if (fiber._interruptedCause && fiber.interruptible) return () => failCause$4(fiber._interruptedCause);
+		if (fiber._interruptedCause && fiber.interruptible) return () => failCause$6(fiber._interruptedCause);
 	}
 });
 const setInterruptibleTrue = /*#__PURE__*/ setInterruptible(true);
@@ -8513,7 +8283,19 @@ const setInterruptibleFalse = /*#__PURE__*/ setInterruptible(false);
 const setFiberInterruptible = (fiber) => {
 	fiber.interruptible = true;
 	fiber._stack.push(setInterruptibleFalse);
-	if (fiber._interruptedCause) return failCause$4(fiber._interruptedCause);
+	if (fiber._interruptedCause) return failCause$6(fiber._interruptedCause);
+};
+/**
+* Makes the current fiber uninterruptible for the returned effect without an
+* extra primitive. Call only within `withFiber`.
+*
+* @internal
+*/
+const fiberEnterUninterruptibleUnsafe = (fiber) => {
+	const impl = fiber;
+	if (!impl.interruptible) return;
+	impl.interruptible = false;
+	impl._stack.push(setInterruptibleTrue);
 };
 /** @internal */
 const interruptible$1 = (self) => withFiber$1((fiber) => {
@@ -8526,13 +8308,6 @@ const uninterruptibleMask$1 = (f) => withFiber$1((fiber) => {
 	fiber.interruptible = false;
 	fiber._stack.push(setInterruptibleTrue);
 	return f(interruptible$1);
-});
-/** @internal */
-const interruptibleMask$1 = (f) => withFiber$1((fiber) => {
-	if (fiber.interruptible) return f(identity);
-	const interrupted = setFiberInterruptible(fiber);
-	const effect = f(uninterruptible);
-	return interrupted ?? effect;
 });
 /** @internal */
 const all$2 = (arg, options) => {
@@ -8573,13 +8348,13 @@ const forEach$2 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (i
 	if (concurrency === 1) return forEachSequential(iterable, f, options);
 	const items = fromIterable$2(iterable);
 	let length = items.length;
-	if (length === 0) return options?.discard ? void_$3 : succeed$6([]);
+	if (length === 0) return options?.discard ? void_$3 : succeed$7([]);
 	const out = options?.discard ? void 0 : new Array(length);
 	const eff = forEachConcurrent({
 		f,
 		out
 	}, items, { concurrency });
-	return eff ? as$1(eff, out) : succeed$6(out);
+	return eff ? as$1(eff, out) : succeed$7(out);
 }));
 const forEachSequential = (iterable, f, options) => suspend$3(() => {
 	const out = options?.discard ? void 0 : [];
@@ -8601,11 +8376,12 @@ const resolveConcurrency = (concurrency) => concurrency === "unbounded" ? Number
 const iterateEager = () => (options) => {
 	const onItem = options.onItem;
 	const step = options.step;
+	const resumeSequential = (state, items, index, end, effect) => flatMap$2(exit$1(effect), (itemExit) => step(state, items[index], itemExit, index) ?? runSequential(state, items, index + 1, end) ?? void_$3);
 	const runSequential = (state, items, index = 0, end = items.length) => {
 		for (; index < end; index++) {
 			const item = items[index];
 			const effect = onItem(state, item, index);
-			if (!effectIsExit(effect)) return flatMap$2(exit$1(effect), (itemExit) => step(state, item, itemExit, index) ?? runSequential(state, items, index + 1, end) ?? void_$3);
+			if (!effectIsExit(effect)) return resumeSequential(state, items, index, end, effect);
 			const terminal = step(state, item, effect, index);
 			if (terminal) return terminal._tag === "Failure" ? terminal : void 0;
 		}
@@ -8631,7 +8407,7 @@ const iterateConcurrentImpl = (options) => {
 			terminal = defect;
 			done = true;
 			interrupted = true;
-			return fibers && fibers.size > 0 ? flatMap$2(uninterruptible(fiberInterruptAll(Array.from(fibers))), () => defect) : defect;
+			return fibers && fibers.size > 0 ? flatMap$2(uninterruptible$1(fiberInterruptAll(Array.from(fibers))), () => defect) : defect;
 		};
 		const go = () => {
 			let paused = false;
@@ -8725,11 +8501,11 @@ const forEachConcurrent = /*#__PURE__*/ iterateConcurrentImpl({
 	}
 });
 /** @internal */
-const filterOrElse = /*#__PURE__*/ dual(3, (self, predicate, orElse) => flatMap$2(self, (a) => predicate(a) ? succeed$6(a) : orElse(a)));
+const filterOrElse = /*#__PURE__*/ dual(3, (self, predicate, orElse) => flatMap$2(self, (a) => predicate(a) ? succeed$7(a) : orElse(a)));
 /** @internal */
 const forkChild$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => {
 	interruptChildrenPatch();
-	return succeed$6(forkUnsafe$1(fiber, self, options?.startImmediately, false, options?.uninterruptible ?? false));
+	return succeed$7(forkUnsafe$1(fiber, self, options?.startImmediately, false, options?.uninterruptible ?? false));
 }));
 /** @internal */
 const forkUnsafe$1 = (parent, effect, immediate = false, daemon = false, uninterruptible = false) => {
@@ -8745,7 +8521,7 @@ const forkUnsafe$1 = (parent, effect, immediate = false, daemon = false, uninter
 	return child;
 };
 /** @internal */
-const forkDetach$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => succeed$6(forkUnsafe$1(fiber, self, options?.startImmediately, true, options?.uninterruptible))));
+const forkDetach$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => succeed$7(forkUnsafe$1(fiber, self, options?.startImmediately, true, options?.uninterruptible))));
 /** @internal */
 const forkIn$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, scope, options) => withFiber$1((parent) => {
 	const fiber = forkUnsafe$1(parent, self, options?.startImmediately, true, options?.uninterruptible);
@@ -8757,10 +8533,10 @@ const forkIn$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, scope,
 			fiber.addObserver(() => scopeRemoveFinalizerUnsafe(scope, key));
 		} else fiber.interruptUnsafe(parent.id, fiberStackAnnotations(parent));
 	}
-	return succeed$6(fiber);
+	return succeed$7(fiber);
 }));
 /** @internal */
-const forkScoped$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => flatMap$2(scope$1, (scope) => forkIn$1(self, scope, options)));
+const forkScoped$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => flatMap$2(scope, (scope) => forkIn$1(self, scope, options)));
 /** @internal */
 const runForkWith$1 = (context) => (effect, options) => {
 	const fiber = new FiberImpl(options?.scheduler ? add$2(context, Scheduler, options.scheduler) : context, options?.uninterruptible !== true);
@@ -8834,9 +8610,9 @@ const runSyncWith = (context) => {
 	};
 };
 /** @internal */
-const runSync$1 = /*#__PURE__*/ runSyncWith(/*#__PURE__*/ empty$9());
-const succeedTrue = /*#__PURE__*/ succeed$6(true);
-const succeedFalse = /*#__PURE__*/ succeed$6(false);
+const runSync$2 = /*#__PURE__*/ runSyncWith(/*#__PURE__*/ empty$9());
+const succeedTrue = /*#__PURE__*/ succeed$7(true);
+const succeedFalse = /*#__PURE__*/ succeed$7(false);
 var Latch = class {
 	waiters = [];
 	scheduled = void 0;
@@ -8930,7 +8706,7 @@ const filterDisablePropagation = (span) => {
 };
 /** @internal */
 const makeSpanUnsafe = (fiber, name, options) => {
-	const disablePropagation = !fiber.getRef(TracerEnabled) || options?.annotations && get$2(options.annotations, DisablePropagation);
+	const disablePropagation = !fiber.cache.tracerEnabled || options?.annotations && get$2(options.annotations, DisablePropagation);
 	const parent = options?.parent !== void 0 ? some(options.parent) : options?.root ? none() : filterDisablePropagation(fiber.cache.span);
 	let span;
 	if (disablePropagation) span = noopSpan({
@@ -8939,7 +8715,7 @@ const makeSpanUnsafe = (fiber, name, options) => {
 		annotations: add$2(options?.annotations ?? empty$9(), DisablePropagation, true)
 	});
 	else {
-		const tracer = fiber.getRef(Tracer);
+		const tracer = fiber.cache.tracer ?? nativeTracer;
 		const clock = fiber.getRef(ClockRef);
 		const timingEnabled = fiber.getRef(TracerTimingEnabled);
 		const annotationsFromEnv = fiber.getRef(TracerSpanAnnotations);
@@ -8962,7 +8738,7 @@ const makeSpanUnsafe = (fiber, name, options) => {
 	return span;
 };
 /** @internal */
-const makeSpanScoped$1 = (name, options) => uninterruptible(withFiber$1((fiber) => {
+const makeSpanScoped$1 = (name, options) => uninterruptible$1(withFiber$1((fiber) => {
 	const scope = getUnsafe(fiber.context, scopeTag);
 	const span = makeSpanUnsafe(fiber, name, options ?? {});
 	const clock = fiber.getRef(ClockRef);
@@ -8990,7 +8766,8 @@ const useSpan$1 = (name, ...args) => {
 		const span = makeSpanUnsafe(fiber, name, options);
 		const clock = fiber.getRef(ClockRef);
 		const timingEnabled = fiber.getRef(TracerTimingEnabled);
-		return onExit$2(suspend$3(() => internalCall(() => evaluate(span))), (exit) => endSpan(span, exit, clock, timingEnabled));
+		onExitUnsafe(fiber, (exit) => endSpan(span, exit, clock, timingEnabled));
+		return evaluate(span);
 	});
 };
 const provideParentSpan = /*#__PURE__*/ provideService$1(ParentSpan);
@@ -9284,8 +9061,8 @@ const reportCauseUnsafe = (fiber, cause, defectsOnly) => {
 	reporters.forEach((reporter) => reporter.report(opts));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Deferred.js
-const TypeId$44 = "~effect/Deferred";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Deferred.js
+const TypeId$45 = "~effect/Deferred";
 /**
 * Checks whether a value is a `Deferred`.
 *
@@ -9297,9 +9074,9 @@ const TypeId$44 = "~effect/Deferred";
 * @category guards
 * @since 4.0.0
 */
-const isDeferred = (u) => hasProperty(u, TypeId$44);
+const isDeferred = (u) => hasProperty(u, TypeId$45);
 const DeferredProto = {
-	[TypeId$44]: {
+	[TypeId$45]: {
 		_A: identity,
 		_E: identity
 	},
@@ -9333,6 +9110,31 @@ DeferredImpl.prototype = DeferredProto;
 * @since 4.0.0
 */
 const makeUnsafe$6 = () => new DeferredImpl();
+/**
+* Creates a new `Deferred`.
+*
+* **When to use**
+*
+* Use to allocate an empty `Deferred` inside an `Effect` workflow.
+*
+* **Example** (Creating a Deferred)
+*
+* ```ts import.meta.vitest
+* import { Deferred, Effect } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const deferred = yield* Deferred.make<number>()
+*   yield* Deferred.succeed(deferred, 42)
+*   return yield* Deferred.await(deferred)
+* })
+*
+* await Effect.runPromise(program) // => 42
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const make$46 = () => sync$1(() => makeUnsafe$6());
 const _await = (self) => callback$2((resume) => {
 	if (self.effect) return resume(self.effect);
 	self.resumes ??= [];
@@ -9381,6 +9183,103 @@ const _await = (self) => callback$2((resume) => {
 */
 const done$1 = /* @__PURE__ */ dual(2, (self, effect) => sync$1(() => doneUnsafe(self, effect)));
 /**
+* Attempts to complete the `Deferred` with the specified `Cause`.
+*
+* **When to use**
+*
+* Use to complete a `Deferred` with a full failure cause.
+*
+* **Details**
+*
+* Fibers waiting on the `Deferred` observe that cause only if this call
+* completes it. The returned effect succeeds with `true` when this call
+* completed the `Deferred`, or `false` if it was already completed.
+*
+* **Example** (Failing a Deferred with a Cause)
+*
+* ```ts import.meta.vitest
+* import { Cause, Deferred, Effect, Exit } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const deferred = yield* Deferred.make<number, string>()
+*   const success = yield* Deferred.failCause(deferred, Cause.fail("Operation failed"))
+*   const exit = yield* Effect.exit(Deferred.await(deferred))
+*   return [success, exit]
+* })
+*
+* await Effect.runPromise(program) // => [true, Exit.failCause(Cause.fail("Operation failed"))]
+* ```
+*
+* @category completion
+* @since 2.0.0
+*/
+const failCause$5 = /*#__PURE__*/ dual(2, (self, cause) => done$1(self, exitFailCause(cause)));
+/**
+* Attempts to complete the `Deferred` with interruption by the specified
+* `FiberId`.
+*
+* **When to use**
+*
+* Use to complete a `Deferred` as interrupted by a specific fiber id.
+*
+* **Details**
+*
+* Fibers waiting on the `Deferred` are interrupted with that fiber id only if
+* this call completes it. The returned effect succeeds with `true` when this
+* call completed the `Deferred`, or `false` if it was already completed.
+*
+* **Example** (Interrupting a Deferred with a fiber id)
+*
+* ```ts import.meta.vitest
+* import { Deferred, Effect, Exit } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const deferred = yield* Deferred.make<number>()
+*   const success = yield* Deferred.interruptWith(deferred, 42)
+*   const exit = yield* Effect.exit(Deferred.await(deferred))
+*   return [success, exit]
+* })
+*
+* await Effect.runPromise(program) // => [true, Exit.interrupt(42)]
+* ```
+*
+* @category completion
+* @since 2.0.0
+*/
+const interruptWith = /*#__PURE__*/ dual(2, (self, fiberId) => failCause$5(self, causeInterrupt(fiberId)));
+/**
+* Attempts to complete the `Deferred` with the specified value.
+*
+* **When to use**
+*
+* Use to complete a `Deferred` with a successful value.
+*
+* **Details**
+*
+* Fibers waiting on the `Deferred` receive the value only if this call
+* completes it. The returned effect succeeds with `true` when this call
+* completed the `Deferred`, or `false` if it was already completed.
+*
+* **Example** (Completing a Deferred with a value)
+*
+* ```ts import.meta.vitest
+* import { Deferred, Effect } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const deferred = yield* Deferred.make<number>()
+*   yield* Deferred.succeed(deferred, 42)
+*
+*   return yield* Deferred.await(deferred)
+* })
+*
+* await Effect.runPromise(program) // => 42
+* ```
+*
+* @category completion
+* @since 2.0.0
+*/
+const succeed$6 = /*#__PURE__*/ dual(2, (self, value) => done$1(self, exitSucceed(value)));
+/**
 * Attempts to complete the `Deferred` synchronously with the specified
 * completion effect.
 *
@@ -9418,7 +9317,7 @@ const doneUnsafe = (self, effect) => {
 	return true;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Exit.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Exit.js
 /**
 * Checks whether an unknown value is an Exit.
 *
@@ -9504,7 +9403,7 @@ const succeed$5 = exitSucceed;
 * @category constructors
 * @since 2.0.0
 */
-const failCause$3 = exitFailCause;
+const failCause$4 = exitFailCause;
 /**
 * Creates a failed Exit from a typed error value.
 *
@@ -9563,7 +9462,7 @@ const fail$5 = exitFail;
 * @category constructors
 * @since 2.0.0
 */
-const die$1 = exitDie;
+const die$2 = exitDie;
 /**
 * Creates a failed Exit representing fiber interruption.
 *
@@ -9646,7 +9545,7 @@ const isSuccess = exitIsSuccess;
 */
 const isFailure = exitIsFailure;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/References.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/References.js
 /**
 * Context reference for managing log annotations that are automatically added to all log entries.
 * These annotations provide contextual metadata that appears in every log message.
@@ -9745,7 +9644,7 @@ const CurrentLogAnnotations = CurrentLogAnnotations$1;
 */
 const CurrentLogLevel = CurrentLogLevel$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Scope.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Scope.js
 /**
 * Controls how long resources stay open.
 *
@@ -9807,7 +9706,7 @@ const Scope = scopeTag;
 * @category constructors
 * @since 2.0.0
 */
-const make$43 = scopeMake;
+const make$45 = scopeMake;
 /**
 * Creates a new `Scope` synchronously without wrapping it in an `Effect`.
 * This is useful when you need a scope immediately but should be used with caution
@@ -9990,6 +9889,8 @@ const forkUnsafe = scopeForkUnsafe;
 *
 * Finalizers run in the scope's configured order and receive the supplied
 * `Exit`.
+* By default, finalizers run uninterruptibly, so interrupting the closing fiber
+* waits for them to finish; a finalizer can explicitly restore interruptibility.
 *
 * **Example** (Running scope finalizers)
 *
@@ -10030,7 +9931,9 @@ const close = scopeClose;
 *
 * **Gotchas**
 *
-* Ignoring the returned effect skips registered finalizers.
+* Ignoring the returned effect skips registered finalizers. The caller must
+* run the returned effect uninterruptibly: the scope is already closed, so
+* interruption during finalization can permanently skip remaining finalizers.
 *
 * @see {@link close} for the usual effectful close operation that always returns an `Effect`
 *
@@ -10039,15 +9942,30 @@ const close = scopeClose;
 */
 const closeUnsafe = scopeCloseUnsafe;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Layer.js
-const TypeId$43 = "~effect/Layer";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Layer.js
+const TypeId$44 = "~effect/Layer";
 const MemoMapTypeId = "~effect/Layer/MemoMap";
-const memoMapReuse = (entry, scope) => {
+const makeMemoMapEntry = (memoMap, layer) => {
+	const entry = {
+		observers: 0,
+		deferred: makeUnsafe$6(),
+		scope: makeUnsafe$5(),
+		finalizer: (exit) => suspend$3(() => {
+			if (--entry.observers > 0) return void_$3;
+			memoMap.map.delete(layer);
+			return close(entry.scope, exit);
+		})
+	};
+	return entry;
+};
+const memoMapObserve = (entry, scope) => {
+	if (scope.state._tag === "Closed") return false;
 	entry.observers++;
-	return andThen$1(scopeAddFinalizerExit(scope, (exit) => entry.finalizer(exit)), entry.effect);
+	scopeAddFinalizerUnsafe(scope, {}, entry.finalizer);
+	return true;
 };
 const LayerProto = {
-	[TypeId$43]: {
+	[TypeId$44]: {
 		_ROut: identity,
 		_E: identity,
 		_RIn: identity
@@ -10135,27 +10053,6 @@ const fromBuildMemo = (build) => {
 	const self = fromBuild((memoMap, scope) => memoMap.getOrElseMemoize(self, scope, build));
 	return self;
 };
-const memoMapBuild = (memoMap, layer, scope, build) => {
-	const layerScope = makeUnsafe$5();
-	const deferred = makeUnsafe$6();
-	const entry = {
-		observers: 1,
-		effect: _await(deferred),
-		finalizer: (exit) => suspend$3(() => {
-			entry.observers--;
-			if (entry.observers === 0) {
-				memoMap.map.delete(layer);
-				return close(layerScope, exit);
-			}
-			return void_$3;
-		})
-	};
-	memoMap.map.set(layer, entry);
-	return scopeAddFinalizerExit(scope, entry.finalizer).pipe(flatMap$2(() => build(memoMap, layerScope)), onExit$2((exit) => {
-		entry.effect = exit;
-		return done$1(deferred, exit);
-	}));
-};
 var MemoMapImpl = class {
 	get [MemoMapTypeId]() {
 		return MemoMapTypeId;
@@ -10167,14 +10064,26 @@ var MemoMapImpl = class {
 	map = /*#__PURE__*/ new Map();
 	get(layer, scope) {
 		const local = this.map.get(layer);
-		if (local) return memoMapReuse(local, scope);
+		if (local) {
+			memoMapObserve(local, scope);
+			return local.deferred.effect ?? _await(local.deferred);
+		}
 		return this.parent?.get(layer, scope);
 	}
 	getOrElseMemoize(layer, scope, build) {
 		return suspend$3(() => {
-			const existing = this.get(layer, scope);
-			if (existing) return existing;
-			return memoMapBuild(this, layer, scope, build);
+			let deferred;
+			return onExitPrimitive(suspend$3(() => {
+				const existing = this.get(layer, scope);
+				if (existing) return existing;
+				const entry = makeMemoMapEntry(this, layer);
+				if (!memoMapObserve(entry, scope)) return build(this, scope);
+				deferred = entry.deferred;
+				this.map.set(layer, entry);
+				return build(this, entry.scope);
+			}), (exit) => {
+				if (deferred) doneUnsafe(deferred, exit);
+			});
 		});
 	}
 };
@@ -10426,8 +10335,8 @@ const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber
 * @since 2.0.0
 */
 const succeed$4 = function() {
-	if (arguments.length === 1) return (resource) => succeedContext(make$46(arguments[0], resource));
-	return succeedContext(make$46(arguments[0], arguments[1]));
+	if (arguments.length === 1) return (resource) => succeedContext(make$49(arguments[0], resource));
+	return succeedContext(make$49(arguments[0], arguments[1]));
 };
 /**
 * Constructs a layer that provides all services in an already available
@@ -10476,7 +10385,7 @@ const succeed$4 = function() {
 * @category constructors
 * @since 2.0.0
 */
-const succeedContext = (context) => fromBuildUnsafe(constant(succeed$6(context)));
+const succeedContext = (context) => fromBuildUnsafe(constant(succeed$7(context)));
 /**
 * Constructs a layer from an effect that produces a single service.
 *
@@ -10519,7 +10428,7 @@ const effect = function() {
 	if (arguments.length === 1) return (effect) => effectImpl(arguments[0], effect);
 	return effectImpl(arguments[0], arguments[1]);
 };
-const effectImpl = (service, effect) => effectContext(map$5(effect, (value) => make$46(service, value)));
+const effectImpl = (service, effect) => effectContext(map$5(effect, (value) => make$49(service, value)));
 /**
 * Constructs a layer from an effect that produces all services in a `Context`.
 *
@@ -10969,7 +10878,7 @@ const flatMap$1 = /*#__PURE__*/ dual(2, (self, f) => fromBuild((memoMap, scope) 
 */
 const launch = (self) => scoped$1(andThen$1(build(self), never$2));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Cause.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Cause.js
 /**
 * Records the full reason an `Effect` failed.
 *
@@ -11099,6 +11008,29 @@ const fromReasons = causeFromReasons;
 * @since 2.0.0
 */
 const fail$4 = causeFail;
+/**
+* Creates a `Cause` containing a single `Die` reason with the
+* given defect.
+*
+* **When to use**
+*
+* Use to construct a cause from an untyped defect or unexpected thrown value.
+*
+* **Example** (Creating a die cause)
+*
+* ```ts import.meta.vitest
+* import { Cause } from "effect"
+*
+* Cause.die("Unexpected") // => Cause.fromReasons([Cause.makeDieReason("Unexpected")])
+* ```
+*
+* @see {@link fail} — for typed errors
+* @see {@link interrupt} — for fiber interruptions
+*
+* @category constructors
+* @since 2.0.0
+*/
+const die$1 = causeDie;
 /**
 * Creates a standalone `Fail` reason (not wrapped in a `Cause`).
 *
@@ -11296,6 +11228,32 @@ const combine = causeCombine;
 * @since 2.0.0
 */
 const squash = causeSquash;
+/**
+* Returns a `Result` whose success value is the first `Fail` reason in
+* the cause, including its annotations. If the cause has no `Fail` reason, the
+* failure value is the original cause narrowed to `Cause<never>`, because it
+* contains no typed error reasons.
+*
+* **When to use**
+*
+* Use when you need the full `Fail` reason from a `Cause`, including
+* annotations.
+*
+* **Example** (Extracting the first Fail reason)
+*
+* ```ts import.meta.vitest
+* import { Cause, Result } from "effect"
+*
+* Cause.findFail(Cause.fail("error")) // => Result.succeed(Cause.makeFailReason("error"))
+* ```
+*
+* @see {@link findError} — extract the unwrapped `E` value
+* @see {@link findDie} — extract the first `Die` reason
+*
+* @category filtering
+* @since 4.0.0
+*/
+const findFail = findFail$1;
 /**
 * Returns a `Result` whose success value is the first typed error value `E`
 * from a `Fail` reason in the cause. If the cause has no `Fail` reason,
@@ -11560,6 +11518,68 @@ const ExceededCapacityError = ExceededCapacityError$1;
 */
 const UnknownError$1 = UnknownError$2;
 /**
+* Attaches metadata to every reason in a `Cause`.
+*
+* **When to use**
+*
+* Use to attach diagnostic metadata to every reason in a cause.
+*
+* **Details**
+*
+* Annotations are stored as a `Context` on each reason and can be
+* retrieved later via {@link reasonAnnotations} or {@link annotations}.
+* The runtime uses this to attach stack traces and spans.
+*
+* - Returns a new `Cause`.
+* - By default, existing keys are preserved. Pass `{ overwrite: true }` to
+*   replace them.
+*
+* **Example** (Annotating a cause)
+*
+* ```ts import.meta.vitest
+* import { Cause, Context } from "effect"
+*
+* class RequestId extends Context.Service<RequestId, string>()("RequestId") {}
+*
+* const annotated = Cause.annotate(Cause.fail("error"), Context.make(RequestId, "req-1"))
+* Context.getOrUndefined(Cause.annotations(annotated), RequestId) // => "req-1"
+* ```
+*
+* @see {@link annotations} for reading merged annotations from a cause
+* @see {@link reasonAnnotations} for reading annotations from a single reason
+*
+* @category annotations
+* @since 4.0.0
+*/
+const annotate$1 = causeAnnotate;
+/**
+* Reads the annotations from a single `Reason` as a `Context`.
+*
+* **When to use**
+*
+* Use when you need tracing metadata (e.g. `StackTrace`) from
+* a specific reason rather than the whole cause.
+*
+* **Example** (Reading reason annotations)
+*
+* ```ts import.meta.vitest
+* import { Cause, Context } from "effect"
+*
+* class RequestId extends Context.Service<RequestId, string>()("RequestId") {}
+*
+* const reason = Cause.makeFailReason("error")
+* const annotated = reason.annotate(Context.make(RequestId, "req-1"))
+*
+* Context.getOrUndefined(Cause.reasonAnnotations(annotated), RequestId) // => "req-1"
+* ```
+*
+* @see {@link annotations} — merged annotations from all reasons in a cause
+*
+* @category annotations
+* @since 4.0.0
+*/
+const reasonAnnotations = reasonAnnotations$1;
+/**
 * Context annotation used to store the stack frame captured at the point of failure.
 *
 * **When to use**
@@ -11582,7 +11602,7 @@ const UnknownError$1 = UnknownError$2;
 */
 var StackTrace = class extends (/*#__PURE__*/ Service$1()("effect/Cause/StackTrace")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Clock.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Clock.js
 /**
 * Context reference for the active time service in the environment.
 *
@@ -11662,13 +11682,13 @@ const Clock = ClockRef;
 */
 const currentTimeMillis = currentTimeMillis$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/dateTime.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/dateTime.js
 /** @internal */
-const TypeId$42 = "~effect/DateTime";
+const TypeId$43 = "~effect/DateTime";
 /** @internal */
 const TimeZoneTypeId = "~effect/DateTime/TimeZone";
 const Proto$17 = {
-	[TypeId$42]: TypeId$42,
+	[TypeId$43]: TypeId$43,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -11699,7 +11719,7 @@ const ProtoZoned = {
 		return combine$1(number$1(this.epochMilliseconds))(hash(this.zone));
 	},
 	[symbol$2](that) {
-		return isDateTime$1(that) && that._tag === "Zoned" && this.epochMilliseconds === that.epochMilliseconds && equals$2(this.zone, that.zone);
+		return isDateTime$1(that) && that._tag === "Zoned" && this.epochMilliseconds === that.epochMilliseconds && equals$1(this.zone, that.zone);
 	},
 	toString() {
 		return `DateTime.Zoned(${formatIsoZoned(this)})`;
@@ -11736,7 +11756,7 @@ const makeZonedProto = (epochMillis, zone, partsUtc) => {
 	return self;
 };
 /** @internal */
-const isDateTime$1 = (u) => hasProperty(u, TypeId$42);
+const isDateTime$1 = (u) => hasProperty(u, TypeId$43);
 const isDateTimeArgs = (args) => isDateTime$1(args[0]);
 /** @internal */
 const isUtc$1 = (self) => self._tag === "Utc";
@@ -11777,7 +11797,7 @@ const makeUnsafe$4 = (input) => {
 */
 const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input);
 /** @internal */
-const make$42 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
+const make$44 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
 /** @internal */
 const now$1 = /*#__PURE__*/ map$5(currentTimeMillis, makeUtc);
 /** @internal */
@@ -11918,7 +11938,7 @@ const formatIsoOffset = (self) => {
 /** @internal */
 const formatIsoZoned = (self) => self.zone._tag === "Offset" ? formatIsoOffset(self) : `${formatIsoOffset(self)}[${self.zone.id}]`;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Pull.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Pull.js
 /**
 * Models one low-level pull step for stream-like consumers.
 *
@@ -12011,7 +12031,7 @@ const filterDone = (cause) => {
 	for (const reason of cause.reasons) if (isDoneFailure(reason)) done ??= reason.error;
 	else if (reason._tag !== "Interrupt") hasFailure = true;
 	if (done === void 0) return fail$7(cause);
-	return hasFailure ? fail$7(fromReasons(cause.reasons.filter((reason) => !isDoneFailure(reason)))) : succeed$7(done);
+	return hasFailure ? fail$7(fromReasons(cause.reasons.filter((reason) => !isDoneFailure(reason)))) : succeed$8(done);
 };
 /**
 * Filters a Cause to extract the leftover value from done errors.
@@ -12026,7 +12046,7 @@ const filterDone = (cause) => {
 */
 const filterDoneLeftover = (cause) => {
 	const done = filterDone(cause);
-	return isFailure$1(done) ? done : succeed$7(done.success.value);
+	return isFailure$1(done) ? done : succeed$8(done.success.value);
 };
 /**
 * Converts a `Cause` into an `Exit`, treating `Cause.Done` as successful
@@ -12052,7 +12072,7 @@ const filterDoneLeftover = (cause) => {
 */
 const doneExitFromCause = (cause) => {
 	const halt = filterDone(cause);
-	return !isFailure$1(halt) ? succeed$5(halt.success.value) : failCause$3(halt.failure);
+	return !isFailure$1(halt) ? succeed$5(halt.success.value) : failCause$4(halt.failure);
 };
 /**
 * Pattern matches on a Pull, handling success, failure, and done cases.
@@ -12088,8 +12108,8 @@ const matchEffect$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 	}
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Schedule.js
-const TypeId$41 = "~effect/Schedule";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Schedule.js
+const TypeId$42 = "~effect/Schedule";
 /**
 * Context reference containing metadata for the currently running schedule step.
 *
@@ -12114,7 +12134,7 @@ const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata
 	elapsedSincePrevious: 0
 }) });
 const ScheduleProto = {
-	[TypeId$41]: {
+	[TypeId$42]: {
 		_Out: identity,
 		_In: identity,
 		_Env: identity
@@ -12143,7 +12163,7 @@ const ScheduleProto = {
 * @category guards
 * @since 2.0.0
 */
-const isSchedule = (u) => hasProperty(u, TypeId$41);
+const isSchedule = (u) => hasProperty(u, TypeId$42);
 /**
 * Creates a Schedule from a step function that returns a Pull.
 *
@@ -12260,7 +12280,7 @@ const fromStepWithMetadata = (step) => fromStep(map$5(step, (f) => {
 * @category destructors
 * @since 4.0.0
 */
-const toStep = (schedule) => catchCause$2(schedule.step, (cause) => succeed$6(() => failCause$4(cause)));
+const toStep = (schedule) => catchCause$2(schedule.step, (cause) => succeed$7(() => failCause$6(cause)));
 /**
 * Extracts a step function from a `Schedule` that sleeps for each computed
 * delay and returns metadata for the completed step.
@@ -12317,9 +12337,9 @@ const toStepWithMetadata = (schedule) => clockWith((clock) => map$5(toStep(sched
 */
 const exponential = (base, factor = 2) => {
 	const baseMillis = toMillis(fromInputUnsafe$1(base));
-	return fromStepWithMetadata(succeed$6((meta) => {
+	return fromStepWithMetadata(succeed$7((meta) => {
 		const duration = millis(baseMillis * Math.pow(factor, meta.attempt - 1));
-		return succeed$6([duration, duration]);
+		return succeed$7([duration, duration]);
 	}));
 };
 /**
@@ -12346,8 +12366,8 @@ const exponential = (base, factor = 2) => {
 * @since 2.0.0
 */
 const passthrough$2 = (self) => fromStep(map$5(toStep(self), (step) => (now, input) => matchEffect$1(step(now, input), {
-	onSuccess: (result) => succeed$6([input, result[1]]),
-	onFailure: failCause$4,
+	onSuccess: (result) => succeed$7([input, result[1]]),
+	onFailure: failCause$6,
 	onDone: () => done(input)
 })));
 /**
@@ -12378,7 +12398,7 @@ const passthrough$2 = (self) => fromStep(map$5(toStep(self), (step) => (now, inp
 */
 const spaced = (duration) => {
 	const decoded = fromInputUnsafe$1(duration);
-	return fromStepWithMetadata(succeed$6((meta) => succeed$6([meta.attempt - 1, decoded])));
+	return fromStepWithMetadata(succeed$7((meta) => succeed$7([meta.attempt - 1, decoded])));
 };
 const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$5(toStep(self), (step) => {
 	const meta = metadataFn();
@@ -12389,7 +12409,7 @@ const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$5(toStep(
 			output,
 			duration
 		});
-		return flatMap$2(isEffect$1(eff) ? eff : succeed$6(eff), (check) => check ? succeed$6(result) : done(output));
+		return flatMap$2(isEffect$1(eff) ? eff : succeed$7(eff), (check) => check ? succeed$7(result) : done(output));
 	});
 })));
 /**
@@ -12421,18 +12441,18 @@ const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$5(toStep(
 */
 const forever$1 = /*#__PURE__*/ spaced(zero$1);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/layer.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/layer.js
 const provideLayer = (self, layer, options) => scopedWith$1((scope) => flatMap$2(options?.local ? buildWithMemoMap(layer, makeMemoMapUnsafe(), scope) : buildWithScope(layer, scope), (context) => provideContext$3(self, context)));
 /** @internal */
 const provide$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, source, options) => isContext(source) ? provideContext$3(self, source) : provideLayer(self, Array.isArray(source) ? mergeAll(...source) : source, options));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schedule.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schedule.js
 /** @internal */
 const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2(toStepWithMetadata(schedule), (step) => {
 	let meta = CurrentMetadata.defaultValue();
 	return catch_$3(forever$2(tap$1(flatMap$2(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), step), (meta_) => sync$1(() => {
 		meta = meta_;
-	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$6(error.value) : orElse(error, meta.attempt === 0 ? none() : some(meta)));
+	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$7(error.value) : orElse(error, meta.attempt === 0 ? none() : some(meta)));
 }));
 /** @internal */
 const retryOrElse = /*#__PURE__*/ dual(3, (self, policy, orElse) => flatMap$2(toStepWithMetadata(policy), (step) => {
@@ -12463,17 +12483,17 @@ const buildFromOptions = (options) => {
 	let schedule = options.schedule ? passthrough$2(options.schedule) : passthroughForever;
 	if (options.while) schedule = while_(schedule, ({ input }) => {
 		const applied = options.while(input);
-		return isEffect$1(applied) ? applied : succeed$6(applied);
+		return isEffect$1(applied) ? applied : succeed$7(applied);
 	});
 	if (options.until) schedule = while_(schedule, ({ input }) => {
 		const applied = options.until(input);
-		return isEffect$1(applied) ? map$5(applied, (b) => !b) : succeed$6(!applied);
+		return isEffect$1(applied) ? map$5(applied, (b) => !b) : succeed$7(!applied);
 	});
-	if (options.times !== void 0) schedule = while_(schedule, ({ attempt }) => succeed$6(attempt <= options.times));
+	if (options.times !== void 0) schedule = while_(schedule, ({ attempt }) => succeed$7(attempt <= options.times));
 	return schedule;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Effect.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Effect.js
 /**
 * Checks whether a value is an `Effect`.
 *
@@ -12599,7 +12619,7 @@ const isEffect = isEffect$1;
 * ```
 *
 * @see {@link forEach} for iterating over elements and applying an effect.
-* @category combining
+* @category collecting
 * @since 2.0.0
 */
 const all$1 = all$2;
@@ -12664,7 +12684,7 @@ const all$1 = all$2;
 * ```
 *
 * @see {@link all} for combining multiple effects into one.
-* @category sequencing
+* @category collecting
 * @since 2.0.0
 */
 const forEach$1 = forEach$2;
@@ -12830,7 +12850,7 @@ const tryPromise = tryPromise$1;
 * @category constructors
 * @since 2.0.0
 */
-const succeed$3 = succeed$6;
+const succeed$3 = succeed$7;
 /**
 * Returns an effect which succeeds with `None`.
 *
@@ -12848,6 +12868,23 @@ const succeed$3 = succeed$6;
 * @since 2.0.0
 */
 const succeedNone = succeedNone$1;
+/**
+* Returns an effect which succeeds with the value wrapped in a `Some`.
+*
+* **Example** (Succeeding with Option.some)
+*
+* ```ts import.meta.vitest
+* import { Effect, Option } from "effect"
+*
+* const program = Effect.succeedSome(42)
+*
+* Effect.runSync(program) // => Option.some(42)
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const succeedSome = succeedSome$1;
 /**
 * Creates an `Effect` lazily, delaying construction until it is needed.
 *
@@ -13147,7 +13184,7 @@ const fail$3 = fail$6;
 * @category constructors
 * @since 2.0.0
 */
-const failCause$2 = failCause$4;
+const failCause$3 = failCause$6;
 /**
 * Creates an `Effect` that represents a failure with a `Cause` computed lazily.
 *
@@ -13213,7 +13250,7 @@ const failCauseSync = failCauseSync$1;
 * @category constructors
 * @since 2.0.0
 */
-const die = die$2;
+const die = die$3;
 const try_ = try_$1;
 /**
 * Provides access to the current fiber within an effect computation.
@@ -14154,7 +14191,7 @@ const orDie = orDie$1;
 * output // => ["expected error: NetworkError", Exit.fail("NetworkError")]
 * ```
 *
-* @category sequencing
+* @category error handling
 * @since 2.0.0
 */
 const tapError = tapError$1;
@@ -14190,7 +14227,7 @@ const tapError = tapError$1;
 * output // => ["Logging cause: Something went wrong", Exit.fail("Something went wrong")]
 * ```
 *
-* @category sequencing
+* @category error handling
 * @since 4.0.0
 */
 const tapCause = tapCause$1;
@@ -14352,8 +14389,9 @@ const ignoreCause = ignoreCause$1;
 * **Details**
 *
 * If the source effect succeeds, its value is preserved. If it fails in the
-* error channel, `orElseSucceed` evaluates the fallback and succeeds with that
-* value, removing the typed error from the returned effect.
+* error channel, `orElseSucceed` evaluates the fallback with that error and
+* succeeds with the returned value, removing the typed error from the returned
+* effect.
 *
 * Defects and interruptions are not recovered by this operator.
 *
@@ -14372,9 +14410,9 @@ const ignoreCause = ignoreCause$1;
 *   }
 * }
 *
-* const program = Effect.orElseSucceed(validate(-1), () => 18)
+* const program = Effect.orElseSucceed(validate(-1), (error) => error === "IllegalAgeError" ? 18 : 0)
 *
-* Effect.runSyncExit(program) // => Exit.succeed(18)
+* Effect.runSyncExit(program) // => Exit.succeed(0)
 * ```
 *
 * @category error handling
@@ -14537,6 +14575,43 @@ const raceFirst = raceFirst$1;
 * @since 2.0.0
 */
 const filterOrFail = filterOrFail$1;
+/**
+* Runs an effect conditionally based on the result of an effectful boolean
+* condition.
+*
+* **When to use**
+*
+* Use when you need an effectful check to decide whether another effect should
+* run while representing the skipped case explicitly.
+*
+* **Details**
+*
+* The condition effect is evaluated first. If it succeeds with `true`, the
+* source effect is run and its success value is wrapped in `Option.some`. If it
+* succeeds with `false`, the source effect is skipped and the result is
+* `Option.none`. If the condition effect fails, that failure is preserved.
+*
+* **Example** (Conditionally running an effect)
+*
+* ```ts import.meta.vitest
+* import { Effect, Option } from "effect"
+* const output: Array<unknown> = []
+*
+* const shouldLog = true
+*
+* const program = Effect.when(
+*   Effect.sync(() => { output.push("Condition is true!") }),
+*   Effect.succeed(shouldLog)
+* )
+*
+* void output.push(Effect.runSync(program))
+* output // => ["Condition is true!", Option.some(undefined)]
+* ```
+*
+* @category filtering
+* @since 2.0.0
+*/
+const when$2 = when$3;
 /**
 * Handles failures with access to the cause and allows performing side effects.
 *
@@ -14972,36 +15047,6 @@ const updateContext = updateContext$1;
 */
 const provideService = provideService$1;
 /**
-* Returns the current scope for resource management.
-*
-* **Example** (Accessing the current scope)
-*
-* ```ts import.meta.vitest
-* import { Effect } from "effect"
-* const output: Array<unknown> = []
-*
-* const program = Effect.gen(function*() {
-*   const currentScope = yield* Effect.scope
-*   yield* Effect.sync(() => { output.push("Got scope for resource management") })
-*
-*   // Use the scope to manually manage resources if needed
-*   const resource = yield* Effect.acquireRelease(
-*     Effect.sync(() => { output.push("Acquiring resource") }).pipe(Effect.as("resource")),
-*     () => Effect.sync(() => { output.push("Releasing resource") })
-*   )
-*
-*   return resource
-* })
-*
-* void output.push(Effect.runSync(Effect.scoped(program)))
-* output // => ["Got scope for resource management", "Acquiring resource", "Releasing resource", "resource"]
-* ```
-*
-* @category resource management
-* @since 2.0.0
-*/
-const scope = scope$1;
-/**
 * Runs an effect with a scope that closes when the effect completes.
 *
 * **When to use**
@@ -15407,6 +15452,30 @@ const interruptible = interruptible$1;
 */
 const onInterrupt = onInterrupt$1;
 /**
+* Returns a new effect that disables interruption for the given effect.
+*
+* **Example** (Preventing interruption)
+*
+* ```ts import.meta.vitest
+* import { Effect } from "effect"
+* const output: Array<unknown> = []
+*
+* const criticalTask = Effect.gen(function*() {
+*   yield* Effect.sync(() => { output.push("Starting critical section...") })
+*   yield* Effect.sync(() => { output.push("Critical section completed") })
+* })
+*
+* const program = Effect.uninterruptible(criticalTask)
+*
+* Effect.runSync(program)
+* output // => ["Starting critical section...", "Critical section completed"]
+* ```
+*
+* @category interruption
+* @since 2.0.0
+*/
+const uninterruptible = uninterruptible$1;
+/**
 * Disables interruption and provides a restore function to restore the
 * interruptible state within the effect.
 *
@@ -15438,38 +15507,6 @@ const onInterrupt = onInterrupt$1;
 * @since 2.0.0
 */
 const uninterruptibleMask = uninterruptibleMask$1;
-/**
-* Runs an effect in an interruptible region while providing `restore` for
-* locally restoring the previous interruptibility.
-*
-* **Example** (Controlling interruptibility locally)
-*
-* ```ts import.meta.vitest
-* import { Effect } from "effect"
-* const output: Array<unknown> = []
-*
-* const program = Effect.interruptibleMask((restore) =>
-*   Effect.gen(function*() {
-*     yield* Effect.sync(() => { output.push("Interruptible phase...") })
-*     // Make this part uninterruptible
-*     yield* restore(
-*       Effect.gen(function*() {
-*         yield* Effect.sync(() => { output.push("Uninterruptible phase...") })
-*       })
-*     )
-*
-*     yield* Effect.sync(() => { output.push("Back to interruptible") })
-*   })
-* )
-*
-* Effect.runSync(program)
-* output // => ["Interruptible phase...", "Uninterruptible phase...", "Back to interruptible"]
-* ```
-*
-* @category interruption
-* @since 2.0.0
-*/
-const interruptibleMask = interruptibleMask$1;
 /**
 * Repeats this effect forever (until the first error).
 *
@@ -15969,7 +16006,7 @@ const runPromise = runPromise$1;
 * @category running
 * @since 2.0.0
 */
-const runSync = runSync$1;
+const runSync$1 = runSync$2;
 /**
 * Runs an effect synchronously and captures the outcome safely as an `Exit` type, which
 * represents the outcome (success or failure) of the effect.
@@ -16655,7 +16692,7 @@ const catchEager = catchEager$1;
 */
 const fnUntracedEager = fnUntracedEager$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/BigInt.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/BigInt.js
 /**
 * Exposes the global bigint constructor for JavaScript bigint coercion.
 *
@@ -16718,7 +16755,7 @@ const toNumber = (b) => {
 	return some(Number(b));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/ByteSize.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ByteSize.js
 const bigint0$1 = /*#__PURE__*/ BigInt(0);
 const bigint1$1 = /*#__PURE__*/ BigInt(1);
 const decimalBase = /*#__PURE__*/ BigInt(1e3);
@@ -16901,24 +16938,38 @@ const binaryUnits = [
 ];
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
-const make$41 = (value) => value;
-const invalid = (message) => {
+const make$43 = (value) => value;
+const invalid$1 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
-	if (!Number.isSafeInteger(input) || input < 0) return invalid(`expected a non-negative safe integer, received ${input}`);
-	return make$41(BigInt(input));
+	if (!Number.isSafeInteger(input) || input < 0) return invalid$1(`expected a non-negative safe integer, received ${input}`);
+	return make$43(BigInt(input));
 };
-const parse$2 = (input) => {
+/**
+* Parses a byte-size string and throws for invalid syntax, unsupported units,
+* or quantities that do not represent non-negative integral bytes.
+*
+* **Details**
+*
+* Accepts decimal fractions, canonical SI and IEC symbols, lowercase unit
+* names, and whitespace around the quantity and unit. Parsing uses exact
+* bigint arithmetic, including above the safe integer range.
+*
+* @see {@link fromString} for non-throwing validation
+* @category constructors
+* @since 4.0.0
+*/
+const fromStringUnsafe = (input) => {
 	const match = /^\s*(\d+)(?:\.(\d+))?\s*([A-Za-z]+)\s*$/.exec(input);
-	if (match === null) return invalid(`unsupported syntax ${JSON.stringify(input)}`);
+	if (match === null) return invalid$1(`unsupported syntax ${JSON.stringify(input)}`);
 	const unit = unitsByName.get(match[3]);
-	if (unit === void 0) return invalid(`unsupported unit ${JSON.stringify(match[3])}`);
+	if (unit === void 0) return invalid$1(`unsupported unit ${JSON.stringify(match[3])}`);
 	const fraction = match[2] ?? "";
 	const scale = BigInt(10) ** BigInt(fraction.length);
 	const numerator = BigInt(match[1] + fraction) * unit.factor;
-	if (numerator % scale !== bigint0$1) return invalid(`${JSON.stringify(input)} does not represent an integral number of bytes`);
-	return make$41(numerator / scale);
+	if (numerator % scale !== bigint0$1) return invalid$1(`${JSON.stringify(input)} does not represent an integral number of bytes`);
+	return make$43(numerator / scale);
 };
 /**
 * Decodes a trusted input into a byte size and throws for invalid input.
@@ -16929,12 +16980,12 @@ const parse$2 = (input) => {
 const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
-			if (input < bigint0$1) return invalid(`expected a non-negative bigint, received ${input}`);
-			return make$41(input);
+			if (input < bigint0$1) return invalid$1(`expected a non-negative bigint, received ${input}`);
+			return make$43(input);
 		case "number": return fromNumber(input);
-		case "string": return parse$2(input);
+		case "string": return fromStringUnsafe(input);
 	}
-	return invalid(`unsupported input ${input}`);
+	return invalid$1(`unsupported input ${input}`);
 };
 /**
 * Creates a byte size from a non-negative byte count.
@@ -16944,7 +16995,7 @@ const fromInputUnsafe = (input) => {
 */
 const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fromNumber(value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/PlatformError.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/PlatformError.js
 /**
 * Normalized errors for platform APIs.
 *
@@ -16956,7 +17007,7 @@ const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fr
 *
 * @since 4.0.0
 */
-const TypeId$40 = "~effect/PlatformError";
+const TypeId$41 = "~effect/PlatformError";
 /**
 * Error data for an invalid argument passed to a platform API.
 *
@@ -17066,7 +17117,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 	*
 	* @since 4.0.0
 	*/
-	[TypeId$40] = TypeId$40;
+	[TypeId$41] = TypeId$41;
 	get message() {
 		return this.reason.message;
 	}
@@ -17096,7 +17147,7 @@ const systemError = (options) => new PlatformError(new SystemError(options));
 */
 const badArgument = (options) => new PlatformError(new BadArgument(options));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Fiber.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Fiber.js
 /**
 * Joins a fiber, blocking until it completes. If the fiber succeeds,
 * returns its value. If it fails, the error is propagated.
@@ -17227,7 +17278,7 @@ const getCurrent = getCurrentFiber;
 */
 const runIn = fiberRunIn;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Latch.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Latch.js
 /**
 * Creates a `Latch` synchronously, outside of `Effect`.
 *
@@ -17264,10 +17315,10 @@ const runIn = fiberRunIn;
 */
 const makeUnsafe$3 = makeLatchUnsafe;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/MutableRef.js
-const TypeId$39 = "~effect/MutableRef";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/MutableRef.js
+const TypeId$40 = "~effect/MutableRef";
 const MutableRefProto = {
-	[TypeId$39]: TypeId$39,
+	[TypeId$40]: TypeId$40,
 	...PipeInspectableProto,
 	toJSON() {
 		return {
@@ -17308,13 +17359,67 @@ const MutableRefProto = {
 * @category constructors
 * @since 2.0.0
 */
-const make$40 = (value) => {
+const make$42 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
 };
+/**
+* Sets the MutableRef to a new value and returns the reference.
+*
+* **When to use**
+*
+* Use when you need an in-place `MutableRef` replacement that returns the same
+* `MutableRef`.
+*
+* **Example** (Setting values)
+*
+* ```ts import.meta.vitest
+* import { MutableRef } from "effect"
+*
+* const ref = MutableRef.make("initial")
+*
+* // Set a new value
+* MutableRef.set(ref, "updated")
+*
+* MutableRef.get(ref) // => "updated"
+*
+* // Chain set operations (since it returns the ref)
+* const result = MutableRef.set(ref, "final")
+*
+* result === ref // => true
+* MutableRef.get(ref) // => "final"
+*
+* // Set complex objects
+* const config = MutableRef.make({ debug: false, verbose: false })
+* MutableRef.set(config, { debug: true, verbose: true })
+*
+* MutableRef.get(config) // => { debug: true, verbose: true }
+*
+* // Pipe-able version
+* const setValue = MutableRef.set("new value")
+* setValue(ref)
+*
+* MutableRef.get(ref) // => "new value"
+*
+* // Useful for state management
+* const state = MutableRef.make<"idle" | "loading" | "success" | "error">("idle")
+* MutableRef.set(state, "loading")
+* // ... perform async operation
+* MutableRef.set(state, "success")
+*
+* MutableRef.get(state) // => "success"
+* ```
+*
+* @category mutations
+* @since 2.0.0
+*/
+const set$2 = /*#__PURE__*/ dual(2, (self, value) => {
+	self.current = value;
+	return self;
+});
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/MutableList.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/MutableList.js
 /**
 * Mutable lists for collecting ordered values and draining them from the front.
 * A `MutableList<A>` can append values to the end, prepend values to the
@@ -17367,11 +17472,20 @@ const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
 * @category constructors
 * @since 2.0.0
 */
-const make$39 = () => ({
+const make$41 = () => ({
 	head: void 0,
 	tail: void 0,
 	length: 0
 });
+const compactHead = (self) => {
+	const head = self.head;
+	if (head.offset >= 1024 && head === self.tail && head.mutable && (head.array.length - head.offset) * 8 <= head.offset) self.head = self.tail = {
+		array: head.array.slice(head.offset),
+		mutable: true,
+		offset: 0,
+		next: void 0
+	};
+};
 const emptyBucket = () => ({
 	array: [],
 	mutable: true,
@@ -17406,6 +17520,37 @@ const append = (self, message) => {
 		self.tail = self.tail.next;
 	}
 	self.tail.array.push(message);
+	self.length++;
+};
+/**
+* Prepends an element to the beginning of the MutableList.
+* This operation is optimized for high-frequency usage.
+*
+* **Example** (Prepending elements)
+*
+* ```ts import.meta.vitest
+* import { MutableList } from "effect"
+*
+* const list = MutableList.make<string>()
+* MutableList.append(list, "last")
+* MutableList.prepend(list, "third")
+* MutableList.prepend(list, "second")
+* MutableList.prepend(list, "first")
+*
+* MutableList.toArray(list) // => ["first", "second", "third", "last"]
+* ```
+*
+* @category mutations
+* @since 2.0.0
+*/
+const prepend = (self, message) => {
+	self.head = {
+		array: [message],
+		mutable: true,
+		offset: 0,
+		next: self.head
+	};
+	if (!self.tail) self.tail = self.head;
 	self.length++;
 };
 /**
@@ -17544,9 +17689,10 @@ const takeN = (self, n) => {
 			if (chunk.mutable) chunk.array[chunk.offset] = void 0;
 			chunk.offset++;
 			if (index === n) {
-				self.head = chunk;
+				self.head = chunk.offset === chunk.array.length && chunk.next ? chunk.next : chunk;
 				self.length -= n;
 				if (self.length === 0) clear$2(self);
+				else compactHead(self);
 				return array;
 			}
 		}
@@ -17605,11 +17751,617 @@ const take$1 = (self) => {
 	if (self.head.offset === self.head.array.length) {
 		if (self.head.next) self.head = self.head.next;
 		else clear$2(self);
-	}
+	} else compactHead(self);
 	return message;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Queue.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/PubSub.js
+const TypeId$39 = "~effect/PubSub";
+const SubscriptionTypeId = "~effect/PubSub/Subscription";
+/**
+* Creates a PubSub with a custom atomic implementation and strategy.
+*
+* **Example** (Creating a PubSub with a custom strategy)
+*
+* ```ts import.meta.vitest
+* import { Effect, PubSub } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   // Create custom PubSub with specific atomic implementation and strategy
+*   const pubsub = yield* PubSub.make<string>({
+*     atomicPubSub: () => PubSub.makeAtomicBounded(100),
+*     strategy: () => new PubSub.BackPressureStrategy()
+*   })
+*
+*   // Use the created PubSub
+*   const published = yield* PubSub.publish(pubsub, "Hello")
+*   yield* PubSub.shutdown(pubsub)
+*   return published
+* })
+*
+* const actual = await Effect.runPromise(program)
+* actual // => true
+* ```
+*
+* @category constructors
+* @since 4.0.0
+*/
+const make$40 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$3(false), make$42(false), options.strategy(), make$42(none())));
+/**
+* Creates an unbounded `PubSub`.
+*
+* **Example** (Creating an unbounded PubSub)
+*
+* ```ts import.meta.vitest
+* import { Effect, PubSub } from "effect"
+*
+* const program = Effect.scoped(Effect.gen(function*() {
+*   // Create unbounded PubSub
+*   const pubsub = yield* PubSub.unbounded<string>()
+*
+*   const subscription = yield* PubSub.subscribe(pubsub)
+*
+*   // Can publish unlimited messages
+*   for (let i = 0; i < 3; i++) {
+*     yield* PubSub.publish(pubsub, `message-${i}`)
+*   }
+*
+*   return yield* PubSub.takeAll(subscription)
+* }))
+*
+* const actual = await Effect.runPromise(program)
+* actual // => ["message-0", "message-1", "message-2"]
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const unbounded$1 = (options) => make$40({
+	atomicPubSub: () => makeAtomicUnbounded(options),
+	strategy: () => new DroppingStrategy()
+});
+/**
+* Creates an unbounded atomic PubSub implementation with optional replay buffer.
+*
+* **When to use**
+*
+* Use to create the low-level storage layer for a custom `PubSub` whose active
+* subscribers may retain an unbounded number of pending messages.
+*
+* **Gotchas**
+*
+* Messages published while subscribers are active can be retained without a
+* capacity limit until those subscribers take them or unsubscribe.
+*
+* @see {@link makeAtomicBounded} for a bounded atomic implementation that enforces capacity
+* @see {@link make} for wrapping an atomic implementation with a delivery strategy
+* @see {@link unbounded} for the high-level effectful constructor for unbounded `PubSub` values
+*
+* @category constructors
+* @since 4.0.0
+*/
+const makeAtomicUnbounded = (options) => {
+	const replay = options?.replay;
+	return new UnboundedPubSub(replay && replay > 0 ? new ReplayBuffer(Math.ceil(replay)) : void 0);
+};
+/**
+* Publishes a message to the `PubSub` as an `Effect`, returning whether the
+* message was accepted.
+*
+* **When to use**
+*
+* Use when you need to publish from effectful code and let the configured
+* PubSub strategy handle surplus messages.
+*
+* **Details**
+*
+* The effect succeeds with `false` if the `PubSub` is shut down. If the message
+* cannot be accepted immediately, the configured strategy decides how surplus
+* messages are handled.
+*
+* **Example** (Publishing a message)
+*
+* ```ts import.meta.vitest
+* import { Effect, PubSub } from "effect"
+*
+* const program = Effect.scoped(Effect.gen(function*() {
+*   const pubsub = yield* PubSub.bounded<string>(10)
+*
+*   // Publish a message
+*   const published = yield* PubSub.publish(pubsub, "Hello World")
+*
+*   const subscription = yield* PubSub.subscribe(pubsub)
+*
+*   yield* PubSub.publish(pubsub, "Hello")
+*   const message = yield* PubSub.take(subscription)
+*   return { published, message }
+* }))
+*
+* const actual = await Effect.runPromise(program)
+* actual // => { published: true, message: "Hello" }
+* ```
+*
+* @see {@link publishUnsafe} for a synchronous non-blocking attempt that does not run effectful surplus handling
+*
+* @category publishing
+* @since 2.0.0
+*/
+const publish = /*#__PURE__*/ dual(2, (self, value) => suspend$2(() => {
+	if (self.shutdownFlag.current || isSome(self.ended.current)) return succeed$3(false);
+	if (self.pubsub.publish(value)) {
+		self.strategy.completeSubscribersUnsafe(self.pubsub, self.subscribers);
+		return succeed$3(true);
+	}
+	return self.strategy.handleSurplus(self.pubsub, self.subscribers, [value], self.shutdownFlag);
+}));
+/**
+* Subscribes to receive messages from the `PubSub`. The resulting subscription can
+* be evaluated multiple times within the scope to take a message from the `PubSub`
+* each time.
+*
+* **Example** (Subscribing to messages)
+*
+* ```ts import.meta.vitest
+* import { Effect, PubSub } from "effect"
+*
+* const program = Effect.gen(function*() {
+*   const pubsub = yield* PubSub.bounded<string>(10)
+*
+*   // Subscribe within a scope for automatic cleanup
+*   const first = yield* Effect.scoped(Effect.gen(function*() {
+*     const subscription = yield* PubSub.subscribe(pubsub)
+*
+*     // Publish some messages
+*     yield* PubSub.publish(pubsub, "Hello")
+*     yield* PubSub.publish(pubsub, "World")
+*
+*     // Take messages one by one
+*     const msg1 = yield* PubSub.take(subscription)
+*     const msg2 = yield* PubSub.take(subscription)
+*
+*     // Subscription is automatically cleaned up when scope exits
+*     return [msg1, msg2]
+*   }))
+*
+*   const second = yield* Effect.scoped(Effect.gen(function*() {
+*     const sub1 = yield* PubSub.subscribe(pubsub)
+*     const sub2 = yield* PubSub.subscribe(pubsub)
+*
+*     // Multiple subscribers can receive the same messages
+*     yield* PubSub.publish(pubsub, "Broadcast")
+*
+*     return yield* Effect.all([
+*       PubSub.take(sub1),
+*       PubSub.take(sub2)
+*     ])
+*   }))
+*   return [first, second]
+* })
+*
+* const actual = await Effect.runPromise(program)
+* actual // => [["Hello", "World"], ["Broadcast", "Broadcast"]]
+* ```
+*
+* @category subscriptions
+* @since 2.0.0
+*/
+const subscribe = (self) => uninterruptible(contextWith((services) => {
+	const localScope = get$2(services, Scope);
+	const scope = forkUnsafe(self.scope);
+	const subscription = makeSubscriptionUnsafe(self.pubsub, self.subscribers, self.strategy, self.ended);
+	return addFinalizer$1(scope, unsubscribe(subscription)).pipe(andThen(addFinalizerExit(localScope, (exit) => close(scope, exit))), as(subscription));
+}));
+const unsubscribe = (self) => uninterruptible(withFiber((state) => {
+	set$2(self.shutdownFlag, true);
+	return forEach$1(takeAll$1(self.pollers), (d) => interruptWith(d, state.id), {
+		discard: true,
+		concurrency: "unbounded"
+	}).pipe(tap(() => sync(() => {
+		self.subscribers.delete(self.subscription);
+		self.subscription.unsubscribe();
+		self.replayWindow.close();
+		self.strategy.onPubSubEmptySpaceUnsafe(self.pubsub, self.subscribers);
+	})), when$2(self.shutdownHook.open), asVoid);
+}));
+const AbsentValue = /*#__PURE__*/ Symbol.for("effect/PubSub/AbsentValue");
+const addSubscribers = (subscribers, subscription, pollers) => {
+	if (!subscribers.has(subscription)) subscribers.set(subscription, /* @__PURE__ */ new Set());
+	subscribers.get(subscription).add(pollers);
+};
+const removeSubscribers = (subscribers, subscription, pollers) => {
+	if (!subscribers.has(subscription)) return;
+	const set = subscribers.get(subscription);
+	set.delete(pollers);
+	if (set.size === 0) subscribers.delete(subscription);
+};
+const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$41(), makeUnsafe$3(false), make$42(false), strategy, pubsub.replayWindow(), ended);
+var UnboundedPubSub = class {
+	publisherHead = {
+		value: AbsentValue,
+		replayIndex: void 0,
+		subscribers: 0,
+		next: null
+	};
+	publisherTail = this.publisherHead;
+	publisherIndex = 0;
+	subscribersIndex = 0;
+	capacity = Number.MAX_SAFE_INTEGER;
+	replayBuffer;
+	constructor(replayBuffer) {
+		this.replayBuffer = replayBuffer;
+	}
+	replayWindow() {
+		return this.replayBuffer ? new ReplayWindowImpl(this.replayBuffer) : emptyReplayWindow;
+	}
+	isEmpty() {
+		return this.publisherHead === this.publisherTail;
+	}
+	isFull() {
+		return false;
+	}
+	size() {
+		return this.publisherIndex - this.subscribersIndex;
+	}
+	publish(value) {
+		const replayIndex = this.replayBuffer?.offer(value);
+		const subscribers = this.publisherTail.subscribers;
+		if (subscribers !== 0) {
+			const node = {
+				value,
+				replayIndex,
+				subscribers,
+				next: null
+			};
+			this.publisherTail.next = node;
+			this.publisherTail = this.publisherTail.next;
+			this.publisherIndex += 1;
+		}
+		return true;
+	}
+	publishAll(elements) {
+		if (this.publisherTail.subscribers !== 0) for (const a of elements) this.publish(a);
+		else if (this.replayBuffer) this.replayBuffer.offerAll(elements);
+		return [];
+	}
+	slide() {
+		if (this.publisherHead !== this.publisherTail) {
+			const node = this.publisherHead.next;
+			const value = node.value;
+			this.publisherHead = this.publisherHead.next;
+			this.publisherHead.value = AbsentValue;
+			this.subscribersIndex += 1;
+			this.replayBuffer?.slide(value, node.replayIndex);
+		}
+	}
+	subscribe() {
+		this.publisherTail.subscribers += 1;
+		return new UnboundedPubSubSubscription(this, this.publisherTail, this.publisherIndex, false);
+	}
+};
+var UnboundedPubSubSubscription = class {
+	self;
+	subscriberHead;
+	subscriberIndex;
+	unsubscribed;
+	constructor(self, subscriberHead, subscriberIndex, unsubscribed) {
+		this.self = self;
+		this.subscriberHead = subscriberHead;
+		this.subscriberIndex = subscriberIndex;
+		this.unsubscribed = unsubscribed;
+	}
+	isEmpty() {
+		if (this.unsubscribed) return true;
+		let empty = true;
+		let loop = true;
+		while (loop) if (this.subscriberHead === this.self.publisherTail) loop = false;
+		else if (this.subscriberHead.next.value !== AbsentValue) {
+			empty = false;
+			loop = false;
+		} else {
+			this.subscriberHead = this.subscriberHead.next;
+			this.subscriberIndex += 1;
+		}
+		return empty;
+	}
+	size() {
+		if (this.unsubscribed) return 0;
+		return this.self.publisherIndex - Math.max(this.subscriberIndex, this.self.subscribersIndex);
+	}
+	poll() {
+		if (this.unsubscribed) return Empty$3;
+		let loop = true;
+		let polled = Empty$3;
+		while (loop) if (this.subscriberHead === this.self.publisherTail) loop = false;
+		else {
+			const elem = this.subscriberHead.next.value;
+			if (elem !== AbsentValue) {
+				polled = elem;
+				this.subscriberHead.subscribers -= 1;
+				if (this.subscriberHead.subscribers === 0) {
+					this.self.publisherHead = this.self.publisherHead.next;
+					this.self.publisherHead.value = AbsentValue;
+					this.self.subscribersIndex += 1;
+				}
+				loop = false;
+			}
+			this.subscriberHead = this.subscriberHead.next;
+			this.subscriberIndex += 1;
+		}
+		return polled;
+	}
+	pollUpTo(n) {
+		n = normalize$2(n);
+		const builder = [];
+		let i = 0;
+		while (i !== n) {
+			const a = this.poll();
+			if (a === Empty$3) i = n;
+			else {
+				builder.push(a);
+				i += 1;
+			}
+		}
+		return builder;
+	}
+	unsubscribe() {
+		if (!this.unsubscribed) {
+			this.unsubscribed = true;
+			this.self.publisherTail.subscribers -= 1;
+			while (this.subscriberHead !== this.self.publisherTail) {
+				if (this.subscriberHead.next.value !== AbsentValue) {
+					this.subscriberHead.subscribers -= 1;
+					if (this.subscriberHead.subscribers === 0) {
+						this.self.publisherHead = this.self.publisherHead.next;
+						this.self.publisherHead.value = AbsentValue;
+						this.self.subscribersIndex += 1;
+					}
+				}
+				this.subscriberHead = this.subscriberHead.next;
+			}
+		}
+	}
+};
+var SubscriptionImpl = class {
+	[SubscriptionTypeId] = { _A: identity };
+	pubsub;
+	subscribers;
+	subscription;
+	pollers;
+	shutdownHook;
+	shutdownFlag;
+	strategy;
+	replayWindow;
+	ended;
+	constructor(pubsub, subscribers, subscription, pollers, shutdownHook, shutdownFlag, strategy, replayWindow, ended) {
+		this.pubsub = pubsub;
+		this.subscribers = subscribers;
+		this.subscription = subscription;
+		this.pollers = pollers;
+		this.shutdownHook = shutdownHook;
+		this.shutdownFlag = shutdownFlag;
+		this.strategy = strategy;
+		this.replayWindow = replayWindow;
+		this.ended = ended;
+	}
+	pipe() {
+		return pipeArguments(this, arguments);
+	}
+};
+var PubSubImpl = class {
+	[TypeId$39] = { _A: identity };
+	pubsub;
+	subscribers;
+	scope;
+	shutdownHook;
+	shutdownFlag;
+	strategy;
+	ended;
+	constructor(pubsub, subscribers, scope, shutdownHook, shutdownFlag, strategy, ended) {
+		this.pubsub = pubsub;
+		this.subscribers = subscribers;
+		this.scope = scope;
+		this.shutdownHook = shutdownHook;
+		this.shutdownFlag = shutdownFlag;
+		this.strategy = strategy;
+		this.ended = ended;
+	}
+	pipe() {
+		return pipeArguments(this, arguments);
+	}
+};
+const makePubSubUnsafe = (pubsub, subscribers, scope, shutdownHook, shutdownFlag, strategy, ended) => new PubSubImpl(pubsub, subscribers, scope, shutdownHook, shutdownFlag, strategy, ended);
+/**
+* Represents the dropping strategy for bounded `PubSub` values.
+*
+* **When to use**
+*
+* Use to keep publishers fast by dropping new messages when the `PubSub` is at
+* capacity.
+*
+* **Details**
+*
+* A publish that arrives while the `PubSub` is full is dropped instead of
+* waiting for capacity.
+*
+* **Gotchas**
+*
+* Subscribers may miss messages published while they are subscribed.
+*
+* **Example** (Applying a dropping strategy)
+*
+* ```ts import.meta.vitest
+* import { Effect, PubSub } from "effect"
+*
+* const program = Effect.scoped(Effect.gen(function*() {
+*   // Explicitly create a PubSub with a dropping strategy
+*   const pubsub = yield* PubSub.make<string>({
+*     atomicPubSub: () => PubSub.makeAtomicBounded(2),
+*     strategy: () => new PubSub.DroppingStrategy()
+*   })
+*
+*   const subscription = yield* PubSub.subscribe(pubsub)
+*
+*   // Fill the PubSub
+*   const pub1 = yield* PubSub.publish(pubsub, "msg1") // true
+*   const pub2 = yield* PubSub.publish(pubsub, "msg2") // true
+*   const pub3 = yield* PubSub.publish(pubsub, "msg3") // false (dropped)
+*
+*   // Subscribers will only see the first two messages
+*   const messages = yield* PubSub.takeAll(subscription)
+*   return { published: [pub1, pub2, pub3], messages }
+* }))
+*
+* const actual = await Effect.runPromise(program)
+* actual // => { published: [true, true, false], messages: ["msg1", "msg2"] }
+* ```
+*
+* @category models
+* @since 4.0.0
+*/
+var DroppingStrategy = class {
+	get shutdown() {
+		return void_$1;
+	}
+	handleSurplus(_pubsub, _subscribers, _elements, _isShutdown) {
+		return succeed$3(false);
+	}
+	onPubSubEmptySpaceUnsafe(_pubsub, _subscribers) {}
+	completePollersUnsafe(pubsub, subscribers, subscription, pollers) {
+		return strategyCompletePollersUnsafe(this, pubsub, subscribers, subscription, pollers);
+	}
+	completeSubscribersUnsafe(pubsub, subscribers) {
+		return strategyCompleteSubscribersUnsafe(this, pubsub, subscribers);
+	}
+};
+const strategyCompletePollersUnsafe = (strategy, pubsub, subscribers, subscription, pollers) => {
+	let keepPolling = true;
+	while (keepPolling && !subscription.isEmpty()) {
+		const poller = take$1(pollers);
+		if (poller === Empty$3) {
+			removeSubscribers(subscribers, subscription, pollers);
+			if (pollers.length === 0) keepPolling = false;
+			else addSubscribers(subscribers, subscription, pollers);
+		} else {
+			const pollResult = subscription.poll();
+			if (pollResult === Empty$3) prepend(pollers, poller);
+			else {
+				doneUnsafe(poller, succeed$5(pollResult));
+				strategy.onPubSubEmptySpaceUnsafe(pubsub, subscribers);
+			}
+		}
+	}
+};
+const strategyCompleteSubscribersUnsafe = (strategy, pubsub, subscribers) => {
+	for (const [subscription, pollersSet] of subscribers) for (const pollers of pollersSet) strategy.completePollersUnsafe(pubsub, subscribers, subscription, pollers);
+};
+var ReplayBuffer = class {
+	capacity;
+	head = {
+		value: AbsentValue,
+		index: 0,
+		next: null
+	};
+	tail = this.head;
+	slideValues = [];
+	size = 0;
+	index = 0;
+	publisherIndex = 0;
+	constructor(capacity) {
+		this.capacity = capacity;
+	}
+	slide(value, publisherIndex) {
+		this.slideValues[this.index % this.capacity] = {
+			value,
+			index: publisherIndex
+		};
+		this.index++;
+	}
+	offer(a) {
+		const index = this.publisherIndex++;
+		this.tail.value = a;
+		this.tail.index = index;
+		this.tail.next = {
+			value: AbsentValue,
+			index: 0,
+			next: null
+		};
+		this.tail = this.tail.next;
+		if (this.size === this.capacity) this.head = this.head.next;
+		else this.size += 1;
+		return index;
+	}
+	offerAll(as) {
+		for (const a of as) this.offer(a);
+	}
+};
+var ReplayWindowImpl = class {
+	buffer;
+	values;
+	index = 0;
+	remaining;
+	slideIndex;
+	newestIndex = -1;
+	constructor(buffer) {
+		this.buffer = buffer;
+		this.remaining = buffer.size;
+		this.slideIndex = buffer.index;
+		this.values = new Array(this.remaining);
+		let node = buffer.head;
+		for (let i = 0; i < this.remaining; i++) {
+			this.values[i] = node.value;
+			this.newestIndex = node.index;
+			node = node.next;
+		}
+	}
+	close() {
+		this.values.length = 0;
+		this.remaining = 0;
+	}
+	sync() {
+		const slides = this.buffer.index - this.slideIndex;
+		if (slides === 0 || this.remaining === 0) return;
+		const count = Math.min(slides, this.buffer.capacity);
+		const start = this.buffer.index - count;
+		for (let i = 0; i < count; i++) {
+			const entry = this.buffer.slideValues[(start + i) % this.buffer.capacity];
+			if (entry.index > this.newestIndex) {
+				this.index = (this.index + 1) % this.values.length;
+				this.values[(this.index + this.remaining - 1) % this.values.length] = entry.value;
+				this.newestIndex = entry.index;
+			}
+		}
+		this.slideIndex = this.buffer.index;
+	}
+	take() {
+		if (this.remaining === 0) return;
+		this.sync();
+		const value = this.values[this.index];
+		this.values[this.index] = AbsentValue;
+		this.index = (this.index + 1) % this.values.length;
+		this.remaining--;
+		if (this.remaining === 0) this.close();
+		return value;
+	}
+	takeN(n) {
+		n = normalize$2(n);
+		const len = Math.min(n, this.remaining);
+		const items = new Array(len);
+		for (let i = 0; i < len; i++) items[i] = this.take();
+		return items;
+	}
+	takeAll() {
+		return this.takeN(this.remaining);
+	}
+};
+const emptyReplayWindow = {
+	remaining: 0,
+	take: () => void 0,
+	takeN: () => [],
+	takeAll: () => [],
+	close: () => void 0
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Queue.js
 /**
 * Passes values asynchronously between fibers.
 *
@@ -17682,12 +18434,12 @@ const QueueProto = {
 * @category constructors
 * @since 4.0.0
 */
-const make$38 = (options) => withFiber$1((fiber) => {
+const make$39 = (options) => withFiber$1((fiber) => {
 	const self = Object.create(QueueProto);
 	self.dispatcher = fiber.currentDispatcher;
 	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
 	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$39();
+	self.messages = make$41();
 	self.scheduleRunning = false;
 	self.state = {
 		_tag: "Open",
@@ -17695,7 +18447,7 @@ const make$38 = (options) => withFiber$1((fiber) => {
 		offers: /* @__PURE__ */ new Set(),
 		awaiters: /* @__PURE__ */ new Set()
 	};
-	return succeed$6(self);
+	return succeed$7(self);
 });
 /**
 * Creates a bounded queue with the specified capacity that uses backpressure strategy.
@@ -17727,7 +18479,7 @@ const make$38 = (options) => withFiber$1((fiber) => {
 * @category constructors
 * @since 2.0.0
 */
-const bounded = (capacity) => make$38({ capacity });
+const bounded = (capacity) => make$39({ capacity });
 /**
 * Creates an unbounded queue that can grow to any size without blocking producers.
 *
@@ -17763,7 +18515,7 @@ const bounded = (capacity) => make$38({ capacity });
 * @category constructors
 * @since 2.0.0
 */
-const unbounded = () => make$38();
+const unbounded = () => make$39();
 /**
 * Adds a message to the queue. Returns `false` if the queue is done.
 *
@@ -17796,26 +18548,7 @@ const unbounded = () => make$38();
 * @category offering
 * @since 2.0.0
 */
-const offer = (self, message) => suspend$3(() => {
-	if (self.state._tag !== "Open") return exitFalse;
-	else if (self.messages.length >= self.capacity) switch (self.strategy) {
-		case "dropping": return exitFalse;
-		case "suspend":
-			if (self.capacity <= 0 && self.state.takers.size > 0) {
-				append(self.messages, message);
-				releaseTakers(self);
-				return exitTrue;
-			}
-			return offerRemainingSingle(self, message);
-		case "sliding":
-			take$1(self.messages);
-			append(self.messages, message);
-			return exitTrue;
-	}
-	append(self.messages, message);
-	scheduleReleaseTaker(self);
-	return exitTrue;
-});
+const offer = /*#__PURE__*/ dual(2, (self, message) => suspend$3(() => offerUnsafe(self, message) ? exitTrue : self.state._tag === "Open" && self.strategy === "suspend" ? offerOrWait(self, message) : exitFalse));
 /**
 * Adds a message to the queue synchronously. Returns `false` if the queue is done.
 *
@@ -17905,13 +18638,16 @@ const offerUnsafe = (self, message) => {
 * @category offering
 * @since 2.0.0
 */
-const offerAll = (self, messages) => suspend$3(() => {
-	if (self.state._tag !== "Open") return succeed$6(fromIterable$2(messages));
+const offerAll = /*#__PURE__*/ dual(2, (self, messages) => callback$2((resume) => {
 	const remaining = offerAllUnsafe(self, messages);
-	if (remaining.length === 0) return exitSucceed([]);
-	else if (self.strategy === "dropping") return succeed$6(remaining);
-	return offerRemainingArray(self, remaining);
-});
+	if (remaining.length === 0 || self.strategy === "dropping") return resume(exitSucceed(remaining));
+	return waitToOffer(self, {
+		_tag: "Array",
+		remaining,
+		offset: 0,
+		resume
+	});
+}));
 /**
 * Adds multiple messages to the queue synchronously. Returns the remaining messages that
 * were not added.
@@ -17995,7 +18731,7 @@ const offerAllUnsafe = (self, messages) => {
 * @category completion
 * @since 4.0.0
 */
-const failCause$1 = /*#__PURE__*/ dual(2, (self, cause) => sync$1(() => failCauseUnsafe(self, cause)));
+const failCause$2 = /*#__PURE__*/ dual(2, (self, cause) => sync$1(() => failCauseUnsafe(self, cause)));
 /**
 * Fails the queue with a cause synchronously. If the queue is already done, `false` is
 * returned.
@@ -18045,6 +18781,7 @@ const failCauseUnsafe = (self, cause) => {
 		_tag: "Closing",
 		exit: fail
 	};
+	scheduleReleaseTaker(self);
 	return true;
 };
 /**
@@ -18088,7 +18825,7 @@ const failCauseUnsafe = (self, cause) => {
 * @category completion
 * @since 4.0.0
 */
-const end = (self) => failCause$1(self, causeFail(Done$2()));
+const end = (self) => failCause$2(self, causeFail(Done$2()));
 /**
 * Signals queue completion synchronously.
 *
@@ -18145,8 +18882,8 @@ const endUnsafe = (self) => failCauseUnsafe(self, causeFail(Done$2()));
 *
 * **Details**
 *
-* The operation is idempotent and returns `true`, including when the queue has
-* already been shut down or completed.
+* Returns `true` when the queue is shut down by this call, or `false` when it
+* has already been shut down or completed.
 *
 * **Example** (Shutting down queues)
 *
@@ -18171,21 +18908,40 @@ const endUnsafe = (self) => failCauseUnsafe(self, causeFail(Done$2()));
 * await Effect.runPromise(program) // => { wasShutdown: true, size: 0 }
 * ```
 *
+* @see {@link shutdownUnsafe} for synchronous shutdown
 * @category completion
 * @since 2.0.0
 */
-const shutdown = (self) => sync$1(() => {
-	if (self.state._tag === "Done") return true;
+const shutdown = (self) => sync$1(() => shutdownUnsafe(self));
+/**
+* Shuts down the queue synchronously, discarding buffered messages and resuming
+* pending operations.
+*
+* **When to use**
+*
+* Use when a synchronous callback must discard buffered messages and settle
+* pending queue operations before returning.
+*
+* **Details**
+*
+* An open queue completes with an interruption. A queue already closing retains
+* its completion cause. Call `failCauseUnsafe` first to shut down with a specific
+* failure. Returns `true` when the queue is shut down by this call, or `false`
+* when it has already been shut down or completed.
+*
+* @see {@link shutdown} for the effectful variant
+* @see {@link failCauseUnsafe} to set a failure before discarding buffered messages
+* @category completion
+* @since 4.0.0
+*/
+const shutdownUnsafe = (self) => {
+	if (self.state._tag === "Done") return false;
 	clear$2(self.messages);
 	const offers = self.state.offers;
 	finalize(self, self.state._tag === "Open" ? exitInterrupt : self.state.exit);
-	if (offers.size > 0) {
-		for (const entry of offers) if (entry._tag === "Single") entry.resume(exitFalse);
-		else entry.resume(exitSucceed(entry.remaining.slice(entry.offset)));
-		offers.clear();
-	}
+	for (const entry of offers) resumeUnoffered(entry);
 	return true;
-});
+};
 /**
 * Takes and returns all currently buffered messages without waiting for more.
 *
@@ -18224,12 +18980,12 @@ const shutdown = (self) => sync$1(() => {
 */
 const clear$1 = (self) => suspend$3(() => {
 	if (self.state._tag === "Done") {
-		if (isDoneCause(self.state.exit.cause)) return succeed$6([]);
+		if (isDoneCause(self.state.exit.cause)) return succeed$7([]);
 		return self.state.exit;
 	}
 	const messages = takeAllUnsafe(self);
 	releaseCapacity(self);
-	return succeed$6(messages);
+	return succeed$7(messages);
 });
 /**
 * Takes all currently available messages, waiting until at least one message
@@ -18276,8 +19032,9 @@ const takeAll = (self) => takeBetween(self, 1, Number.POSITIVE_INFINITY);
 * The operation waits when fewer than the required minimum messages are
 * available. It returns at most `max` messages. Finite fractional bounds are
 * rounded down, while `NaN` and non-positive bounds are treated as `0`. If the
-* queue completes or fails before the minimum can be satisfied, the effect
-* fails with the queue's terminal error.
+* queue is closing, drains the currently available messages even when fewer
+* than `min` are available. Once the queue is done, the effect fails with the
+* queue's terminal error.
 *
 * **Example** (Taking a bounded batch of values)
 *
@@ -18307,11 +19064,11 @@ const takeAll = (self) => takeBetween(self, 1, Number.POSITIVE_INFINITY);
 * @category taking
 * @since 2.0.0
 */
-const takeBetween = (self, min, max) => {
+const takeBetween = /*#__PURE__*/ dual(3, (self, min, max) => {
 	min = normalize$2(min);
 	max = normalize$2(max);
-	return suspend$3(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self), takeBetween(self, 1, max)));
-};
+	return suspend$3(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self, () => canTake(self, min)), takeBetween(self, min, max)));
+});
 /**
 * Takes a single message from the queue, or wait for a message to be
 * available.
@@ -18351,7 +19108,7 @@ const takeBetween = (self, min, max) => {
 * @category taking
 * @since 2.0.0
 */
-const take = (self) => suspend$3(() => takeUnsafe(self) ?? andThen$1(awaitTake(self), take(self)));
+const take = (self) => suspend$3(() => takeUnsafe(self) ?? andThen$1(awaitTake(self, () => canTake(self, 1)), take(self)));
 /**
 * Attempts to take one message from the queue synchronously.
 *
@@ -18479,47 +19236,36 @@ const scheduleReleaseTaker = (self) => {
 const takeBetweenUnsafe = (self, min, max) => {
 	if (self.state._tag === "Done") return self.state.exit;
 	else if (max <= 0 || min <= 0) return exitSucceed([]);
-	else if (self.capacity <= 0 && self.messages.length === 0 && self.state.offers.size > 0) {
-		const messages = [takeOfferUnsafe(self.state.offers)];
-		releaseCapacity(self);
-		return exitSucceed(messages);
-	}
-	min = Math.min(min, self.capacity || 1);
-	if (min <= self.messages.length) {
-		const messages = takeN(self.messages, max);
-		releaseCapacity(self);
-		return exitSucceed(messages);
-	}
+	else if (!canTake(self, min)) return;
+	const messages = self.messages.length > 0 ? takeN(self.messages, max) : [takeOfferUnsafe(self.state.offers)];
+	releaseCapacity(self);
+	return exitSucceed(messages);
 };
-const offerRemainingSingle = (self, message) => {
-	return callback$2((resume) => {
-		if (self.state._tag !== "Open") return resume(exitFalse);
-		const entry = {
-			_tag: "Single",
-			message,
-			resume
-		};
-		self.state.offers.add(entry);
-		return sync$1(() => {
-			if (self.state._tag === "Open") self.state.offers.delete(entry);
-		});
+const canTake = (self, min) => self.messages.length >= (self.state._tag === "Closing" ? 1 : Math.min(min, self.capacity || 1)) || self.capacity <= 0 && self.state._tag !== "Done" && self.state.offers.size > 0;
+const awaitTake = (self, ready) => callback$2((resume) => {
+	if (self.state._tag === "Done") return resume(self.state.exit);
+	if (ready()) return resume(exitVoid);
+	self.state.takers.add(resume);
+	return sync$1(() => {
+		if (self.state._tag !== "Done") self.state.takers.delete(resume);
+	});
+});
+const offerOrWait = (self, message) => callback$2((resume) => offerUnsafe(self, message) ? resume(exitTrue) : waitToOffer(self, {
+	_tag: "Single",
+	message,
+	resume
+}));
+const waitToOffer = (self, entry) => {
+	if (self.state._tag !== "Open") return resumeUnoffered(entry);
+	const offers = self.state.offers;
+	offers.add(entry);
+	return sync$1(() => {
+		if (self.state._tag === "Done") return;
+		offers.delete(entry);
+		if (self.state._tag === "Closing" && offers.size === 0 && self.messages.length === 0) finalize(self, self.state.exit);
 	});
 };
-const offerRemainingArray = (self, remaining) => {
-	return callback$2((resume) => {
-		if (self.state._tag !== "Open") return resume(exitSucceed(remaining));
-		const entry = {
-			_tag: "Array",
-			remaining,
-			offset: 0,
-			resume
-		};
-		self.state.offers.add(entry);
-		return sync$1(() => {
-			if (self.state._tag === "Open") self.state.offers.delete(entry);
-		});
-	});
-};
+const resumeUnoffered = (entry) => entry._tag === "Single" ? entry.resume(exitFalse) : entry.resume(exitSucceed(entry.remaining.slice(entry.offset)));
 const takeOfferUnsafe = (offers) => {
 	const entry = offers.values().next().value;
 	if (entry._tag === "Single") {
@@ -18562,13 +19308,6 @@ const releaseCapacity = (self) => {
 	}
 	return false;
 };
-const awaitTake = (self) => callback$2((resume) => {
-	if (self.state._tag === "Done") return resume(self.state.exit);
-	self.state.takers.add(resume);
-	return sync$1(() => {
-		if (self.state._tag !== "Done") self.state.takers.delete(resume);
-	});
-});
 const takeAllUnsafe = (self) => {
 	if (self.messages.length > 0) {
 		const messages = takeAll$1(self.messages);
@@ -18594,7 +19333,7 @@ const finalize = (self, exit) => {
 	openState.awaiters.clear();
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Semaphore.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Semaphore.js
 /**
 * Creates a `Semaphore` synchronously with the specified total
 * number of permits.
@@ -18661,15 +19400,15 @@ var SemaphoreImpl = class {
 		const take = suspend$3(() => {
 			if (this.free < n) return waitForPermits(this, n, take);
 			this.taken += n;
-			return succeed$6(n);
+			return succeed$7(n);
 		});
 		return take;
 	}
 	takeIfAvailable(n) {
 		return suspend$3(() => {
-			if (this.free < n) return succeed$6(false);
+			if (this.free < n) return succeed$7(false);
 			this.taken += n;
-			return succeed$6(true);
+			return succeed$7(true);
 		});
 	}
 	releaseUnsafe(fiber, n) {
@@ -18691,10 +19430,10 @@ var SemaphoreImpl = class {
 		});
 	}
 	release(n) {
-		return withFiber$1((fiber) => succeed$6(this.releaseUnsafe(fiber, n)));
+		return withFiber$1((fiber) => succeed$7(this.releaseUnsafe(fiber, n)));
 	}
 	get releaseAll() {
-		return withFiber$1((fiber) => succeed$6(this.releaseUnsafe(fiber, this.taken)));
+		return withFiber$1((fiber) => succeed$7(this.releaseUnsafe(fiber, this.taken)));
 	}
 	withPermits(n) {
 		return (self) => uninterruptibleMask$1((restore) => {
@@ -18756,9 +19495,9 @@ var SemaphoreImpl = class {
 * @category constructors
 * @since 4.0.0
 */
-const make$37 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+const make$38 = (permits) => sync$1(() => new SemaphoreImpl(permits));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Channel.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Channel.js
 /**
 * Provides low-level building blocks for streaming data through Effect.
 *
@@ -18826,7 +19565,7 @@ const ChannelProto = {
 */
 const fromTransform$1 = (transform) => {
 	const self = Object.create(ChannelProto);
-	self.transform = (upstream, scope) => catchCause$1(transform(upstream, scope), (cause) => succeed$3(failCause$2(cause)));
+	self.transform = (upstream, scope) => catchCause$1(transform(upstream, scope), (cause) => succeed$3(failCause$3(cause)));
 	return self;
 };
 /**
@@ -18916,7 +19655,7 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 * @since 4.0.0
 */
 const toTransform = (channel) => channel.transform;
-const asyncQueue = (scope, f, options) => make$38({
+const asyncQueue = (scope, f, options) => make$39({
 	capacity: options?.bufferSize,
 	strategy: options?.strategy
 }).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => forkIn(provide$3(f(queue), scope), scope)));
@@ -19009,7 +19748,7 @@ const fail$2 = (error) => fromPull$1(succeed$3(fail$3(error)));
 * @category constructors
 * @since 2.0.0
 */
-const failCause = (cause) => fromPull$1(failCause$2(cause));
+const failCause$1 = (cause) => fromPull$1(failCause$3(cause));
 /**
 * Uses an effect to write a single value to the channel.
 *
@@ -19028,10 +19767,10 @@ const failCause = (cause) => fromPull$1(failCause$2(cause));
 * @since 2.0.0
 */
 const fromEffect$1 = (effect) => fromPull$1(sync(() => {
-	let done$18 = false;
+	let done$17 = false;
 	return suspend$2(() => {
-		if (done$18) return done();
-		done$18 = true;
+		if (done$17) return done();
+		done$17 = true;
 		return effect;
 	});
 }));
@@ -19089,17 +19828,17 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$40(void 0);
+	const exit = options.exit ?? make$42(void 0);
 	const pull = suspend$2(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
 			try: () => reader.read(),
 			catch: options.onError
 		}), {
-			onFailure: (cause) => exit.current ?? failCause$2(cause),
-			onSuccess: ({ done: done$13, value }) => {
+			onFailure: (cause) => exit.current ?? failCause$3(cause),
+			onSuccess: ({ done: done$18, value }) => {
 				if (exit.current) return exit.current;
-				return done$13 ? done() : succeed$3(of(value));
+				return done$18 ? done() : succeed$3(of(value));
 			}
 		});
 	});
@@ -19167,7 +19906,7 @@ const mapDone = /*#__PURE__*/ dual(2, (self, f) => mapDoneEffect(self, (o) => su
 * @category sequencing
 * @since 4.0.0
 */
-const mapDoneEffect = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(catchDone(pull, (done$14) => flatMap(f(done$14), done)))));
+const mapDoneEffect = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(catchDone(pull, (done$19) => flatMap(f(done$19), done)))));
 const concurrencyIsSequential = (concurrency) => concurrency === void 0 || concurrency !== "unbounded" && concurrency <= 1;
 /**
 * Maps each output element with an effectful function, preserving the source
@@ -19218,17 +19957,18 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 		const semaphore = makeUnsafe$2(concurrencyN);
 		const release = constant(semaphore.release(1));
 		const handle = matchCauseEffect({
-			onFailure: (cause) => flatMap(failCause$1(queue, cause), release),
+			onFailure: (cause) => flatMap(failCause$2(queue, cause), release),
 			onSuccess: (value) => flatMap(offer(queue, value), release)
 		});
 		yield* semaphore.take(1).pipe(flatMap(() => pull), flatMap((value) => {
-			trackFiber(runFork(handle(f(value, i++))));
+			const index = i++;
+			trackFiber(runFork(handle(suspend$2(() => f(value, index)))));
 			return void_$1;
-		}), forever({ disableYield: true }), catchCause$1((cause) => semaphore.withPermits(concurrencyN - 1)(failCause$1(queue, cause))), forkIn(forkedScope));
+		}), forever({ disableYield: true }), catchCause$1((cause) => semaphore.withPermits(concurrencyN - 1)(failCause$2(queue, cause))), forkIn(forkedScope));
 	} else {
 		const effects = yield* bounded(concurrencyN - 2);
 		yield* addFinalizer$1(forkedScope, shutdown(effects));
-		yield* take(effects).pipe(flatten, flatMap((value) => offer(queue, value)), forever({ disableYield: true }), catchCause$1((cause) => failCause$1(queue, cause)), forkIn(forkedScope));
+		yield* take(effects).pipe(flatten, flatMap((value) => offer(queue, value)), forever({ disableYield: true }), catchCause$1((cause) => failCause$2(queue, cause)), forkIn(forkedScope));
 		let errorCause;
 		const onExit = (exit) => {
 			if (exit._tag === "Success") return;
@@ -19236,12 +19976,13 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 			failCauseUnsafe(queue, exit.cause);
 		};
 		yield* pull.pipe(flatMap((value) => {
-			if (errorCause) return failCause$2(errorCause);
-			const fiber = runFork(f(value, i++));
+			if (errorCause) return failCause$3(errorCause);
+			const index = i++;
+			const fiber = runFork(suspend$2(() => f(value, index)));
 			trackFiber(fiber);
 			fiber.addObserver(onExit);
 			return offer(effects, join(fiber));
-		}), forever({ disableYield: true }), catchCause$1((cause) => offer(effects, failCause$3(cause)).pipe(andThen(failCause$1(effects, cause)))), forkIn(forkedScope));
+		}), forever({ disableYield: true }), catchCause$1((cause) => offer(effects, failCause$4(cause)).pipe(andThen(failCause$2(effects, cause)))), forkIn(forkedScope));
 	}
 	return take(queue);
 }));
@@ -19335,10 +20076,10 @@ const catchCause = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream,
 	let forkedScope = forkUnsafe(scope);
 	return map$3(toTransform(self)(upstream, forkedScope), (pull) => {
 		let currentPull = pull.pipe(catchCause$1((cause) => {
-			if (isDoneCause(cause)) return failCause$2(cause);
+			if (isDoneCause(cause)) return failCause$3(cause);
 			const toClose = forkedScope;
 			forkedScope = forkUnsafe(scope);
-			return close(toClose, failCause$3(cause)).pipe(andThen(toTransform(f(cause))(upstream, forkedScope)), flatMap((childPull) => {
+			return close(toClose, failCause$4(cause)).pipe(andThen(toTransform(f(cause))(upstream, forkedScope)), flatMap((childPull) => {
 				currentPull = childPull;
 				return childPull;
 			}));
@@ -19370,7 +20111,7 @@ const catchCause = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream,
 */
 const catchCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause(self, (cause) => {
 	const result = filter(cause);
-	return isFailure$1(result) ? failCause(result.failure) : f(result.success, cause);
+	return isFailure$1(result) ? failCause$1(result.failure) : f(result.success, cause);
 }));
 const catch_$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter(self, findError, (e) => f(e)));
 /**
@@ -19551,6 +20292,26 @@ const provideContext$1 = /*#__PURE__*/ dual(2, (self, context) => fromTransform$
 */
 const runForEach$1 = /*#__PURE__*/ dual(2, (self, f) => runWith(self, (pull) => forever(flatMap(pull, f), { disableYield: true })));
 /**
+* Runs a channel to completion and returns the last output element in an
+* `Option`.
+*
+* **Details**
+*
+* Returns `Option.some` with the last emitted element, or `Option.none` if the
+* channel completes without emitting output.
+*
+* @category running
+* @since 4.0.0
+*/
+const runLast$1 = (self) => suspend$2(() => {
+	const absent = Symbol();
+	let last = absent;
+	return runWith(self, (pull) => forever(flatMap(pull, (item) => {
+		last = item;
+		return void_$1;
+	}), { disableYield: true }), () => last === absent ? succeedNone : succeedSome(last));
+});
+/**
 * Converts a channel to a Pull within an existing scope.
 *
 * **Example** (Converting channels to scoped pulls)
@@ -19579,7 +20340,7 @@ const runForEach$1 = /*#__PURE__*/ dual(2, (self, f) => runWith(self, (pull) => 
 */
 const toPullScoped = (self, scope) => toTransform(self)(done(), scope);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/stream.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/stream.js
 const TypeId$36 = "~effect/Stream";
 const streamVariance = {
 	_R: identity,
@@ -19598,7 +20359,7 @@ Stream$1.prototype = {
 /** @internal */
 const fromChannel$2 = (channel) => new Stream$1(channel);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Sink.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Sink.js
 const TypeId$35 = "~effect/Sink";
 const endVoid = /*#__PURE__*/ succeed$3([void 0]);
 const sinkVariance = {
@@ -19678,45 +20439,6 @@ const fromTransform = (transform) => {
 */
 const toChannel$1 = (self) => fromTransform$1((upstream, scope) => succeed$3(flatMap(self.transform(upstream, scope), done)));
 /**
-* A sink that reduces its inputs using the provided function `f` starting from
-* the specified `initial` state.
-*
-* @category folding
-* @since 4.0.0
-*/
-const reduceArray = (initial, f) => fromTransform((upstream) => {
-	let state = initial();
-	return upstream.pipe(flatMap((arr) => {
-		state = f(state, arr);
-		return void_$1;
-	}), forever({ disableYield: true }), catchDone(() => succeed$3([state])));
-});
-const last_ = /*#__PURE__*/ reduceArray(none, (_, arr) => last$1(arr));
-/**
-* Creates a sink containing the last value.
-*
-* **When to use**
-*
-* Use when you need to consume all upstream input and keep only the final
-* element.
-*
-* **Details**
-*
-* Returns `Option.some(last)` with the final input value, or `Option.none` when
-* the upstream ends without input.
-*
-* **Gotchas**
-*
-* This sink produces a result only when the upstream ends, so it does not
-* complete for a stream that does not end.
-*
-* @see {@link head} for taking the first input value instead
-*
-* @category constructors
-* @since 2.0.0
-*/
-const last = () => last_;
-/**
 * A sink that executes the provided effectful function for every item fed
 * to it.
 *
@@ -19786,7 +20508,7 @@ const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f)
 */
 const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$3(effect, toChannel$1)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/MutableHashMap.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/MutableHashMap.js
 const TypeId$34 = "~effect/MutableHashMap";
 const MutableHashMapProto = {
 	[TypeId$34]: TypeId$34,
@@ -19881,17 +20603,17 @@ const empty$7 = () => {
 const get$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	if (self.backing.has(key)) return some(self.backing.get(key));
 	else if (isSimpleKey(key)) return none();
-	const refKey = referentialKeysCache.get(self);
-	if (refKey !== void 0) return self.backing.has(refKey) ? some(self.backing.get(refKey)) : none();
-	const hash$3 = hash(key);
-	const bucket = self.buckets.get(hash$3);
+	const refKey = referentialKeysCache.get(key);
+	if (refKey !== void 0 && self.backing.has(refKey)) return some(self.backing.get(refKey));
+	const hash$1 = hash(key);
+	const bucket = self.buckets.get(hash$1);
 	if (bucket === void 0) return none();
 	return getFromBucket(self, bucket, key);
 });
 const referentialKeysCache = /*#__PURE__*/ new WeakMap();
 const isSimpleKey = (u) => typeof u !== "object" && typeof u !== "function";
 const getFromBucket = (self, bucket, key) => {
-	for (let i = 0, len = bucket.length; i < len; i++) if (equals$2(key, bucket[i])) {
+	for (let i = 0, len = bucket.length; i < len; i++) if (equals$1(key, bucket[i])) {
 		const refKey = bucket[i];
 		referentialKeysCache.set(key, refKey);
 		return some(self.backing.get(refKey));
@@ -19942,15 +20664,15 @@ const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
 		self.backing.set(key, value);
 		return self;
 	}
-	let refKey = referentialKeysCache.get(self);
+	let refKey = referentialKeysCache.get(key);
 	if (refKey !== void 0 && self.backing.has(refKey)) {
 		self.backing.set(refKey, value);
 		return self;
 	}
-	const hash$4 = hash(key);
-	const bucket = self.buckets.get(hash$4);
+	const hash$2 = hash(key);
+	const bucket = self.buckets.get(hash$2);
 	if (bucket === void 0) {
-		self.buckets.set(hash$4, [key]);
+		self.buckets.set(hash$2, [key]);
 		self.backing.set(key, value);
 		return self;
 	}
@@ -19963,7 +20685,7 @@ const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
 	return self;
 });
 const getRefKey = (bucket, key) => {
-	for (let i = 0, len = bucket.length; i < len; i++) if (equals$2(key, bucket[i])) {
+	for (let i = 0, len = bucket.length; i < len; i++) if (equals$1(key, bucket[i])) {
 		referentialKeysCache.set(key, bucket[i]);
 		return bucket[i];
 	}
@@ -20014,19 +20736,19 @@ const remove$2 = /*#__PURE__*/ dual(2, (self, key_) => {
 		self.backing.delete(key_);
 		return self;
 	}
-	const key = referentialKeysCache.get(self) ?? key_;
-	const hash$2 = hash(key);
-	const bucket = self.buckets.get(hash$2);
+	const key = referentialKeysCache.get(key_) ?? key_;
+	const hash$4 = hash(key);
+	const bucket = self.buckets.get(hash$4);
 	if (bucket === void 0) return self;
 	for (let i = 0, len = bucket.length; i < len; i++) {
 		const bkey = bucket[i];
-		if (bkey === key || equals$2(key, bkey)) {
+		if (bkey === key || equals$1(key, bkey)) {
 			self.backing.delete(bkey);
 			bucket.splice(i, 1);
 			break;
 		}
 	}
-	if (bucket.length === 0) self.buckets.delete(hash$2);
+	if (bucket.length === 0) self.buckets.delete(hash$4);
 	return self;
 });
 /**
@@ -20105,7 +20827,7 @@ const clear = (self) => {
 */
 const size = (self) => self.backing.size;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/RcMap.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/RcMap.js
 /**
 * Shares scoped resources by key and releases them when no one is using them.
 *
@@ -20186,7 +20908,7 @@ const makeUnsafe$1 = (options) => ({
 * @category constructors
 * @since 3.5.0
 */
-const make$36 = (options) => withFiber((fiber) => {
+const make$37 = (options) => withFiber((fiber) => {
 	const context = fiber.context;
 	const scope = get$2(context, Scope);
 	const self = makeUnsafe$1({
@@ -20296,7 +21018,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 	const clock = fiber.getRef(Clock);
 	entry.expiresAt = clock.currentTimeMillisUnsafe() + toMillis(entry.idleTimeToLive);
 	if (entry.fiber) return void_$1;
-	entry.fiber = interruptibleMask(function loop(restore) {
+	entry.fiber = uninterruptibleMask(function loop(restore) {
 		const now = clock.currentTimeMillisUnsafe();
 		const remaining = entry.expiresAt - now;
 		if (remaining <= 0) {
@@ -20304,16 +21026,16 @@ const release = (self, key, entry) => withFiber((fiber) => {
 			const o = get$1(self.state.map, key);
 			if (o._tag === "None" || o.value !== entry) return void_$1;
 			remove$2(self.state.map, key);
-			return restore(close(entry.scope, void_$2));
+			return close(entry.scope, void_$2);
 		}
-		return flatMap(clock.sleep(millis(remaining)), () => loop(restore));
+		return flatMap(restore(clock.sleep(millis(remaining))), () => loop(restore));
 	}).pipe(ensuring$2(sync(() => {
 		entry.fiber = void 0;
 	})), runForkWith(fiber.context), runIn(self.scope));
 	return void_$1;
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Stream.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Stream.js
 /**
 * Describes effectful sources that emit values over time.
 *
@@ -20451,7 +21173,7 @@ const transformPull = (self, f) => fromChannel(fromTransform$1((_, scope) => fla
 * values.flat() // => [1, 2, 3]
 * ```
 *
-* @category constructors
+* @category destructors
 * @since 2.0.0
 */
 const toChannel = (stream) => stream.channel;
@@ -20539,6 +21261,25 @@ const suspend = (stream) => fromChannel(suspend$1(() => stream().channel));
 * @since 2.0.0
 */
 const fail$1 = (error) => fromChannel(fail$2(error));
+/**
+* Creates a stream that fails with the specified `Cause`.
+*
+* **Example** (Failing with a cause)
+*
+* ```ts import.meta.vitest
+* import { Cause, Effect, Stream } from "effect"
+*
+* const stream = Stream.failCause(Cause.fail("Database connection failed")).pipe(
+*   Stream.catchCause(() => Stream.succeed("recovered"))
+* )
+*
+* await Effect.runPromise(Stream.runCollect(stream)) // => ["recovered"]
+* ```
+*
+* @category constructors
+* @since 2.0.0
+*/
+const failCause = (cause) => fromChannel(failCause$1(cause));
 /**
 * Creates a stream that pulls values from a `Queue.Dequeue`.
 *
@@ -20753,7 +21494,7 @@ const pipeThroughChannel = /*#__PURE__*/ dual(2, (self, channel) => fromChannel(
 * await Effect.runPromise(program)
 * ```
 *
-* @category decoding
+* @category text
 * @since 2.0.0
 */
 const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => suspend(() => {
@@ -20863,6 +21604,31 @@ const provideContext = /*#__PURE__*/ dual(2, (self, context) => fromChannel(prov
 * @since 2.0.0
 */
 const run$1 = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullScoped(self.channel, scope).pipe(flatMap((upstream) => sink.transform(upstream, scope)), map$3(([a]) => a))));
+/**
+* Runs the stream and returns the last element as an `Option`.
+*
+* **When to use**
+*
+* Use to consume a finite stream when only the final emitted element matters.
+*
+* **Details**
+*
+* `Option.some` contains the last emitted element. `Option.none` means the
+* stream completed without emitting.
+*
+* **Gotchas**
+*
+* The returned effect waits for the stream to complete before it can produce a
+* value.
+*
+* @see {@link runHead} for consuming only the first emitted element
+* @see {@link runCollect} for collecting every emitted element
+* @see {@link runDrain} for consuming the stream while discarding emitted elements
+*
+* @category destructors
+* @since 2.0.0
+*/
+const runLast = (self) => map$3(runLast$1(self.channel), map$8(lastNonEmpty));
 /**
 * Runs the provided effectful callback for each element of the stream.
 *
@@ -21005,7 +21771,7 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 */
 const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$3(context(), (context) => toReadableStreamWith(self, context, options)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/FileSystem.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/FileSystem.js
 /**
 * Defines the portable file system service for Effect programs.
 *
@@ -21082,7 +21848,7 @@ const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
 * @category constructors
 * @since 4.0.0
 */
-const make$35 = (impl) => FileSystem.of({
+const make$36 = (impl) => FileSystem.of({
 	...impl,
 	[TypeId$31]: TypeId$31,
 	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
@@ -21186,14 +21952,14 @@ const FileTypeId = "~effect/FileSystem/File";
 */
 var WatchBackend = class extends (/*#__PURE__*/ Service$1()("effect/FileSystem/WatchBackend")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/annotations.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/annotations.js
 /** @internal */
-function resolve(ast) {
+function resolve$1(ast) {
 	return ast.checks ? ast.checks[ast.checks.length - 1].annotations : ast.annotations;
 }
 /** @internal */
 function resolveAt$1(key) {
-	return (ast) => resolve(ast)?.[key];
+	return (ast) => resolve$1(ast)?.[key];
 }
 /** @internal */
 const STRUCTURAL_ANNOTATION_KEY = "~structural";
@@ -21224,7 +21990,7 @@ const resolveIdentifierFallback = /*#__PURE__*/ resolveAt$1(IDENTIFIER_FALLBACK_
 const resolveDescription$1 = /*#__PURE__*/ resolveAt$1("description");
 /** @internal */
 const getExpected = /*#__PURE__*/ memoize((ast) => {
-	const identifier = resolve(ast)?.identifier;
+	const identifier = resolve$1(ast)?.identifier;
 	if (typeof identifier === "string") return identifier;
 	return ast.getExpected(getExpected);
 });
@@ -21246,7 +22012,7 @@ const annotationExcludedKeys = /*#__PURE__*/ new Set([
 	"toCodecArbitrary"
 ]);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/parser.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/parser.js
 /** @internal */
 const missing = /*#__PURE__*/ Symbol();
 /** @internal */
@@ -21260,7 +22026,7 @@ const toOption = (value) => value === missing ? none() : some(value);
 /** @internal */
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed(option.value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/SchemaIssue.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/SchemaIssue.js
 /**
 * Describes problems found while decoding, encoding, or checking data with
 * schemas.
@@ -21762,7 +22528,7 @@ function findMessage(issue) {
 	if (typeof message === "string") return message;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/cause.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/cause.js
 /** @internal */
 function getSchemaIssue(cause) {
 	let issue;
@@ -21779,7 +22545,7 @@ function getSchemaIssueOrThrow(cause, message) {
 	return issue;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/DateTime.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/DateTime.js
 /**
 * Checks whether a value is a `DateTime`.
 *
@@ -21879,7 +22645,7 @@ const makeUnsafe = makeUnsafe$4;
 * @category constructors
 * @since 3.6.0
 */
-const make$34 = make$42;
+const make$35 = make$44;
 /**
 * Gets the current time using the `Clock` service and converts it to a `DateTime`.
 *
@@ -21999,28 +22765,140 @@ const formatIso = formatIso$1;
 */
 const formatIsoDate = formatIsoDate$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/SchemaGetter.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/encoding/Base64.js
 /**
-* Constructs a composable schema getter.
+* Base64 encoding and decoding helpers.
 *
-* @category constructors
 * @since 4.0.0
 */
-const Getter = class extends Class$3 {
-	run;
-	constructor(run) {
-		super();
-		this.run = run;
-	}
-	map(f) {
-		return new Getter((oe, options) => this.run(oe, options).pipe(mapEager(map$8(f))));
-	}
-	compose(other) {
-		if (isPassthrough(this)) return other;
-		if (isPassthrough(other)) return this;
-		return new Getter((oe, options) => this.run(oe, options).pipe(flatMapEager((ot) => other.run(ot, options))));
+/**
+* Encodes the given value into a Base64 (RFC 4648) string.
+*
+* **When to use**
+*
+* Use to encode text or bytes as a standard padded Base64 string for storage or
+* transport.
+*
+* **Details**
+*
+* String inputs are encoded as UTF-8 bytes before Base64 encoding.
+* `Uint8Array` inputs are encoded directly. The output uses the standard
+* RFC 4648 alphabet with `=` padding.
+*
+* **Example** (Encoding Base64 strings and bytes)
+*
+* ```ts import.meta.vitest
+* import { Base64 } from "effect/encoding"
+*
+* Base64.encode("hello") // => "aGVsbG8="
+*
+* const bytes = new Uint8Array([72, 101, 108, 108, 111])
+* Base64.encode(bytes) // => "SGVsbG8="
+* ```
+*
+* @see {@link decode} for decoding standard Base64 to bytes
+* @see {@link decodeString} for decoding standard Base64 to UTF-8 text
+*
+* @category encoding
+* @since 4.0.0
+*/
+const encode = (input) => encodeBytes(typeof input === "string" ? encoder$1.encode(input) : input);
+/**
+* Decodes a Base64 (RFC 4648) string into bytes safely.
+*
+* **When to use**
+*
+* Use to decode a standard padded Base64 string into bytes without throwing on
+* invalid input.
+*
+* **Details**
+*
+* Returns `Result.succeed` with a `Uint8Array` when decoding succeeds, or
+* `Result.fail` with an `EncodingError` when the input is not valid Base64.
+*
+* **Example** (Decoding Base64 bytes)
+*
+* ```ts import.meta.vitest
+* import { Result } from "effect"
+* import { Base64 } from "effect/encoding"
+*
+* Base64.decode("SGVsbG8=") // => Result.succeed(new Uint8Array([72, 101, 108, 108, 111]))
+* ```
+*
+* @category decoding
+* @since 4.0.0
+*/
+const decode$3 = (str) => {
+	const stripped = stripCrlf(str);
+	const length = stripped.length;
+	if (length % 4 !== 0) return fail$7(new EncodingError({
+		kind: "Decode",
+		module: "Base64",
+		input: stripped,
+		message: `Length must be a multiple of 4, but is ${length}`
+	}));
+	const index = stripped.indexOf("=");
+	if (index !== -1 && (index < length - 2 || index === length - 2 && stripped[length - 1] !== "=")) return fail$7(new EncodingError({
+		kind: "Decode",
+		module: "Base64",
+		input: stripped,
+		message: "Found a '=' character, but it is not at the end"
+	}));
+	try {
+		const missingOctets = stripped.endsWith("==") ? 2 : stripped.endsWith("=") ? 1 : 0;
+		const result = new Uint8Array(3 * (length / 4) - missingOctets);
+		for (let i = 0, j = 0; i < length; i += 4, j += 3) {
+			const buffer = getCode(stripped.charCodeAt(i)) << 18 | getCode(stripped.charCodeAt(i + 1)) << 12 | getCode(stripped.charCodeAt(i + 2)) << 6 | getCode(stripped.charCodeAt(i + 3));
+			result[j] = buffer >> 16;
+			result[j + 1] = buffer >> 8 & 255;
+			result[j + 2] = buffer & 255;
+		}
+		return succeed$8(result);
+	} catch (cause) {
+		return fail$7(new EncodingError({
+			kind: "Decode",
+			module: "Base64",
+			input: stripped,
+			message: cause instanceof Error ? cause.message : "Invalid input"
+		}));
 	}
 };
+const encodeBytes = (bytes) => {
+	const length = bytes.length;
+	let result = "";
+	let i = 2;
+	for (; i < length; i += 3) {
+		result += alphabet[bytes[i - 2] >> 2];
+		result += alphabet[(bytes[i - 2] & 3) << 4 | bytes[i - 1] >> 4];
+		result += alphabet[(bytes[i - 1] & 15) << 2 | bytes[i] >> 6];
+		result += alphabet[bytes[i] & 63];
+	}
+	if (i === length + 1) {
+		result += alphabet[bytes[i - 2] >> 2];
+		result += alphabet[(bytes[i - 2] & 3) << 4];
+		result += "==";
+	}
+	if (i === length) {
+		result += alphabet[bytes[i - 2] >> 2];
+		result += alphabet[(bytes[i - 2] & 3) << 4 | bytes[i - 1] >> 4];
+		result += alphabet[(bytes[i - 1] & 15) << 2];
+		result += "=";
+	}
+	return result;
+};
+const encoder$1 = /*#__PURE__*/ new TextEncoder();
+const stripCrlf = (str) => str.replace(/[\n\r]/g, "");
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const codes = /*#__PURE__*/ (/* @__PURE__ */ new Uint8Array(123)).fill(255);
+for (let i = 0; i < 64; i++) codes[/*#__PURE__*/ alphabet.charCodeAt(i)] = i;
+codes[/*#__PURE__*/ "=".charCodeAt(0)] = 0;
+const getCode = (charCode) => {
+	if (charCode >= codes.length || codes[charCode] === 255) throw new TypeError(`Invalid character ${String.fromCharCode(charCode)}`);
+	return codes[charCode];
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/SchemaGetter.js
+const makeGetter = (fields) => Object.assign(Object.create(Prototype$1), fields);
 /**
 * Creates a getter that always fails with the given issue.
 *
@@ -22043,7 +22921,9 @@ const Getter = class extends Class$3 {
 * const rejectAll = SchemaGetter.fail<string, string>(
 *   () => new SchemaIssue.InvalidValue({ message: "not allowed" })
 * )
-* const issue = await Effect.runPromise(Effect.flip(rejectAll.run(Option.some("x"), {})))
+* const issue = await Effect.runPromise(
+*   Effect.flip(SchemaGetter.run(rejectAll, Option.some("x"), {}))
+* )
 * issue._tag // => "InvalidValue"
 * ```
 *
@@ -22054,7 +22934,7 @@ const Getter = class extends Class$3 {
 * @since 4.0.0
 */
 function fail(f) {
-	return new Getter((oe, options) => fail$3(f(oe, options)));
+	return transformOptionalEffect((oe, options) => fail$3(f(oe, options)));
 }
 /**
 * Creates a getter that always fails with a `Forbidden` issue.
@@ -22078,7 +22958,9 @@ function fail(f) {
 * const noEncode = SchemaGetter.forbidden<string, number>(
 *   () => "encoding is not supported"
 * )
-* const issue = await Effect.runPromise(Effect.flip(noEncode.run(Option.some(1), {})))
+* const issue = await Effect.runPromise(
+*   Effect.flip(SchemaGetter.run(noEncode, Option.some(1), {}))
+* )
 * issue._tag // => "Forbidden"
 * ```
 *
@@ -22111,7 +22993,7 @@ function forbidden(message) {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const issue = await Effect.runPromise(
-*   Effect.flip(SchemaGetter.forbiddenEncoding.run(Option.some("value"), {}))
+*   Effect.flip(SchemaGetter.run(SchemaGetter.forbiddenEncoding, Option.some("value"), {}))
 * )
 * issue._tag // => "Forbidden"
 * ```
@@ -22122,48 +23004,9 @@ function forbidden(message) {
 * @since 4.0.0
 */
 const forbiddenEncoding = /*#__PURE__*/ forbidden(() => "Encoding is not supported");
-const passthrough_$1 = /*#__PURE__*/ new Getter(succeed$3);
-function isPassthrough(getter) {
-	return getter.run === passthrough_$1.run;
-}
+const passthrough_$1 = /*#__PURE__*/ makeGetter({ _tag: "Passthrough" });
 function passthrough$1() {
 	return passthrough_$1;
-}
-/**
-* Creates a getter that handles present values (`Option.Some`), passing `None` through.
-*
-* **When to use**
-*
-* Use when you need a schema getter to transform or validate only when a field
-* value is present.
-* - Missing keys should remain absent in the output.
-*
-* **Details**
-*
-* - When input is `None`, returns `None` (no-op).
-* - When input is `Some(e)`, calls `f(e, options)` to produce the result.
-* - `f` may return `None` to omit the value, or fail with an `Issue`.
-*
-* **Example** (Transforming only present values)
-*
-* ```ts import.meta.vitest
-* import { Effect, Option, SchemaGetter } from "effect"
-*
-* const parseIfPresent = SchemaGetter.onSome<number, string>(
-*   (s) => Effect.succeed(Option.some(Number(s)))
-* )
-* await Effect.runPromise(parseIfPresent.run(Option.some("42"), {})) // => Option.some(42)
-* ```
-*
-* @see {@link onNone} to handle only absent values
-* @see {@link transform} for a simpler pure transformation of present values
-* @see {@link transformEffect} for effectful transformation of present values
-*
-* @category transforming
-* @since 4.0.0
-*/
-function onSome(f) {
-	return new Getter((oe, options) => isNone(oe) ? succeedNone : f(oe.value, options));
 }
 /**
 * Creates a getter that applies a pure function to present values.
@@ -22203,7 +23046,10 @@ function onSome(f) {
 * @since 4.0.0
 */
 function transform$2(f) {
-	return transformOptional(map$8(f));
+	return makeGetter({
+		_tag: "Transform",
+		transform: f
+	});
 }
 /**
 * Creates a getter that applies an effectful transformation to present values.
@@ -22232,17 +23078,20 @@ function transform$2(f) {
 *       : Effect.succeed(n)
 *   }
 * )
-* await Effect.runPromise(safeParseInt.run(Option.some("42"), {})) // => Option.some(42)
+* await Effect.runPromise(SchemaGetter.run(safeParseInt, Option.some("42"), {})) // => Option.some(42)
 * ```
 *
 * @see {@link transform} when transformation cannot fail
-* @see {@link onSome} when you need full `Option` control over the output
+* @see {@link transformOptionalEffect} when you need full `Option` control over the output
 *
 * @category transforming
 * @since 4.0.0
 */
 function transformEffect$1(f) {
-	return onSome((e, options) => f(e, options).pipe(mapEager(some)));
+	return makeGetter({
+		_tag: "TransformEffect",
+		transform: f
+	});
 }
 /**
 * Creates a getter that transforms the full `Option` — both present and absent values.
@@ -22265,7 +23114,7 @@ function transformEffect$1(f) {
 * const skipEmpty = SchemaGetter.transformOptional<string, string>((o) =>
 *   Option.filter(o, (s) => s.length > 0)
 * )
-* await Effect.runPromise(skipEmpty.run(Option.some(""), {})) // => Option.none()
+* Effect.runSync(SchemaGetter.run(skipEmpty, Option.some(""), {})) // => Option.none()
 * ```
 *
 * @see {@link transform} when you only need to transform present values
@@ -22275,7 +23124,22 @@ function transformEffect$1(f) {
 * @since 4.0.0
 */
 function transformOptional(f) {
-	return new Getter((oe) => succeed$3(f(oe)));
+	return makeGetter({
+		_tag: "TransformOptional",
+		transform: f
+	});
+}
+/**
+* Creates a getter that effectfully transforms the full `Option`.
+*
+* @category transforming
+* @since 4.0.0
+*/
+function transformOptionalEffect(f) {
+	return makeGetter({
+		_tag: "TransformOptionalEffect",
+		transform: f
+	});
 }
 /**
 * Creates a getter that always returns `None`, effectively omitting the value from output.
@@ -22296,7 +23160,7 @@ function transformOptional(f) {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const omitField = SchemaGetter.omit<string>()
-* await Effect.runPromise(omitField.run(Option.some("hidden"), {})) // => Option.none()
+* Effect.runSync(SchemaGetter.run(omitField, Option.some("hidden"), {})) // => Option.none()
 * ```
 *
 * @see {@link transformOptional} when you want conditional omission
@@ -22306,7 +23170,7 @@ function transformOptional(f) {
 * @since 4.0.0
 */
 function omit$1() {
-	return new Getter(() => succeedNone);
+	return transformOptional(() => none());
 }
 /**
 * Creates a getter that replaces `undefined` values with a default.
@@ -22328,17 +23192,17 @@ function omit$1() {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const withZero = SchemaGetter.withDefault(Effect.succeed(0))
-* await Effect.runPromise(withZero.run(Option.some(undefined), {})) // => Option.some(0)
+* await Effect.runPromise(SchemaGetter.run(withZero, Option.some(undefined), {})) // => Option.some(0)
 * ```
 *
-* @see {@link onNone} to handle only absent keys (not `undefined` values)
+* @see {@link transformOptionalEffect} for custom effectful missing-key handling
 * @see {@link required} when absent input should fail instead of using a default
 *
 * @category transforming
 * @since 4.0.0
 */
-function withDefault$1(defaultValue) {
-	return new Getter((o) => {
+function withDefault$2(defaultValue) {
+	return transformOptionalEffect((o) => {
 		const filtered = filter(o, isNotUndefined);
 		return isSome(filtered) ? succeed$3(filtered) : mapEager(defaultValue, some);
 	});
@@ -22361,7 +23225,7 @@ function withDefault$1(defaultValue) {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const toString = SchemaGetter.String<number>()
-* await Effect.runPromise(toString.run(Option.some(42), {})) // => Option.some("42")
+* Effect.runSync(SchemaGetter.run(toString, Option.some(42), {})) // => Option.some("42")
 * ```
 *
 * @see {@link transform} for custom string conversions
@@ -22391,7 +23255,7 @@ function String$4() {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const toNumber = SchemaGetter.Number<string>()
-* await Effect.runPromise(toNumber.run(Option.some("42"), {})) // => Option.some(42)
+* Effect.runSync(SchemaGetter.run(toNumber, Option.some("42"), {})) // => Option.some(42)
 * ```
 *
 * @see {@link transformEffect} for effectful or validated number parsing
@@ -22421,7 +23285,7 @@ function Number$3() {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const toBigInt = SchemaGetter.BigInt<string>()
-* await Effect.runPromise(toBigInt.run(Option.some("42"), {})) // => Option.some(42n)
+* Effect.runSync(SchemaGetter.run(toBigInt, Option.some("42"), {})) // => Option.some(42n)
 * ```
 *
 * @category converting
@@ -22431,8 +23295,8 @@ function BigInt$3() {
 	return transform$2(globalThis.BigInt);
 }
 function parseJson(options) {
-	return onSome((input, parseOptions) => try_({
-		try: () => some(JSON.parse(input, options?.reviver)),
+	return transformEffect$1((input, parseOptions) => try_({
+		try: () => JSON.parse(input, options?.reviver),
 		catch: () => new InvalidValue({ expected: "a valid JSON string" }, input, parseOptions)
 	}));
 }
@@ -22458,7 +23322,8 @@ function parseJson(options) {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const stringify = SchemaGetter.stringifyJson()
-* await Effect.runPromise(stringify.run(Option.some({ a: 1 }), {})) // => Option.some("{\"a\":1}")
+* const result = await Effect.runPromise(SchemaGetter.run(stringify, Option.some({ a: 1 }), {}))
+* result // => Option.some("{\"a\":1}")
 * ```
 *
 * @see {@link parseJson} for the inverse operation
@@ -22467,11 +23332,11 @@ function parseJson(options) {
 * @since 4.0.0
 */
 function stringifyJson(options) {
-	return onSome((input, parseOptions) => try_({
+	return transformEffect$1((input, parseOptions) => try_({
 		try: () => {
 			const output = JSON.stringify(input, options?.replacer, options?.space);
 			if (output === void 0) throw new TypeError("Value cannot be represented as JSON");
-			return some(output);
+			return output;
 		},
 		catch: () => new InvalidValue({ expected: "a JSON-serializable value" }, input, parseOptions)
 	}));
@@ -22489,7 +23354,8 @@ function stringifyJson(options) {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const encode = SchemaGetter.encodeBase64<Uint8Array>()
-* await Effect.runPromise(encode.run(Option.some(new Uint8Array([1, 2, 3])), {})) // => Option.some("AQID")
+* const result = Effect.runSync(SchemaGetter.run(encode, Option.some(new Uint8Array([1, 2, 3])), {}))
+* result // => Option.some("AQID")
 * ```
 *
 * @see {@link decodeBase64} for the inverse operation to `Uint8Array`
@@ -22500,7 +23366,7 @@ function stringifyJson(options) {
 * @since 4.0.0
 */
 function encodeBase64() {
-	return transform$2(encodeBase64$1);
+	return transform$2(encode);
 }
 /**
 * Decodes a Base64 string to a `Uint8Array`.
@@ -22515,7 +23381,7 @@ function encodeBase64() {
 * import { Effect, Option, SchemaGetter } from "effect"
 *
 * const decode = SchemaGetter.decodeBase64<string>()
-* const result = await Effect.runPromise(decode.run(Option.some("AQID"), {}))
+* const result = await Effect.runPromise(SchemaGetter.run(decode, Option.some("AQID"), {}))
 * Option.map(result, Array.from) // => Option.some([1, 2, 3])
 * ```
 *
@@ -22526,10 +23392,10 @@ function encodeBase64() {
 * @since 4.0.0
 */
 function decodeBase64() {
-	return transformEffect$1((input, options) => mapErrorEager(fromResult(decodeBase64$1(input)), () => new InvalidValue({ expected: "a valid Base64 string" }, input, options)));
+	return transformEffect$1((input, options) => mapErrorEager(fromResult(decode$3(input)), () => new InvalidValue({ expected: "a valid Base64 string" }, input, options)));
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/BigDecimal.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/BigDecimal.js
 /**
 * Decimal numbers and arithmetic for cases where JavaScript `number` rounding
 * is not precise enough. A `BigDecimal` stores digits as a `bigint` plus a
@@ -22544,10 +23410,10 @@ const BigDecimalProto = {
 	[TypeId$29]: TypeId$29,
 	[symbol$3]() {
 		const normalized = normalize$1(this);
-		return combine$1(hash(normalized.value), number$1(normalized.scale));
+		return combine$1(string$1(String(normalized.value)), number$1(normalized.scale));
 	},
 	[symbol$2](that) {
-		return isBigDecimal(that) && equals(this, that);
+		return isBigDecimal(that) && compare(this, that) === 0;
 	},
 	toString() {
 		return `BigDecimal(${format(this)})`;
@@ -22620,28 +23486,22 @@ const isBigDecimal = (u) => hasProperty(u, TypeId$29);
 * @category constructors
 * @since 2.0.0
 */
-const make$33 = (value, scale) => {
+const make$34 = (value, scale) => {
 	if (!Number.isSafeInteger(scale)) throw new RangeError(`Scale must be a safe integer, got ${scale}`);
 	const o = Object.create(BigDecimalProto);
 	o.value = value;
 	o.scale = scale;
 	return o;
 };
-/**
-* Internal function used to create pre-normalized `BigDecimal`s.
-*
-* @internal
-*/
-const makeNormalizedUnsafe = (value, scale) => {
-	if (value !== bigint0 && value % bigint10 === bigint0) throw new RangeError("Value must be normalized");
-	const o = make$33(value, scale);
+const makeNormalized = (value, scale) => {
+	const o = make$34(value, scale);
 	o.normalized = o;
 	return o;
 };
 const bigint0 = /*#__PURE__*/ BigInt(0);
 const bigint1 = /*#__PURE__*/ BigInt(1);
 const bigint10 = /*#__PURE__*/ BigInt(10);
-const zero = /*#__PURE__*/ makeNormalizedUnsafe(bigint0, 0);
+const zero = /*#__PURE__*/ makeNormalized(bigint0, 0);
 /**
 * Normalizes a given `BigDecimal` by removing trailing zeros.
 *
@@ -22672,13 +23532,9 @@ const normalize$1 = (self) => {
 		if (self.value === bigint0) self.normalized = zero;
 		else {
 			const digits = `${self.value}`;
-			let trail = 0;
-			for (let i = digits.length - 1; i >= 0; i--) if (digits[i] === "0") trail++;
-			else break;
-			if (trail === 0) self.normalized = self;
-			const value = BigInt(digits.substring(0, digits.length - trail));
-			const scale = self.scale - trail;
-			self.normalized = makeNormalizedUnsafe(value, scale);
+			let end = digits.length;
+			while (digits[end - 1] === "0") end--;
+			self.normalized = makeNormalized(BigInt(digits.slice(0, end)), self.scale - (digits.length - end));
 		}
 	}
 	return self.normalized;
@@ -22692,12 +23548,7 @@ const compareMagnitude = (self, that) => {
 	const exponentDifference = BigInt(selfDigits.length - thatDigits.length) - BigInt(self.scale) + BigInt(that.scale);
 	if (exponentDifference !== bigint0) return exponentDifference < bigint0 ? -1 : 1;
 	const length = Math.max(selfDigits.length, thatDigits.length);
-	for (let i = 0; i < length; i++) {
-		const selfDigit = i < selfDigits.length ? selfDigits.charCodeAt(i) : 48;
-		const thatDigit = i < thatDigits.length ? thatDigits.charCodeAt(i) : 48;
-		if (selfDigit !== thatDigit) return selfDigit < thatDigit ? -1 : 1;
-	}
-	return 0;
+	return String$5(selfDigits.padEnd(length, "0"), thatDigits.padEnd(length, "0"));
 };
 const compare = (self, that) => {
 	if (self.scale === that.scale) return compareBigInt(self.value, that.value);
@@ -22733,78 +23584,6 @@ const compare = (self, that) => {
 */
 const sign = (n) => n.value === bigint0 ? 0 : n.value < bigint0 ? -1 : 1;
 /**
-* Determines the absolute value of a given `BigDecimal`.
-*
-* **When to use**
-*
-* Use to remove the sign from a `BigDecimal` while preserving its magnitude.
-*
-* **Example** (Calculating absolute values)
-*
-* ```ts import.meta.vitest
-* import { BigDecimal } from "effect"
-*
-* BigDecimal.abs(BigDecimal.fromStringUnsafe("-5")) // => BigDecimal.fromBigInt(5n)
-* BigDecimal.abs(BigDecimal.fromStringUnsafe("0")) // => BigDecimal.fromBigInt(0n)
-* BigDecimal.abs(BigDecimal.fromStringUnsafe("5")) // => BigDecimal.fromBigInt(5n)
-* ```
-*
-* @category math
-* @since 2.0.0
-*/
-const abs = (n) => n.value < bigint0 ? make$33(-n.value, n.scale) : n;
-/**
-* Provides an `Equivalence` instance for `BigDecimal` that determines equality between BigDecimal values.
-*
-* **When to use**
-*
-* Use when comparing decimal values through APIs that accept an equivalence
-* relation.
-*
-* **Example** (Checking decimal equivalence)
-*
-* ```ts import.meta.vitest
-* import { BigDecimal } from "effect"
-*
-* const a = BigDecimal.fromStringUnsafe("1.50")
-* const b = BigDecimal.fromStringUnsafe("1.5")
-* const c = BigDecimal.fromStringUnsafe("2.0")
-*
-* BigDecimal.Equivalence(a, b) // => true
-* BigDecimal.Equivalence(a, c) // => false
-* ```
-*
-* @category instances
-* @since 2.0.0
-*/
-const Equivalence$2 = /*#__PURE__*/ make$48((self, that) => compare(self, that) === 0);
-/**
-* Checks whether two `BigDecimal`s are equal.
-*
-* **When to use**
-*
-* Use to compare two `BigDecimal` values for numeric equality.
-*
-* **Example** (Checking decimal equality)
-*
-* ```ts import.meta.vitest
-* import { BigDecimal } from "effect"
-*
-* const a = BigDecimal.fromStringUnsafe("1.5")
-* const b = BigDecimal.fromStringUnsafe("1.50")
-* const c = BigDecimal.fromStringUnsafe("2.0")
-*
-* BigDecimal.equals(a, b) // => true
-* BigDecimal.equals(a, c) // => false
-* ```
-*
-* @see {@link Equivalence} for passing decimal equality to APIs that require an `Equivalence`
-*
-* @category predicates
-* @since 2.0.0
-*/
-const equals = /*#__PURE__*/ dual(2, (self, that) => Equivalence$2(self, that));
-/**
 * Formats a `BigDecimal` as a string.
 *
 * **When to use**
@@ -22836,24 +23615,10 @@ const format = (n) => {
 	const normalized = normalize$1(n);
 	if (Math.abs(normalized.scale) >= 16) return toExponential(normalized);
 	const negative = normalized.value < bigint0;
-	const absolute = negative ? `${normalized.value}`.substring(1) : `${normalized.value}`;
-	let before;
-	let after;
-	if (normalized.scale >= absolute.length) {
-		before = "0";
-		after = "0".repeat(normalized.scale - absolute.length) + absolute;
-	} else {
-		const location = absolute.length - normalized.scale;
-		if (location > absolute.length) {
-			const zeros = location - absolute.length;
-			before = `${absolute}${"0".repeat(zeros)}`;
-			after = "";
-		} else {
-			after = absolute.slice(location);
-			before = absolute.slice(0, location);
-		}
-	}
-	const complete = after === "" ? before : `${before}.${after}`;
+	const absolute = `${negative ? -normalized.value : normalized.value}`;
+	const digits = normalized.scale > 0 ? absolute.padStart(normalized.scale + 1, "0") : absolute.padEnd(absolute.length - normalized.scale, "0");
+	const point = digits.length - normalized.scale;
+	const complete = normalized.scale > 0 ? `${digits.slice(0, point)}.${digits.slice(point)}` : digits;
 	return negative ? `-${complete}` : complete;
 };
 /**
@@ -22879,13 +23644,12 @@ const format = (n) => {
 const toExponential = (n) => {
 	if (isZero(n)) return "0e+0";
 	const normalized = normalize$1(n);
-	const digits = `${abs(normalized).value}`;
-	const head = digits.slice(0, 1);
-	const tail = digits.slice(1);
-	let output = `${isNegative(normalized) ? "-" : ""}${head}`;
-	if (tail !== "") output += `.${tail}`;
+	const digits = `${normalized.value}`;
+	const point = normalized.value < bigint0 ? 2 : 1;
+	const head = digits.slice(0, point);
+	const tail = digits.slice(point);
 	const exp = tail.length - normalized.scale;
-	return `${output}e${exp >= 0 ? "+" : ""}${exp}`;
+	return `${head}${tail === "" ? "" : `.${tail}`}e${exp >= 0 ? "+" : ""}${exp}`;
 };
 /**
 * Checks whether a given `BigDecimal` is `0`.
@@ -22907,29 +23671,27 @@ const toExponential = (n) => {
 * @since 2.0.0
 */
 const isZero = (n) => n.value === bigint0;
-/**
-* Checks whether a given `BigDecimal` is negative.
-*
-* **When to use**
-*
-* Use to test whether a `BigDecimal` is less than zero.
-*
-* **Example** (Checking negative decimals)
-*
-* ```ts import.meta.vitest
-* import { BigDecimal } from "effect"
-*
-* BigDecimal.isNegative(BigDecimal.fromStringUnsafe("-1")) // => true
-* BigDecimal.isNegative(BigDecimal.fromStringUnsafe("0")) // => false
-* BigDecimal.isNegative(BigDecimal.fromStringUnsafe("1")) // => false
-* ```
-*
-* @category predicates
-* @since 2.0.0
-*/
-const isNegative = (n) => n.value < bigint0;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/SchemaTransformation.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/SchemaTransformation.js
+/**
+* Constructs schema middleware from its decode and encode functions.
+*
+* @category constructors
+* @since 4.0.0
+*/
+const Middleware = class extends Class$3 {
+	_tag = "Middleware";
+	decode;
+	encode;
+	constructor(decode, encode) {
+		super();
+		this.decode = decode;
+		this.encode = encode;
+	}
+	flip() {
+		return new Middleware(this.encode, this.decode);
+	}
+};
 const TypeId$28 = "~effect/SchemaTransformation/Transformation";
 /**
 * Constructs a bidirectional schema transformation from its decode and encode getters.
@@ -22937,20 +23699,18 @@ const TypeId$28 = "~effect/SchemaTransformation/Transformation";
 * @category constructors
 * @since 4.0.0
 */
-const Transformation = class {
+const Transformation = class extends Class$3 {
 	[TypeId$28] = TypeId$28;
 	_tag = "Transformation";
 	decode;
 	encode;
 	constructor(decode, encode) {
+		super();
 		this.decode = decode;
 		this.encode = encode;
 	}
 	flip() {
 		return new Transformation(this.encode, this.decode);
-	}
-	compose(other) {
-		return new Transformation(this.decode.compose(other.decode), other.encode.compose(this.encode));
 	}
 };
 /**
@@ -22976,7 +23736,7 @@ const Transformation = class {
 * ```
 *
 * @see {@link Transformation}
-* @see {@link make}
+* @see {@link makeTransformation}
 *
 * @category guards
 * @since 4.0.0
@@ -23003,7 +23763,7 @@ function isTransformation(u) {
 * ```ts import.meta.vitest
 * import { SchemaGetter, SchemaTransformation } from "effect"
 *
-* const t = SchemaTransformation.make({
+* const t = SchemaTransformation.makeTransformation({
 *   decode: SchemaGetter.transform<number, string>((s) => Number(s)),
 *   encode: SchemaGetter.transform<string, number>((n) => String(n))
 * })
@@ -23017,7 +23777,7 @@ function isTransformation(u) {
 * @category constructors
 * @since 3.10.0
 */
-const make$32 = (options) => {
+const makeTransformation = (options) => {
 	if (isTransformation(options)) return options;
 	return new Transformation(options.decode, options.encode);
 };
@@ -23059,7 +23819,7 @@ const make$32 = (options) => {
 *
 * @see {@link transform} — for infallible, pure transformations
 * @see {@link transformOptional} — for transformations that handle missing keys
-* @see {@link make} — for transformations from existing Getters
+* @see {@link makeTransformation} — for transformations from existing Getters
 *
 * @category transforming
 * @since 3.10.0
@@ -23294,7 +24054,7 @@ function fromJsonString$1(options) {
 	return new Transformation(parseJson(options ?? {}), stringifyJson(options));
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/SchemaAST.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/SchemaAST.js
 /**
 * Represents Effect schemas as runtime trees.
 *
@@ -23578,8 +24338,8 @@ const Void$1 = class extends ASTNodeImpl {
 	_tag = "Void";
 	/** @internal */
 	getParser() {
-		const succeed$9 = succeed(void 0);
-		return (input) => input === missing ? missingExit : succeed$9;
+		const succeed$10 = succeed(void 0);
+		return (input) => input === missing ? missingExit : succeed$10;
 	}
 	/** @internal */
 	toCodecJson() {
@@ -24019,7 +24779,7 @@ const Arrays = class extends ASTNodeImpl {
 		for (let i = 1; i < rest.length; i++) if (isOptional(rest[i])) throw new Error("An optional element cannot follow a rest element. ts(1266)");
 	}
 	/** @internal */
-	getParser(compile, compileConstructorDefault = compile) {
+	getParser(compile, compileField = compile) {
 		const ast = this;
 		let elements;
 		let rest;
@@ -24030,19 +24790,20 @@ const Arrays = class extends ASTNodeImpl {
 			else if (index >= tailThreshold) return rest[index - tailThreshold + 1];
 			return rest[0];
 		}
-		return fnUntracedEager(function* (input, options) {
-			if (input === missing) return missing;
-			if (!Array.isArray(input)) return yield* fail$3(new InvalidType(ast, input, options));
-			if (!elements) {
-				elements = ast.elements.map((ast) => ({
-					ast,
-					parser: compileConstructorDefault(ast)
-				}));
-				rest = ast.rest.map((ast) => ({
-					ast,
-					parser: compileConstructorDefault(ast)
-				}));
+		const finish = (state) => {
+			const { input, len, options } = state;
+			if (ast.rest.length === 0 && len > elementLen) for (let i = elementLen; i < len; i++) {
+				const unexpected = new UnexpectedKey(ast, input[i], options);
+				const issue = new Pointer([i], unexpected);
+				if (options.errors === "all") {
+					if (state.issues) state.issues.push(issue);
+					else state.issues = [issue];
+				} else return fail$3(new Composite(ast, [issue], input, options));
 			}
+			if (state.issues) return fail$3(new Composite(ast, state.issues, input, options));
+			return succeed(state.output);
+		};
+		const parse = (input, options) => {
 			const len = input.length;
 			const state = {
 				ast,
@@ -24060,18 +24821,34 @@ const Arrays = class extends ASTNodeImpl {
 				concurrency,
 				end
 			});
-			if (eff) yield* eff;
-			if (ast.rest.length === 0 && len > elementLen) for (let i = elementLen; i <= len - 1; i++) {
-				const unexpected = new UnexpectedKey(ast, input[i], options);
-				const issue = new Pointer([i], unexpected);
-				if (options.errors === "all") {
-					if (state.issues) state.issues.push(issue);
-					else state.issues = [issue];
-				} else return yield* fail$3(new Composite(ast, [issue], input, options));
+			if (!eff) return finish(state);
+			if (effectIsExit(eff)) return flatMapEager(eff, () => finish(state));
+			let first = true;
+			return suspend$2(() => {
+				if (!first) return parse(input, options);
+				first = false;
+				return flatMap(eff, () => finish(state));
+			});
+		};
+		return (input, options) => {
+			if (input === missing) return missingExit;
+			try {
+				if (!Array.isArray(input)) return fail$3(new InvalidType(ast, input, options));
+				if (!elements) {
+					elements = ast.elements.map((ast) => ({
+						ast,
+						parser: compileField(ast)
+					}));
+					rest = ast.rest.map((ast) => ({
+						ast,
+						parser: compileField(ast)
+					}));
+				}
+				return parse(input, options);
+			} catch (error) {
+				return die(error);
 			}
-			if (state.issues) return yield* fail$3(new Composite(ast, state.issues, input, options));
-			return state.output;
-		});
+		};
 	}
 	_rebuild(recur, checks, encodingChecks) {
 		const elements = mapOrSame(this.elements, recur);
@@ -24091,32 +24868,35 @@ const Arrays = class extends ASTNodeImpl {
 		return "array";
 	}
 };
+/** @internal */
+function stepArray(s, item, exit, i) {
+	if (exit._tag === "Failure") return wrapPropertyKeyIssue(s, s.ast, i, exit);
+	const value = exit === sameExit ? item : exit[args];
+	if (value !== missing) s.output[i] = value;
+	else {
+		const p = s.getParser(s.tailThreshold, i);
+		if (isOptional(p.ast)) return;
+		const issue = new Pointer([i], new MissingKey(p.ast.context?.annotations));
+		if (s.options.errors === "all") {
+			if (s.issues) s.issues.push(issue);
+			else s.issues = [issue];
+		} else return fail$5(new Composite(s.ast, [issue], s.input, s.options));
+	}
+}
 const parseArrayOptions = {
 	onItem(s, item, i) {
 		const value = i < s.len ? item : missing;
 		return s.getParser(s.tailThreshold, i).parser(value, s.options);
 	},
-	step(s, item, exit, i) {
-		if (exit._tag === "Failure") return wrapPropertyKeyIssue(s, s.ast, i, exit);
-		const value = exit === sameExit ? item : exit[args];
-		if (value !== missing) s.output[i] = value;
-		else {
-			const p = s.getParser(s.tailThreshold, i);
-			if (isOptional(p.ast)) return;
-			const issue = new Pointer([i], new MissingKey(p.ast.context?.annotations));
-			if (s.options.errors === "all") {
-				if (s.issues) s.issues.push(issue);
-				else s.issues = [issue];
-			} else return fail$5(new Composite(s.ast, [issue], s.input, s.options));
-		}
-	}
+	step: stepArray
 };
+/** @internal */
 const parseArray = /*#__PURE__*/ iterateEager()(parseArrayOptions);
 const parseArrayConcurrent = /*#__PURE__*/ iterateConcurrent()(parseArrayOptions);
 const wrapPropertyKeyIssue = (s, ast, key, exit) => {
 	if (exit.cause.reasons.length === 0) return exit;
 	const issue = getSchemaIssue(exit.cause);
-	if (issue === void 0) return failCause$3(map$4(exit.cause, (issue) => new Composite(ast, [new Pointer([key], issue)], s.input, s.options)));
+	if (issue === void 0) return failCause$4(map$4(exit.cause, (issue) => new Composite(ast, [new Pointer([key], issue)], s.input, s.options)));
 	const pointer = new Pointer([key], issue);
 	if (s.options.errors === "all") {
 		if (s.issues) s.issues.push(pointer);
@@ -24140,7 +24920,7 @@ function getIndexSignatureKeys(input, parameter, options = defaultParseOptions) 
 			case "String":
 			case "TemplateLiteral": return (stringKeys ??= Object.keys(input)).filter((k) => parameter.matchPart(k, options) !== void 0);
 			case "Number": return (stringKeys ??= Object.keys(input)).filter((k) => parameter.matchKey(k, options) !== void 0);
-			case "Symbol": return (symbolKeys ??= Object.getOwnPropertySymbols(input)).filter((k) => parameter.matchKey(k, options) !== void 0);
+			case "Symbol": return (symbolKeys ??= Object.getOwnPropertySymbols(input)).filter((k) => Object.prototype.propertyIsEnumerable.call(input, k) && parameter.matchKey(k, options) !== void 0);
 			case "Union": return [...new Set(parameter.types.flatMap(go))];
 			default: return [];
 		}
@@ -24217,134 +24997,126 @@ const Objects = class extends ASTNodeImpl {
 		this.propertySignatures = propertySignatures;
 		this.indexSignatures = indexSignatures;
 		this.encodingChecks = encodingChecks;
-		const seen = /* @__PURE__ */ new Set();
-		const duplicates = [];
-		for (const propertySignature of propertySignatures) {
-			const name = propertySignature.name;
-			if (seen.has(name)) duplicates.push(name);
-			else seen.add(name);
-		}
-		if (duplicates.length > 0) throw new Error(`Duplicate identifiers: ${JSON.stringify(duplicates)}. ts(2300)`);
 	}
 	/** @internal */
-	getParser(compile, compileConstructorDefault = compile) {
+	getParser(compile, compileField = compile) {
 		const ast = this;
-		const expectedKeys = [];
-		for (const ps of ast.propertySignatures) expectedKeys.push(typeof ps.name === "number" ? globalThis.String(ps.name) : ps.name);
-		const hasProperties = expectedKeys.length;
+		const hasProperties = ast.propertySignatures.length;
 		const indexCount = ast.indexSignatures.length;
-		let expectedKeysSet = hasProperties && indexCount ? new Set(expectedKeys) : void 0;
 		if (!hasProperties && !indexCount) return fromRefinement(ast, isNotNullish);
 		let properties;
 		let indexes;
-		const finishIndex = (s, key, k2, inputValue, exitValue) => {
-			if (exitValue._tag === "Failure") return wrapPropertyKeyIssue(s, ast, key, exitValue) ?? void_$2;
-			const value = exitValue === sameExit ? inputValue : exitValue[args];
-			if (k2 !== missing && value !== missing) {
-				if (hasProperties && (expectedKeysSet.has(key) || expectedKeysSet.has(typeof k2 === "number" ? globalThis.String(k2) : k2))) return void_$2;
-				assignProperty(s.out, k2, value);
-			}
-			return void_$2;
-		};
-		const parseIndex = (s, key, index, exitKey) => {
-			if (!exitKey) {
-				const eff = index.parserKey(key, s.options);
-				if (!effectIsExit(eff)) return flatMap(exit(eff), (exit) => parseIndex(s, key, index, exit));
-				exitKey = eff;
-			}
-			if (exitKey._tag === "Failure") return wrapPropertyKeyIssue(s, ast, key, exitKey) ?? void_$2;
-			const k2 = exitKey === sameExit ? key : exitKey[args];
-			const inputValue = s.input[key];
-			const result = index.parserValue(inputValue, s.options);
-			return effectIsExit(result) ? finishIndex(s, key, k2, inputValue, result) : flatMap(exit(result), (exit) => finishIndex(s, key, k2, inputValue, exit));
-		};
-		const parseStringIndex = (s, key, index) => {
-			const inputValue = s.input[key];
-			const result = index.parserValue(inputValue, s.options);
-			return effectIsExit(result) ? finishIndex(s, key, key, inputValue, result) : flatMap(exit(result), (exit) => finishIndex(s, key, key, inputValue, exit));
-		};
-		const parseIndexes = indexCount ? iterateConcurrent()({
-			onItem: (s, [key, index]) => index.is.parameter === string ? parseStringIndex(s, key, index) : parseIndex(s, key, index),
-			step: (_s, _item, exit) => exit._tag === "Failure" ? exit : void 0
-		}) : void 0;
 		const compileMembers = () => {
 			if (!properties) {
 				properties = ast.propertySignatures.map((ps) => ({
-					parser: compileConstructorDefault(ps.type),
+					parser: compileField(ps.type),
 					name: ps.name,
 					type: ps.type
 				}));
 				indexes = indexCount ? ast.indexSignatures.map((is) => ({
 					is,
 					parserKey: compile(parameterFromPropertyKey(is.parameter)),
-					parserValue: compileConstructorDefault(is.type)
+					parserValue: compileField(is.type)
 				})) : void 0;
 			}
 			return properties;
 		};
-		const fallback = fnUntracedEager(function* (input, options) {
-			if (input === missing) return missing;
-			if (!(typeof input === "object" && input !== null && !Array.isArray(input))) return yield* fail$3(new InvalidType(ast, input, options));
-			compileMembers();
-			const record = input;
-			const out = {};
-			const state = {
-				ast,
-				input: record,
-				out,
-				issues: void 0,
-				options
+		const makeFallback = () => {
+			const expectedKeys = new Set(ast.propertySignatures.map((ps) => typeof ps.name === "number" ? globalThis.String(ps.name) : ps.name));
+			const finishIndex = (s, key, k2, inputValue, exitValue) => {
+				if (exitValue._tag === "Failure") return wrapPropertyKeyIssue(s, ast, key, exitValue) ?? void_$2;
+				const value = exitValue === sameExit ? inputValue : exitValue[args];
+				if (k2 !== missing && value !== missing) {
+					if (hasProperties && (expectedKeys.has(key) || expectedKeys.has(typeof k2 === "number" ? globalThis.String(k2) : k2))) return void_$2;
+					assignProperty(s.out, k2, value);
+				}
+				return void_$2;
 			};
-			const errorsAllOption = options.errors === "all";
-			const onExcessPropertyError = options.onExcessProperty === "error";
-			const concurrency = options.concurrency === void 0 ? 1 : resolveConcurrency(options.concurrency);
-			const indexKeys = indexCount && onExcessPropertyError ? ast.indexSignatures.map((index) => getIndexSignatureKeys(record, index.parameter, options)) : void 0;
-			if (onExcessPropertyError) {
-				expectedKeysSet ??= new Set(expectedKeys);
-				const coveredKeys = indexKeys ? new Set(expectedKeysSet) : expectedKeysSet;
-				if (indexKeys) for (const keys of indexKeys) for (const key of keys) coveredKeys.add(key);
-				const inputKeys = Reflect.ownKeys(record);
-				for (let i = 0; i < inputKeys.length; i++) {
-					const key = inputKeys[i];
-					if (!coveredKeys.has(key)) {
-						const unexpected = new UnexpectedKey(ast, record[key], options);
-						const issue = new Pointer([key], unexpected);
-						if (errorsAllOption) {
-							if (state.issues) state.issues.push(issue);
-							else state.issues = [issue];
-							continue;
-						} else return yield* fail$3(new Composite(ast, [issue], input, options));
+			const parseIndex = (s, key, index, exitKey) => {
+				if (!exitKey) {
+					const eff = index.parserKey(key, s.options);
+					if (!effectIsExit(eff)) return flatMap(exit(eff), (exit) => parseIndex(s, key, index, exit));
+					exitKey = eff;
+				}
+				if (exitKey._tag === "Failure") return wrapPropertyKeyIssue(s, ast, key, exitKey) ?? void_$2;
+				const k2 = exitKey === sameExit ? key : exitKey[args];
+				const inputValue = s.input[key];
+				const result = index.parserValue(inputValue, s.options);
+				return effectIsExit(result) ? finishIndex(s, key, k2, inputValue, result) : flatMap(exit(result), (exit) => finishIndex(s, key, k2, inputValue, exit));
+			};
+			const parseStringIndex = (s, key, index) => {
+				const inputValue = s.input[key];
+				const result = index.parserValue(inputValue, s.options);
+				return effectIsExit(result) ? finishIndex(s, key, key, inputValue, result) : flatMap(exit(result), (exit) => finishIndex(s, key, key, inputValue, exit));
+			};
+			const parseIndexes = indexCount ? iterateConcurrent()({
+				onItem: (s, [key, index]) => index.is.parameter === string ? parseStringIndex(s, key, index) : parseIndex(s, key, index),
+				step: (_s, _item, exit) => exit._tag === "Failure" ? exit : void 0
+			}) : void 0;
+			return fnUntracedEager(function* (input, options) {
+				if (input === missing) return missing;
+				if (!(typeof input === "object" && input !== null && !Array.isArray(input))) return yield* fail$3(new InvalidType(ast, input, options));
+				compileMembers();
+				const record = input;
+				const out = {};
+				const state = {
+					ast,
+					input: record,
+					out,
+					issues: void 0,
+					options
+				};
+				const errorsAllOption = options.errors === "all";
+				const onExcessPropertyError = options.onExcessProperty === "error";
+				const concurrency = options.concurrency === void 0 ? 1 : resolveConcurrency(options.concurrency);
+				const indexKeys = indexCount && onExcessPropertyError ? ast.indexSignatures.map((index) => getIndexSignatureKeys(record, index.parameter, options)) : void 0;
+				if (onExcessPropertyError) {
+					const coveredKeys = indexKeys ? new Set(expectedKeys) : expectedKeys;
+					if (indexKeys) for (const keys of indexKeys) for (const key of keys) coveredKeys.add(key);
+					const inputKeys = Reflect.ownKeys(record);
+					for (let i = 0; i < inputKeys.length; i++) {
+						const key = inputKeys[i];
+						if (!coveredKeys.has(key) && Object.prototype.propertyIsEnumerable.call(record, key)) {
+							const unexpected = new UnexpectedKey(ast, record[key], options);
+							const issue = new Pointer([key], unexpected);
+							if (errorsAllOption) {
+								if (state.issues) state.issues.push(issue);
+								else state.issues = [issue];
+								continue;
+							} else return yield* fail$3(new Composite(ast, [issue], input, options));
+						}
 					}
 				}
-			}
-			if (hasProperties) {
-				const eff = concurrency === 1 ? parseProperties(state, properties) : parsePropertiesConcurrent(state, properties, { concurrency });
-				if (eff) yield* eff;
-			}
-			if (indexCount && concurrency === 1) for (let i = 0; i < indexCount; i++) {
-				const index = indexes[i];
-				const parse = index.is.parameter === string ? parseStringIndex : parseIndex;
-				const keys = indexKeys?.[i] ?? (index.is.parameter === string ? Object.keys(record) : getIndexSignatureKeys(record, index.is.parameter, options));
-				for (let j = 0; j < keys.length; j++) {
-					const eff = parse(state, keys[j], index);
-					if (!effectIsExit(eff)) yield* eff;
-					else if (eff._tag === "Failure") return yield* eff;
+				if (hasProperties) {
+					const eff = concurrency === 1 ? parseProperties(state, properties) : parsePropertiesConcurrent(state, properties, { concurrency });
+					if (eff) yield* eff;
 				}
-			}
-			else if (parseIndexes) {
-				const keyPairs = empty$10();
-				for (let i = 0; i < indexCount; i++) {
+				if (indexCount && concurrency === 1) for (let i = 0; i < indexCount; i++) {
 					const index = indexes[i];
+					const parse = index.is.parameter === string ? parseStringIndex : parseIndex;
 					const keys = indexKeys?.[i] ?? (index.is.parameter === string ? Object.keys(record) : getIndexSignatureKeys(record, index.is.parameter, options));
-					for (let j = 0; j < keys.length; j++) keyPairs.push([keys[j], index]);
+					for (let j = 0; j < keys.length; j++) {
+						const eff = parse(state, keys[j], index);
+						if (!effectIsExit(eff)) yield* eff;
+						else if (eff._tag === "Failure") return yield* eff;
+					}
 				}
-				const eff = parseIndexes(state, keyPairs, { concurrency });
-				if (eff) yield* eff;
-			}
-			if (state.issues) return yield* fail$3(new Composite(ast, state.issues, input, options));
-			return out;
-		});
-		if (indexCount) return fallback;
+				else if (parseIndexes) {
+					const keyPairs = empty$10();
+					for (let i = 0; i < indexCount; i++) {
+						const index = indexes[i];
+						const keys = indexKeys?.[i] ?? (index.is.parameter === string ? Object.keys(record) : getIndexSignatureKeys(record, index.is.parameter, options));
+						for (let j = 0; j < keys.length; j++) keyPairs.push([keys[j], index]);
+					}
+					const eff = parseIndexes(state, keyPairs, { concurrency });
+					if (eff) yield* eff;
+				}
+				if (state.issues) return yield* fail$3(new Composite(ast, state.issues, input, options));
+				return out;
+			});
+		};
+		if (indexCount) return makeFallback();
+		let fallback;
 		const resume = (state, index, pending) => {
 			const property = properties[index];
 			return flatMap(exit(pending), (exit) => {
@@ -24357,7 +25129,7 @@ const Objects = class extends ASTNodeImpl {
 		};
 		return (input, options) => {
 			if (input === missing) return missingExit;
-			if (options.errors === "all" || options.onExcessProperty !== void 0 || options.concurrency !== void 0 && resolveConcurrency(options.concurrency) !== 1) return fallback(input, options);
+			if (options.errors === "all" || options.onExcessProperty !== void 0 || options.concurrency !== void 0 && resolveConcurrency(options.concurrency) !== 1) return (fallback ??= makeFallback())(input, options);
 			if (!(typeof input === "object" && input !== null && !Array.isArray(input))) return fail$3(new InvalidType(ast, input, options));
 			const props = compileMembers();
 			const record = input;
@@ -24416,6 +25188,7 @@ const Objects = class extends ASTNodeImpl {
 		return "object";
 	}
 };
+/** @internal */
 function stepProperty(s, p, exit) {
 	if (exit._tag === "Failure") return wrapPropertyKeyIssue(s, s.ast, p.name, exit);
 	if (exit === sameExit) return;
@@ -24443,6 +25216,7 @@ const parsePropertiesOptions = {
 	},
 	step: stepProperty
 };
+/** @internal */
 const parseProperties = /*#__PURE__*/ iterateEager()(parsePropertiesOptions);
 const parsePropertiesConcurrent = /*#__PURE__*/ iterateConcurrent()(parsePropertiesOptions);
 function combineChecks(a, b) {
@@ -24475,6 +25249,7 @@ function structWithRest(ast, records) {
 	let indexSignatures = ast.indexSignatures;
 	let checks = ast.checks;
 	for (const record of records) {
+		for (const propertySignature of record.propertySignatures) if (propertySignatures.some((ps) => ps.name === propertySignature.name)) throw new Error(`Duplicate identifier: ${JSON.stringify(propertySignature.name)}. ts(2300)`);
 		propertySignatures = propertySignatures.concat(record.propertySignatures);
 		indexSignatures = indexSignatures.concat(record.indexSignatures);
 		checks = combineChecks(checks, record.checks);
@@ -24579,6 +25354,7 @@ function collectSentinels(ast) {
 }
 const candidateIndexCache = /*#__PURE__*/ new WeakMap();
 const emptyCandidates = /*#__PURE__*/ Object.freeze([]);
+const getRuntimeType = (input) => input === null ? "null" : Array.isArray(input) ? "array" : typeof input;
 const hasPropertySignature = (input, key) => key === "__proto__" ? Object.hasOwn(input, key) : key in input;
 function getIndex(types) {
 	let index = candidateIndexCache.get(types);
@@ -24592,15 +25368,13 @@ function getIndex(types) {
 		const a = types[i];
 		const encoded = toCandidate(a);
 		if (isNever(encoded)) continue;
-		if (onlyLiterals) {
-			if (isLiteral(encoded) || isUniqueSymbol(encoded)) {
-				literalCandidates ??= /* @__PURE__ */ new Map();
-				const literal = isLiteral(encoded) ? encoded.literal : encoded.symbol;
-				let arr = literalCandidates.get(literal);
-				if (!arr) literalCandidates.set(literal, arr = []);
-				arr.push(a);
-			} else onlyLiterals = false;
-		}
+		if (isLiteral(encoded) || isUniqueSymbol(encoded)) {
+			literalCandidates ??= /* @__PURE__ */ new Map();
+			const literal = isLiteral(encoded) ? encoded.literal : encoded.symbol;
+			let arr = literalCandidates.get(literal);
+			if (!arr) literalCandidates.set(literal, arr = []);
+			arr.push(a);
+		} else onlyLiterals = false;
 		const sentinels = collectSentinels(encoded);
 		if (sentinels.length) {
 			bySentinel ??= /* @__PURE__ */ new Map();
@@ -24619,6 +25393,8 @@ function getIndex(types) {
 			for (const t of candidateTypes) (otherwise[t] ??= []).push(i);
 		}
 	}
+	const fallbacks = {};
+	const getFallback = (type) => fallbacks[type] ??= Object.freeze((otherwise?.[type] ?? emptyCandidates).map((i) => types[i]));
 	if (onlyLiterals && literalCandidates) {
 		literalCandidates.forEach(Object.freeze);
 		index = (input) => literalCandidates.get(input) ?? emptyCandidates;
@@ -24638,9 +25414,9 @@ function getIndex(types) {
 		let commonSentinel;
 		for (const entry of bySentinel) if ((!commonSentinel || entry[1][0].size > commonSentinel[1][0].size) && entry[1][1].size === sentinelCandidateCount) commonSentinel = entry;
 		index = (input, isConstructor) => {
-			const base = otherwise?.[input === null ? "null" : Array.isArray(input) ? "array" : typeof input] ?? emptyCandidates;
-			if (!isObjectKeyword(input)) return base.map((i) => types[i]);
-			const selected = new Set(base);
+			const runtimeType = getRuntimeType(input);
+			if (!isObjectKeyword(input)) return getFallback(runtimeType);
+			const selected = new Set(otherwise?.[runtimeType]);
 			let directKey;
 			if (commonSentinel) {
 				const [key, [byValue]] = commonSentinel;
@@ -24648,7 +25424,7 @@ function getIndex(types) {
 				const value = hasKey ? input[key] : void 0;
 				if (hasKey && (!isConstructor || value !== void 0)) {
 					const match = byValue.get(value);
-					if (!match) return base.map((i) => types[i]);
+					if (!match) return getFallback(runtimeType);
 					for (const i of match) selected.add(i);
 					directKey = key;
 				}
@@ -24673,7 +25449,8 @@ function getIndex(types) {
 			return Array.from(selected).sort((a, b) => a - b).map((i) => types[i]);
 		};
 	} else index = (input) => {
-		return (otherwise?.[input === null ? "null" : Array.isArray(input) ? "array" : typeof input] ?? emptyCandidates).map((i) => types[i]).filter(filterLiterals(input));
+		const fallback = getFallback(getRuntimeType(input));
+		return literalCandidates ? fallback.filter(filterLiterals(input)) : fallback;
 	};
 	candidateIndexCache.set(types, index);
 	return index;
@@ -24711,11 +25488,11 @@ const Union$1 = class extends ASTNodeImpl {
 		this.encodingChecks = encodingChecks;
 	}
 	/** @internal */
-	getParser(compile, compileConstructorDefault) {
+	getParser(compile, compileField) {
 		const ast = this;
 		return (input, options) => {
 			if (input === missing) return missingExit;
-			const candidates = getCandidates(input, ast.types, compileConstructorDefault !== void 0);
+			const candidates = getCandidates(input, ast.types, compileField !== void 0);
 			if (candidates.length === 0) return fail$3(new AnyOf(ast, [], input, options));
 			if (candidates.length === 1) {
 				const result = compile(candidates[0])(input, options);
@@ -24788,7 +25565,7 @@ const Union$1 = class extends ASTNodeImpl {
 };
 function failSingleUnionCandidate(ast, cause, input, options) {
 	const issue = getSchemaIssue(cause);
-	if (!issue) return failCause$3(cause);
+	if (!issue) return failCause$4(cause);
 	return fail$5(new AnyOf(ast, [issue], input, options));
 }
 const parseUnion = /*#__PURE__*/ iterateEager()({
@@ -24924,9 +25701,9 @@ const numberToJson = /*#__PURE__*/ new Link(/*#__PURE__*/ new Union$1([finite, n
 * Arbitrary metadata preserves both `regExp.source` and `regExp.flags`.
 * Implementations that cannot consume all flags may still use the source as a
 * generation hint because the Schema filter validates every generated value.
-* JSON Schema has no way to carry JavaScript regular-expression flags. The
-* generated `pattern` contains the source only, so validation can differ when
-* the RegExp uses flags or relies on JavaScript's non-Unicode behavior.
+* JSON Schema has no way to carry JavaScript regular-expression flags. Unless
+* annotations provide `toJsonSchema`, the RegExp constraint is omitted from
+* JSON Schema export.
 *
 * **Example** (Validating an email pattern)
 *
@@ -24943,32 +25720,27 @@ const numberToJson = /*#__PURE__*/ new Link(/*#__PURE__*/ new Union$1([finite, n
 * @since 4.0.0
 */
 function isPattern$1(regExp, annotations) {
-	const source = regExp.source;
-	const pattern = new globalThis.RegExp(source, regExp.flags);
+	const copy = new globalThis.RegExp(regExp);
+	const payload = {
+		source: copy.source,
+		flags: copy.flags
+	};
 	return makeFilter$1((s) => {
-		pattern.lastIndex = 0;
-		return pattern.test(s);
+		copy.lastIndex = 0;
+		return copy.test(s);
 	}, {
-		expected: `a string matching the RegExp ${source}`,
+		expected: `a string matching the RegExp ${payload.source}`,
 		representation: {
 			id: "effect/schema/isPattern",
-			payload: {
-				source,
-				flags: regExp.flags
-			}
+			payload
 		},
-		toJsonSchema: () => ({ pattern: source }),
-		arbitraryConstraint: { patterns: [{
-			source: regExp.source,
-			flags: regExp.flags
-		}] },
+		toJsonSchema: () => [{}, true],
+		arbitraryConstraint: { patterns: [payload] },
 		...annotations
 	});
 }
-function modifyOwnPropertyDescriptors(ast, f) {
-	const d = Object.getOwnPropertyDescriptors(ast);
-	f(d);
-	return Object.create(Object.getPrototypeOf(ast), d);
+function copy$1(ast) {
+	return Object.assign(Object.create(Object.getPrototypeOf(ast)), ast);
 }
 const contextOwners = /*#__PURE__*/ new WeakMap();
 /** @internal */
@@ -24978,18 +25750,17 @@ function getContextOwner(ast) {
 /** @internal */
 function replaceEncoding(ast, encoding) {
 	if (ast.encoding === encoding) return ast;
-	return modifyOwnPropertyDescriptors(ast, (d) => {
-		d.encoding.value = encoding;
-	});
+	const out = copy$1(ast);
+	out.encoding = encoding;
+	return out;
 }
 /** @internal */
 function replaceContext(ast, context) {
 	if (ast.context === context) return ast;
 	const owner = getContextOwner(ast);
 	if (owner.context === context) return owner;
-	const out = modifyOwnPropertyDescriptors(ast, (d) => {
-		d.context.value = context;
-	});
+	const out = copy$1(ast);
+	out.context = context;
 	contextOwners.set(out, owner);
 	return out;
 }
@@ -25003,20 +25774,20 @@ function annotate(ast, annotations) {
 		const last = ast.checks[ast.checks.length - 1];
 		return replaceChecks(ast, append$1(ast.checks.slice(0, -1), last.annotate(annotations)));
 	}
-	return modifyOwnPropertyDescriptors(ast, (d) => {
-		d.annotations.value = {
-			...d.annotations.value,
-			...annotations
-		};
-	});
+	const out = copy$1(ast);
+	out.annotations = {
+		...ast.annotations,
+		...annotations
+	};
+	return out;
 }
 /** @internal */
 function replaceChecks(ast, checks) {
 	if (ast._tag === "Suspend" && checks) throw new Error("Cannot add checks to Suspend");
 	if (ast.checks === checks) return ast;
-	return modifyOwnPropertyDescriptors(ast, (d) => {
-		d.checks.value = checks;
-	});
+	const out = copy$1(ast);
+	out.checks = checks;
+	return out;
 }
 /** @internal */
 function appendChecks(ast, checks) {
@@ -25064,15 +25835,18 @@ function appendTransformation(from, transformation, to) {
 	return replaceEncoding(to, to.encoding ? [...to.encoding, link] : [link]);
 }
 function mapOrSame(as, f) {
-	let changed = false;
-	const out = new Array(as.length);
+	let out;
 	for (let i = 0; i < as.length; i++) {
 		const a = as[i];
 		const fa = f(a);
-		if (fa !== a) changed = true;
-		out[i] = fa;
+		if (out) out[i] = fa;
+		else if (fa !== a) {
+			out = new Array(as.length);
+			for (let j = 0; j < i; j++) out[j] = as[j];
+			out[i] = fa;
+		}
 	}
-	return changed ? out : as;
+	return out ?? as;
 }
 /** @internal */
 function annotateKey(ast, annotations) {
@@ -25091,9 +25865,7 @@ const optionalKeyLastLink = /*#__PURE__*/ applyToLastLink(optionalKey$1);
 const optional$6 = /*#__PURE__*/ memoize((ast) => optionalKey$1(new Union$1([ast, undefined_])));
 /** @internal */
 function withConstructorDefault$1(ast, defaultValue) {
-	const transformation = new Transformation(withDefault$1(defaultValue), passthrough$1());
-	const constructorDefault = new Link(unknown, transformation);
-	return replaceContext(ast, ast.context ? new Context(ast.context.isOptional, ast.context.isMutable, constructorDefault, ast.context.annotations) : new Context(false, false, constructorDefault));
+	return replaceContext(ast, ast.context ? new Context(ast.context.isOptional, ast.context.isMutable, defaultValue, ast.context.annotations) : new Context(false, false, defaultValue));
 }
 /**
 * Attaches a `Transformation` to the `to` AST, making it decode from the
@@ -25121,10 +25893,10 @@ function parseParameter(ast) {
 	function go(ast) {
 		switch (ast._tag) {
 			case "Literal":
-				if (isPropertyKey(ast.literal)) literals.push(ast.literal);
+				if (isPropertyKey(ast.literal) && !literals.includes(ast.literal)) literals.push(ast.literal);
 				return;
 			case "UniqueSymbol":
-				literals.push(ast.symbol);
+				if (!literals.includes(ast.symbol)) literals.push(ast.symbol);
 				return;
 			case "Never": return;
 			case "Union":
@@ -25201,18 +25973,18 @@ function extractStructuralChecks(checks) {
 * @since 4.0.0
 */
 const toType$1 = /*#__PURE__*/ memoizeIdempotent((ast) => {
-	if (ast.encoding) return toType$1(replaceEncoding(ast, void 0));
 	const out = ast;
 	const type = out.recur?.(toType$1) ?? out;
 	const encodingChecks = type.encodingChecks;
 	if (encodingChecks) {
 		const checks = type === ast ? encodingChecks : isArrays(type) || isObjects(type) || isDeclaration(type) && type.typeParameters.length > 0 ? extractStructuralChecks(encodingChecks) : void 0;
-		return modifyOwnPropertyDescriptors(type, (d) => {
-			d.encodingChecks.value = void 0;
-			d.checks.value = combineChecks(type.checks, checks);
-		});
+		const copyOfType = copy$1(type);
+		copyOfType.encoding = void 0;
+		copyOfType.encodingChecks = void 0;
+		copyOfType.checks = combineChecks(type.checks, checks);
+		return copyOfType;
 	}
-	return type;
+	return type.encoding ? replaceEncoding(type, void 0) : type;
 });
 /**
 * Returns the encoded (wire-format) AST by flipping and then stripping
@@ -25284,10 +26056,10 @@ function containsUndefined(ast) {
 	}
 }
 function fromConst(ast, value) {
-	const succeed$10 = value === 0 ? sameExit : succeed(value);
+	const succeed$11 = value === 0 ? sameExit : succeed(value);
 	return (input, options) => {
 		if (input === missing) return missingExit;
-		if (input === value) return succeed$10;
+		if (input === value) return succeed$11;
 		return fail$3(new InvalidType(ast, input, options));
 	};
 }
@@ -25345,6 +26117,7 @@ function segmentTemplateLiteralParts(ast, input, options) {
 	}
 	return go(0, 0) ? out : void 0;
 }
+/** @internal */
 const parameterFromPropertyKey = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempotent((ast) => {
 	switch (ast._tag) {
 		default: return ast;
@@ -25548,7 +26321,7 @@ const unknownToStringTree = /*#__PURE__*/ new Link(/* @__PURE__ */ new Declarati
 	toCodecStringTree: () => void 0
 }), /*#__PURE__*/ passthrough());
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/internal/utils.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0-rc.118/node_modules/@effect/platform-node-shared/dist/internal/utils.js
 /** @internal */
 const handleErrnoException = (module, method) => (err, [path]) => {
 	let reason = "Unknown";
@@ -25583,7 +26356,7 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 	});
 };
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/NodeSink.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0-rc.118/node_modules/@effect/platform-node-shared/dist/NodeSink.js
 /**
 * Creates a `Sink` that writes chunks to a Node writable stream, respecting
 * backpressure, mapping writable errors with `onError`, and ending the stream
@@ -25663,7 +26436,7 @@ const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
 	});
 })));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/NodeStream.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0-rc.118/node_modules/@effect/platform-node-shared/dist/NodeStream.js
 /**
 * Adapters between Node streams and Effect streams, channels, and readables.
 *
@@ -25702,7 +26475,7 @@ const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableT
 const readableToPullUnsafe = (options) => {
 	const readable = options.readable;
 	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$40(void 0);
+	const exit = options.exit ?? make$42(void 0);
 	const latch = options.latch ?? makeUnsafe$3(false);
 	function onReadable() {
 		latch.openUnsafe();
@@ -25743,7 +26516,7 @@ const readableToPullUnsafe = (options) => {
 };
 const defaultOnError = (error) => new UnknownError$1(error);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/Cookies.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/Cookies.js
 /**
 * Models HTTP cookies and cookie collections for requests and responses.
 *
@@ -25753,6 +26526,7 @@ const defaultOnError = (error) => new UnknownError$1(error);
 * `Set-Cookie` headers, and provides helpers for adding, removing, merging, and
 * expiring cookies.
 *
+* @stability unstable
 * @since 4.0.0
 */
 const TypeId$26 = "~effect/http/Cookies";
@@ -25773,6 +26547,7 @@ const Proto$16 = {
 /**
 * Creates a `Cookies` collection from an existing readonly record of cookies keyed by cookie name.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -25784,6 +26559,7 @@ const fromReadonlyRecord = (cookies) => {
 /**
 * Create a Cookies object from an Iterable
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -25795,6 +26571,7 @@ const fromIterable = (cookies) => {
 /**
 * Create a Cookies object from a set of Set-Cookie headers
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -25894,6 +26671,7 @@ function parseSetCookie(header) {
 /**
 * An empty Cookies object
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -25919,7 +26697,7 @@ const tryDecodeURIComponent = (str) => {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/redacted.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/redacted.js
 /** @internal */
 const redactedRegistry = /*#__PURE__*/ new WeakMap();
 /** @internal */
@@ -25930,7 +26708,7 @@ const value$3 = (self) => {
 /** @internal */
 const stringOrRedacted = (val) => typeof val === "string" ? val : value$3(val);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Redacted.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Redacted.js
 /**
 * Wraps sensitive values so normal output does not reveal them.
 *
@@ -25998,7 +26776,7 @@ const isRedacted = (u) => hasProperty(u, TypeId$25);
 * @category constructors
 * @since 3.3.0
 */
-const make$31 = (value, options) => {
+const make$33 = (value, options) => {
 	const self = Object.create(Proto$15);
 	if (options?.label) self.label = options.label;
 	redactedRegistry.set(self, value);
@@ -26018,7 +26796,7 @@ const Proto$15 = {
 		return hash(redactedRegistry.get(this));
 	},
 	[symbol$2](that) {
-		return isRedacted(that) && equals$2(redactedRegistry.get(this), redactedRegistry.get(that));
+		return isRedacted(that) && equals$1(redactedRegistry.get(this), redactedRegistry.get(that));
 	}
 };
 /**
@@ -26071,9 +26849,9 @@ const value$2 = value$3;
 * @category instances
 * @since 4.0.0
 */
-const makeEquivalence = (isEquivalent) => make$48((x, y) => isEquivalent(value$2(x), value$2(y)));
+const makeEquivalence = (isEquivalent) => make$51((x, y) => isEquivalent(value$2(x), value$2(y)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/Headers.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/Headers.js
 /**
 * Models HTTP headers for the unstable HTTP client and server modules.
 *
@@ -26082,11 +26860,13 @@ const makeEquivalence = (isEquivalent) => make$48((x, y) => isEquivalent(value$2
 * reading and updating header values, and redacts configured sensitive headers
 * when values are inspected.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
 * Runtime type identifier for `Headers` values.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
@@ -26108,11 +26888,12 @@ const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.crea
 	toString: { value: BaseProto.toString },
 	[NodeInspectSymbol]: { value: BaseProto[NodeInspectSymbol] }
 });
-const make$30 = (input) => Object.assign(Object.create(Proto$14), input);
+const make$32 = (input) => Object.assign(Object.create(Proto$14), input);
 /**
 * Provides an `Equivalence` instance that compares `Headers` by header names
 * and string values.
 *
+* @stability unstable
 * @category instances
 * @since 4.0.0
 */
@@ -26120,6 +26901,7 @@ const Equivalence$1 = /*#__PURE__*/ makeEquivalence$2(/*#__PURE__*/ strictEqual(
 /**
 * An empty `Headers` collection.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -26131,6 +26913,7 @@ const empty$4 = /*#__PURE__*/ Object.create(Proto$14);
 *
 * Header names are normalized to lowercase. Array values in record input are joined with `", "`, and `undefined` values are omitted.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -26153,6 +26936,7 @@ const fromInput$1 = (input) => {
 *
 * This mutates the record's prototype and does not normalize header names; callers must provide the expected lowercase keys.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -26164,11 +26948,12 @@ const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$14);
 *
 * The header name is normalized to lowercase.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
 const set = /*#__PURE__*/ dual(3, (self, key, value) => {
-	const out = make$30(self);
+	const out = make$32(self);
 	out[key.toLowerCase()] = value;
 	return out;
 });
@@ -26179,10 +26964,11 @@ const set = /*#__PURE__*/ dual(3, (self, key, value) => {
 *
 * Input headers are normalized with `fromInput` and override existing headers with the same lowercase name.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
-const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$30({
+const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$32({
 	...self,
 	...fromInput$1(headers)
 }));
@@ -26193,11 +26979,12 @@ const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$30({
 *
 * Headers from the second collection override headers from the first collection with the same name.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
 const merge = /*#__PURE__*/ dual(2, (self, headers) => {
-	const out = make$30(self);
+	const out = make$32(self);
 	Object.assign(out, headers);
 	return out;
 });
@@ -26208,11 +26995,12 @@ const merge = /*#__PURE__*/ dual(2, (self, headers) => {
 *
 * The provided header name is normalized to lowercase before removal.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
 const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
-	const out = make$30(self);
+	const out = make$32(self);
 	delete out[key.toLowerCase()];
 	return out;
 });
@@ -26223,6 +27011,7 @@ const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
 *
 * String keys are normalized to lowercase before matching; regular expressions are tested against the stored header names.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -26231,8 +27020,8 @@ const redact = /*#__PURE__*/ dual(2, (self, key) => {
 	const modify = (key) => {
 		if (typeof key === "string") {
 			const k = key.toLowerCase();
-			if (k in self) out[k] = make$31(self[k]);
-		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$31(self[name]);
+			if (k in self) out[k] = make$33(self[k]);
+		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$33(self[name]);
 	};
 	if (Array.isArray(key)) for (let i = 0; i < key.length; i++) modify(key[i]);
 	else modify(key);
@@ -26247,6 +27036,7 @@ const redact = /*#__PURE__*/ dual(2, (self, key) => {
 * regular expressions are tested against it. Use to avoid the record copy of
 * `redact` when only a membership check is needed.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -26266,6 +27056,7 @@ const isRedactedName = (name, patterns) => {
 *
 * Defaults include `authorization`, `cookie`, `set-cookie`, and `x-api-key`.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -26276,7 +27067,385 @@ const CurrentRedactedNames = /*#__PURE__*/ Reference("effect/Headers/CurrentReda
 	"x-api-key"
 ] });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/SchemaParser.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/UrlParams.js
+/**
+* Models URL query parameters as ordered string pairs.
+*
+* `UrlParams` is used for HTTP client query strings, URL-encoded form bodies,
+* and server-side decoding. Values can be built from records, iterables, or
+* native `URLSearchParams`, then updated, serialized, converted to a `URL`, or
+* decoded with schemas.
+*
+* @stability unstable
+* @since 4.0.0
+*/
+const TypeId$23 = "~effect/http/UrlParams";
+/**
+* Returns `true` when a value is a `UrlParams` instance.
+*
+* @stability unstable
+* @category guards
+* @since 4.0.0
+*/
+const isUrlParams = (u) => hasProperty(u, TypeId$23);
+const Proto$13 = {
+	...PipeInspectableProto,
+	[TypeId$23]: TypeId$23,
+	[Symbol.iterator]() {
+		return this.params[Symbol.iterator]();
+	},
+	toJSON() {
+		return {
+			_id: "UrlParams",
+			params: Object.fromEntries(this.params)
+		};
+	},
+	[symbol$2](that) {
+		return Equivalence(this, that);
+	},
+	[symbol$3]() {
+		return array(this.params.flat());
+	}
+};
+/**
+* Creates `UrlParams` from ordered string key-value pairs.
+*
+* **Details**
+*
+* The input pairs are used as-is and are not coerced or normalized.
+*
+* @stability unstable
+* @category constructors
+* @since 4.0.0
+*/
+const make$31 = (params) => {
+	const self = Object.create(Proto$13);
+	self.params = params;
+	return self;
+};
+/**
+* Creates `UrlParams` from a supported input shape.
+*
+* **Details**
+*
+* Primitive values are converted to strings, arrays produce repeated parameters,
+* nested records use bracket notation, and `undefined` values are omitted.
+*
+* @stability unstable
+* @category constructors
+* @since 4.0.0
+*/
+const fromInput = (input) => {
+	if (isUrlParams(input)) return input;
+	const parsed = fromInputNested(input);
+	const out = [];
+	for (let i = 0; i < parsed.length; i++) if (Array.isArray(parsed[i][0])) {
+		const [keys, value] = parsed[i];
+		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
+	} else out.push(parsed[i]);
+	return make$31(out);
+};
+const fromInputNested = (input) => {
+	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
+	const out = [];
+	for (const [key, value] of entries) if (Array.isArray(value)) {
+		for (let i = 0; i < value.length; i++) if (value[i] !== void 0) out.push([key, String(value[i])]);
+	} else if (value !== null && typeof value === "object") {
+		const nested = fromInputNested(value);
+		for (const [k, v] of nested) out.push([[key, ...typeof k === "string" ? [k] : k], v]);
+	} else if (value !== void 0) out.push([key, String(value)]);
+	return out;
+};
+/**
+* Provides an order-sensitive `Equivalence` instance for `UrlParams`.
+*
+* **Details**
+*
+* Two values are equivalent when they contain the same key-value pairs in the same
+* order.
+*
+* @stability unstable
+* @category instances
+* @since 4.0.0
+*/
+const Equivalence = /*#__PURE__*/ make$51((a, b) => arrayEquivalence(a.params, b.params));
+const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ strictEqual()]));
+/**
+* An empty `UrlParams` value.
+*
+* @stability unstable
+* @category constructors
+* @since 4.0.0
+*/
+const empty$3 = /*#__PURE__*/ make$31([]);
+/**
+* Transforms the underlying ordered key-value pairs of `UrlParams`.
+*
+* **Details**
+*
+* The result is wrapped in a new `UrlParams` value.
+*
+* @stability unstable
+* @category combinators
+* @since 4.0.0
+*/
+const transform = /*#__PURE__*/ dual(2, (self, f) => make$31(f(self.params)));
+/**
+* Sets multiple query parameters from input.
+*
+* **Details**
+*
+* Keys present in the input replace existing values for those keys, while
+* unmentioned existing parameters are preserved.
+*
+* @stability unstable
+* @category combinators
+* @since 4.0.0
+*/
+const setAll = /*#__PURE__*/ dual(2, (self, input) => {
+	const params = fromInput(input).params.slice();
+	const keys = /* @__PURE__ */ new Set();
+	for (let i = 0; i < params.length; i++) keys.add(params[i][0]);
+	for (let i = 0; i < self.params.length; i++) {
+		if (keys.has(self.params[i][0])) continue;
+		params.push(self.params[i]);
+	}
+	return make$31(params);
+});
+/**
+* Appends all query parameters produced from the supplied input.
+*
+* **Details**
+*
+* Existing parameters are preserved.
+*
+* @stability unstable
+* @category combinators
+* @since 4.0.0
+*/
+const appendAll = /*#__PURE__*/ dual(2, (self, input) => transform(self, appendAll$2(fromInput(input).params)));
+/**
+* Serializes `UrlParams` to a URL query string without a leading question mark.
+*
+* @stability unstable
+* @category converting
+* @since 4.0.0
+*/
+const toString = (input) => new URLSearchParams(fromInput(input).params).toString();
+/**
+* Builds a `Record` containing all the key-value pairs in the given `UrlParams`
+* as `string` (if only one value for a key) or a `NonEmptyArray<string>`
+* (when more than one value for a key)
+*
+* **Example** (Converting parameters to a record)
+*
+* ```ts import.meta.vitest
+* import { UrlParams } from "effect/http"
+*
+* const urlParams = UrlParams.fromInput({
+*   a: 1,
+*   b: true,
+*   c: "string",
+*   e: [1, 2, 3]
+* })
+* UrlParams.toRecord(urlParams) // => { a: "1", b: "true", c: "string", e: ["1", "2", "3"] }
+* ```
+*
+* @stability unstable
+* @category converting
+* @since 4.0.0
+*/
+const toRecord = (self) => {
+	const out = {};
+	for (const [k, value] of self.params) if (!Object.hasOwn(out, k)) assignProperty(out, k, value);
+	else {
+		const current = out[k];
+		if (typeof current === "string") assignProperty(out, k, [current, value]);
+		else current.push(value);
+	}
+	return out;
+};
+/**
+* Builds a readonly record from `UrlParams`.
+*
+* **Details**
+*
+* Keys with one value map to a string, and keys with multiple values map to a
+* non-empty readonly array of strings.
+*
+* @stability unstable
+* @category converting
+* @since 4.0.0
+*/
+const toReadonlyRecord = toRecord;
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/interpreter.js
+const flatMapTransformation = (result, current, f) => result === sameExit ? f(current) : flatMapEager(result, f);
+function compileTransformation(transformation) {
+	if (transformation._tag === "Middleware") return (result, current, options) => {
+		const transformed = result === sameExit ? transformation.decode(succeed(toOption(current)), options) : transformation.decode(mapEager(result, toOption), options);
+		return fromOptionalEffect(transformed);
+	};
+	const getter = transformation.decode;
+	switch (getter._tag) {
+		case "Passthrough": return (result, current) => result === sameExit ? succeed(current) : result;
+		case "Transform": {
+			const transform = (value) => value === missing ? missingExit : succeed(getter.transform(value));
+			return (result, current) => flatMapTransformation(result, current, transform);
+		}
+		case "TransformOptional": {
+			const transform = (value) => fromOptionExit(getter.transform(toOption(value)));
+			return (result, current) => flatMapTransformation(result, current, transform);
+		}
+		case "TransformEffect": return (result, current, options) => flatMapTransformation(result, current, (value) => value === missing ? missingExit : getter.transform(value, options));
+		case "TransformOptionalEffect": return (result, current, options) => flatMapTransformation(result, current, (value) => fromOptionalEffect(getter.transform(toOption(value), options)));
+	}
+}
+const fromOptionalEffect = (effect) => flatMapEager(effect, fromOptionExit);
+/** @internal */
+const wrapEncoding = (ast, input, options, effect) => catchCause$1(effect, (cause) => failCauseSync(() => map$4(cause, (issue) => new Encoding(ast, issue, input, options))));
+function makeConstructorParser(descriptor, compile) {
+	const transform = compileTransformation(descriptor.link.transformation);
+	let sourceParser;
+	return (input, options) => {
+		if (input === missing) return missingExit;
+		if (descriptor.isConstructed(input)) return sameExit;
+		const result = (sourceParser ??= compile(descriptor.link.to))(input, options);
+		return transform(result, input, options);
+	};
+}
+function withDefault$1(ast, parser) {
+	const defaultValue = ast.context.constructorDefault;
+	return (input, options) => {
+		if (input !== missing && input !== void 0) return parser(input, options);
+		const result = defaultValue;
+		if (effectIsExit(result) && result._tag === "Success") {
+			const local = parser(result[args], options);
+			return local === sameExit ? result : local;
+		}
+		return flatMapEager(wrapEncoding(ast, input, options, result), (value) => {
+			const local = parser(value, options);
+			return local === sameExit ? succeed(value) : local;
+		});
+	};
+}
+/** @internal */
+function compileField(ast, compile) {
+	const parser = compile(ast);
+	return ast.context?.constructorDefault === void 0 ? parser : withDefault$1(ast, parser);
+}
+/** @internal */
+function compile(ast, compile, compileField, base, specialize) {
+	if (ast._tag === "Declaration") for (const parameter of ast.typeParameters) compile(parameter);
+	const descriptor = compileField ? getConstructorDescriptor(ast) : void 0;
+	const parser = descriptor ? makeConstructorParser(descriptor, compile) : base ?? ast.getParser(compile, compileField);
+	const checks = ast.checks;
+	const links = ast.encoding;
+	const transformations = links?.map((link) => compileTransformation(link.transformation));
+	const encodingChecks = ast.encodingChecks;
+	if (!links && !checks && !encodingChecks) return parser;
+	let encodingParsers;
+	const parseChecks = (input, options) => {
+		let result = parser(input, options);
+		if (encodingChecks && !options.disableChecks) {
+			if (effectIsExit(result)) {
+				if (result._tag === "Success") {
+					const output = result === sameExit ? input : result[args];
+					if (input !== missing && output !== missing) {
+						const issues = collectIssues(encodingChecks, input, void 0, ast, options);
+						if (issues) result = fail$3(new Composite(ast, issues, input, options));
+					}
+				}
+			} else result = flatMap(result, (value) => {
+				if (input !== missing && value !== missing) {
+					const issues = collectIssues(encodingChecks, input, void 0, ast, options);
+					if (issues) return fail$3(new Composite(ast, issues, input, options));
+				}
+				return succeed$3(value);
+			});
+		}
+		if (checks && !options.disableChecks) {
+			if (effectIsExit(result)) {
+				if (result._tag === "Success") {
+					const value = result === sameExit ? input : result[args];
+					if (value === missing) return result;
+					const issues = collectIssues(checks, value, void 0, ast, options);
+					if (issues) result = fail$3(new Composite(ast, issues, value, options));
+				}
+			} else result = flatMap(result, (value) => {
+				if (value !== missing) {
+					const issues = collectIssues(checks, value, void 0, ast, options);
+					if (issues) return fail$3(new Composite(ast, issues, value, options));
+				}
+				return succeed$3(value);
+			});
+		}
+		return result;
+	};
+	const parseLocal = specialize === void 0 ? parseChecks : specialize(parseChecks);
+	if (!links) return parseLocal;
+	return (input, options) => {
+		const parsers = encodingParsers ??= links.map((link) => compile(link.to));
+		let current = input;
+		let result = parsers[parsers.length - 1](input, options);
+		for (let i = links.length - 1; i >= 0; i--) {
+			result = transformations[i](result, current, options);
+			if (i !== 0) {
+				const next = parsers[i - 1];
+				if (result._tag === "Success") {
+					current = result[args];
+					result = next(current, options);
+				} else result = flatMapEager(result, (value) => {
+					const nextResult = next(value, options);
+					return nextResult === sameExit ? succeed(value) : nextResult;
+				});
+			}
+		}
+		if (result._tag === "Success") {
+			const value = result[args];
+			const local = parseLocal(value, options);
+			return local === sameExit ? result : local;
+		}
+		result = wrapEncoding(ast, input, options, result);
+		return flatMapEager(result, (value) => {
+			const local = parseLocal(value, options);
+			return local === sameExit ? succeed(value) : local;
+		});
+	};
+}
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/compilerRegistry.js
+/** @internal */
+const invalid = /*#__PURE__*/ Symbol();
+const cache = /*#__PURE__*/ new WeakMap();
+const decodeChild = (ast) => resolve(ast).parser;
+const makeChild = (ast) => resolve(ast).makeEffect;
+const makeField = (ast) => compileField(ast, makeChild);
+var InterpretedEntry = class {
+	ast;
+	constructor(ast) {
+		this.ast = ast;
+	}
+	get decodeEffect() {
+		return this.cachedDecodeEffect ??= compile(this.ast, decodeChild);
+	}
+	get parser() {
+		return this.decodeEffect;
+	}
+	get makeEffect() {
+		return this.cachedMakeEffect ??= compile(this.ast, makeChild, makeField);
+	}
+};
+/** @internal */
+function resolve(ast) {
+	const cached = cache.get(ast);
+	if (cached !== void 0) return cached;
+	const entry = new InterpretedEntry(ast);
+	cache.set(ast, entry);
+	return entry;
+}
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/SchemaParser.js
 /**
 * Runs schemas against real values.
 *
@@ -26368,14 +27537,8 @@ function makeOption(schema) {
 * @category constructors
 * @since 4.0.0
 */
-function make$29(schema) {
-	const parser = makeEffect(schema);
-	return (input, options) => {
-		const exit = runSyncExit(parser(input, options));
-		if (isSuccess(exit)) return exit.value;
-		const issue = getSchemaIssueOrThrow(exit.cause, "Constructor adapter can only throw schema issues");
-		throw new Error("Schema validation failed", { cause: issue });
-	};
+function make$30(schema) {
+	return makeConstructorSync(toType$1(schema.ast));
 }
 /**
 * Creates a type guard that checks whether an input satisfies the schema's decoded
@@ -26403,14 +27566,26 @@ function make$29(schema) {
 function is$3(schema) {
 	return _is(schema.ast);
 }
+function makeIs(ast) {
+	{
+		const parser = asExit(run(ast));
+		return (input) => {
+			const exit = parser(input, defaultParseOptions);
+			if (isSuccess(exit)) return true;
+			getSchemaIssueOrThrow(exit.cause, "Type guard adapter can only return false for schema issues");
+			return false;
+		};
+	}
+}
 /** @internal */
 function _is(ast) {
-	const parser = asExit(run(toType$1(ast)));
+	const typeAST = toType$1(ast);
+	let guard = (input) => {
+		guard = makeIs(typeAST);
+		return guard(input);
+	};
 	return (input) => {
-		const exit = parser(input, defaultParseOptions);
-		if (isSuccess(exit)) return true;
-		getSchemaIssueOrThrow(exit.cause, "Type guard adapter can only return false for schema issues");
-		return false;
+		return guard(input);
 	};
 }
 /**
@@ -26510,6 +27685,11 @@ const getValue = (value) => {
 function run(ast) {
 	return runWithCompiler(normalCompiler, ast);
 }
+function parserResult(result, input) {
+	if (result === sameExit) return succeed$3(input);
+	if (!effectIsExit(result)) return flatMapEager(result, getValue);
+	return result[args] === missing ? getValue(missing) : result;
+}
 function runWithCompiler(compiler, ast) {
 	let parser;
 	return (input, options) => {
@@ -26536,114 +27716,72 @@ function asResult(parser) {
 	const parserExit = asExit(parser);
 	return (input, options) => {
 		const exit = parserExit(input, options);
-		if (isSuccess(exit)) return succeed$7(exit.value);
+		if (isSuccess(exit)) return succeed$8(exit.value);
 		return fail$7(getSchemaIssueOrThrow(exit.cause, "Result adapter can only return schema issues"));
 	};
 }
-const normalCompiler = /*#__PURE__*/ memoize((ast) => makeParser$1(ast, normalCompiler));
-const constructorCompiler = /*#__PURE__*/ memoize((ast) => makeParser$1(ast, constructorCompiler, compileConstructorDefault));
-const compileDefaulted = /*#__PURE__*/ memoize((ast) => makeParser$1(ast, constructorCompiler, compileConstructorDefault, ast.context?.constructorDefault));
-function compileConstructorDefault(ast) {
-	return ast.context?.constructorDefault ? compileDefaulted(ast) : constructorCompiler(ast);
+function runSync(effect, message) {
+	const exit = runSyncExit(effect);
+	if (isSuccess(exit)) return exit.value;
+	const issue = getSchemaIssueOrThrow(exit.cause, message);
+	throw new Error("Schema validation failed", { cause: issue });
 }
-function applyTransformation(result, current, transformation, options) {
-	let transformed;
-	if (effectIsExit(result) && result._tag === "Success") {
-		const optional = toOption(result === sameExit ? current : result[args]);
-		transformed = transformation._tag === "Transformation" ? transformation.decode.run(optional, options) : transformation.decode(succeed(optional), options);
-	} else if (transformation._tag === "Transformation") transformed = flatMapEager(result, (value) => transformation.decode.run(toOption(value), options));
-	else transformed = transformation.decode(mapEager(result, toOption), options);
-	return effectIsExit(transformed) && transformed._tag === "Success" ? fromOptionExit(transformed[args]) : flatMapEager(transformed, fromOptionExit);
-}
-function makeConstructorParser(descriptor, compile) {
-	let sourceParser;
+function makeConstructorSync(ast) {
+	let entry;
+	let parser;
 	return (input, options) => {
-		if (input === missing) return missingExit;
-		if (descriptor.isConstructed(input)) return sameExit;
-		return applyTransformation((sourceParser ??= compile(descriptor.link.to))(input, options), input, descriptor.link.transformation, options);
-	};
-}
-function makeParser$1(ast, compile, compileConstructorDefault, constructorDefault) {
-	const descriptor = compileConstructorDefault ? getConstructorDescriptor(ast) : void 0;
-	const parser = descriptor ? makeConstructorParser(descriptor, compile) : ast.getParser(compile, compileConstructorDefault);
-	const checks = ast.checks;
-	const links = constructorDefault ? ast.encoding ? [...ast.encoding, constructorDefault] : [constructorDefault] : ast.encoding;
-	const encodingChecks = ast.encodingChecks;
-	if (!links && !checks && !encodingChecks) return parser;
-	let encodingParsers;
-	const parseLocal = (input, options) => {
-		let result = parser(input, options);
-		if (encodingChecks && !options.disableChecks) {
-			if (effectIsExit(result)) {
-				if (result._tag === "Success") {
-					const output = result === sameExit ? input : result[args];
-					if (input !== missing && output !== missing) {
-						const issues = collectIssues(encodingChecks, input, void 0, ast, options);
-						if (issues) result = fail$3(new Composite(ast, issues, input, options));
-					}
-				}
-			} else result = flatMap(result, (value) => {
-				if (input !== missing && value !== missing) {
-					const issues = collectIssues(encodingChecks, input, void 0, ast, options);
-					if (issues) return fail$3(new Composite(ast, issues, input, options));
-				}
-				return succeed$3(value);
-			});
-		}
-		if (checks && !options.disableChecks) {
-			if (effectIsExit(result)) {
-				if (result._tag === "Success") {
-					const value = result === sameExit ? input : result[args];
-					if (value === missing) return result;
-					const issues = collectIssues(checks, value, void 0, ast, options);
-					if (issues) result = fail$3(new Composite(ast, issues, value, options));
-				}
-			} else result = flatMap(result, (value) => {
-				if (value !== missing) {
-					const issues = collectIssues(checks, value, void 0, ast, options);
-					if (issues) return fail$3(new Composite(ast, issues, value, options));
-				}
-				return succeed$3(value);
-			});
-		}
-		return result;
-	};
-	if (!links) return parseLocal;
-	return (input, options) => {
-		const parsers = encodingParsers ??= links.map((link) => compile(link.to));
-		let current = input;
-		let result = parsers[parsers.length - 1](input, options);
-		for (let i = links.length - 1; i >= 0; i--) {
-			result = applyTransformation(result, current, links[i].transformation, options);
-			if (i !== 0) {
-				const next = parsers[i - 1];
-				if (result._tag === "Success") {
-					current = result[args];
-					result = next(current, options);
-				} else result = flatMapEager(result, (value) => {
-					const nextResult = next(value, options);
-					return nextResult === sameExit ? succeed(value) : nextResult;
-				});
+		entry ??= resolve(ast);
+		const parseOptions = options?.disableChecks ? options.parseOptions ? {
+			...options.parseOptions,
+			disableChecks: true
+		} : { disableChecks: true } : options?.parseOptions ?? defaultParseOptions;
+		const make = entry.make;
+		if (make !== void 0 && input !== missing) {
+			let output;
+			try {
+				output = make(input, parseOptions);
+			} catch (error) {
+				getSchemaIssueOrThrow(die$1(error), "Constructor adapter can only throw schema issues");
+				throw error;
 			}
+			if (output !== invalid && output !== missing) return output;
 		}
-		if (result._tag === "Success") {
-			const value = result[args];
-			const local = parseLocal(value, options);
-			return local === sameExit ? result : local;
-		}
-		result = catchCause$1(result, (cause) => failCauseSync(() => map$4(cause, (issue) => new Encoding(ast, issue, input, options))));
-		return flatMapEager(result, (value) => {
-			const local = parseLocal(value, options);
-			return local === sameExit ? succeed(value) : local;
-		});
+		return runSync(parserResult((parser ??= entry.makeEffect)(input, parseOptions), input), "Constructor adapter can only throw schema issues");
 	};
 }
+const normalCompiler = (ast) => resolve(ast).parser;
+const constructorCompiler = (ast) => resolve(ast).makeEffect;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/make.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/make.js
 /** @internal */
-const TypeId$23 = "~effect/Schema/Schema";
+const TypeId$22 = "~effect/Schema/Schema";
+const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
-	[TypeId$23]: TypeId$23,
+	[TypeId$22]: TypeId$22,
+	get make() {
+		const value = make$30(this);
+		Object.defineProperty(this, "make", {
+			value,
+			enumerable: true
+		});
+		return value;
+	},
+	get makeEffect() {
+		const value = makeEffect(this);
+		Object.defineProperty(this, "makeEffect", {
+			value,
+			enumerable: true
+		});
+		return value;
+	},
+	get makeOption() {
+		const value = makeOption(this);
+		Object.defineProperty(this, "makeOption", {
+			value,
+			enumerable: true
+		});
+		return value;
+	},
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -26655,23 +27793,23 @@ const SchemaProto = {
 	},
 	check(...checks) {
 		return this.rebuild(appendChecks(this.ast, checks));
+	},
+	rebuild(ast) {
+		return make$29(ast, this[RebuildOptions]);
 	}
 };
 /** @internal */
-function make$28(ast, options) {
+function make$29(ast, options) {
 	function Schema() {}
 	const self = Object.setPrototypeOf(Schema, SchemaProto);
 	if (options && (Object.hasOwn(options, "name") || Object.hasOwn(options, "length") || Object.hasOwn(options, "__proto__"))) Object.defineProperties(self, Object.getOwnPropertyDescriptors({ ...options }));
 	else Object.assign(self, options);
+	self[RebuildOptions] = options;
 	self.ast = ast;
-	self.rebuild = (ast) => make$28(ast, options);
-	self.makeEffect = makeEffect(self);
-	self.make = make$29(self);
-	self.makeOption = makeOption(self);
 	return self;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/JsonPointer.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/JsonPointer.js
 /**
 * Helpers for escaping JSON Pointer path segments and converting JSON Pointer
 * URI fragments. JSON Pointer uses `/` to separate path tokens inside a JSON
@@ -26767,8 +27905,46 @@ function decodeUriFragment(fragment) {
 		return;
 	}
 }
+/**
+* Parses a JSON Pointer URI fragment into decoded path tokens.
+*
+* **When to use**
+*
+* Use when you need to resolve a URI fragment against a JSON document.
+*
+* **Details**
+*
+* Percent-encoding is decoded before the pointer is split into tokens, then
+* each token is decoded with {@link unescapeToken}. The empty string and `#`
+* both represent the document root.
+*
+* **Gotchas**
+*
+* Returns `undefined` when the input is not a URI fragment, contains characters
+* that require percent-encoding, or contains an invalid JSON Pointer escape
+* sequence.
+*
+* **Example** (Parsing URI fragments)
+*
+* ```ts import.meta.vitest
+* import { JsonPointer } from "effect"
+*
+* JsonPointer.parseUriFragment("#/users/a~1b") // => ["users", "a/b"]
+* JsonPointer.parseUriFragment("#/caf%C3%A9") // => ["café"]
+* JsonPointer.parseUriFragment("#/%") // => undefined
+* JsonPointer.parseUriFragment("#/a#b") // => undefined
+* ```
+*
+* @see {@link formatUriFragment} for the inverse operation
+* @category decoding
+* @since 4.0.0
+*/
+function parseUriFragment(fragment) {
+	const pointer = decodeUriFragment(fragment);
+	return pointer === void 0 ? void 0 : pointer.length === 0 ? [] : pointer.slice(1).split("/").map(unescapeToken);
+}
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/JsonSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/JsonSchema.js
 /**
 * Helpers for normalizing and converting JSON Schema and OpenAPI schema
 * documents. Supported inputs include JSON Schema Draft-07, Draft 2020-12,
@@ -26779,6 +27955,11 @@ function decodeUriFragment(fragment) {
 *
 * @since 4.0.0
 */
+/** @internal */
+function getReferenceKey($ref) {
+	const path = $ref.startsWith("#") ? parseUriFragment($ref) : void 0;
+	return path !== void 0 && path.length === 2 && path[0] === "$defs" ? path[1] : void 0;
+}
 function transformSchema(node, transform) {
 	return walk(node, false, true);
 	function walk(node, inheritedResource, isRoot = false) {
@@ -26856,10 +28037,10 @@ const PRE_2020_TO_2020_COLLISIONS = [
 [...PRE_2020_TO_2020_COLLISIONS];
 [...PRE_2020_TO_2020_COLLISIONS];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/toCodec.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/toCodec.js
 /** @internal */
 function toCodecJson$1(schema) {
-	return make$28(toCodecJsonAST(schema.ast), { schema });
+	return make$29(toCodecJsonAST(schema.ast), { schema });
 }
 /** @internal */
 const toCodecJsonAST = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempotent((ast) => {
@@ -26903,7 +28084,7 @@ function toCodecJsonASTStep(ast, recur) {
 		case "Declaration": {
 			const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec;
 			if (!isFunction(getLink)) return replaceEncoding(ast, [unknownToJson]);
-			const link = getLink(ast.typeParameters.map((tp) => make$28(toEncoded$1(tp))));
+			const link = getLink(ast.typeParameters.map((tp) => make$29(toEncoded$1(tp))));
 			return link === void 0 ? ast : replaceEncoding(ast, [mapLink(link, recur)]);
 		}
 		case "Unknown": return replaceEncoding(ast, [unknownToJson]);
@@ -26930,7 +28111,7 @@ function toCodecJsonASTStep(ast, recur) {
 }
 /** @internal */
 function toCodecStringTree$1(schema) {
-	return make$28(toCodecStringTreeAST(schema.ast), { schema });
+	return make$29(toCodecStringTreeAST(schema.ast), { schema });
 }
 const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 	switch (ast._tag) {
@@ -26946,7 +28127,7 @@ const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 function toCodecStringTreeASTStep(ast, recur, onMissingAnnotation) {
 	switch (ast._tag) {
 		case "Declaration": {
-			const typeParameters = ast.typeParameters.map((tp) => make$28(recur(toEncoded$1(tp))));
+			const typeParameters = ast.typeParameters.map((tp) => make$29(recur(toEncoded$1(tp))));
 			const getStringTreeLink = ast.annotations?.toCodecStringTree;
 			if (isFunction(getStringTreeLink)) {
 				const link = getStringTreeLink(typeParameters);
@@ -27014,14 +28195,14 @@ globalThis.RegExp;
 */
 const escape = (string) => string.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/errors.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/errors.js
 /** @internal */
 function errorWithPath(message, path) {
 	if (path.length > 0) message += `\n  at ${formatPath(path)}`;
 	return new Error(message);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
 function formatDefinitionReference(key) {
 	return `#/$defs/${formatUriFragmentToken(key)}`;
 }
@@ -27144,44 +28325,62 @@ function appendJsonSchema(left, right, inlineCheck) {
 		allOf: members
 	};
 }
+function isExact(exactness, seen = /* @__PURE__ */ new Set()) {
+	if (typeof exactness === "boolean") return exactness;
+	if (seen.has(exactness)) return true;
+	seen.add(exactness);
+	return exactness.every((dependency) => isExact(dependency, seen));
+}
+function isApproximateCheckOutput(output) {
+	return Array.isArray(output);
+}
 function compileJsonSchema(representations, rootPaths, references, options) {
-	const definitionStates = /* @__PURE__ */ new Map();
+	const compiledDefinitions = /* @__PURE__ */ new Map();
+	const definitionAliases = /* @__PURE__ */ new Map();
 	const compiledRepresentations = /* @__PURE__ */ new WeakMap();
+	const pendingOneOf = /* @__PURE__ */ new Map();
 	const fallbackDefinitions = /* @__PURE__ */ new Map();
 	const referenceKeys = Object.keys(references);
 	for (const key of referenceKeys) compileDefinition(key, ["references", key]);
-	const schemas = map$6(representations, (representation, index) => finalizeJsonSchema(recur(representation, rootPaths[index])));
-	const definitions = {};
-	for (const key of referenceKeys) {
-		const compiled = definitionStates.get(key);
-		if (typeof compiled !== "string") assignProperty(definitions, key, finalizeJsonSchema(compiled));
+	const compiledSchemas = map$6(representations, (representation, index) => recur(representation, rootPaths[index], []));
+	for (const [branches, schemas] of pendingOneOf.values()) if (!isExact(branches)) {
+		for (const schema of schemas) if (Array.isArray(schema.oneOf)) {
+			schema.anyOf = schema.oneOf;
+			delete schema.oneOf;
+		}
 	}
+	for (const key of referenceKeys) {
+		const representation = references[key];
+		const fallback = getIdentifierFallback(representation);
+		if (fallback === void 0) continue;
+		const schema = compiledDefinitions.get(key)[0];
+		const candidates = fallbackDefinitions.get(fallback);
+		const match = candidates?.find((candidate) => equals$1(compiledDefinitions.get(candidate)[0], schema));
+		if (match === void 0) {
+			if (candidates === void 0) fallbackDefinitions.set(fallback, [key]);
+			else candidates.push(key);
+		} else definitionAliases.set(key, match);
+	}
+	const schemas = map$6(compiledSchemas, finalizeJsonSchema);
+	const definitions = {};
+	for (const key of referenceKeys) if (!definitionAliases.has(key)) assignProperty(definitions, key, finalizeJsonSchema(compiledDefinitions.get(key)[0]));
 	return {
 		dialect: "draft-2020-12",
 		schemas,
 		definitions
 	};
+	function registerPendingOneOf(schema) {
+		if (Array.isArray(schema.oneOf)) pendingOneOf.get(schema.oneOf)?.[1].push(schema);
+		return schema;
+	}
 	function compileDefinition(key, path) {
-		const compiled = definitionStates.get(key);
-		if (compiled !== void 0) return typeof compiled === "string" ? compiled : key;
 		if (!Object.hasOwn(references, key)) throw errorWithPath(`Invalid reference ${key}`, [...path, "$ref"]);
-		definitionStates.set(key, null);
-		const representation = references[key];
-		const schema = recur(representation, ["references", key]);
-		const fallback = getIdentifierFallback(representation);
-		if (fallback !== void 0) {
-			const candidates = fallbackDefinitions.get(fallback);
-			const match = candidates?.find((candidate) => equals$2(definitionStates.get(candidate), schema));
-			if (match === void 0) {
-				if (candidates === void 0) fallbackDefinitions.set(fallback, [key]);
-				else candidates.push(key);
-			} else {
-				definitionStates.set(key, match);
-				return match;
-			}
-		}
-		definitionStates.set(key, schema);
-		return key;
+		const cached = compiledDefinitions.get(key);
+		if (cached !== void 0) return cached;
+		const result = [{}, []];
+		compiledDefinitions.set(key, result);
+		result[0] = recur(references[key], ["references", key], result[1]);
+		return result;
 	}
 	function finalizeJsonSchema(schema) {
 		return rewriteRefs(schema, ($ref) => {
@@ -27192,8 +28391,8 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 			}
 			if (!pointer.startsWith("/$defs/")) return $ref;
 			const separator = pointer.indexOf("/", 7);
-			const canonical = definitionStates.get(unescapeToken(pointer.slice(7, separator < 0 ? void 0 : separator)));
-			if (typeof canonical !== "string") return $ref;
+			const canonical = definitionAliases.get(unescapeToken(pointer.slice(7, separator < 0 ? void 0 : separator)));
+			if (canonical === void 0) return $ref;
 			return $ref.replace(/^#(?:\/|%2f).*?(?:\/|%2f).*?(?=\/|%2f|$)/i, formatDefinitionReference(canonical));
 		});
 	}
@@ -27202,48 +28401,63 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 		const annotations = representation.checks.length === 0 ? representation.annotations : representation.checks[representation.checks.length - 1].annotations;
 		return typeof annotations?.identifier !== "string" && typeof annotations?.["~identifier"] === "string" ? annotations[IDENTIFIER_FALLBACK_KEY] : void 0;
 	}
-	function annotationSchemas(representation, path) {
-		return representation?.schemas?.map((schema, index) => recur(schema, [
-			...path,
-			"schemas",
-			index
-		])) ?? [];
-	}
-	function compileCheck(check, type, path) {
+	function compileCheck(check, type, path, dependencies) {
 		const annotations = check.annotations;
 		const callback = annotations?.toJsonSchema;
 		if (callback !== void 0) {
-			const fragment = callback({
+			const result = callback({
 				type,
-				schemas: annotationSchemas(check.representation, [...path, "representation"])
+				schemas: check.representation?.schemas?.map((schema, index) => recur(schema, [
+					...path,
+					"representation",
+					"schemas",
+					index
+				], dependencies)) ?? []
 			});
+			const approximate = isApproximateCheckOutput(result);
+			if (approximate) dependencies.push(false);
+			const fragment = approximate ? result[0] : result;
 			const ordinary = collectJsonSchemaAnnotations(annotations, options);
 			const schema = ordinary === void 0 ? fragment : {
 				...fragment,
 				...ordinary
 			};
 			const allowed = ordinary === void 0 ? inlineableCheckKeywords : inlineableAnnotatedCheckKeywords;
-			return check._tag === "Filter" && hasOnlyKeywords(schema, allowed) && (ordinary === void 0 || hasOnlyKeywords(ordinary, promotableAnnotationKeywords)) ? [schema, true] : [schema];
+			return [schema, check._tag === "Filter" && hasOnlyKeywords(schema, allowed) && (ordinary === void 0 || hasOnlyKeywords(ordinary, promotableAnnotationKeywords)) ? true : void 0];
 		}
-		if (check._tag === "Filter") return void 0;
-		const children = check.checks.map((child, index) => compileCheck(child, type, [
-			...path,
-			"checks",
-			index
-		])).filter((child) => child !== void 0);
-		if (children.length === 0) return void 0;
+		if (check._tag === "Filter") {
+			dependencies.push(false);
+			return;
+		}
+		const schemas = check.checks.flatMap((child, index) => {
+			const result = compileCheck(child, type, [
+				...path,
+				"checks",
+				index
+			], dependencies);
+			return result === void 0 ? [] : [result[0]];
+		});
+		if (schemas.length === 0) return void 0;
 		const ordinary = collectJsonSchemaAnnotations(annotations, options);
-		const allOf = children.map(([schema]) => schema);
-		return [ordinary === void 0 ? { allOf } : {
-			allOf,
+		const schema = { allOf: schemas };
+		return [ordinary === void 0 ? schema : {
+			...schema,
 			...ordinary
 		}];
 	}
-	function recur(representation, path) {
-		if (representation._tag === "Reference") return { $ref: formatDefinitionReference(compileDefinition(representation.$ref, path)) };
+	function recur(representation, path, dependencies) {
+		if (representation._tag === "Reference") {
+			dependencies.push(compileDefinition(representation.$ref, path)[1]);
+			return { $ref: formatDefinitionReference(representation.$ref) };
+		}
 		const cached = compiledRepresentations.get(representation);
-		if (cached !== void 0) return cached;
-		let output = on(representation, path);
+		if (cached !== void 0) {
+			dependencies.push(cached[1]);
+			return cached[0];
+		}
+		const local = [];
+		dependencies.push(local);
+		let output = on(representation, path, local);
 		const ordinary = collectJsonSchemaAnnotations(representation.annotations, options);
 		if (ordinary !== void 0) output = {
 			...output,
@@ -27255,13 +28469,13 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				...path,
 				"checks",
 				index
-			]);
+			], local);
 			if (check !== void 0) output = appendJsonSchema(output, ...check);
 		}
-		compiledRepresentations.set(representation, output);
-		return output;
+		compiledRepresentations.set(representation, [output, local]);
+		return registerPendingOneOf(output);
 	}
-	function on(representation, path) {
+	function on(representation, path, dependencies) {
 		switch (representation._tag) {
 			case "Any":
 			case "Unknown": return {};
@@ -27281,8 +28495,10 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				type: "string",
 				enum: [globalThis.String(representation.symbol)]
 			};
-			case "Declaration": return {};
-			case "Suspend": return recur(representation.thunk, [...path, "thunk"]);
+			case "Declaration":
+				dependencies.push(false);
+				return {};
+			case "Suspend": return recur(representation.thunk, [...path, "thunk"], dependencies);
 			case "Never": return { not: {} };
 			case "String": return { type: "string" };
 			case "Number": return { anyOf: [{ type: "number" }, {
@@ -27330,14 +28546,14 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				let minItems = representation.elements.length;
 				const prefixItems = representation.elements.map((element, index) => {
 					if (element.isOptional) minItems--;
-					const compiled = recur(element.type, [
+					const schema = recur(element.type, [
 						...path,
 						"elements",
 						index,
 						"type"
-					]);
+					], dependencies);
 					const annotations = collectJsonSchemaAnnotations(element.annotations, options);
-					return annotations === void 0 ? compiled : appendJsonSchema(compiled, annotations);
+					return annotations === void 0 ? schema : registerPendingOneOf(appendJsonSchema(schema, annotations));
 				});
 				if (prefixItems.length > 0) {
 					out.prefixItems = prefixItems;
@@ -27350,7 +28566,7 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 						...path,
 						"rest",
 						0
-					]);
+					], dependencies);
 					if (Object.keys(rest).length > 0) out.items = rest;
 					else delete out.items;
 				}
@@ -27370,14 +28586,14 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 						"name"
 					]);
 					const name = property.name;
-					const compiled = recur(property.type, [
+					const schema = recur(property.type, [
 						...path,
 						"propertySignatures",
 						index,
 						"type"
-					]);
+					], dependencies);
 					const annotations = collectJsonSchemaAnnotations(property.annotations, options);
-					assignProperty(properties, name, annotations === void 0 ? compiled : appendJsonSchema(compiled, annotations));
+					assignProperty(properties, name, annotations === void 0 ? schema : registerPendingOneOf(appendJsonSchema(schema, annotations)));
 					if (!property.isOptional) required.push(name);
 				}
 				if (representation.propertySignatures.length > 0) out.properties = properties;
@@ -27393,8 +28609,8 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 						"indexSignatures",
 						index,
 						"type"
-					]);
-					if (equals$2(type, { not: {} })) type = false;
+					], dependencies);
+					if (equals$1(type, { not: {} })) type = false;
 					indexValueSchemas.push(type);
 					const patterns = getParameterPatterns(signature.parameter, [
 						...path,
@@ -27404,12 +28620,13 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 					], /* @__PURE__ */ new Set());
 					if (patterns === void 0) {
 						hasUnrepresentableIndexPattern = true;
+						dependencies.push(false);
 						continue;
 					}
 					if (patterns.length === 0) additionalPropertySchemas.push(type);
 					else for (const pattern of patterns) {
 						const previous = patternProperties[pattern];
-						assignProperty(patternProperties, pattern, previous === void 0 ? type : previous === false || type === false ? false : appendJsonSchema(previous, type));
+						assignProperty(patternProperties, pattern, previous === void 0 ? type : previous === false || type === false ? false : registerPendingOneOf(appendJsonSchema(previous, type)));
 					}
 				}
 				const hasPatternProperties = Object.keys(patternProperties).length > 0;
@@ -27422,7 +28639,7 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 						"indexSignatures",
 						index,
 						"parameter"
-					]));
+					], dependencies));
 					out.propertyNames = propertyNames.length === 1 ? propertyNames[0] : { anyOf: propertyNames };
 					out.additionalProperties = indexValueSchemas.length === 1 ? indexValueSchemas[0] : { anyOf: indexValueSchemas };
 					if (additionalPropertySchemas.length > 0) out.allOf = additionalPropertySchemas.map((type) => ({
@@ -27439,18 +28656,21 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				return out;
 			}
 			case "Union": {
+				const branches = [];
 				const types = representation.types.map((type, index) => recur(type, [
 					...path,
 					"types",
 					index
-				]));
+				], branches));
+				dependencies.push(branches);
 				if (types.length === 0) return { not: {} };
 				const mode = representation.options?.mode ?? "anyOf";
 				if (mode === "anyOf" && types.length > 1) {
 					const compacted = compactEnums(types);
 					if (compacted !== void 0) return compacted;
 				}
-				return mode === "anyOf" ? { anyOf: types } : { oneOf: types };
+				if (mode === "oneOf") pendingOneOf.set(types, [branches, []]);
+				return { [mode]: types };
 			}
 		}
 	}
@@ -27466,7 +28686,9 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 			case "String": {
 				if (parameter.checks.length === 0) return [];
 				if (parameter.checks.length !== 1 || parameter.checks[0]._tag !== "Filter" || parameter.checks[0].annotations?.toJsonSchema === void 0) return;
-				const schema = recur(parameter, path);
+				const dependencies = [];
+				const schema = recur(parameter, path, dependencies);
+				if (!isExact(dependencies)) return void 0;
 				return schema.type === "string" && typeof schema.pattern === "string" && hasOnlyKeywords(schema, "|type|pattern|title|description|default|examples|readOnly|writeOnly|") ? [schema.pattern] : void 0;
 			}
 			case "TemplateLiteral": return parameter.checks.length === 0 ? [`^${parameter.parts.map(getPartPattern).join("")}$`] : void 0;
@@ -27529,7 +28751,7 @@ function toJsonSchemaDocument$1(document, options) {
 	};
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schema/toRepresentation.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schema/toRepresentation.js
 const defaultReferencePolicy = ({ identifier }) => identifier;
 function annotationsField(annotations) {
 	return annotations === void 0 ? void 0 : { annotations };
@@ -27795,7 +29017,7 @@ function toRepresentations(asts, options) {
 	}
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Struct.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Struct.js
 /**
 * Creates a new struct with the specified keys removed.
 *
@@ -27885,214 +29107,14 @@ function buildStruct(source, f) {
 	return out;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/internal/schemaError.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/internal/schemaError.js
 const SchemaErrorTypeId = "~effect/Schema/SchemaError";
 function isSchemaError$1(u) {
 	return hasProperty(u, "~effect/Schema/SchemaError") && u["~effect/Schema/SchemaError"] === "~effect/Schema/SchemaError";
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/UrlParams.js
-/**
-* Models URL query parameters as ordered string pairs.
-*
-* `UrlParams` is used for HTTP client query strings, URL-encoded form bodies,
-* and server-side decoding. Values can be built from records, iterables, or
-* native `URLSearchParams`, then updated, serialized, converted to a `URL`, or
-* decoded with schemas.
-*
-* @since 4.0.0
-*/
-const TypeId$22 = "~effect/http/UrlParams";
-/**
-* Returns `true` when a value is a `UrlParams` instance.
-*
-* @category guards
-* @since 4.0.0
-*/
-const isUrlParams = (u) => hasProperty(u, TypeId$22);
-const Proto$13 = {
-	...PipeInspectableProto,
-	[TypeId$22]: TypeId$22,
-	[Symbol.iterator]() {
-		return this.params[Symbol.iterator]();
-	},
-	toJSON() {
-		return {
-			_id: "UrlParams",
-			params: Object.fromEntries(this.params)
-		};
-	},
-	[symbol$2](that) {
-		return Equivalence(this, that);
-	},
-	[symbol$3]() {
-		return array(this.params.flat());
-	}
-};
-/**
-* Creates `UrlParams` from ordered string key-value pairs.
-*
-* **Details**
-*
-* The input pairs are used as-is and are not coerced or normalized.
-*
-* @category constructors
-* @since 4.0.0
-*/
-const make$27 = (params) => {
-	const self = Object.create(Proto$13);
-	self.params = params;
-	return self;
-};
-/**
-* Creates `UrlParams` from a supported input shape.
-*
-* **Details**
-*
-* Primitive values are converted to strings, arrays produce repeated parameters,
-* nested records use bracket notation, and `undefined` values are omitted.
-*
-* @category constructors
-* @since 4.0.0
-*/
-const fromInput = (input) => {
-	if (isUrlParams(input)) return input;
-	const parsed = fromInputNested(input);
-	const out = [];
-	for (let i = 0; i < parsed.length; i++) if (Array.isArray(parsed[i][0])) {
-		const [keys, value] = parsed[i];
-		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
-	} else out.push(parsed[i]);
-	return make$27(out);
-};
-const fromInputNested = (input) => {
-	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
-	const out = [];
-	for (const [key, value] of entries) if (Array.isArray(value)) {
-		for (let i = 0; i < value.length; i++) if (value[i] !== void 0) out.push([key, String(value[i])]);
-	} else if (value !== null && typeof value === "object") {
-		const nested = fromInputNested(value);
-		for (const [k, v] of nested) out.push([[key, ...typeof k === "string" ? [k] : k], v]);
-	} else if (value !== void 0) out.push([key, String(value)]);
-	return out;
-};
-/**
-* Provides an order-sensitive `Equivalence` instance for `UrlParams`.
-*
-* **Details**
-*
-* Two values are equivalent when they contain the same key-value pairs in the same
-* order.
-*
-* @category instances
-* @since 4.0.0
-*/
-const Equivalence = /*#__PURE__*/ make$48((a, b) => arrayEquivalence(a.params, b.params));
-const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ strictEqual()]));
-/**
-* An empty `UrlParams` value.
-*
-* @category constructors
-* @since 4.0.0
-*/
-const empty$3 = /*#__PURE__*/ make$27([]);
-/**
-* Transforms the underlying ordered key-value pairs of `UrlParams`.
-*
-* **Details**
-*
-* The result is wrapped in a new `UrlParams` value.
-*
-* @category combinators
-* @since 4.0.0
-*/
-const transform = /*#__PURE__*/ dual(2, (self, f) => make$27(f(self.params)));
-/**
-* Sets multiple query parameters from input.
-*
-* **Details**
-*
-* Keys present in the input replace existing values for those keys, while
-* unmentioned existing parameters are preserved.
-*
-* @category combinators
-* @since 4.0.0
-*/
-const setAll = /*#__PURE__*/ dual(2, (self, input) => {
-	const params = fromInput(input).params.slice();
-	const keys = /* @__PURE__ */ new Set();
-	for (let i = 0; i < params.length; i++) keys.add(params[i][0]);
-	for (let i = 0; i < self.params.length; i++) {
-		if (keys.has(self.params[i][0])) continue;
-		params.push(self.params[i]);
-	}
-	return make$27(params);
-});
-/**
-* Appends all query parameters produced from the supplied input.
-*
-* **Details**
-*
-* Existing parameters are preserved.
-*
-* @category combinators
-* @since 4.0.0
-*/
-const appendAll = /*#__PURE__*/ dual(2, (self, input) => transform(self, appendAll$2(fromInput(input).params)));
-/**
-* Serializes `UrlParams` to a URL query string without a leading question mark.
-*
-* @category converting
-* @since 4.0.0
-*/
-const toString = (input) => new URLSearchParams(fromInput(input).params).toString();
-/**
-* Builds a `Record` containing all the key-value pairs in the given `UrlParams`
-* as `string` (if only one value for a key) or a `NonEmptyArray<string>`
-* (when more than one value for a key)
-*
-* **Example** (Converting parameters to a record)
-*
-* ```ts import.meta.vitest
-* import { UrlParams } from "effect/unstable/http"
-*
-* const urlParams = UrlParams.fromInput({
-*   a: 1,
-*   b: true,
-*   c: "string",
-*   e: [1, 2, 3]
-* })
-* UrlParams.toRecord(urlParams) // => { a: "1", b: "true", c: "string", e: ["1", "2", "3"] }
-* ```
-*
-* @category converting
-* @since 4.0.0
-*/
-const toRecord = (self) => {
-	const out = {};
-	for (const [k, value] of self.params) if (!Object.hasOwn(out, k)) assignProperty(out, k, value);
-	else {
-		const current = out[k];
-		if (typeof current === "string") assignProperty(out, k, [current, value]);
-		else current.push(value);
-	}
-	return out;
-};
-/**
-* Builds a readonly record from `UrlParams`.
-*
-* **Details**
-*
-* Keys with one value map to a string, and keys with multiple values map to a
-* non-empty readonly array of strings.
-*
-* @category converting
-* @since 4.0.0
-*/
-const toReadonlyRecord = toRecord;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Schema.js
-const TypeId$21 = TypeId$23;
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Schema.js
+const TypeId$21 = TypeId$22;
 /**
 * Creates a schema for a **parametric** type (a generic container such as
 * `Array<A>`, `Option<A>`, etc.) by accepting a list of type-parameter schemas
@@ -28150,7 +29172,7 @@ const TypeId$21 = TypeId$23;
 */
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
-		return make$26(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$26(ast))), annotations));
+		return make$28(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$28(ast))), annotations));
 	};
 }
 /**
@@ -28264,7 +29286,7 @@ function fromIssueEffect(self) {
 	return catchCause$1(self, (cause) => failCauseSync(() => map$4(cause, (issue) => new SchemaError(issue))));
 }
 function fromIssueExit(exit) {
-	return isSuccess(exit) ? exit : failCause$3(map$4(exit.cause, (issue) => new SchemaError(issue)));
+	return isSuccess(exit) ? exit : failCause$4(map$4(exit.cause, (issue) => new SchemaError(issue)));
 }
 function getSchemaErrorOrThrow(cause, message) {
 	let schemaError;
@@ -28658,7 +29680,7 @@ const encodeSync = encodeUnknownSync;
 * @category constructors
 * @since 3.10.0
 */
-const make$26 = make$28;
+const make$28 = make$29;
 /**
 * Checks whether a value is a `Schema`.
 *
@@ -28690,7 +29712,7 @@ function isSchema(u) {
 * @category combinators
 * @since 4.0.0
 */
-const optionalKey = /*#__PURE__*/ lambda((schema) => make$26(optionalKey$1(schema.ast), { schema }));
+const optionalKey = /*#__PURE__*/ lambda((schema) => make$28(optionalKey$1(schema.ast), { schema }));
 /**
 * Marks a struct field as optional, allowing the key to be absent or
 * `undefined`.
@@ -28722,7 +29744,7 @@ const optionalKey = /*#__PURE__*/ lambda((schema) => make$26(optionalKey$1(schem
 */
 const optional$5 = /*#__PURE__*/ lambda((self) => {
 	const schema = UndefinedOr(self);
-	return make$26(optional$6(self.ast), { schema });
+	return make$28(optional$6(self.ast), { schema });
 });
 /**
 * Extracts the type-side schema: sets `Encoded` to equal the decoded `Type`,
@@ -28731,7 +29753,7 @@ const optional$5 = /*#__PURE__*/ lambda((self) => {
 * @category transforming
 * @since 4.0.0
 */
-const toType = /*#__PURE__*/ lambda((schema) => make$26(toType$1(schema.ast), { schema }));
+const toType = /*#__PURE__*/ lambda((schema) => make$28(toType$1(schema.ast), { schema }));
 /**
 * Extracts the encoded-side schema: sets `Type` to equal the `Encoded`,
 * discarding the decoding transformation path.
@@ -28739,7 +29761,7 @@ const toType = /*#__PURE__*/ lambda((schema) => make$26(toType$1(schema.ast), { 
 * @category transforming
 * @since 4.0.0
 */
-const toEncoded = /*#__PURE__*/ lambda((schema) => make$26(toEncoded$1(schema.ast), { schema }));
+const toEncoded = /*#__PURE__*/ lambda((schema) => make$28(toEncoded$1(schema.ast), { schema }));
 /**
 * Creates a schema for a single literal value (string, number, bigint, boolean, or null).
 *
@@ -28760,7 +29782,7 @@ const toEncoded = /*#__PURE__*/ lambda((schema) => make$26(toEncoded$1(schema.as
 * @since 3.10.0
 */
 function Literal(literal) {
-	const out = make$26(new Literal$1(literal), {
+	const out = make$28(new Literal$1(literal), {
 		literal,
 		transform(to) {
 			return out.pipe(decodeTo(Literal(to), {
@@ -28810,7 +29832,7 @@ function templateLiteralParts(parts) {
 * @since 3.10.0
 */
 function TemplateLiteral(parts) {
-	return make$26(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
+	return make$28(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
 }
 /**
 * Schema for the `never` type. Always fails validation — no value satisfies it.
@@ -28818,7 +29840,7 @@ function TemplateLiteral(parts) {
 * @category schemas
 * @since 3.10.0
 */
-const Never = /*#__PURE__*/ make$26(never);
+const Never = /*#__PURE__*/ make$28(never);
 /**
 * Schema for the `any` type. Accepts any value without validation.
 *
@@ -28826,7 +29848,7 @@ const Never = /*#__PURE__*/ make$26(never);
 * @category schemas
 * @since 3.10.0
 */
-const Any = /*#__PURE__*/ make$26(any);
+const Any = /*#__PURE__*/ make$28(any);
 /**
 * Schema for the `unknown` type. Accepts any value without validation.
 *
@@ -28839,7 +29861,7 @@ const Any = /*#__PURE__*/ make$26(any);
 * @category schemas
 * @since 3.10.0
 */
-const Unknown = /*#__PURE__*/ make$26(unknown);
+const Unknown = /*#__PURE__*/ make$28(unknown);
 /**
 * Schema for the `null` literal. Validates that the input is strictly `null`.
 *
@@ -28847,7 +29869,7 @@ const Unknown = /*#__PURE__*/ make$26(unknown);
 * @category schemas
 * @since 3.10.0
 */
-const Null = /*#__PURE__*/ make$26(null_);
+const Null = /*#__PURE__*/ make$28(null_);
 /**
 * Schema for the `undefined` literal. Validates that the input is strictly `undefined`.
 *
@@ -28855,14 +29877,14 @@ const Null = /*#__PURE__*/ make$26(null_);
 * @category schemas
 * @since 3.10.0
 */
-const Undefined = /*#__PURE__*/ make$26(undefined_);
+const Undefined = /*#__PURE__*/ make$28(undefined_);
 /**
 * Schema for `string` values. Validates that the input is `typeof` `"string"`.
 *
 * @category schemas
 * @since 4.0.0
 */
-const String$2 = /*#__PURE__*/ make$26(string);
+const String$2 = /*#__PURE__*/ make$28(string);
 /**
 * Schema for `number` values, including `NaN`, `Infinity`, and `-Infinity`.
 *
@@ -28877,7 +29899,7 @@ const String$2 = /*#__PURE__*/ make$26(string);
 * @category schemas
 * @since 4.0.0
 */
-const Number$1 = /*#__PURE__*/ make$26(number);
+const Number$1 = /*#__PURE__*/ make$28(number);
 /**
 * Schema for `boolean` values. Validates that the input is `typeof` `"boolean"`.
 *
@@ -28890,7 +29912,7 @@ const Number$1 = /*#__PURE__*/ make$26(number);
 * @category schemas
 * @since 4.0.0
 */
-const Boolean = /*#__PURE__*/ make$26(boolean);
+const Boolean = /*#__PURE__*/ make$28(boolean);
 /**
 * Schema for `bigint` values. Validates that the input is `typeof` `"bigint"`.
 *
@@ -28904,7 +29926,7 @@ const Boolean = /*#__PURE__*/ make$26(boolean);
 * @category schemas
 * @since 4.0.0
 */
-const BigInt$1 = /*#__PURE__*/ make$26(bigInt);
+const BigInt$1 = /*#__PURE__*/ make$28(bigInt);
 /**
 * Schema for a TypeScript `void` return value.
 *
@@ -28924,9 +29946,9 @@ const BigInt$1 = /*#__PURE__*/ make$26(bigInt);
 * @category schemas
 * @since 3.10.0
 */
-const Void = /*#__PURE__*/ make$26(void_);
+const Void = /*#__PURE__*/ make$28(void_);
 function makeStruct(ast, fields) {
-	return make$26(ast, {
+	return make$28(ast, {
 		fields,
 		mapFields(f, options) {
 			const fields = f(this.fields);
@@ -29010,7 +30032,7 @@ function Struct(fields) {
 * @since 3.10.0
 */
 function Record(key, value) {
-	return make$26(record(key.ast, value.ast), {
+	return make$28(record(key.ast, value.ast), {
 		key,
 		value
 	});
@@ -29044,13 +30066,13 @@ function Record(key, value) {
 * @since 4.0.0
 */
 function StructWithRest(schema, records) {
-	return make$26(structWithRest(schema.ast, records.map(getAST)), {
+	return make$28(structWithRest(schema.ast, records.map(getAST)), {
 		schema,
 		records
 	});
 }
 function makeTuple(ast, elements) {
-	return make$26(ast, {
+	return make$28(ast, {
 		elements,
 		mapElements(f, options) {
 			const elements = f(this.elements);
@@ -29081,7 +30103,7 @@ function Tuple(elements) {
 * @category constructors
 * @since 4.0.0
 */
-const ArraySchema = /*#__PURE__*/ lambda((schema) => make$26(new Arrays(false, [], [schema.ast]), { value: schema }));
+const ArraySchema = /*#__PURE__*/ lambda((schema) => make$28(new Arrays(false, [], [schema.ast]), { value: schema }));
 /**
 * Defines a non-empty `ReadonlyArray` schema — at least one element required.
 * Type is `readonly [T, ...T[]]`.
@@ -29099,9 +30121,9 @@ const ArraySchema = /*#__PURE__*/ lambda((schema) => make$26(new Arrays(false, [
 * @category constructors
 * @since 3.10.0
 */
-const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$26(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
+const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$28(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
 function makeUnion(ast, members) {
-	return make$26(ast, {
+	return make$28(ast, {
 		members,
 		mapMembers(f, options) {
 			const members = f(this.members);
@@ -29154,7 +30176,7 @@ function Union(members, options) {
 */
 function Literals(literals) {
 	const members = literals.map(Literal);
-	return make$26(union(members, void 0, void 0), {
+	return make$28(union(members, void 0, void 0), {
 		literals,
 		members,
 		mapMembers(f) {
@@ -29184,7 +30206,7 @@ const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
 function decodeTo(to, transformation) {
 	return (from) => {
-		return make$26(decodeTo$1(from.ast, to.ast, transformation ? make$32(transformation) : passthrough()), {
+		return make$28(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
 			from,
 			to
 		});
@@ -29275,7 +30297,7 @@ function decode$2(transformation) {
 * @since 3.10.0
 */
 function withConstructorDefault(defaultValue) {
-	return (schema) => make$26(withConstructorDefault$1(schema.ast, defaultValue), { schema });
+	return (schema) => make$28(withConstructorDefault$1(schema.ast, defaultValue), { schema });
 }
 function toIssueEffect(self) {
 	return catchCause$1(self, (cause) => failCauseSync(() => map$4(cause, (error) => error.issue)));
@@ -29322,7 +30344,7 @@ function withDecodingDefault(defaultValue, options) {
 	const encode = options?.encodingStrategy === "omit" ? omit$1() : passthrough$1();
 	return (self) => {
 		return optional$5(toEncoded(self)).pipe(decodeTo(self, {
-			decode: withDefault$1(toIssueEffect(defaultValue)),
+			decode: withDefault$2(toIssueEffect(defaultValue)),
 			encode
 		}));
 	};
@@ -29462,7 +30484,7 @@ function instanceOf(constructor, annotations) {
 */
 function link$1() {
 	return (encodeTo, transformation) => {
-		return new Link(encodeTo.ast, make$32(transformation));
+		return new Link(encodeTo.ast, makeTransformation(transformation));
 	};
 }
 /**
@@ -29531,9 +30553,9 @@ const makeFilter = makeFilter$1;
 *
 * JSON Schema:
 *
-* JSON Schema receives the RegExp source as a `pattern`. JavaScript flags are
-* not represented, so validation can differ when the RegExp uses flags or
-* relies on JavaScript's non-Unicode behavior.
+* Unless annotations override `toJsonSchema`, JSON Schema receives a `pattern`
+* only when the JavaScript RegExp uses the Unicode flag and its other flags are
+* `d`, `g`, or `y`. Sticky patterns are anchored at the start of the string.
 *
 * Arbitrary:
 *
@@ -29546,8 +30568,10 @@ const makeFilter = makeFilter$1;
 function isPattern(regExp, annotations) {
 	const source = regExp.source;
 	const flags = regExp.flags;
+	const canExport = /^[dg]*uy?$/.test(flags);
 	const runtimeRegExp = flags === "" ? `new RegExp(${format$2(source)})` : `new RegExp(${format$2(source)}, ${format$2(flags)})`;
 	return isPattern$1(regExp, {
+		toJsonSchema: () => canExport ? { pattern: flags.endsWith("y") ? `^(?:${source})` : source } : [{}, true],
 		toCode: () => ({ runtime: `Schema.isPattern(${runtimeRegExp})` }),
 		...annotations
 	});
@@ -29558,7 +30582,7 @@ function isPattern(regExp, annotations) {
 * @category schemas
 * @since 3.10.0
 */
-const Finite = /*#__PURE__*/ make$26(finite);
+const Finite = /*#__PURE__*/ make$28(finite);
 /**
 * Validates that a number is finite (not `Infinity`, `-Infinity`, or `NaN`).
 *
@@ -29679,7 +30703,7 @@ function isInt(annotations) {
 			id: "effect/schema/isInt",
 			payload: null
 		},
-		toJsonSchema: () => ({ type: "integer" }),
+		toJsonSchema: () => [{ type: "integer" }, true],
 		toCode: () => ({ runtime: "Schema.isInt()" }),
 		arbitraryConstraint: { number: "integer" },
 		...annotations
@@ -29700,9 +30724,11 @@ const Int = /*#__PURE__*/ Number$1.check(/*#__PURE__*/ isInt());
 *
 * JSON Schema:
 *
-* For arrays, this check corresponds to `minItems`. For strings, it corresponds
-* to `minLength`. JavaScript counts UTF-16 code units while JSON Schema counts
-* Unicode code points, so the two validations can differ for some strings.
+* The bound must be finite; it is rounded down and clamped to zero. For arrays,
+* this check corresponds to `minItems`. JavaScript counts UTF-16 code units
+* while JSON Schema counts Unicode code points, so strings use
+* `minLength: Math.ceil(minLength / 2)`, the tightest lower bound that cannot
+* reject a string accepted by this check.
 *
 * Arbitrary:
 *
@@ -29725,14 +30751,20 @@ const Int = /*#__PURE__*/ Number$1.check(/*#__PURE__*/ isInt());
 * @since 4.0.0
 */
 function isMinLength(minLength, annotations) {
-	minLength = Math.max(0, Math.floor(minLength));
+	minLength = normalizeCardinality(minLength);
+	return makeIsMinLength(minLength, Math.ceil(minLength / 2), annotations);
+}
+function makeIsMinLength(minLength, minCodePoints, annotations) {
 	return makeFilter((input) => input.length >= minLength, {
 		expected: `a value with a length of at least ${minLength}`,
 		representation: {
 			id: "effect/schema/isMinLength",
 			payload: { minLength }
 		},
-		toJsonSchema: ({ type }) => type === "array" ? { minItems: minLength } : { minLength },
+		toJsonSchema: ({ type }) => type === "string" ? minLength <= 1 ? { minLength: minCodePoints } : [{ minLength: minCodePoints }, true] : type === "array" ? { minItems: minLength } : type === void 0 ? [{
+			minLength: minCodePoints,
+			minItems: minLength
+		}, true] : [{}, true],
 		toCode: () => ({ runtime: `Schema.isMinLength(${minLength})` }),
 		[STRUCTURAL_ANNOTATION_KEY]: true,
 		arbitraryConstraint: { minLength },
@@ -29747,8 +30779,10 @@ function isMinLength(minLength, annotations) {
 *
 * JSON Schema:
 *
-* This check corresponds to the `maxLength` constraint for strings or the
-* `maxItems` constraint for arrays in JSON Schema.
+* The bound must be finite; it is rounded down and clamped to zero. This check
+* corresponds to `maxItems` for arrays. Strings use the same bound for
+* `maxLength`, which cannot reject a string accepted by this check because a
+* string has no more code points than UTF-16 code units.
 *
 * Arbitrary:
 *
@@ -29760,19 +30794,67 @@ function isMinLength(minLength, annotations) {
 * @since 4.0.0
 */
 function isMaxLength(maxLength, annotations) {
-	maxLength = Math.max(0, Math.floor(maxLength));
+	maxLength = normalizeCardinality(maxLength);
 	return makeFilter((input) => input.length <= maxLength, {
 		expected: `a value with a length of at most ${maxLength}`,
 		representation: {
 			id: "effect/schema/isMaxLength",
 			payload: { maxLength }
 		},
-		toJsonSchema: ({ type }) => type === "array" ? { maxItems: maxLength } : { maxLength },
+		toJsonSchema: ({ type }) => type === "string" ? maxLength === 0 ? { maxLength } : [{ maxLength }, true] : type === "array" ? { maxItems: maxLength } : type === void 0 ? [{
+			maxLength,
+			maxItems: maxLength
+		}, true] : [{}, true],
 		toCode: () => ({ runtime: `Schema.isMaxLength(${maxLength})` }),
 		[STRUCTURAL_ANNOTATION_KEY]: true,
 		arbitraryConstraint: { maxLength },
 		...annotations
 	});
+}
+/**
+* Validates that a string contains at most the specified number of Unicode code points.
+*
+* **Details**
+*
+* The bound must be finite; it is rounded down and clamped to zero. This check
+* corresponds to `maxLength` in JSON Schema and guides arbitrary generation by
+* code point count.
+*
+* **Gotchas**
+*
+* Code points are not grapheme clusters: combining marks and joined emoji can
+* contribute multiple code points to one visible character. Unpaired UTF-16
+* surrogates count as one code point each. This check does not normalize strings.
+*
+* @see {@link isMaxLength} for counting UTF-16 code units
+* @see {@link isMinCodePoints}
+* @see {@link isBetweenCodePoints}
+* @category validation
+* @since 4.0.0
+*/
+function isMaxCodePoints(maxCodePoints, annotations) {
+	maxCodePoints = normalizeCardinality(maxCodePoints);
+	return makeFilter((input) => countCodePointsUpTo(input, maxCodePoints + 1) <= maxCodePoints, {
+		expected: `a string with at most ${maxCodePoints} code points`,
+		representation: {
+			id: "effect/schema/isMaxCodePoints",
+			payload: { maxCodePoints }
+		},
+		toJsonSchema: () => ({ maxLength: maxCodePoints }),
+		toCode: () => ({ runtime: `Schema.isMaxCodePoints(${maxCodePoints})` }),
+		arbitraryConstraint: { maxCodePoints },
+		...annotations
+	});
+}
+function countCodePointsUpTo(input, limit) {
+	if (limit === 0) return 0;
+	let count = 0;
+	for (const _ of input) if (++count >= limit) break;
+	return count;
+}
+function normalizeCardinality(value) {
+	if (!globalThis.Number.isFinite(value)) throw new globalThis.RangeError(`Expected a finite number, got ${value}`);
+	return Math.max(0, Math.floor(value));
 }
 const getErrorOptionsKey = (options) => (options?.includeStack === true ? 1 : 0) | (options?.excludeCause === true ? 2 : 0);
 const getErrorOptions = (key) => {
@@ -29990,10 +31072,25 @@ function CauseReason(error, defect) {
 					case "Interrupt": return makeInterruptReason(e.fiberId);
 				}
 			},
-			encode: identity
+			encode: (reason) => {
+				switch (reason._tag) {
+					case "Fail": return {
+						_tag: "Fail",
+						error: reason.error
+					};
+					case "Die": return {
+						_tag: "Die",
+						defect: reason.defect
+					};
+					case "Interrupt": return {
+						_tag: "Interrupt",
+						fiberId: reason.fiberId
+					};
+				}
+			}
 		}))
 	});
-	return make$26(schema.ast, {
+	return make$28(schema.ast, {
 		error,
 		defect
 	});
@@ -30045,14 +31142,14 @@ function Cause(error, defect) {
 			encode: ({ reasons: failures }) => failures
 		}))
 	});
-	return make$26(schema.ast, {
+	return make$28(schema.ast, {
 		error,
 		defect
 	});
 }
 const dateTimeUtcFromString = /*#__PURE__*/ transformEffect({
 	decode: (s, options) => {
-		return match$3(make$34(s), {
+		return match$3(make$35(s), {
 			onNone: () => fail$3(new InvalidValue({ expected: "a valid UTC DateTime string" }, s, options)),
 			onSome: (result) => succeed$3(toUtc(result))
 		});
@@ -30205,7 +31302,7 @@ function Exit(value, error, defect) {
 					onFailure: (issue) => makeCompositeAtKey(ast, "value", issue, input, options)
 				});
 				case "Failure": return mapBothEager(decodeUnknownEffect$1(cause)(input.cause, options), {
-					onSuccess: failCause$3,
+					onSuccess: failCause$4,
 					onFailure: (issue) => makeCompositeAtKey(ast, "cause", issue, input, options)
 				});
 			}
@@ -30228,7 +31325,7 @@ function Exit(value, error, defect) {
 			_tag: Literal("Failure"),
 			cause: Cause(error, defect)
 		})]), transform$1({
-			decode: (e) => e._tag === "Success" ? succeed$5(e.value) : failCause$3(e.cause),
+			decode: (e) => e._tag === "Success" ? succeed$5(e.value) : failCause$4(e.cause),
 			encode: (exit) => isSuccess(exit) ? {
 				_tag: "Success",
 				value: exit.value
@@ -30238,7 +31335,7 @@ function Exit(value, error, defect) {
 			}
 		}))
 	});
-	return make$26(schema.ast, {
+	return make$28(schema.ast, {
 		value,
 		error,
 		defect
@@ -30256,7 +31353,7 @@ function Exit(value, error, defect) {
 *
 * ```ts import.meta.vitest
 * import { Schema } from "effect"
-* import { UrlParams } from "effect/unstable/http"
+* import { UrlParams } from "effect/http"
 *
 * const toStruct = Schema.RecordFromUrlParams.pipe(
 *   Schema.decodeTo(Schema.Struct({
@@ -30272,7 +31369,7 @@ function Exit(value, error, defect) {
 * const result = [decoded.some, decoded.number] // => ["value", 42]
 * ```
 *
-* @unstable
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -30284,12 +31381,12 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 	toCode: () => ({
 		runtime: "Schema.UrlParams",
 		Type: "UrlParams.UrlParams",
-		importDeclarations: [`import * as UrlParams from "effect/unstable/http/UrlParams"`]
+		importDeclarations: [`import * as UrlParams from "effect/http/UrlParams"`]
 	}),
 	expected: "UrlParams",
 	toEquivalence: () => Equivalence,
 	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform$1({
-		decode: make$27,
+		decode: make$31,
 		encode: (self) => self.params
 	}))
 })).pipe(/*#__PURE__*/ decodeTo(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([String$2, /*#__PURE__*/ NonEmptyArray(String$2)])), /*#__PURE__*/ transform$1({
@@ -30328,7 +31425,7 @@ function Redacted$1(value, options) {
 		if (isRedacted(input)) {
 			const label = decodeLabel !== void 0 ? mapErrorEager(decodeLabel(input.label, poptions), (issue) => new Pointer(["label"], issue)) : void_$1;
 			return flatMapEager(label, () => mapBothEager(decodeUnknownEffect$1(value)(value$2(input), poptions), {
-				onSuccess: () => input,
+				onSuccess: (value) => make$33(value, { label: input.label }),
 				onFailure: () => {
 					return new Composite(ast, [new Pointer(["value"], new InvalidValue(void 0, input, poptions))], input, poptions);
 				}
@@ -30347,12 +31444,12 @@ function Redacted$1(value, options) {
 		}),
 		expected: "Redacted",
 		toCodecJson: ([value]) => link$1()(value, {
-			decode: transform$2((e) => make$31(e, { label })),
+			decode: transform$2((e) => make$33(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$2(value$2)
 		}),
 		toEquivalence: ([value]) => makeEquivalence(value)
 	});
-	return make$26(schema.ast, { value });
+	return make$28(schema.ast, { value });
 }
 const immerable = /*#__PURE__*/ globalThis.Symbol.for("immer-draftable");
 const payloadToken = {};
@@ -30389,7 +31486,7 @@ function makeClass(Inherited, identifier, struct$1, annotations, proto) {
 			return getClassSchema(this).rebuild(ast);
 		}
 		static make(input, options) {
-			return make$29(getClassSchema(this))(input ?? {}, options);
+			return make$30(getClassSchema(this))(input ?? {}, options);
 		}
 		static makeOption(input, options) {
 			return makeOption(getClassSchema(this))(input ?? {}, options);
@@ -30440,7 +31537,7 @@ function getClassSchemaFactory(from, identifier, annotations) {
 		const ClassTypeId = getClassTypeId(identifier);
 		const isClassValue = (input) => input instanceof self || hasProperty(input, ClassTypeId);
 		const transformation = getClassTransformation(self);
-		return memo = decodeTo(make$26(new Declaration([from.ast], () => (input, ast, options) => {
+		return memo = decodeTo(make$28(new Declaration([from.ast], () => (input, ast, options) => {
 			return isClassValue(input) ? succeed$3(input) : fail$3(new InvalidType(ast, input, options));
 		}, {
 			identifier,
@@ -30610,6 +31707,11 @@ const TaggedError = (identifier) => {
 *
 * **Details**
 *
+* The document describes the encoded side of `Schema.toCodecJson(schema)`.
+* Use that codec to decode JSON inputs. For example, it decodes JSON `null`
+* to JavaScript `undefined` for a field defined with `Schema.optional(Schema.String)`.
+* Decoding the same input with the original schema rejects `null`.
+*
 * The `options` parameter controls reference extraction and generation details
 * such as excess properties and synthesized check descriptions; it does not
 * change the draft target. The reference policy receives canonical JSON
@@ -30628,19 +31730,40 @@ const TaggedError = (identifier) => {
 * JSON Schema generation is best-effort. String length uses Unicode code points
 * in JSON Schema and UTF-16 code units in Effect. A generated `pattern` cannot
 * retain JavaScript RegExp flags. Object property checks apply to the original
-* input in JSON Schema but to the decoded object in Effect. `oneOf` can also
-* reject values accepted by overlapping Effect union members. Custom
-* `toJsonSchema` annotations are the annotation author's responsibility. When
+* input in JSON Schema but to the decoded object in Effect. When a `oneOf`
+* branch contains a known approximation, the compiler emits `anyOf` so that
+* the approximation cannot create a false rejection. Unions with only exact
+* branches retain `oneOf`. Custom `toJsonSchema` callbacks return `[schema, true]` for safe,
+* looser approximations and are responsible for the semantics they declare. When
 * canonical JSON derivation adds an artificial transformation, checks and
 * annotations on its source node are not copied to the JSON target, so they do
 * not appear in the emitted document. Opaque declarations without a structural
 * codec are represented by an unconstrained JSON Schema. The default
 * `onExcessProperty: "ignore"` matches the decoder default and leaves
-* unrepresentable index-signature keys open. In `"error"` mode, the compiler
+* index-signature keys without exact selectors open. In `"error"` mode, the compiler
 * constrains those keys with `propertyNames` and applies a permissive choice of
 * candidate index value schemas. The Effect decoder enforces the exact
 * key-value association.
 *
+* **Example** (Decoding JSON with the matching codec)
+*
+* ```ts import.meta.vitest
+* import { Schema } from "effect"
+*
+* const schema = Schema.Struct({
+*   name: Schema.optional(Schema.String)
+* })
+*
+* const document = Schema.toJsonSchemaDocument(schema)
+* const jsonCodec = Schema.toCodecJson(schema)
+*
+* Schema.decodeUnknownResult(schema)({ name: null })._tag // => "Failure"
+* Schema.decodeUnknownSync(jsonCodec)({ name: null }) // => { name: undefined }
+* Schema.decodeUnknownSync(jsonCodec)({}) // => {}
+* Schema.encodeSync(jsonCodec)({ name: undefined }) // => { name: null }
+* ```
+*
+* @see {@link toCodecJson} for decoding and encoding the canonical JSON representation
 * @see {@link SchemaRepresentation.toJsonSchemaDocument} for compiling an existing live representation document
 *
 * @category converting
@@ -30709,7 +31832,7 @@ const toCodecStringTree = toCodecStringTree$1;
 * @category schemas
 * @since 4.0.0
 */
-const Json = /*#__PURE__*/ make$26(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
+const Json = /*#__PURE__*/ make$28(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
 	runtime: "Schema.Json",
 	Type: "Schema.Json"
 }) }));
@@ -30741,16 +31864,17 @@ const JsonObject$3 = /*#__PURE__*/ Record(String$2, Json);
 * @category schemas
 * @since 4.0.0
 */
-const MutableJson = /*#__PURE__*/ make$26(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
+const MutableJson = /*#__PURE__*/ make$28(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpBody.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpBody.js
 const TypeId$20 = "~effect/http/HttpBody";
 /**
 * Returns `true` if the provided value is an `HttpBody`.
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
@@ -30759,6 +31883,7 @@ const HttpBodyErrorTypeId = "~effect/http/HttpBody/HttpBodyError";
 /**
 * Error produced while constructing an HTTP body from JSON or schema-encoded input.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -30766,6 +31891,7 @@ var HttpBodyError = class extends (/*#__PURE__*/ TaggedError$1("HttpBodyError"))
 	/**
 	* Marks this value as an HTTP body error for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[HttpBodyErrorTypeId] = HttpBodyErrorTypeId;
@@ -30785,6 +31911,7 @@ var Proto$12 = class {
 /**
 * HTTP body variant representing the absence of request content.
 *
+* @stability unstable
 * @category models
 * @since 4.0.0
 */
@@ -30804,6 +31931,7 @@ var Empty$2 = class extends Proto$12 {
 *
 * Use when you need an HTTP body value that represents no body content.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
@@ -30815,6 +31943,7 @@ const empty$2 = /*#__PURE__*/ new Empty$2();
 *
 * It stores the bytes, content type, and byte length.
 *
+* @stability unstable
 * @category models
 * @since 4.0.0
 */
@@ -30852,6 +31981,7 @@ var Uint8Array$1 = class extends Proto$12 {
 *
 * The content type defaults to `application/octet-stream`, and the content length is the byte array length.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -30866,6 +31996,7 @@ const encodeText = buffer !== void 0 ? (body) => buffer.from(body, "utf8") : (bo
 *
 * The content type defaults to `text/plain`. Text bodies are encoded lazily.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -30876,12 +32007,25 @@ const text = (body, contentType) => {
 	return new Uint8Array$1(bytes, contentType ?? "text/plain", bytes.length, body);
 };
 /**
+* Creates a JSON HTTP body using `JSON.stringify`, throwing if serialization fails.
+*
+* **Details**
+*
+* The content type defaults to `application/json`.
+*
+* @stability unstable
+* @category constructors
+* @since 4.0.0
+*/
+const jsonUnsafe$1 = (body, contentType) => text(JSON.stringify(body), contentType ?? "application/json");
+/**
 * Creates a JSON HTTP body in an `Effect`.
 *
 * **Details**
 *
 * `JSON.stringify` failures are captured as `HttpBodyError` values, and the content type defaults to `application/json`.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -30895,6 +32039,7 @@ const json = (body, contentType) => try_({
 /**
 * Creates an `application/x-www-form-urlencoded` HTTP body from `UrlParams`.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -30906,6 +32051,7 @@ const urlParams = (urlParams, contentType) => text(toString(fromInput(urlParams)
 *
 * The content type and content length are left unset so the runtime can supply multipart boundaries.
 *
+* @stability unstable
 * @category models
 * @since 4.0.0
 */
@@ -30929,12 +32075,13 @@ var FormData$1 = class extends Proto$12 {
 /**
 * Wraps a Web `FormData` value as an HTTP body.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
 const formData = (body) => new FormData$1(body);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpClientError.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpClientError.js
 /**
 * Typed failure model for Effect HTTP client operations.
 *
@@ -30944,12 +32091,14 @@ const formData = (body) => new FormData$1(body);
 * failures uniformly while still matching on the reason `_tag` for retry
 * policy, logging, metrics, and user-facing messages.
 *
+* @stability unstable
 * @since 4.0.0
 */
 const TypeId$19 = "~effect/http/HttpClientError";
 /**
 * Returns `true` when a value is an `HttpClientError`.
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
@@ -30957,6 +32106,7 @@ const isHttpClientError = (u) => hasProperty(u, TypeId$19);
 /**
 * Error wrapper for HTTP client failures, exposing the failed request and the optional response through its `reason`.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -30971,12 +32121,14 @@ var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientErro
 	/**
 	* Marks this value as an HTTP client error for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[TypeId$19] = TypeId$19;
 	/**
 	* HTTP request associated with the client failure.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get request() {
@@ -30985,6 +32137,7 @@ var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientErro
 	/**
 	* HTTP response associated with the client failure, when one was received.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get response() {
@@ -30999,6 +32152,7 @@ const formatMessage = (reason, description, info) => description ? `${reason}: $
 /**
 * Error describing transport-level failures that occur while sending an HTTP request.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -31006,6 +32160,7 @@ var TransportError = class extends (/*#__PURE__*/ TaggedError$1("TransportError"
 	/**
 	* Formats the request method and URL for transport error messages.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get methodAndUrl() {
@@ -31014,6 +32169,7 @@ var TransportError = class extends (/*#__PURE__*/ TaggedError$1("TransportError"
 	/**
 	* Builds the transport error message from the optional description and request details.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get message() {
@@ -31023,6 +32179,7 @@ var TransportError = class extends (/*#__PURE__*/ TaggedError$1("TransportError"
 /**
 * Error describing failures while constructing a URL from an HTTP client request.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -31030,6 +32187,7 @@ var InvalidUrlError = class extends (/*#__PURE__*/ TaggedError$1("InvalidUrlErro
 	/**
 	* Formats the request method and URL for invalid URL error messages.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get methodAndUrl() {
@@ -31038,6 +32196,7 @@ var InvalidUrlError = class extends (/*#__PURE__*/ TaggedError$1("InvalidUrlErro
 	/**
 	* Builds the invalid URL error message from the optional description and request details.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get message() {
@@ -31047,6 +32206,7 @@ var InvalidUrlError = class extends (/*#__PURE__*/ TaggedError$1("InvalidUrlErro
 /**
 * Response error for HTTP responses rejected because of their status code.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -31054,6 +32214,7 @@ var StatusCodeError = class extends (/*#__PURE__*/ TaggedError$1("StatusCodeErro
 	/**
 	* Formats the request method and URL for status code error messages.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get methodAndUrl() {
@@ -31062,6 +32223,7 @@ var StatusCodeError = class extends (/*#__PURE__*/ TaggedError$1("StatusCodeErro
 	/**
 	* Builds the status code error message from the response status, optional description, and request details.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get message() {
@@ -31072,6 +32234,7 @@ var StatusCodeError = class extends (/*#__PURE__*/ TaggedError$1("StatusCodeErro
 /**
 * Response error for failures while decoding an HTTP response body.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -31079,6 +32242,7 @@ var DecodeError = class extends (/*#__PURE__*/ TaggedError$1("DecodeError")) {
 	/**
 	* Formats the request method and URL for response decoding error messages.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get methodAndUrl() {
@@ -31087,6 +32251,7 @@ var DecodeError = class extends (/*#__PURE__*/ TaggedError$1("DecodeError")) {
 	/**
 	* Builds the response decoding error message from the response status, optional description, and request details.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get message() {
@@ -31097,6 +32262,7 @@ var DecodeError = class extends (/*#__PURE__*/ TaggedError$1("DecodeError")) {
 /**
 * Response error for operations that expected a response body but received an empty body.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -31104,6 +32270,7 @@ var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError"
 	/**
 	* Formats the request method and URL for empty response body error messages.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get methodAndUrl() {
@@ -31112,6 +32279,7 @@ var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError"
 	/**
 	* Builds the empty body error message from the response status, optional description, and request details.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get message() {
@@ -31120,7 +32288,7 @@ var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError"
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpMethod.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpMethod.js
 /**
 * Defines supported HTTP method names for the unstable HTTP modules.
 *
@@ -31129,11 +32297,13 @@ var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError"
 * helpers for checking whether a method can carry a request body and whether an
 * unknown value is one of the supported methods.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
 * Returns `true` when a method can carry a request body and narrows it to `HttpMethod.WithBody`.
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
@@ -31147,6 +32317,7 @@ const hasBody = (method) => method !== "GET" && method !== "HEAD" && method !== 
 * Use when you need the mapping from supported HTTP method literals to their
 * short request-constructor names.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
@@ -31158,21 +32329,25 @@ const allShort = [
 	["PATCH", "patch"],
 	["HEAD", "head"],
 	["OPTIONS", "options"],
-	["TRACE", "trace"]
+	["TRACE", "trace"],
+	["QUERY", "query"]
 ];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/internal/httpBody.js
-/** @internal */
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/internal/httpBody.js
+/**
+* @internal
+*/
 const updateHeaders = (headers, body) => {
 	if (body._tag === "Empty" || body._tag === "FormData") return remove$1(remove$1(headers, "content-type"), "content-length");
 	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set(headers, "content-type", body.contentType);
 	return body.contentLength === void 0 ? remove$1(headers, "content-length") : set(headers, "content-length", body.contentLength.toString());
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/Url.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/Url.js
 /**
 * Error returned when constructing a `URL` fails.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -31184,10 +32359,11 @@ var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
 *
 * Returns a `Result` that fails with `UrlError` if the URL cannot be constructed.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$25 = (url, params, hash) => try_$2({
+const make$27 = (url, params, hash) => try_$2({
 	try: () => {
 		const urlInstance = new URL(url, baseUrl());
 		for (let i = 0; i < params.params.length; i++) {
@@ -31203,7 +32379,7 @@ const baseUrl = () => {
 	if ("location" in globalThis && globalThis.location !== void 0 && globalThis.location.origin !== void 0 && globalThis.location.pathname !== void 0) return location.origin + location.pathname;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpClientRequest.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpClientRequest.js
 const TypeId$18 = "~effect/http/HttpClientRequest";
 const Proto$11 = {
 	[TypeId$18]: TypeId$18,
@@ -31226,6 +32402,7 @@ const Proto$11 = {
 /**
 * Constructs an `HttpClientRequest` from fully normalized request components.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -31242,6 +32419,7 @@ function makeWith$2(method, url, urlParams, hash, headers, body) {
 /**
 * An empty `GET` request with no URL, query parameters, hash, headers, or body.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -31249,10 +32427,11 @@ const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$3, /*#__PURE__*/ none(
 /**
 * Creates a request constructor for the specified HTTP method.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$24 = (method) => (url, options) => modify(empty$1, {
+const make$26 = (method) => (url, options) => modify(empty$1, {
 	method,
 	url,
 	...options ?? void 0
@@ -31260,13 +32439,15 @@ const make$24 = (method) => (url, options) => modify(empty$1, {
 /**
 * Creates a `POST` request for the specified URL.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const post$1 = /*#__PURE__*/ make$24("POST");
+const post$1 = /*#__PURE__*/ make$26("POST");
 /**
 * Applies request options to an `HttpClientRequest`, returning a new request.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31285,6 +32466,7 @@ const modify = /*#__PURE__*/ dual(2, (self, options) => {
 /**
 * Sets the HTTP method on a request, returning a new request.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31292,6 +32474,7 @@ const setMethod = /*#__PURE__*/ dual(2, (self, method) => makeWith$2(method, sel
 /**
 * Sets a single request header, replacing any existing value for that header.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31299,6 +32482,7 @@ const setHeader$1 = /*#__PURE__*/ dual(3, (self, key, value) => makeWith$2(self.
 /**
 * Sets multiple request headers from an input collection, replacing existing values with matching names.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31306,6 +32490,7 @@ const setHeaders$1 = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.meth
 /**
 * Sets the `Authorization` header using a bearer token.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31313,6 +32498,7 @@ const bearerToken = /*#__PURE__*/ dual(2, (self, token) => setHeader$1(self, "Au
 /**
 * Sets the `Accept` header to the specified media type.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31320,6 +32506,7 @@ const accept = /*#__PURE__*/ dual(2, (self, mediaType) => setHeader$1(self, "Acc
 /**
 * Sets the `Accept` header to `application/json`.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31327,6 +32514,7 @@ const acceptJson = /*#__PURE__*/ accept("application/json");
 /**
 * Sets the request URL. When given a `URL`, its search parameters and hash are extracted into the request's structured fields.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31342,6 +32530,7 @@ const setUrl = /*#__PURE__*/ dual(2, (self, url) => {
 /**
 * Prepends a URL segment to the request URL, inserting or trimming one slash as needed.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31357,6 +32546,7 @@ const joinSegments = (first, second) => {
 /**
 * Sets query parameters from an input collection, replacing existing values for matching names.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31364,6 +32554,7 @@ const setUrlParams = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.meth
 /**
 * Appends query parameters from an input collection without removing existing values for matching names.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31371,6 +32562,7 @@ const appendUrlParams = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.m
 /**
 * Sets the URL fragment on a request without the leading `#`.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31378,6 +32570,7 @@ const setHash = /*#__PURE__*/ dual(2, (self, hash) => makeWith$2(self.method, se
 /**
 * Sets the request body and updates `Content-Type` and `Content-Length` headers from the body metadata when available.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31387,6 +32580,7 @@ const setBody = /*#__PURE__*/ dual(2, (self, body) => {
 /**
 * Encodes a value as a JSON request body and sets it on the request, failing with `HttpBodyError` if encoding fails.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31394,6 +32588,7 @@ const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$3(json(body), (body) 
 /**
 * Sets a `FormData` request body.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -31401,19 +32596,21 @@ const bodyFormData = /*#__PURE__*/ dual(2, (self, body) => setBody(self, formDat
 /**
 * Builds a `URL` from the request URL, query parameters, and hash, returning `Option.none()` if the URL is invalid.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
 function toUrl(self) {
-	const r = make$25(self.url, self.urlParams, getOrUndefined$1(self.hash));
+	const r = make$27(self.url, self.urlParams, getOrUndefined$1(self.hash));
 	if (isSuccess$1(r)) return some(r.success);
 	return none();
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpIncomingMessage.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpIncomingMessage.js
 /**
 * Type identifier for `HttpIncomingMessage` values.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
@@ -31421,6 +32618,7 @@ const TypeId$17 = "~effect/http/HttpIncomingMessage";
 /**
 * Creates a decoder that reads an incoming message's JSON body and decodes it with the supplied schema.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -31432,6 +32630,7 @@ const schemaBodyJson = (schema, options) => {
 /**
 * Builds an inspectable object for an incoming message, redacting headers and including a synchronously readable JSON or text body when available.
 *
+* @stability unstable
 * @category converting
 * @since 4.0.0
 */
@@ -31439,10 +32638,10 @@ const inspect = (self, that) => {
 	const contentType = self.headers["content-type"] ?? "";
 	let body;
 	if (contentType.includes("application/json")) try {
-		body = runSync(self.json);
+		body = runSync$1(self.json);
 	} catch (_) {}
 	else if (contentType.includes("text/") || contentType.includes("urlencoded")) try {
-		body = runSync(self.text);
+		body = runSync$1(self.text);
 	} catch (_) {}
 	const obj = {
 		...that,
@@ -31453,7 +32652,7 @@ const inspect = (self, that) => {
 	return obj;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpClientResponse.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpClientResponse.js
 /**
 * Represents responses returned by the Effect HTTP client.
 *
@@ -31463,11 +32662,13 @@ const inspect = (self, that) => {
 * streaming response bodies, and utilities for matching or filtering by HTTP
 * status.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
 * Type identifier for `HttpClientResponse` values.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
@@ -31475,6 +32676,7 @@ const TypeId$16 = "~effect/http/HttpClientResponse";
 /**
 * Wraps a Web `Response` and its original `HttpClientRequest` as an `HttpClientResponse`.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -31482,6 +32684,7 @@ const fromWeb = (request, source) => new WebHttpClientResponse(request, source);
 /**
 * Creates a decoder for a response's status, headers, and JSON body using the supplied schema.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -31497,6 +32700,7 @@ const schemaJson = (schema, options) => {
 /**
 * Succeeds with the response only when its status is in the 2xx range, otherwise fails with `HttpClientError`.
 *
+* @stability unstable
 * @category filtering
 * @since 4.0.0
 */
@@ -31592,7 +32796,7 @@ var WebHttpClientResponse = class extends Class$2 {
 				response: this,
 				cause
 			}) })
-		}).pipe(cached, runSync);
+		}).pipe(cached, runSync$1);
 	}
 	arrayBufferBody;
 	get arrayBuffer() {
@@ -31604,7 +32808,7 @@ var WebHttpClientResponse = class extends Class$2 {
 				response: this,
 				cause
 			}) })
-		}).pipe(cached, runSync);
+		}).pipe(cached, runSync$1);
 		return this.arrayBufferBody;
 	}
 	pipe() {
@@ -31612,7 +32816,7 @@ var WebHttpClientResponse = class extends Class$2 {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpTraceContext.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpTraceContext.js
 /**
 * HTTP propagation helpers for Effect tracing context.
 *
@@ -31621,6 +32825,7 @@ var WebHttpClientResponse = class extends Class$2 {
 * HTTP clients use it to continue the current span across outgoing requests, and
 * server middleware uses it to parent request spans from upstream services.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
@@ -31631,6 +32836,7 @@ var WebHttpClientResponse = class extends Class$2 {
 * The generated headers include both compact B3 (`b3`) and W3C `traceparent`
 * formats.
 *
+* @stability unstable
 * @category encoding
 * @since 4.0.0
 */
@@ -31642,7 +32848,7 @@ const toHeaders = (span) => fromRecordUnsafe({
 	traceparent: `00-${span.traceId}-${span.spanId}-${span.sampled ? "01" : "00"}`
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpClient.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpClient.js
 const TypeId$15 = "~effect/http/HttpClient";
 /**
 * Service tag for the default outgoing HTTP client service.
@@ -31652,6 +32858,7 @@ const TypeId$15 = "~effect/http/HttpClient";
 * Use to provide the default outgoing HTTP client service used by request
 * accessors such as `execute`, `get`, and `post`.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -31659,6 +32866,7 @@ const HttpClient = /*#__PURE__*/ Service$1("effect/HttpClient");
 /**
 * Transforms a client by applying an effectful transformation to each response effect.
 *
+* @stability unstable
 * @category mapping
 * @since 4.0.0
 */
@@ -31666,6 +32874,7 @@ const transformResponse$1 = /*#__PURE__*/ dual(2, (self, f) => makeWith$1((reque
 /**
 * Filters responses that return a 2xx status code.
 *
+* @stability unstable
 * @category filtering
 * @since 4.0.0
 */
@@ -31677,6 +32886,7 @@ const filterStatusOk = /*#__PURE__*/ transformResponse$1(/*#__PURE__*/ flatMap(f
 *
 * `execute` applies preprocessing to the request and then passes the resulting request effect to postprocessing.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -31699,7 +32909,7 @@ const Proto$10 = {
 		return { _id: "effect/HttpClient" };
 	},
 	.../*#__PURE__*/ Object.fromEntries(/*#__PURE__*/ allShort.map(([fullMethod, method]) => [method, function(url, options) {
-		return this.execute(make$24(fullMethod)(url, options));
+		return this.execute(make$26(fullMethod)(url, options));
 	}]))
 };
 /**
@@ -31709,13 +32919,14 @@ const Proto$10 = {
 *
 * The runner receives the request, resolved URL, abort signal, and current fiber. The client wrapper handles URL construction failures, tracing and propagation, header redaction, and aborting non-scoped requests on interruption.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$23 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
+const make$25 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
 	const scopedController = scopedRequests.get(request);
 	const controller = scopedController ?? new AbortController();
-	const urlResult = make$25(request.url, request.urlParams, getOrUndefined$1(request.hash));
+	const urlResult = make$27(request.url, request.urlParams, getOrUndefined$1(request.hash));
 	if (isFailure$1(urlResult)) return fail$3(new HttpClientError({ reason: new InvalidUrlError({
 		request,
 		cause: urlResult.failure
@@ -31731,7 +32942,7 @@ const make$23 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 			},
 			onFailure(cause) {
 				if (hasInterrupts(cause)) controller.abort();
-				return failCause$2(cause);
+				return failCause$3(cause);
 			}
 		}));
 	}
@@ -31764,7 +32975,7 @@ const make$23 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 			},
 			onFailure(cause) {
 				if (!scopedController && hasInterrupts(cause)) controller.abort();
-				return failCause$2(cause);
+				return failCause$3(cause);
 			}
 		})));
 	});
@@ -31772,6 +32983,7 @@ const make$23 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 /**
 * Appends a transformation of the request object before sending it.
 *
+* @stability unstable
 * @category mapping
 * @since 4.0.0
 */
@@ -31788,6 +33000,7 @@ const mapRequest = /*#__PURE__*/ dual(2, (self, f) => makeWith$1(self.postproces
 * Specifying a `while` predicate allows you to consider other errors as
 * transient, and is ignored in "response-only" mode.
 *
+* @stability unstable
 * @category error handling
 * @since 4.0.0
 */
@@ -31810,6 +33023,7 @@ const retryTransient = /*#__PURE__*/ dual(2, (self, options) => {
 /**
 * Context reference for a predicate that disables client-side tracing for matching outgoing requests.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -31817,6 +33031,7 @@ const TracerDisabledWhen = /*#__PURE__*/ Reference("effect/http/HttpClient/Trace
 /**
 * Context reference for filtering request and response headers added to client spans.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -31824,6 +33039,7 @@ const TracerHeaderFilter = /*#__PURE__*/ Reference("effect/http/HttpClient/Trace
 /**
 * Context reference that controls whether outgoing client spans are propagated to request headers.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -31831,6 +33047,7 @@ const TracerPropagationEnabled = /*#__PURE__*/ Reference("effect/http/HttpClient
 /**
 * Context reference for generating the span name used for outgoing client request spans.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -31838,6 +33055,7 @@ const SpanNameGenerator = /*#__PURE__*/ Reference("effect/http/HttpClient/SpanNa
 /**
 * Creates an `HttpClient` layer and merges the layer construction context into client response effects.
 *
+* @stability unstable
 * @category layers
 * @since 4.0.0
 */
@@ -31942,7 +33160,7 @@ const isTransientError = (error) => isTimeoutError(error) || isTransientHttpErro
 const isTransientHttpError = (error) => isHttpClientError(error) && (error.reason._tag === "TransportError" || error.reason._tag === "StatusCodeError" && isTransientResponse(error.reason.response));
 const isTransientResponse = (response) => response.status === 408 || response.status === 429 || response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/FindMyWay/internal/queryString.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
 /**
 * @since 1.0.0
 */
@@ -32011,14 +33229,16 @@ function parse$1(input) {
 	return result;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/FindMyWay/internal/router.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/FindMyWay/internal/router.js
 const FULL_PATH_REGEXP = /^https?:\/\/.*?\//;
 const OPTIONAL_PARAM_REGEXP = /(\/:[^/()]*?)\?(\/?)/;
 const emptyParamsArray = [];
 const CLEAN_SINGLE_PARAM_REGEXP = /^[^:*(]*\/:[^/:*(.-]+$/;
 const isCleanSingleTrailingParam = (path) => CLEAN_SINGLE_PARAM_REGEXP.test(path);
-/** @internal */
-const make$22 = (options = {}) => new RouterImpl(options);
+/**
+* @internal
+*/
+const make$24 = (options = {}) => new RouterImpl(options);
 var RouterImpl = class {
 	constructor(options = {}) {
 		this.options = {
@@ -32324,7 +33544,7 @@ var HandlerStorage = class {
 		const handler = {
 			params: route.params,
 			handler: route.handler,
-			createParams: compileCreateParams(route.params)
+			createParams: makeCreateParams(route.params)
 		};
 		this.handlers.push(handler);
 		this.unconstrainedHandler = this.handlers[0];
@@ -32482,14 +33702,9 @@ function trimLastSlash(path) {
 	if (path.length > 1 && path.charCodeAt(path.length - 1) === 47) return path.slice(0, -1);
 	return path;
 }
-const safeParamName = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
-const isCompilableParamName = (name) => name !== "__proto__" && safeParamName.test(name);
-function compileCreateParams(params) {
+function makeCreateParams(params) {
 	const len = params.length;
 	if (len === 0) return () => Object.create(null);
-	if (params.every(isCompilableParamName) && new Set(params).size === len) try {
-		return new Function("a", `return {__proto__:null,${params.map((name, i) => `${name}:a[${i}]`).join(",")}}`);
-	} catch {}
 	return function(paramsArray) {
 		const paramsObject = Object.create(null);
 		for (let i = 0; i < len; i++) paramsObject[params[i]] = paramsArray[i];
@@ -32627,19 +33842,21 @@ const httpMethods = [
 	"UNSUBSCRIBE"
 ];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/FindMyWay.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/FindMyWay.js
 /**
 * A radix-tree HTTP router used by the unstable HTTP routing modules.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
 * Creates an empty mutable router.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$21 = make$22;
+const make$23 = make$24;
 /**
 * Determines if the first log level is more severe than or equal to the second.
 *
@@ -32670,7 +33887,7 @@ const make$21 = make$22;
 */
 const isGreaterThanOrEqualTo = /*#__PURE__*/ isGreaterThanOrEqualTo$2(LogLevelOrder);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/ErrorReporter.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ErrorReporter.js
 /**
 * Runs all registered error reporters on the current fiber for a `Cause`.
 *
@@ -32741,12 +33958,14 @@ const report = (cause) => withFiber((fiber) => {
 */
 const ignore = "~effect/ErrorReporter/ignore";
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/internal/headers.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/internal/headers.js
 const Proto$9 = /*#__PURE__*/ Object.getPrototypeOf(empty$4);
-/** @internal */
+/**
+* @internal
+*/
 const emptyMutableUnsafe = () => Object.create(Proto$9);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpServerResponse.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpServerResponse.js
 const TypeId$14 = "~effect/http/HttpServerResponse";
 /**
 * Creates an empty HTTP response.
@@ -32755,6 +33974,7 @@ const TypeId$14 = "~effect/http/HttpServerResponse";
 *
 * The default status is `204`.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -32764,9 +33984,41 @@ const empty = (options) => makeResponse({
 	headers: options?.headers ? fromInput$1(options.headers) : void 0,
 	cookies: options?.cookies
 });
+const getContentType = (options, headers) => {
+	if (options?.contentType) return options.contentType;
+	else if (options?.headers) return headers["content-type"];
+};
+/**
+* Creates a JSON HTTP response synchronously.
+*
+* **When to use**
+*
+* Use when the response body is known to be JSON-serializable and you need a
+* synchronous `HttpServerResponse`.
+*
+* **Gotchas**
+*
+* Unlike `json`, serialization errors from `JSON.stringify` are not captured in
+* `Effect`.
+*
+* @stability unstable
+* @category constructors
+* @since 4.0.0
+*/
+const jsonUnsafe = (body, options) => {
+	const headers = options?.headers ? fromInput$1(options.headers) : empty$4;
+	return makeResponse({
+		status: options?.status ?? 200,
+		statusText: options?.statusText,
+		headers,
+		cookies: options?.cookies,
+		body: jsonUnsafe$1(body, getContentType(options, headers))
+	});
+};
 /**
 * Returns a response with the specified header set to the supplied value.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -32774,6 +34026,7 @@ const setHeader = /*#__PURE__*/ dual(3, (self, key, value) => makeResponse(self,
 /**
 * Returns a response with all supplied headers set on the existing header map.
 *
+* @stability unstable
 * @category combinators
 * @since 4.0.0
 */
@@ -32822,26 +34075,32 @@ for (let i = 128; i <= 255; i++) constValueChars[i] = 1;
 * Use to access the request currently being handled by HTTP server routes and
 * middleware.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
 const HttpServerRequest = /*#__PURE__*/ Service$1("effect/http/HttpServerRequest");
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/internal/preResponseHandler.js
-/** @internal */
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/internal/preResponseHandler.js
+/**
+* @internal
+*/
 const requestPreResponseHandlers = /*#__PURE__*/ new WeakMap();
-/** @internal */
+/**
+* @internal
+*/
 const appendPreResponseHandlerUnsafe$1 = (request, handler) => {
 	const prev = requestPreResponseHandlers.get(request.source);
 	const next = prev ? (request, response) => flatMap(prev(request, response), (response) => handler(request, response)) : handler;
 	requestPreResponseHandlers.set(request.source, next);
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpMiddleware.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpMiddleware.js
 const loggerDisabledRequests = /*#__PURE__*/ new WeakSet();
 /**
 * Runs an effect with HTTP response logging disabled for the current server request.
 *
+* @stability unstable
 * @category logging
 * @since 4.0.0
 */
@@ -32851,16 +34110,17 @@ const withLoggerDisabled = (self) => withFiber((fiber) => {
 	return self;
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpEffect.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpEffect.js
 /**
 * Registers a pre-response handler for the supplied HTTP server request.
 *
+* @stability unstable
 * @category unsafe
 * @since 4.0.0
 */
 const appendPreResponseHandlerUnsafe = appendPreResponseHandlerUnsafe$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpRouter.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpRouter.js
 /**
 * Builds server-side routers for Effect HTTP applications.
 *
@@ -32870,6 +34130,7 @@ const appendPreResponseHandlerUnsafe = appendPreResponseHandlerUnsafe$1;
 * `HttpServerResponse`. The module also includes helpers for route definitions,
 * prefixes, parameters, request decoding, CORS, and running the router.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
@@ -32877,6 +34138,7 @@ const appendPreResponseHandlerUnsafe = appendPreResponseHandlerUnsafe$1;
 * Route and middleware layers require this service to register themselves with
 * the router.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -32890,6 +34152,7 @@ const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, -1) : p
 * Trailing slashes are removed from the prefix; `/` becomes the prefix itself and
 * `*` becomes a wildcard route under the prefix.
 *
+* @stability unstable
 * @category transforming
 * @since 4.0.0
 */
@@ -32914,7 +34177,7 @@ const MiddlewareTypeId = "~effect/http/HttpRouter/Middleware";
 *
 * ```ts import.meta.vitest
 * import { Effect, Layer } from "effect"
-* import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
+* import { HttpRouter, HttpServerResponse } from "effect/http"
 *
 * const RouteMiddleware = HttpRouter.middleware((httpEffect) =>
 *   Effect.map(httpEffect, HttpServerResponse.setHeader("x-route", "route"))
@@ -32943,6 +34206,7 @@ const MiddlewareTypeId = "~effect/http/HttpRouter/Middleware";
 * await Effect.runPromise(program) // => ["route", "global"]
 * ```
 *
+* @stability unstable
 * @category middleware
 * @since 4.0.0
 */
@@ -33003,7 +34267,7 @@ const getMiddleware = (context) => {
 };
 (/*#__PURE__*/ middleware(withLoggerDisabled)).layer;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/workers/Transferable.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/workers/Transferable.js
 /**
 * Marks encoded worker message fields that should move through `postMessage` as
 * transfer-list entries.
@@ -33014,12 +34278,14 @@ const getMiddleware = (context) => {
 * Worker platforms then pass the collected values as the transfer list for the
 * same `postMessage` call, avoiding copies for large payloads and ports.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
 * Service for collecting `Transferable` objects while encoding worker messages
 * so they can be passed to `postMessage` transfer lists.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -33028,6 +34294,7 @@ var Collector = class extends (/*#__PURE__*/ Service$1()("effect/workers/Transfe
 * Creates a mutable `Collector` service directly, exposing unsafe synchronous
 * methods for reading, adding, and clearing collected transferables.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -33052,7 +34319,7 @@ const makeCollectorUnsafe = () => {
 	});
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/PrimaryKey.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/PrimaryKey.js
 /**
 * Defines the unique identifier used to identify objects that implement the `PrimaryKey` interface.
 *
@@ -33070,7 +34337,7 @@ const makeCollectorUnsafe = () => {
 */
 const symbol = "~effect/PrimaryKey";
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcSchema.js
 /**
 * RPC schema markers and interruption annotations.
 *
@@ -33079,6 +34346,7 @@ const symbol = "~effect/PrimaryKey";
 * streamed responses and annotates interruptions that came from a remote client
 * closing or cancelling a request.
 *
+* @stability unstable
 * @since 4.0.0
 */
 const StreamSchemaTypeId$1 = "~effect/rpc/RpcSchema/StreamSchema";
@@ -33086,13 +34354,16 @@ const StreamSchemaTypeId$1 = "~effect/rpc/RpcSchema/StreamSchema";
 * Returns `true` when a schema is an RPC stream schema created by
 * `RpcSchema.Stream`.
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
 function isStreamSchema$1(schema) {
 	return hasProperty(schema, StreamSchemaTypeId$1);
 }
-/** @internal */
+/**
+* @internal
+*/
 function getStreamSchemas(schema) {
 	return isStreamSchema$1(schema) ? some({
 		success: schema.success,
@@ -33104,11 +34375,12 @@ const schema$1 = /*#__PURE__*/ declare(isStream);
 * Creates an RPC stream schema from a stream element success schema and stream
 * error schema.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
 function Stream(success, error) {
-	return make$26(schema$1.ast, {
+	return make$28(schema$1.ast, {
 		[StreamSchemaTypeId$1]: StreamSchemaTypeId$1,
 		success,
 		error
@@ -33118,6 +34390,7 @@ function Stream(success, error) {
 * Annotation that marks interruptions that originate from an RPC client
 * abort.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -33129,7 +34402,7 @@ var ClientAbort = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcSchema
 	}));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/Rpc.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/Rpc.js
 const TypeId$10 = "~effect/rpc/Rpc";
 /**
 * Represents server-side metadata for the client associated with an RPC request.
@@ -33144,6 +34417,7 @@ const TypeId$10 = "~effect/rpc/Rpc";
 * It stores the client id and request annotations that handlers can read or
 * extend.
 *
+* @stability unstable
 * @category models
 * @since 4.0.0
 */
@@ -33259,10 +34533,11 @@ const makeProto$5 = (options) => {
 * schema to `Schema.Never`. `primaryKey` creates a payload class with a
 * primary key derived from the payload value.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$16 = (tag, options) => {
+const make$18 = (tag, options) => {
 	const successSchema = options?.success ?? Void;
 	const errorSchema = options?.error ?? Never;
 	const defectSchema = options?.defect ?? Defect();
@@ -33293,6 +34568,7 @@ const exitSchemaCache = /*#__PURE__*/ new WeakMap();
 * stream error schema for streaming RPCs. Streaming RPCs use `Schema.Void` for
 * the exit success value. The schema is cached per RPC definition.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -33311,15 +34587,17 @@ const WrapperTypeId = "~effect/rpc/Rpc/Wrapper";
 /**
 * Returns `true` when the value is an RPC `Wrapper`.
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
 const isWrapper = (u) => WrapperTypeId in u;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcMessage.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcMessage.js
 /**
 * Converts a bigint or string request id into the branded `RequestId` type.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -33332,6 +34610,7 @@ const RequestId$2 = (id) => id;
 * Encode the defect with `protocol.codecFor(Schema.Defect())` before wrapping
 * it, because the codec that fills the defect hole belongs to the protocol.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -33342,12 +34621,13 @@ const ResponseDefectEncoded = (encodedDefect) => ({
 /**
 * Represents the reusable `Pong` message value.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
 const constPong = { _tag: "Pong" };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcSerialization.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcSerialization.js
 /**
 * Serializes RPC protocol messages for transports.
 *
@@ -33357,6 +34637,7 @@ const constPong = { _tag: "Pong" };
 * including framed formats that can decode multiple messages
 * from streaming chunks.
 *
+* @stability unstable
 * @since 4.0.0
 */
 const codecForJson = toCodecJson;
@@ -33372,6 +34653,7 @@ const decodeText = (bytes) => (sharedTextDecoder ??= new TextDecoder()).decode(b
 * Use to provide the serialization boundary shared by RPC clients and servers
 * for a chosen wire format.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -33380,6 +34662,7 @@ var RpcSerialization = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcS
 * Error raised when a streaming parser retains more data than its configured
 * buffer limit.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -33394,6 +34677,7 @@ const isBufferSizeExceeded = (bufferSize, maxBufferSize) => maxBufferSize !== "u
 * Serializes RPC protocol messages as newline-delimited JSON, framing each message
 * with a trailing newline.
 *
+* @stability unstable
 * @category serialization
 * @since 4.0.0
 */
@@ -33418,9 +34702,11 @@ const makeNdjson = (options) => {
 					const items = [];
 					while (nlIndex !== -1) {
 						if (isBufferSizeExceeded(nlIndex - position, maxBufferSize)) failMaxBufferSize(maxBufferSize);
-						const item = JSON.parse(buffer.slice(position, nlIndex));
-						items.push(item);
+						const line = buffer.slice(position, nlIndex);
 						position = nlIndex + 1;
+						try {
+							items.push(JSON.parse(line));
+						} catch {}
 						nlIndex = buffer.indexOf("\n", position);
 					}
 					buffer = buffer.slice(position);
@@ -33443,6 +34729,7 @@ const makeNdjson = (options) => {
 /**
 * Default newline-delimited JSON RPC serialization.
 *
+* @stability unstable
 * @category serialization
 * @since 4.0.0
 */
@@ -33451,6 +34738,7 @@ const ndjson = /*#__PURE__*/ makeNdjson();
 * Creates a JSON-RPC 2.0 serialization for RPC protocol messages without
 * additional message framing.
 *
+* @stability unstable
 * @category serialization
 * @since 4.0.0
 */
@@ -33479,7 +34767,9 @@ function decodeJsonRpcRaw(decoded, batches) {
 		};
 		const messages = [];
 		for (let i = 0; i < decoded.length; i++) {
-			const message = decodeJsonRpcMessage(decoded[i]);
+			const item = decoded[i];
+			if (!isObject(item)) continue;
+			const message = decodeJsonRpcMessage(item);
 			messages.push(message);
 			if (message._tag === "Request" && !message.isNotification) {
 				batch.size++;
@@ -33488,12 +34778,12 @@ function decodeJsonRpcRaw(decoded, batches) {
 		}
 		return messages;
 	}
-	return [decodeJsonRpcMessage(decoded)];
+	return isObject(decoded) ? [decodeJsonRpcMessage(decoded)] : [];
 }
 function decodeJsonRpcMessage(decoded) {
 	if (Object.hasOwn(decoded, "method")) {
 		const request = decoded;
-		if (isNullish(request.id) && request.method.startsWith("@effect/rpc/")) {
+		if (isNullish(request.id) && isString(request.method) && request.method.startsWith("@effect/rpc/")) {
 			const tag = request.method.slice(12);
 			const requestId = request.params?.requestId;
 			return requestId !== void 0 ? {
@@ -33532,8 +34822,8 @@ function decodeJsonRpcMessage(decoded) {
 		exit: hasError && response.error != null ? {
 			_tag: "Failure",
 			cause: response.error._tag === "Cause" ? response.error.data : [{
-				_tag: "Die",
-				defect: response.error
+				_tag: "Fail",
+				error: response.error
 			}]
 		} : {
 			_tag: "Success",
@@ -33631,12 +34921,13 @@ function encodeJsonRpcMessage(response) {
 }
 const jsonRpcInternalError = -32603;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/Utils.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/Utils.js
 /**
 * Builds a service with a `run` method that buffers writes until `run` installs
 * a writer, replays buffered writes with their original contexts, and restores
 * the previous writer when the run ends.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -33668,6 +34959,7 @@ const withRun = () => (f) => suspend$2(() => {
 * buffers server responses per client until that client's `run` handler is
 * installed.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -33709,13 +35001,14 @@ const withRunClient = (f) => suspend$2(() => {
 	}));
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcClient.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcClient.js
 let requestIdCounter = 0;
 /**
 * Creates an RPC client for an already-decoded message channel, returning the
 * client API together with a `write` function for delivering server messages
 * back to the client.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -33735,7 +35028,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 	const clearEntries = fnUntraced(function* (exit) {
 		for (const [id, entry] of entries) {
 			entries.delete(id);
-			if (entry._tag === "Queue") yield* exit._tag === "Success" ? end(entry.queue) : failCause$1(entry.queue, exit.cause);
+			if (entry._tag === "Queue") yield* exit._tag === "Success" ? end(entry.queue) : failCause$2(entry.queue, exit.cause);
 			else entry.resume(exit);
 		}
 	});
@@ -33831,7 +35124,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				sampled: span.sampled
 			} : {},
 			headers: merge(fiber.getRef(CurrentHeaders), headers)
-		}).pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, catchCause$1((error) => failCause$1(queue, error)), interruptible, forkIn(scope, { startImmediately: true }));
+		}).pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, onError((cause) => failCause$2(queue, cause)), interruptible, forkIn(scope, { startImmediately: true }));
 		return queue;
 	});
 	const getRpcClientMiddleware = (rpc) => {
@@ -33880,7 +35173,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 					},
 					context: entry.context,
 					discard: false
-				})) : identity, catchCause$1((cause) => failCause$1(entry.queue, cause)));
+				})) : identity, catchCause$1((cause) => failCause$2(entry.queue, cause)));
 			}
 			case "Exit": {
 				const requestId = message.requestId;
@@ -33891,9 +35184,9 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 					entry.resume(message.exit);
 					return void_$1;
 				}
-				return message.exit._tag === "Success" ? end(entry.queue) : failCause$1(entry.queue, message.exit.cause);
+				return message.exit._tag === "Success" ? end(entry.queue) : failCause$2(entry.queue, message.exit.cause);
 			}
-			case "Defect": return clearEntries(die$1(message.defect));
+			case "Defect": return clearEntries(die$2(message.defect));
 			case "ClientEnd": return void_$1;
 		}
 	};
@@ -33924,10 +35217,11 @@ let clientIdCounter = 0;
 * Creates a schema-aware RPC client for a group using the current client
 * `Protocol`, encoding requests and decoding server responses.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$15 = /*#__PURE__*/ fnUntraced(function* (group, options) {
+const make$17 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const clientId = clientIdCounter++;
 	const { codecFor, run, send, supportsAck, supportsTransferables } = yield* Protocol$1;
 	const rpcSchemas = makeRpcSchemas(codecFor);
@@ -33987,7 +35281,7 @@ const make$15 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 					_tag: "Exit",
 					clientId: 0,
 					requestId: RequestId$2(message.requestId),
-					exit: failCause$3(cause)
+					exit: failCause$4(cause)
 				})));
 			}
 			case "Exit": {
@@ -34006,7 +35300,7 @@ const make$15 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 						_tag: "Exit",
 						clientId: 0,
 						requestId,
-						exit: failCause$3(cause)
+						exit: failCause$4(cause)
 					})
 				}));
 			}
@@ -34053,6 +35347,7 @@ const makeRpcSchemas = (codecFor) => {
 * Use to set request headers that should be automatically merged into outgoing
 * RPC client messages.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -34066,6 +35361,7 @@ const CurrentHeaders = /*#__PURE__*/ Reference("effect/rpc/RpcClient/CurrentHead
 * Use to provide the transport boundary for RPC clients over HTTP, WebSocket,
 * workers, sockets, or custom protocols.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -34073,12 +35369,13 @@ var Protocol$1 = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcClient/
 	/**
 	* Creates a client protocol service from the supplied RPC request runner.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static make = withRunClient;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Stdio.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Stdio.js
 /**
 * Service contract for command-line arguments and standard input, output, and
 * error output. It lets programs depend on standard I/O through the Effect
@@ -34139,19 +35436,20 @@ const Stdio = /*#__PURE__*/ Service$1(TypeId$9);
 * @category constructors
 * @since 4.0.0
 */
-const make$14 = (options) => ({
+const make$16 = (options) => ({
 	[TypeId$9]: TypeId$9,
 	stdinIsTerminal: succeed$3(false),
 	stdoutIsTerminal: succeed$3(false),
 	...options
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcServer.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcServer.js
 /**
 * Creates an RPC server for an already-decoded message channel, running
 * handlers for a group and sending decoded server responses through
 * `onFromServer`.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -34165,7 +35463,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$37(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$38(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
 	const shutdownLatch = makeUnsafe$3(false);
@@ -34201,7 +35499,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 				serverClient: new ServerClient(clientId)
 			};
 			clients.set(clientId, client);
-		} else if (client.ended) return interrupt$1;
+		} else if (client.ended && (message._tag !== "Interrupt" || !client.fibers.has(message.requestId))) return interrupt$1;
 		switch (message._tag) {
 			case "Request": return handleRequest(requestFiber, client, message, opts);
 			case "Ack": {
@@ -34246,7 +35544,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 				_tag: "Exit",
 				clientId: client.id,
 				requestId: request.id,
-				exit: die$1(`Unknown request tag: ${request.tag}`)
+				exit: die$2(`Unknown request tag: ${request.tag}`)
 			}), (defect) => sendDefect(client, defect));
 			if (!client.ended || client.fibers.size > 0) return write;
 			return ensuring$2(write, endClient(client));
@@ -34414,14 +35712,15 @@ const applyMiddleware = (context, handler, options) => {
 * requests, invoking handlers, encoding responses, and managing in-flight
 * request lifetime.
 *
+* @stability unstable
 * @category running
 * @since 4.0.0
 */
-const make$13 = /*#__PURE__*/ fnUntraced(function* (group, options) {
+const make$15 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
 	const encodeDefectUnsafe = encodeSync(codecFor(Defect()));
 	const services = yield* context();
-	const scope = yield* make$43();
+	const scope = yield* make$45();
 	const server = yield* makeNoSerialization(group, {
 		...options,
 		disableClientAcks: !supportsAck,
@@ -34574,6 +35873,7 @@ const make$13 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 * Use to provide the transport boundary for RPC servers over HTTP, WebSocket,
 * workers, sockets, or custom protocols.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -34581,6 +35881,7 @@ var Protocol = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcServer/Pr
 	/**
 	* Creates a server protocol service from the supplied RPC implementation.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static make = /*#__PURE__*/ withRun();
@@ -34589,6 +35890,7 @@ var Protocol = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcServer/Pr
 * Provides a server `Protocol` that reads RPC messages from `Stdio.stdin` and
 * writes encoded responses to `Stdio.stdout`.
 *
+* @stability unstable
 * @category layers
 * @since 4.0.0
 */
@@ -34597,7 +35899,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 	const fiber = getCurrent();
 	const serialization = yield* RpcSerialization;
 	return yield* Protocol.make(fnUntraced(function* (writeRequest) {
-		const queue = yield* make$38();
+		const queue = yield* bounded(8);
 		const parser = serialization.makeUnsafe();
 		yield* stdio.stdin.pipe(runForEach((data) => {
 			const decoded = parser.decode(data);
@@ -34611,7 +35913,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 		}), sandbox, tapError(logError), retry(spaced(500)), ensuring$2(forkDetach(interrupt(fiber), { startImmediately: true })), forkScoped);
 		yield* fromQueue(queue).pipe(run$1(stdio.stdout()), retry(spaced(500)), forkScoped);
 		return {
-			disconnects: yield* make$38(),
+			disconnects: yield* make$39(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -34631,7 +35933,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 	}));
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcGroup.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcGroup.js
 const RpcGroupProto = {
 	add(...rpcs) {
 		const requests = new Map(this.requests);
@@ -34733,7 +36035,7 @@ const RpcGroupProto = {
 		});
 	},
 	annotateRpcs(service, value) {
-		return this.annotateRpcsMerge(make$46(service, value));
+		return this.annotateRpcsMerge(make$49(service, value));
 	},
 	annotateMerge(context) {
 		return makeProto$4({
@@ -34757,15 +36059,16 @@ const makeProto$4 = (options) => Object.assign(function() {}, RpcGroupProto, {
 /**
 * Creates an `RpcGroup` from one or more RPC definitions.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$12 = (...rpcs) => makeProto$4({
+const make$14 = (...rpcs) => makeProto$4({
 	requests: new Map(rpcs.map((rpc) => [rpc._tag, rpc])),
 	annotations: empty$9()
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/ConfigProvider.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ConfigProvider.js
 /**
 * Data sources used by `Config` to load raw configuration values. A
 * `ConfigProvider` reads paths from places such as environment variables,
@@ -34933,7 +36236,7 @@ function makeProvider(load, mapInput) {
 	return self;
 }
 function makeSource(get, transform) {
-	return makeProvider((path) => get(transform(path)), (f) => makeSource(get, flow(transform, f)));
+	return makeProvider((path) => get(transform(path)), (f) => makeSource(get, (path) => f(transform(path))));
 }
 /**
 * Creates a `ConfigProvider` from a raw lookup function.
@@ -34981,7 +36284,7 @@ function makeSource(get, transform) {
 * @category constructors
 * @since 4.0.0
 */
-function make$11(get) {
+function make$13(get) {
 	return makeSource(get, identityPath);
 }
 function emptyStringAsMissing(value, preserveEmptyStrings) {
@@ -35018,7 +36321,7 @@ function emptyStringAsMissing(value, preserveEmptyStrings) {
 function fromEnvRecord(env, options) {
 	const preserveEmptyStrings = options?.preserveEmptyStrings === true;
 	const trie = buildEnvTrie(env);
-	return make$11((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
+	return make$13((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
 }
 /**
 * Creates a `ConfigProvider` backed by environment variables.
@@ -35111,7 +36414,7 @@ function trieNodeAt(root, path) {
 	return node;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Config.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Config.js
 const TypeId$8 = "~effect/Config";
 /**
 * Represents the error type produced when config loading or validation fails.
@@ -35159,28 +36462,13 @@ const Proto$5 = {
 		return { _id: "Config" };
 	}
 };
-function make$10(evaluator) {
+function make$12(evaluator) {
 	const self = Object.create(Proto$5);
 	self.evaluator = evaluator;
-	self.parse = (provider) => evaluator(provider, []).pipe(mapErrorEager((failure) => failure.error), flatMapEager((resolution) => resolution._tag === "Resolved" ? succeed$3(resolution.value) : fail$3(resolution.error)));
+	self.parse = (provider) => flatMapEager(evaluator(provider, []), fromResult);
 	return self;
 }
 const evaluateAt = (self, provider, pathPrefix) => self.evaluator(provider, pathPrefix);
-const resolved = (value, hasInput) => ({
-	_tag: "Resolved",
-	value,
-	hasInput
-});
-const absent = (error) => ({
-	_tag: "Absent",
-	error
-});
-const evaluationFailure = (error, hasInput) => ({
-	error,
-	hasInput
-});
-const isSourceError = (u) => isTagged(u, "SourceError");
-const catchSourceError = (self, hasInput) => self.pipe(catchDefect((defect) => isSourceError(defect) ? fail$3(evaluationFailure(new ConfigError(defect), hasInput)) : die(defect)));
 /**
 * Combines multiple configs into a single config that parses all of them.
 *
@@ -35193,17 +36481,17 @@ const catchSourceError = (self, hasInput) => self.pipe(catchDefect((defect) => i
 * Accepts a tuple (preserves positions), an iterable, or a record of configs.
 * Returns a config whose parsed value mirrors the input shape.
 *
-* A combined config is absent when at least one child cannot resolve and none
-* of the other children read provider input. This lets {@link withDefault} and
-* {@link option} handle a wholly absent group. Once any child reads input, a
-* missing sibling makes the group incomplete and parsing fails. Values supplied
-* by child defaults do not count as provider input.
+* A combined config is absent when any child is absent and no child fails.
+* Validation and source errors propagate even when another child is absent.
+* An outer {@link withDefault} replaces the entire absent group, while
+* {@link option} returns `None`. Apply defaults to individual children to
+* preserve the values of other children.
 *
-* Unlike a `Schema.Struct` passed to {@link schema}, `all` only considers input
-* read by its children. An explicitly present but empty parent container does
-* not by itself make the group present.
+* Unlike a `Schema.Struct` passed to {@link schema}, `all` combines independent
+* lookups. A struct validates an existing object and fails when required fields
+* are missing; `all` can recover missing children through a group default.
 *
-* **Example** (Combining configs as a struct)
+* **Example** (Defaulting an incomplete config group)
 *
 * ```ts import.meta.vitest
 * import { Config, ConfigProvider, Effect } from "effect"
@@ -35211,10 +36499,13 @@ const catchSourceError = (self, hasInput) => self.pipe(catchDefect((defect) => i
 * const dbConfig = Config.all({
 *   host: Config.String("host"),
 *   port: Config.Number("port")
-* })
+* }).pipe(Config.withDefault({ host: "localhost", port: 5432 }))
 *
-* const provider = ConfigProvider.fromUnknown({ host: "localhost", port: 5432 })
-* Effect.runSync(dbConfig.parse(provider)) // => { host: "localhost", port: 5432 }
+* const provider = ConfigProvider.fromUnknown({ host: "db.internal", port: 6000 })
+* await Effect.runPromise(dbConfig.parse(provider)) // => { host: "db.internal", port: 6000 }
+*
+* const missingPort = ConfigProvider.fromUnknown({ host: "db.internal" })
+* await Effect.runPromise(dbConfig.parse(missingPort)) // => { host: "localhost", port: 5432 }
 * ```
 *
 * @category combinators
@@ -35222,57 +36513,10 @@ const catchSourceError = (self, hasInput) => self.pipe(catchDefect((defect) => i
 */
 function all(arg) {
 	const configs = globalThis.Array.isArray(arg) ? arg : Symbol.iterator in arg ? [...arg] : arg;
-	if (globalThis.Array.isArray(configs)) return make$10((provider, pathPrefix) => flatMapEager(all$1(configs.map((config) => result$1(evaluateAt(config, provider, pathPrefix)))), resolveArray));
-	else return make$10((provider, pathPrefix) => flatMapEager(all$1(map$7(configs, (config) => result$1(evaluateAt(config, provider, pathPrefix)))), resolveRecord));
+	return make$12((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$7(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
 }
-const resolveArray = (results) => {
-	const values = [];
-	let firstFailure;
-	let firstAbsent;
-	let hasInput = false;
-	for (const result of results) {
-		if (isFailure$1(result)) {
-			firstFailure ??= result.failure;
-			hasInput = hasInput || result.failure.hasInput;
-			continue;
-		}
-		const resolution = result.success;
-		if (resolution._tag === "Absent") firstAbsent ??= resolution;
-		else {
-			values.push(resolution.value);
-			hasInput = hasInput || resolution.hasInput;
-		}
-	}
-	if (firstFailure !== void 0) return fail$3(evaluationFailure(firstFailure.error, hasInput));
-	if (firstAbsent !== void 0) return hasInput ? fail$3(evaluationFailure(firstAbsent.error, true)) : succeed$3(firstAbsent);
-	return succeed$3(resolved(values, hasInput));
-};
-const resolveRecord = (results) => {
-	const values = {};
-	let firstFailure;
-	let firstAbsent;
-	let hasInput = false;
-	for (const key in results) {
-		const result = results[key];
-		if (isFailure$1(result)) {
-			firstFailure ??= result.failure;
-			hasInput = hasInput || result.failure.hasInput;
-			continue;
-		}
-		const resolution = result.success;
-		if (resolution._tag === "Absent") firstAbsent ??= resolution;
-		else {
-			assignProperty(values, key, resolution.value);
-			hasInput = hasInput || resolution.hasInput;
-		}
-	}
-	if (firstFailure !== void 0) return fail$3(evaluationFailure(firstFailure.error, hasInput));
-	if (firstAbsent !== void 0) return hasInput ? fail$3(evaluationFailure(firstAbsent.error, true)) : succeed$3(firstAbsent);
-	return succeed$3(resolved(values, hasInput));
-};
 /**
-* Provides a fallback value when the config cannot resolve because none of its
-* relevant input is present.
+* Provides a fallback value when the config is absent.
 *
 * **When to use**
 *
@@ -35280,9 +36524,12 @@ const resolveRecord = (results) => {
 *
 * **Gotchas**
 *
-* Validation errors and partially supplied groups still propagate. A schema
-* that successfully decodes absent input also keeps its decoded value instead
-* of using the default. Schema configs first represent a missing or
+* Validation and source errors still propagate. For an {@link all} group, any
+* absent child causes the default to replace the entire group unless another
+* child fails. Apply defaults to individual children to preserve other values.
+*
+* A schema that successfully decodes absent input keeps its decoded value
+* instead of using the default. Schema configs first represent a missing or
 * incompatible provider shape as `undefined`; the default is used only when
 * the schema rejects that value and no relevant input was found.
 *
@@ -35304,8 +36551,9 @@ const resolveRecord = (results) => {
 * @since 2.0.0
 */
 const withDefault = /*#__PURE__*/ dual(2, (self, defaultValue) => {
-	return make$10((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => resolution._tag === "Absent" ? resolved(defaultValue, false) : resolution));
+	return make$12((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
 });
+const isSourceError = (u) => isTagged(u, "SourceError");
 const cursorToString = () => "<configuration>";
 const loadCursor = (provider, path) => provider.load(path).pipe(orDie, mapEager((node) => ({
 	provider,
@@ -35314,7 +36562,6 @@ const loadCursor = (provider, path) => provider.load(path).pipe(orDie, mapEager(
 	toString: cursorToString
 })));
 const loadChildCursor = (cursor, segment) => loadCursor(cursor.provider, [...cursor.path, segment]);
-const getScalar = (node) => node?.value;
 const decodeFromCursor = (ast, decode) => decodeTo$1(unknown, ast, new Transformation(transformEffect$1((input) => decode(input)), passthrough$1()));
 const isScalarInput = (ast) => {
 	switch (ast._tag) {
@@ -35331,7 +36578,7 @@ const hasProviderInput = (ast, node) => {
 		case "Arrays": return node?._tag === "Array";
 		case "Union": return ast.types.some((ast) => hasProviderInput(ast, node));
 		case "Suspend": return hasProviderInput(ast.thunk(), node);
-		default: return getScalar(node) !== void 0;
+		default: return node?.value !== void 0;
 	}
 };
 const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
@@ -35369,7 +36616,8 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 			}
 			case "Union":
 				for (const member of ast.types) recur(member);
-				return isScalarInput(ast) ? decodeFromCursor(ast, (cursor) => succeed$3(getScalar(cursor.node))) : ast.recur(recur);
+				if (!isScalarInput(ast)) return ast.recur(recur);
+				break;
 			case "Suspend": {
 				const target = ast.thunk();
 				if (!seen.has(target)) recur(target);
@@ -35377,8 +36625,8 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 			}
 			case "Declaration":
 			case "Any": throw new globalThis.Error("Config.schema does not support opaque StringTree encodings", { cause: ast });
-			default: return decodeFromCursor(ast, (cursor) => succeed$3(getScalar(cursor.node)));
 		}
+		return decodeFromCursor(ast, (cursor) => succeed$3(cursor.node?.value));
 	});
 	return recur(root);
 });
@@ -35423,9 +36671,9 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 * also be accepted.
 *
 * `Schema.Struct` and {@link all} describe different lookup models. An
-* explicitly present empty object is relevant input for a struct and required
-* fields are validated. The same empty parent container does not make an
-* `all` group present when all of its child configs are absent.
+* existing object, even an empty one, is validated as a whole by a struct;
+* missing required fields cause a validation failure. An `all` group combines
+* independent lookups and is absent if any child is absent and none fail.
 *
 * The canonical `StringTree` encoding must expose a concrete scalar, object,
 * array, or union shape. Opaque encodings such as `Schema.Any`,
@@ -35466,17 +36714,14 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 function schema(codec, path) {
 	const codecStringTree = toCodecStringTree(codec);
 	const encodedAst = toEncoded$1(codecStringTree.ast);
-	const decodeCursor = decodeUnknownEffect$1(make$26(toConfigCursorAST(codecStringTree.ast)));
+	const decodeCursor = decodeUnknownEffect$1(make$28(toConfigCursorAST(codecStringTree.ast)));
 	const localPath = typeof path === "string" ? [path] : path ?? [];
-	return make$10((provider, pathPrefix) => {
+	return make$12((provider, pathPrefix) => {
 		const fullPath = [...pathPrefix, ...localPath];
-		return catchSourceError(loadCursor(provider, fullPath), false).pipe(flatMapEager((cursor) => {
-			const hasInput = hasProviderInput(encodedAst, cursor.node);
-			return catchSourceError(decodeCursor(cursor).pipe(mapEager((value) => resolved(value, hasInput)), catchEager((issue) => {
-				const error = new ConfigError(new SchemaError(fullPath.length > 0 ? new Pointer(fullPath, issue) : issue));
-				return hasInput ? fail$3(evaluationFailure(error, true)) : succeed$3(absent(error));
-			})), hasInput);
-		}));
+		return loadCursor(provider, fullPath).pipe(flatMapEager((cursor) => decodeCursor(cursor).pipe(mapEager(succeed$8), catchEager((issue) => {
+			const error = new ConfigError(new SchemaError(fullPath.length > 0 ? new Pointer(fullPath, issue) : issue));
+			return hasProviderInput(encodedAst, cursor.node) ? fail$3(error) : succeed$3(fail$7(error));
+		}))), catchDefect((defect) => isSourceError(defect) ? fail$3(new ConfigError(defect)) : die(defect)));
 	});
 }
 /**
@@ -35550,7 +36795,7 @@ function Redacted(name) {
 	return schema(Redacted$1(String$2), name);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0-rc.115_effect@4.0.0-rc.115/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0-rc.118/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
 /**
 * Shared Node-compatible implementation of Effect's `FileSystem` service.
 *
@@ -35894,7 +37139,7 @@ const writeFile = (path, data, options) => callback$1((resume, signal) => {
 		resume(fail$3(handleBadArgument("writeFile")(err)));
 	}
 });
-const makeFileSystem = /*#__PURE__*/ map$3(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$35({
+const makeFileSystem = /*#__PURE__*/ map$3(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$36({
 	access,
 	chmod,
 	chown,
@@ -35924,7 +37169,7 @@ const makeFileSystem = /*#__PURE__*/ map$3(/*#__PURE__*/ serviceOption(WatchBack
 	writeFile
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.115_effect@4.0.0-rc.115_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.118_effect@4.0.0-rc.118_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeFileSystem.js
 /**
 * Node.js `FileSystem` layer for programs that perform real filesystem I/O.
 *
@@ -35943,7 +37188,7 @@ const makeFileSystem = /*#__PURE__*/ map$3(/*#__PURE__*/ serviceOption(WatchBack
 */
 const layer$4 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/FetchHttpClient.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/FetchHttpClient.js
 /**
 * Fetch-based implementation of the Effect HTTP client service.
 *
@@ -35952,6 +37197,7 @@ const layer$4 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 * runtimes, and Node.js environments where `globalThis.fetch` is available, or
 * anywhere a compatible fetch function can be supplied.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
@@ -35961,6 +37207,7 @@ const layer$4 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 *
 * Defaults to `globalThis.fetch`.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -35977,6 +37224,7 @@ const Fetch = /*#__PURE__*/ Reference("effect/http/FetchHttpClient/Fetch", { def
 *
 * Request-specific method, headers, body, and abort signal are supplied by the client when a request is executed.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -36007,10 +37255,11 @@ var RequestInit = class extends (/*#__PURE__*/ Service$1()("effect/http/FetchHtt
 * @see {@link Fetch} for supplying the fetch implementation used by this layer
 * @see {@link RequestInit} for default `RequestInit` options applied before request-specific fields
 *
+* @stability unstable
 * @category layers
 * @since 4.0.0
 */
-const layer$3 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$23((request, url, signal, fiber) => {
+const layer$3 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$25((request, url, signal, fiber) => {
 	const fetch = fiber.getRef(Fetch);
 	const options = getOrUndefined(fiber.context, RequestInit) ?? {};
 	let headers = options.headers ? merge(fromInput$1(options.headers), request.headers) : request.headers;
@@ -36038,7 +37287,7 @@ const layer$3 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__P
 	return send(void 0);
 })));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.115_effect@4.0.0-rc.115_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeStdio.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.118_effect@4.0.0-rc.118_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeStdio.js
 /**
 * Node.js `Stdio` layer for the current process.
 *
@@ -36056,7 +37305,7 @@ const layer$3 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__P
 * @category layers
 * @since 4.0.0
 */
-const layer$1 = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$14({
+const layer$1 = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$16({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
 	stdoutIsTerminal: /*#__PURE__*/ sync(() => process.stdout.isTTY === true),
@@ -36092,7 +37341,7 @@ const layer$1 = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$14({
 	})
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Runtime.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Runtime.js
 /**
 * Helpers for turning an `Effect` program into a host application's main entry
 * point. This module is the low-level layer used by platform adapters to run a
@@ -36376,7 +37625,7 @@ const getErrorReported = (u) => {
 	return true;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.115_effect@4.0.0-rc.115_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeRuntime.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0-rc.118_effect@4.0.0-rc.118_redis@6.2.1/node_modules/@effect/platform-node/dist/NodeRuntime.js
 /**
 * Node.js process runner for Effect programs.
 *
@@ -36428,7 +37677,7 @@ const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
 	process.on("SIGTERM", onSigint);
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/ChannelSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ChannelSchema.js
 /**
 * Creates a channel that decodes non-empty chunks from the schema's encoded
 * representation into schema values.
@@ -36449,12 +37698,12 @@ const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
 * @category constructors
 * @since 4.0.0
 */
-const decode$1 = (schema) => () => {
-	const decode = decodeEffect(NonEmptyArray(schema));
+const decode$1 = (schema, options) => () => {
+	const decode = decodeEffect(NonEmptyArray(schema), options);
 	return fromTransform$1((upstream, _scope) => succeed$3(flatMap(upstream, (chunk) => decode(chunk))));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Logger.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Logger.js
 /**
 * Context reference that routes the built-in default logger and TTY pretty
 * console logger to stderr.
@@ -36488,8 +37737,8 @@ const ValueMatcherProto = {
 	_tag: "ValueMatcher",
 	add(_case) {
 		if (isSuccess$1(this.value)) return this;
-		if (_case._tag === "When" && _case.guard(this.provided) === true) return makeValueMatcher(this.provided, succeed$7(_case.evaluate(this.provided)));
-		else if (_case._tag === "Not" && _case.guard(this.provided) === false) return makeValueMatcher(this.provided, succeed$7(_case.evaluate(this.provided)));
+		if (_case._tag === "When" && _case.guard(this.provided) === true) return makeValueMatcher(this.provided, succeed$8(_case.evaluate(this.provided)));
+		else if (_case._tag === "Not" && _case.guard(this.provided) === false) return makeValueMatcher(this.provided, succeed$8(_case.evaluate(this.provided)));
 		return this;
 	},
 	pipe() {
@@ -36567,8 +37816,8 @@ const result = (self) => {
 		const _case = self.cases[0];
 		return (...args) => {
 			const input = self.select(...args);
-			if (_case._tag === "When" && _case.guard(input) === true) return succeed$7(_case.evaluate(input, ...args));
-			else if (_case._tag === "Not" && _case.guard(input) === false) return succeed$7(_case.evaluate(input, ...args));
+			if (_case._tag === "When" && _case.guard(input) === true) return succeed$8(_case.evaluate(input, ...args));
+			else if (_case._tag === "Not" && _case.guard(input) === false) return succeed$8(_case.evaluate(input, ...args));
 			return fail$7(input);
 		};
 	}
@@ -36576,8 +37825,8 @@ const result = (self) => {
 		const input = self.select(...args);
 		for (let i = 0; i < len; i++) {
 			const _case = self.cases[i];
-			if (_case._tag === "When" && _case.guard(input) === true) return succeed$7(_case.evaluate(input, ...args));
-			else if (_case._tag === "Not" && _case.guard(input) === false) return succeed$7(_case.evaluate(input, ...args));
+			if (_case._tag === "When" && _case.guard(input) === true) return succeed$8(_case.evaluate(input, ...args));
+			else if (_case._tag === "Not" && _case.guard(input) === false) return succeed$8(_case.evaluate(input, ...args));
 		}
 		return fail$7(input);
 	};
@@ -36597,7 +37846,7 @@ const exhaustive$1 = (self) => {
 	};
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/Match.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/Match.js
 /**
 * Builds pattern matchers for TypeScript values.
 *
@@ -36857,7 +38106,7 @@ const is = is$1;
 */
 const exhaustive = exhaustive$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/UndefinedOr.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/UndefinedOr.js
 /**
 * Maps a defined value with `f`, or returns `undefined` unchanged.
 *
@@ -36873,7 +38122,7 @@ const exhaustive = exhaustive$1;
 */
 const map = /*#__PURE__*/ dual(2, (self, f) => self === void 0 ? void 0 : f(self));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/http/HttpStatus.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http/HttpStatus.js
 /**
 * Named HTTP status codes for the unstable HTTP modules.
 *
@@ -36882,6 +38131,7 @@ const map = /*#__PURE__*/ dual(2, (self, f) => self === void 0 ? void 0 : f(self
 * {@link fromLiteral} to obtain a status code from a literal name instead of
 * remembering raw numbers.
 *
+* @stability unstable
 * @since 4.0.0
 */
 const codeByLiteral = {
@@ -36954,12 +38204,13 @@ const codeByLiteral = {
 * **Example** (Obtaining status codes from literal names)
 *
 * ```ts import.meta.vitest
-* import { HttpStatus } from "effect/unstable/http"
+* import { HttpStatus } from "effect/http"
 *
 * HttpStatus.fromLiteral("OK") // => 200
 * HttpStatus.fromLiteral("Conflict") // => 409
 * ```
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -37132,8 +38383,294 @@ var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/HttpApiSchema.js
-const StreamSchemaTypeId = "~effect/httpapi/HttpApiSchema/Stream";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/encoding/Sse.js
+const SseErrorTypeId = "~effect/encoding/Sse/SseError";
+/**
+* Error reason raised when pending Server-Sent Events state exceeds the
+* configured maximum size.
+*
+* @stability unstable
+* @category errors
+* @since 4.0.0
+*/
+var EventTooLarge = class extends (/*#__PURE__*/ TaggedError$1("EventTooLarge")) {
+	get message() {
+		return `Pending SSE event exceeded the maximum size of ${this.maxEventSize}`;
+	}
+};
+/**
+* Error raised when decoding a Server-Sent Events stream fails.
+*
+* @stability unstable
+* @category errors
+* @since 4.0.0
+*/
+var SseError = class extends (/*#__PURE__*/ TaggedError$1("SseError")) {
+	/**
+	* Marks this value as an SSE decoding error.
+	*
+	* @stability unstable
+	* @since 4.0.0
+	*/
+	[SseErrorTypeId] = SseErrorTypeId;
+	/**
+	* Delegates the public message to the underlying SSE error reason.
+	*
+	* @stability unstable
+	* @since 4.0.0
+	*/
+	get message() {
+		return this.reason.message;
+	}
+};
+const defaultMaxEventSize = 10485760;
+/**
+* Creates a channel that parses Server-Sent Events text chunks into `Event` values.
+*
+* **Details**
+*
+* SSE `retry` directives are emitted as `Retry` failures so callers can
+* reconnect with the requested delay.
+*
+* @stability unstable
+* @category decoding
+* @since 4.0.0
+*/
+const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
+	let buffer = [];
+	let retry;
+	const parser = makeParser((event) => {
+		if (event._tag === "Retry") retry = event;
+		else buffer.push(event);
+	}, options);
+	const pump = flatMap(upstream, (arr) => {
+		for (let i = 0; i < arr.length; i++) {
+			const error = parser.feed(arr[i]);
+			if (error !== void 0) return fail$3(error);
+		}
+		return void_$1;
+	});
+	return suspend$2(function loop() {
+		if (isArrayNonEmpty(buffer)) {
+			const out = buffer;
+			buffer = [];
+			return succeed$3(out);
+		} else if (retry) return fail$3(retry);
+		return flatMap(pump, loop);
+	});
+}));
+/**
+* Creates an SSE decoder channel that decodes each parsed event with a schema.
+*
+* **Details**
+*
+* The schema receives `{ event, data, id? }`, with string `data`. Absent IDs are
+* omitted, even with default options: use `Schema.optional(Schema.String)`, not
+* `Schema.UndefinedOr(Schema.String)`, to accept events without an ID.
+*
+* With `onExcessProperty: "error"`, declare `event` (default: `"message"`) and
+* `id` if the stream carries IDs, including inherited IDs.
+*
+* @stability unstable
+* @category decoding
+* @since 4.0.0
+*/
+const decodeSchema = (schema, options, parseOptions) => pipeTo(decode(options), decode$1(Event.pipe(decodeTo(schema, transformEvent)), parseOptions)());
+/**
+* Creates a stateful Server-Sent Events parser.
+*
+* **Details**
+*
+* Call `feed` with text chunks to parse `Event` and `Retry` values through the
+* callback, and call `reset` to clear any buffered event state. `feed` returns
+* an `SseError` if the pending event exceeds `maxEventSize`.
+*
+* @stability unstable
+* @category decoding
+* @since 4.0.0
+*/
+function makeParser(onParse, options) {
+	const maxEventSize = options?.maxEventSize ?? defaultMaxEventSize;
+	let isFirstChunk;
+	let buffer;
+	let startingPosition;
+	let startingFieldLength;
+	let discardTrailingNewline;
+	let lastEventId;
+	let eventName;
+	let data;
+	reset();
+	return {
+		feed,
+		reset
+	};
+	function reset() {
+		isFirstChunk = true;
+		buffer = "";
+		startingPosition = 0;
+		startingFieldLength = -1;
+		discardTrailingNewline = false;
+		lastEventId = void 0;
+		eventName = void 0;
+		data = "";
+	}
+	function feed(chunk) {
+		buffer = buffer ? buffer + chunk : chunk;
+		if (isFirstChunk && buffer.startsWith(BOM)) buffer = buffer.slice(BOM.length);
+		isFirstChunk = false;
+		const length = buffer.length;
+		let position = 0;
+		while (position < length) {
+			if (discardTrailingNewline) {
+				if (buffer[position] === "\n") ++position;
+				discardTrailingNewline = false;
+			}
+			let lineLength = -1;
+			let fieldLength = startingFieldLength;
+			let character;
+			for (let index = position + startingPosition; lineLength < 0 && index < length; ++index) {
+				character = buffer[index];
+				if (character === ":" && fieldLength < 0) fieldLength = index - position;
+				else if (character === "\r") {
+					discardTrailingNewline = true;
+					lineLength = index - position;
+				} else if (character === "\n") lineLength = index - position;
+			}
+			if (lineLength < 0) {
+				startingPosition = length - position;
+				startingFieldLength = fieldLength;
+				break;
+			} else {
+				startingPosition = 0;
+				startingFieldLength = -1;
+			}
+			parseEventStreamLine(buffer, position, fieldLength, lineLength);
+			position += lineLength + 1;
+		}
+		if (position === length) buffer = "";
+		else if (position > 0) buffer = buffer.slice(position);
+		if (buffer.length + data.length > maxEventSize) {
+			const error = new SseError({ reason: new EventTooLarge({ maxEventSize }) });
+			reset();
+			return error;
+		}
+	}
+	function parseEventStreamLine(lineBuffer, index, fieldLength, lineLength) {
+		if (lineLength === 0) {
+			if (data.length > 0) {
+				onParse({
+					_tag: "Event",
+					id: lastEventId,
+					event: eventName || "message",
+					data: data.slice(0, -1)
+				});
+				data = "";
+			}
+			eventName = void 0;
+			return;
+		}
+		const noValue = fieldLength < 0;
+		const field = lineBuffer.slice(index, index + (noValue ? lineLength : fieldLength));
+		let step = 0;
+		if (noValue) step = lineLength;
+		else if (lineBuffer[index + fieldLength + 1] === " ") step = fieldLength + 2;
+		else step = fieldLength + 1;
+		const position = index + step;
+		const valueLength = lineLength - step;
+		const value = lineBuffer.slice(position, position + valueLength).toString();
+		if (field === "data") data += value ? `${value}\n` : "\n";
+		else if (field === "event") eventName = value;
+		else if (field === "id" && !value.includes("\0")) lastEventId = value;
+		else if (field === "retry" && /^\d+$/.test(value)) onParse(new Retry({
+			duration: millis(parseInt(value, 10)),
+			lastEventId
+		}));
+	}
+}
+const BOM = "﻿";
+/**
+* Schema for the tagged Server-Sent Events message model that adds `_tag: "Event"` to the event name, optional event ID, and string data payload.
+*
+* @stability unstable
+* @category models
+* @since 4.0.0
+*/
+const Event = /*#__PURE__*/ Struct({
+	_tag: /*#__PURE__*/ tag$2("Event"),
+	id: /*#__PURE__*/ UndefinedOr(String$2),
+	event: String$2,
+	data: String$2
+});
+/**
+* Schema for transforming untagged SSE event payloads into tagged `Event`
+* models.
+*
+* @stability unstable
+* @category models
+* @since 4.0.0
+*/
+const transformEvent = /*#__PURE__*/ transform$1({
+	decode: (event) => event.id === void 0 ? {
+		event: event.event,
+		data: event.data
+	} : {
+		id: event.id,
+		event: event.event,
+		data: event.data
+	},
+	encode: (event) => ({
+		_tag: "Event",
+		id: event.id,
+		event: event.event ?? "message",
+		data: event.data
+	})
+});
+const RetryTypeId = "~effect/encoding/Sse/Retry";
+/**
+* Represents a Server-Sent Events retry directive.
+*
+* **Details**
+*
+* Decoders surface this value as a failure to request reconnection after
+* `duration`; encoders serialize an upstream `Retry` failure as a `retry:` line.
+*
+* @stability unstable
+* @category models
+* @since 4.0.0
+*/
+var Retry = class Retry extends (/*#__PURE__*/ TaggedClass("Retry")) {
+	/**
+	* Marks this value as an SSE retry directive for runtime guards.
+	*
+	* @stability unstable
+	* @since 4.0.0
+	*/
+	[RetryTypeId] = RetryTypeId;
+	/**
+	* Returns `true` when the value is an SSE retry directive.
+	*
+	* @stability unstable
+	* @since 4.0.0
+	*/
+	static is(u) {
+		return hasProperty(u, RetryTypeId);
+	}
+	/**
+	* Separates SSE retry directives from regular event values.
+	*
+	* @stability unstable
+	* @since 4.0.0
+	*/
+	static filter(u) {
+		return Retry.is(u) ? succeed$8(u) : fail$7(u);
+	}
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/HttpApiSchema.js
+const StreamSchemaTypeId = "~effect/http-api/HttpApiSchema/Stream";
+/**
+* @stability unstable
+*/
 function status(code) {
 	const statusCode = typeof code === "string" ? fromLiteral(code) : code;
 	return (self) => self.annotate({ httpApiStatus: statusCode });
@@ -37144,6 +38681,7 @@ function status(code) {
 *
 * @see {@link NoContent} for the predefined 204 no content schema.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -37151,30 +38689,39 @@ const Empty = (code) => Void.pipe(status(code));
 /**
 * Schema for empty HTTP responses with status code 204.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
 const NoContent = /*#__PURE__*/ Empty(204);
-/** @internal */
+/**
+* @internal
+*/
 const isStreamSchema = (u) => isSchema(u) && hasProperty(u, StreamSchemaTypeId);
-/** @internal */
+/**
+* @internal
+*/
 const isStreamSse = (u) => isStreamSchema(u) && u._tag === "StreamSse";
-/** @internal */
+/**
+* @internal
+*/
 const isStreamUint8Array = (u) => isStreamSchema(u) && u._tag === "StreamUint8Array";
 /**
 * Runtime brand key used to mark `WithHeaders` response schemas.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
-const WithHeadersTypeId = "~effect/httpapi/HttpApiSchema/WithHeaders";
+const WithHeadersTypeId = "~effect/http-api/HttpApiSchema/WithHeaders";
 /**
 * Runtime brand key used to mark `WithHeaders` response values.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
-const WithHeadersValueTypeId = "~effect/httpapi/HttpApiSchema/WithHeadersValue";
+const WithHeadersValueTypeId = "~effect/http-api/HttpApiSchema/WithHeadersValue";
 /**
 * Constructs a `WithHeaders` response value from a body and headers.
 *
@@ -37187,6 +38734,7 @@ const WithHeadersValueTypeId = "~effect/httpapi/HttpApiSchema/WithHeadersValue";
 * See {@link WithHeaders} for an example that constructs a schema and its
 * corresponding response value.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -37202,7 +38750,7 @@ const withHeaders = (options) => ({
 *
 * ```ts import.meta.vitest
 * import { Schema } from "effect"
-* import { HttpApiSchema } from "effect/unstable/httpapi"
+* import { HttpApiSchema } from "effect/http-api"
 *
 * const schema = HttpApiSchema.WithHeaders(Schema.String, {
 *   "x-request-id": Schema.String
@@ -37212,13 +38760,16 @@ const withHeaders = (options) => ({
 * HttpApiSchema.isWithHeaders(Schema.String) // => false
 * ```
 *
+* @stability unstable
 * @category predicates
 * @since 4.0.0
 */
-const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/httpapi/HttpApiSchema/WithHeaders");
-/** @internal */
+const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/http-api/HttpApiSchema/WithHeaders");
+/**
+* @internal
+*/
 function rebuildWithHeaders(self, schema, headers) {
-	return make$26(self.ast, {
+	return make$28(self.ast, {
 		[WithHeadersTypeId]: WithHeadersTypeId,
 		schema,
 		headers
@@ -37246,6 +38797,7 @@ function defaultContentType(_tag) {
 *
 * The schema's encoded side must be a record of strings.
 *
+* @stability unstable
 * @category encoding
 * @since 4.0.0
 */
@@ -37263,6 +38815,7 @@ function asFormUrlEncoded(options) {
 * The check succeeds for direct `void` schemas and schemas whose encoded or
 * transformation target is `void`.
 *
+* @stability unstable
 * @category predicates
 * @since 4.0.0
 */
@@ -37275,7 +38828,9 @@ const isNoContent = (ast) => {
 	return isVoid(target);
 };
 const resolveHttpApiEncoding = /*#__PURE__*/ resolveAt("~httpApiEncoding");
-/** @internal */
+/**
+* @internal
+*/
 const getWithHeadersAnnotation = /*#__PURE__*/ resolveAt("~httpApiWithHeaders");
 const resolveHttpApiStatus = /*#__PURE__*/ resolveAt("httpApiStatus");
 const defaultJsonEncoding = {
@@ -37289,51 +38844,67 @@ const defaultUrlEncodedEncoding = {
 function getEncoding(ast) {
 	return resolveHttpApiEncoding(ast) ?? defaultJsonEncoding;
 }
-/** @internal */
+/**
+* @internal
+*/
 function getPayloadEncoding(ast, method) {
 	const encoding = resolveHttpApiEncoding(ast);
 	if (encoding) return encoding;
 	return hasBody(method) ? defaultJsonEncoding : defaultUrlEncodedEncoding;
 }
-/** @internal */
+/**
+* @internal
+*/
 function getResponseEncoding(ast) {
 	const out = getEncoding(ast);
 	if (out._tag === "Multipart") throw new Error("Multipart is not supported in response");
 	return out;
 }
-/** @internal */
+/**
+* @internal
+*/
 function getStatusSuccess(self) {
 	return resolveHttpApiStatus(self) ?? 200;
 }
-/** @internal */
+/**
+* @internal
+*/
 function getStatusSuccessSchema(schema) {
 	if (isWithHeaders(schema)) return resolveHttpApiStatus(schema.ast) ?? getStatusSuccess(schema.schema.ast);
 	return getStatusSuccess(schema.ast);
 }
-/** @internal */
+/**
+* @internal
+*/
 function getResponseEncodingSchema(schema) {
 	if (isWithHeaders(schema) && resolveHttpApiEncoding(schema.ast) === void 0) return getResponseEncoding(schema.schema.ast);
 	return getResponseEncoding(schema.ast);
 }
-/** @internal */
+/**
+* @internal
+*/
 function getStatusError(self) {
 	return resolveHttpApiStatus(self) ?? 500;
 }
-/** @internal */
+/**
+* @internal
+*/
 function getStatusErrorSchema(schema) {
 	if (isWithHeaders(schema)) return resolveHttpApiStatus(schema.ast) ?? getStatusError(schema.schema.ast);
 	return getStatusError(schema.ast);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/internal/mediaType.js
-/** @internal */
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/internal/mediaType.js
+/**
+* @internal
+*/
 function normalize(contentType) {
 	const normalized = contentType.toLowerCase().trim();
 	const index = normalized.indexOf(";");
 	return index === -1 ? normalized : normalized.slice(0, index).trim();
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/HttpApiEndpoint.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/HttpApiEndpoint.js
 /**
 * Defines endpoint declarations used inside an HTTP API group.
 *
@@ -37345,21 +38916,28 @@ function normalize(contentType) {
 * constructors, payload and response schema helpers, and type utilities used by
 * builders and generated clients.
 *
+* @stability unstable
 * @since 4.0.0
 */
-const TypeId$6 = "~effect/httpapi/HttpApiEndpoint";
-/** @internal */
+const TypeId$6 = "~effect/http-api/HttpApiEndpoint";
+/**
+* @internal
+*/
 function getPayloadSchemas(endpoint) {
 	const result = [];
 	for (const { schemas } of endpoint.payload.values()) result.push(...schemas);
 	return result;
 }
-/** @internal */
+/**
+* @internal
+*/
 function getSuccessSchemas(endpoint) {
 	const schemas = Array.from(endpoint.success);
 	return isArrayNonEmpty(schemas) ? schemas : [NoContent];
 }
-/** @internal */
+/**
+* @internal
+*/
 function getErrorSchemas(endpoint) {
 	const schemas = new Set(endpoint.error);
 	const transform = endpoint.disableCodecs ? identity : transformResponseSchema;
@@ -37424,10 +39002,11 @@ function makeProto$3(options) {
 * and response schemas, applying automatic JSON or string-tree codecs unless
 * `disableCodecs` is enabled.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$9 = (method) => (identifier, path, options) => {
+const make$11 = (method) => (identifier, path, options) => {
 	const disableCodecs = options?.disableCodecs ?? false;
 	const transformStringTree = disableCodecs ? identity : toCodecStringTree;
 	return makeProto$3({
@@ -37470,7 +39049,7 @@ function getPayload(payload, method, disableCodecs) {
 	}
 	return result;
 }
-const reservedStreamFailureEvent$1 = "effect/httpapi/stream/failure";
+const reservedStreamFailureEvent$1 = "effect/http-api/stream/failure";
 function getSuccessResponse(success, method, disableCodecs) {
 	if (success === void 0) return /* @__PURE__ */ new Set();
 	const schemas = ensure(success);
@@ -37590,13 +39169,10 @@ function transformResponse(schema) {
 	const encoding = getResponseEncoding(schema.ast);
 	const withHeaders = getWithHeadersAnnotation(schema.ast);
 	if (withHeaders === void 0) return applyResponseEncoding(schema, encoding);
-	const headers = toEncoded(withHeaders.headers);
-	return Struct({
-		body: applyResponseEncoding(toEncoded(withHeaders.body), encoding),
-		headers
-	}).pipe(decodeTo(schema)).annotate({ "~httpApiWithHeaders": {
+	return schema.annotate({ "~httpApiWithHeaders": {
 		...withHeaders,
-		headersCodec: toCodecStringTree(headers)
+		bodyCodec: applyResponseEncoding(withHeaders.body, encoding),
+		headersCodec: toCodecStringTree(withHeaders.headers)
 	} });
 }
 function applyResponseEncoding(schema, encoding) {
@@ -37619,13 +39195,14 @@ function transformPayload(schema, method) {
 /**
 * Creates a `POST` endpoint declaration.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const post = /*#__PURE__*/ make$9("POST");
+const post = /*#__PURE__*/ make$11("POST");
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/HttpApi.js
-const TypeId$5 = "~effect/httpapi/HttpApi";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/HttpApi.js
+const TypeId$5 = "~effect/http-api/HttpApi";
 const Proto$3 = {
 	[TypeId$5]: TypeId$5,
 	pipe() {
@@ -37694,10 +39271,11 @@ const makeProto$2 = (options) => {
 * `addHttpApi`, provide endpoint implementations with `HttpApiBuilder.group`,
 * and register the API with `HttpApiBuilder.layer`.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$8 = (identifier) => makeProto$2({
+const make$10 = (identifier) => makeProto$2({
 	identifier,
 	groups: {},
 	annotations: empty$9()
@@ -37710,6 +39288,7 @@ const make$8 = (identifier) => makeProto$2({
 * The callbacks receive each group or endpoint with merged annotations, endpoint
 * middleware, and response schemas grouped by HTTP status.
 *
+* @stability unstable
 * @category reflection
 * @since 4.0.0
 */
@@ -37751,287 +39330,188 @@ const extractResponseContent = (schemas, getStatus) => {
 		else schemas.push(schema);
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/encoding/Sse.js
-const SseErrorTypeId = "~effect/encoding/Sse/SseError";
 /**
-* Error reason raised when pending Server-Sent Events state exceeds the
-* configured maximum size.
-*
-* @category errors
-* @since 4.0.0
-*/
-var EventTooLarge = class extends (/*#__PURE__*/ TaggedError$1("EventTooLarge")) {
-	get message() {
-		return `Pending SSE event exceeded the maximum size of ${this.maxEventSize}`;
-	}
-};
-/**
-* Error raised when decoding a Server-Sent Events stream fails.
-*
-* @category errors
-* @since 4.0.0
-*/
-var SseError = class extends (/*#__PURE__*/ TaggedError$1("SseError")) {
-	/**
-	* Marks this value as an SSE decoding error.
-	*
-	* @since 4.0.0
-	*/
-	[SseErrorTypeId] = SseErrorTypeId;
-	/**
-	* Delegates the public message to the underlying SSE error reason.
-	*
-	* @since 4.0.0
-	*/
-	get message() {
-		return this.reason.message;
-	}
-};
-const defaultMaxEventSize = 10485760;
-/**
-* Creates a channel that parses Server-Sent Events text chunks into `Event` values.
+* Schema parse options for server and client codecs, set on an API, group, or
+* endpoint.
 *
 * **Details**
 *
-* SSE `retry` directives are emitted as `Retry` failures so callers can
-* reconnect with the requested delay.
+* Each codec slot has its own annotation:
 *
-* @category decoding
+* - `ParamsParseOptions` for path params
+* - `QueryParseOptions` for the query string
+* - `HeadersParseOptions` for request headers and `WithHeaders` response headers
+* - `PayloadParseOptions` for request bodies
+* - `SuccessParseOptions` for success bodies
+* - `ErrorParseOptions` for error bodies
+*
+* A slot annotation at any level takes precedence over `ParseOptions` at any
+* level. If neither is set, Schema defaults apply. Options are replaced, not
+* merged. For the same annotation, endpoint overrides group, which overrides
+* API. Annotate the API before passing it to `HttpApiBuilder.group` or
+* `HttpApiBuilder.endpoint`.
+*
+* **Gotchas**
+*
+* Header codecs receive all HTTP headers, including undeclared transport
+* headers such as `content-type`, `content-length`, `host`, `user-agent` and
+* proxy headers. Without `HeadersParseOptions`, headers use `ParseOptions`:
+*
+* - `onExcessProperty: "error"` rejects real requests and `WithHeaders`
+*   responses with transport headers.
+* - `onExcessProperty: "preserve"` includes transport headers in the decoded
+*   value.
+*
+* Set `HeadersParseOptions` to `{}` at the API level to use Schema defaults for
+* headers, even if an endpoint sets `ParseOptions`.
+*
+* **Example** (Strict bodies with default header parsing)
+*
+* ```ts import.meta.vitest
+* import { Schema } from "effect"
+* import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
+*
+* const api = HttpApi.make("Api")
+*   .add(
+*     HttpApiGroup.make("users").add(
+*       HttpApiEndpoint.post("create", "/users", {
+*         headers: { "x-api-key": Schema.String },
+*         payload: { name: Schema.String }
+*       })
+*     )
+*   )
+*   .annotate(HttpApi.ParseOptions, { onExcessProperty: "error" })
+*   .annotate(HttpApi.HeadersParseOptions, {})
+* ```
+*
+* @stability unstable
+* @category services
 * @since 4.0.0
 */
-const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
-	let buffer = [];
-	let retry;
-	const parser = makeParser((event) => {
-		if (event._tag === "Retry") retry = event;
-		else buffer.push(event);
-	}, options);
-	const pump = flatMap(upstream, (arr) => {
-		for (let i = 0; i < arr.length; i++) {
-			const error = parser.feed(arr[i]);
-			if (error !== void 0) return fail$3(error);
-		}
-		return void_$1;
-	});
-	return suspend$2(function loop() {
-		if (isArrayNonEmpty(buffer)) {
-			const out = buffer;
-			buffer = [];
-			return succeed$3(out);
-		} else if (retry) return fail$3(retry);
-		return flatMap(pump, loop);
-	});
-}));
+var ParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ParseOptions")) {};
 /**
-* Creates an SSE decoder channel that decodes each parsed event with a schema.
+* Schema parse options for path params: server decoding, client encoding, and
+* `HttpApiClient.urlBuilder`. Falls back to `ParseOptions` when unset.
 *
-* **Details**
-*
-* The schema receives the untagged event shape containing `id`, `event`, and
-* string `data`.
-*
-* @category decoding
+* @stability unstable
+* @category services
 * @since 4.0.0
 */
-const decodeSchema = (schema, options) => pipeTo(decode(options), decode$1(EventEncoded.pipe(decodeTo(schema)))());
+var ParamsParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ParamsParseOptions")) {};
 /**
-* Creates a stateful Server-Sent Events parser.
+* Schema parse options for the query string: server decoding, client encoding,
+* and `HttpApiClient.urlBuilder`. Falls back to `ParseOptions` when unset.
 *
-* **Details**
-*
-* Call `feed` with text chunks to parse `Event` and `Retry` values through the
-* callback, and call `reset` to clear any buffered event state. `feed` returns
-* an `SseError` if the pending event exceeds `maxEventSize`.
-*
-* @category decoding
+* @stability unstable
+* @category services
 * @since 4.0.0
 */
-function makeParser(onParse, options) {
-	const maxEventSize = options?.maxEventSize ?? defaultMaxEventSize;
-	let isFirstChunk;
-	let buffer;
-	let startingPosition;
-	let startingFieldLength;
-	let discardTrailingNewline;
-	let lastEventId;
-	let eventName;
-	let data;
-	reset();
+var QueryParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/QueryParseOptions")) {};
+/**
+* Schema parse options for request headers and the headers of `WithHeaders`
+* responses: server decoding/encoding and client encoding/decoding, including
+* buffered and streamed responses. Falls back to `ParseOptions` when unset.
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+var HeadersParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/HeadersParseOptions")) {};
+/**
+* Schema parse options for request bodies, including multipart payloads:
+* server decoding and client encoding. Falls back to `ParseOptions` when unset.
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+var PayloadParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/PayloadParseOptions")) {};
+/**
+* Schema parse options for success bodies, including streams, SSE events, and
+* the body of `WithHeaders` responses: server encoding and client decoding. Falls back to `ParseOptions` when unset.
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+var SuccessParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/SuccessParseOptions")) {};
+/**
+* Schema parse options for error bodies: server encoding and client decoding. Falls back to `ParseOptions` when unset.
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+var ErrorParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ErrorParseOptions")) {};
+/**
+* @internal
+*/
+const getSlotParseOptions = (annotations) => {
+	const fallback = getOrUndefined(annotations, ParseOptions);
 	return {
-		feed,
-		reset
+		params: getOrUndefined(annotations, ParamsParseOptions) ?? fallback,
+		query: getOrUndefined(annotations, QueryParseOptions) ?? fallback,
+		headers: getOrUndefined(annotations, HeadersParseOptions) ?? fallback,
+		payload: getOrUndefined(annotations, PayloadParseOptions) ?? fallback,
+		success: getOrUndefined(annotations, SuccessParseOptions) ?? fallback,
+		error: getOrUndefined(annotations, ErrorParseOptions) ?? fallback
 	};
-	function reset() {
-		isFirstChunk = true;
-		buffer = "";
-		startingPosition = 0;
-		startingFieldLength = -1;
-		discardTrailingNewline = false;
-		lastEventId = void 0;
-		eventName = void 0;
-		data = "";
-	}
-	function feed(chunk) {
-		buffer = buffer ? buffer + chunk : chunk;
-		if (isFirstChunk && buffer.startsWith(BOM)) buffer = buffer.slice(BOM.length);
-		isFirstChunk = false;
-		const length = buffer.length;
-		let position = 0;
-		while (position < length) {
-			if (discardTrailingNewline) {
-				if (buffer[position] === "\n") ++position;
-				discardTrailingNewline = false;
-			}
-			let lineLength = -1;
-			let fieldLength = startingFieldLength;
-			let character;
-			for (let index = position + startingPosition; lineLength < 0 && index < length; ++index) {
-				character = buffer[index];
-				if (character === ":" && fieldLength < 0) fieldLength = index - position;
-				else if (character === "\r") {
-					discardTrailingNewline = true;
-					lineLength = index - position;
-				} else if (character === "\n") lineLength = index - position;
-			}
-			if (lineLength < 0) {
-				startingPosition = length - position;
-				startingFieldLength = fieldLength;
-				break;
-			} else {
-				startingPosition = 0;
-				startingFieldLength = -1;
-			}
-			parseEventStreamLine(buffer, position, fieldLength, lineLength);
-			position += lineLength + 1;
-		}
-		if (position === length) buffer = "";
-		else if (position > 0) buffer = buffer.slice(position);
-		if (buffer.length + data.length > maxEventSize) {
-			const error = new SseError({ reason: new EventTooLarge({ maxEventSize }) });
-			reset();
-			return error;
-		}
-	}
-	function parseEventStreamLine(lineBuffer, index, fieldLength, lineLength) {
-		if (lineLength === 0) {
-			if (data.length > 0) {
-				onParse({
-					_tag: "Event",
-					id: lastEventId,
-					event: eventName || "message",
-					data: data.slice(0, -1)
-				});
-				data = "";
-			}
-			eventName = void 0;
-			return;
-		}
-		const noValue = fieldLength < 0;
-		const field = lineBuffer.slice(index, index + (noValue ? lineLength : fieldLength));
-		let step = 0;
-		if (noValue) step = lineLength;
-		else if (lineBuffer[index + fieldLength + 1] === " ") step = fieldLength + 2;
-		else step = fieldLength + 1;
-		const position = index + step;
-		const valueLength = lineLength - step;
-		const value = lineBuffer.slice(position, position + valueLength).toString();
-		if (field === "data") data += value ? `${value}\n` : "\n";
-		else if (field === "event") eventName = value;
-		else if (field === "id" && !value.includes("\0")) lastEventId = value;
-		else if (field === "retry" && /^\d+$/.test(value)) onParse(new Retry({
-			duration: millis(parseInt(value, 10)),
-			lastEventId
-		}));
-	}
-}
-const BOM = "﻿";
-/**
-* Schema for the untagged Server-Sent Events payload shape containing an optional `id`, `event`, and string `data` fields.
-*
-* @category models
-* @since 4.0.0
-*/
-const EventEncoded = /*#__PURE__*/ Struct({
-	id: /*#__PURE__*/ optional$5(String$2),
-	event: String$2,
-	data: String$2
-});
-const RetryTypeId = "~effect/encoding/Sse/Retry";
-/**
-* Represents a Server-Sent Events retry directive.
-*
-* **Details**
-*
-* Decoders surface this value as a failure to request reconnection after
-* `duration`; encoders serialize an upstream `Retry` failure as a `retry:` line.
-*
-* @category models
-* @since 4.0.0
-*/
-var Retry = class Retry extends (/*#__PURE__*/ TaggedClass("Retry")) {
-	/**
-	* Marks this value as an SSE retry directive for runtime guards.
-	*
-	* @since 4.0.0
-	*/
-	[RetryTypeId] = RetryTypeId;
-	/**
-	* Returns `true` when the value is an SSE retry directive.
-	*
-	* @since 4.0.0
-	*/
-	static is(u) {
-		return hasProperty(u, RetryTypeId);
-	}
-	/**
-	* Separates SSE retry directives from regular event values.
-	*
-	* @since 4.0.0
-	*/
-	static filter(u) {
-		return Retry.is(u) ? succeed$7(u) : fail$7(u);
-	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/OpenApi.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/internal/path.js
+const emptyParamNames = /*#__PURE__*/ new Set();
+/**
+* @internal
+*/
+function getParamNames(schema) {
+	if (schema === void 0) return emptyParamNames;
+	const ast = getLastEncoding(schema.ast);
+	return isObjects(ast) && ast.indexSignatures.length === 0 ? new Set(ast.propertySignatures.map((ps) => String(ps.name))) : void 0;
+}
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/OpenApi.js
 /**
 * OpenAPI annotation for overriding generated identifiers, including operation ids.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
-var Identifier = class extends (/*#__PURE__*/ Service$1()("effect/httpapi/OpenApi/Identifier")) {};
+var Identifier = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Identifier")) {};
 /**
 * OpenAPI annotation for setting the API title or group tag name.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
-var Title$1 = class extends (/*#__PURE__*/ Service$1()("effect/httpapi/OpenApi/Title")) {};
+var Title$1 = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Title")) {};
 /**
 * OpenAPI annotation for setting the generated API version.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
-var Version = class extends (/*#__PURE__*/ Service$1()("effect/httpapi/OpenApi/Version")) {};
+var Version = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Version")) {};
 /**
 * OpenAPI annotation for setting generated descriptions on APIs, groups, endpoints, or security schemes.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
-var Description = class extends (/*#__PURE__*/ Service$1()("effect/httpapi/OpenApi/Description")) {};
+var Description = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Description")) {};
 /**
 * OpenAPI annotation for setting generated summary text.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
-var Summary = class extends (/*#__PURE__*/ Service$1()("effect/httpapi/OpenApi/Summary")) {};
+var Summary = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Summary")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/HttpApiClient.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/HttpApiClient.js
 /**
 * Builds HTTP clients from `HttpApi` declarations.
 *
@@ -38042,9 +39522,12 @@ var Summary = class extends (/*#__PURE__*/ Service$1()("effect/httpapi/OpenApi/S
 * error responses are decoded. This module also includes helpers for building a
 * client for only one group, one endpoint, or only the encoded URL.
 *
+* @stability unstable
 * @since 4.0.0
 */
-/** @internal */
+/**
+* @internal
+*/
 const makeClient = (api, options) => gen(function* () {
 	const services = yield* context();
 	const httpClient = options.httpClient.pipe(options?.baseUrl === void 0 ? identity : mapRequest(prependUrl(options.baseUrl.toString())));
@@ -38067,17 +39550,18 @@ const makeClient = (api, options) => gen(function* () {
 			options.onGroup?.(onGroupOptions);
 		},
 		onEndpoint(onEndpointOptions) {
-			const { group, endpoint, errors, successes } = onEndpointOptions;
-			const makeUrl = compilePath(endpoint.path);
+			const { group, endpoint, errors, successes, mergedAnnotations } = onEndpointOptions;
+			const parseOptions = getSlotParseOptions(mergedAnnotations);
+			const makeUrl = compilePath(endpoint.path, endpoint.params);
 			const decodeMap = { orElse: statusOrElse };
 			const errorAlternatives = /* @__PURE__ */ new Map();
 			for (const [status, schemas] of errors.entries()) {
 				const grouped = groupSchemasByContentType(schemas);
-				for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(errorAlternatives, status, contentType, schemasToResponse(schemas));
+				for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(errorAlternatives, status, contentType, schemasToResponse(schemas, parseOptions.error, parseOptions.headers));
 			}
 			for (const [status, alternatives] of errorAlternatives.entries()) {
 				const decode = makeResponseDecoder(alternatives);
-				decodeMap[status] = (response) => flatMap(catchCause$1(decode(response), (cause) => failCause$2(combine(fail$4(new HttpClientError({ reason: new StatusCodeError({
+				decodeMap[status] = (response) => flatMap(catchCause$1(decode(response), (cause) => failCause$3(combine(fail$4(new HttpClientError({ reason: new StatusCodeError({
 					request: response.request,
 					response
 				}) })), cause))), fail$3);
@@ -38085,21 +39569,21 @@ const makeClient = (api, options) => gen(function* () {
 			const successAlternatives = /* @__PURE__ */ new Map();
 			for (const [status, schemas] of successes.entries()) {
 				const grouped = groupSchemasByContentType(schemas);
-				for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(successAlternatives, status, contentType, schemasToResponse(schemas));
+				for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(successAlternatives, status, contentType, schemasToResponse(schemas, parseOptions.success, parseOptions.headers));
 			}
 			for (const streamSuccess of getStreamSuccessSchemas(endpoint)) {
 				const streamSchema = isWithHeadersStreamSuccess(streamSuccess) ? streamSuccess.schema : streamSuccess;
-				addResponseAlternative(successAlternatives, getStatusSuccessSchema(streamSuccess), streamSchema.contentType, streamToResponse(streamSuccess));
+				addResponseAlternative(successAlternatives, getStatusSuccessSchema(streamSuccess), streamSchema.contentType, streamToResponse(streamSuccess, parseOptions.success, parseOptions.headers));
 			}
 			for (const [status, alternatives] of successAlternatives.entries()) decodeMap[status] = makeResponseDecoder(alternatives);
-			const encodeParams = map(endpoint.params, encodeUnknownEffect);
+			const encodeParams = map(endpoint.params, (schema) => encodeUnknownEffect(schema, parseOptions.params));
 			const payloadSchemas = getPayloadSchemas(endpoint);
-			const encodePayload = isArrayNonEmpty(payloadSchemas) ? hasBody(endpoint.method) ? encodeUnknownEffect(getEncodePayloadSchema(payloadSchemas, endpoint.method)) : encodeUnknownEffect(Union(payloadSchemas)) : void 0;
-			const encodeHeaders = map(endpoint.headers, encodeUnknownEffect);
-			const encodeQuery = map(endpoint.query, encodeUnknownEffect);
+			const encodePayload = isArrayNonEmpty(payloadSchemas) ? encodeUnknownEffect(hasBody(endpoint.method) ? getEncodePayloadSchema(payloadSchemas, endpoint.method) : Union(payloadSchemas), parseOptions.payload) : void 0;
+			const encodeHeaders = map(endpoint.headers, (schema) => encodeUnknownEffect(schema, parseOptions.headers));
+			const encodeQuery = map(endpoint.query, (schema) => encodeUnknownEffect(schema, parseOptions.query));
 			const middlewareKeys = Array.from(onEndpointOptions.middleware, (tag) => `${tag.key}/Client`);
 			const endpointFn = fnUntraced(function* (request) {
-				let httpRequest = make$24(endpoint.method)(endpoint.path);
+				let httpRequest = make$26(endpoint.method)(endpoint.path);
 				if (request !== void 0) {
 					if (encodeParams !== void 0) {
 						const params = yield* encodeParams(request.params);
@@ -38143,10 +39627,11 @@ const makeClient = (api, options) => gen(function* () {
 * Constructs a type-safe client for an HTTP API using the `HttpClient` service,
 * endpoint schemas, middleware, and optional client or response transformations.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$7 = (api, options) => flatMap(HttpClient, (httpClient) => makeWith(api, {
+const make$9 = (api, options) => flatMap(HttpClient, (httpClient) => makeWith(api, {
 	...options,
 	httpClient: options?.transformClient ? options.transformClient(httpClient) : httpClient
 }));
@@ -38155,6 +39640,7 @@ const make$7 = (api, options) => flatMap(HttpClient, (httpClient) => makeWith(ap
 * using the API metadata to encode requests, execute middleware, and decode
 * responses.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -38172,12 +39658,12 @@ const makeWith = (api, options) => {
 	}).pipe(as(client));
 };
 const paramsRegExp = /(\/?):(\w+)(\?)?/g;
-const compilePath = (path) => {
-	if (!paramsRegExp.test(path)) return (_) => path;
-	paramsRegExp.lastIndex = 0;
+const compilePath = (path, schema) => {
+	if (schema === void 0 || !path.includes(":")) return (_) => path;
+	const paramNames = getParamNames(schema);
 	return (params) => {
-		paramsRegExp.lastIndex = 0;
-		return path.replace(paramsRegExp, (_, slash, key, optional) => {
+		return path.replace(paramsRegExp, (match, slash, key, optional) => {
+			if (paramNames !== void 0 && !paramNames.has(key)) return match;
 			const value = params[key];
 			if (value === void 0) {
 				if (optional !== void 0) return "";
@@ -38187,32 +39673,41 @@ const compilePath = (path) => {
 		});
 	};
 };
-function schemasToResponse(schemas) {
+function schemasToResponse(schemas, options, headersOptions) {
 	const hasWithHeaders = schemas.some((schema) => isWithHeaders(schema) || getWithHeadersAnnotation(schema.ast) !== void 0);
-	const codec = hasWithHeaders ? Union(schemas.map(toCodecArrayBufferWithHeaders)) : toCodecArrayBuffer(schemas);
-	const decode = decodeEffect(codec);
+	const decode = decodeUnknownEffect(hasWithHeaders ? Union(schemas.map((schema) => toCodecArrayBufferWithHeaders(schema, options, headersOptions))) : toCodecArrayBuffer(schemas), options);
 	return (response) => flatMap(response.arrayBuffer, hasWithHeaders ? (body) => decode({
 		body,
 		headers: response.headers
 	}) : decode);
 }
-function toCodecArrayBufferWithHeaders(schema) {
-	const isWithHeaders$1 = isWithHeaders(schema);
+const ResponsePair = /*#__PURE__*/ Struct({
+	body: Unknown,
+	headers: Unknown
+});
+function toCodecArrayBufferWithHeaders(schema, options, headersOptions) {
 	const annotation = getWithHeadersAnnotation(schema.ast);
-	if (annotation !== void 0) return Struct({
-		body: fromArrayBuffer(annotation.body),
-		headers: annotation.headersCodec
-	}).pipe(decodeTo(schema));
-	const body = isWithHeaders$1 ? schema.schema : schema;
-	return Struct({
-		body: fromArrayBuffer(body).pipe(decodeTo(body)),
-		headers: isWithHeaders$1 ? schema.headers : Unknown
-	}).pipe(decodeTo(isWithHeaders$1 ? schema : toType(schema), transform$1({
-		decode: (value) => isWithHeaders$1 ? withHeaders(value) : value.body,
-		encode: (value) => isWithHeaders$1 ? value : {
-			body: value,
-			headers: void 0
-		}
+	const parts = annotation !== void 0 ? {
+		body: annotation.bodyCodec,
+		headers: annotation.headersCodec,
+		toValue: annotation.transformation.decode
+	} : isWithHeaders(schema) ? {
+		body: schema.schema,
+		headers: schema.headers,
+		toValue: withHeaders
+	} : {
+		body: schema,
+		headers: Unknown,
+		toValue: (pair) => pair.body
+	};
+	const decodeBody = decodeUnknownEffect(fromArrayBuffer(parts.body).pipe(decodeTo(parts.body)), options);
+	const decodeHeaders = decodeUnknownEffect(parts.headers, headersOptions);
+	return ResponsePair.pipe(decodeTo(isWithHeaders(schema) ? schema : toType(schema), transformEffect({
+		decode: (pair) => all$1({
+			body: decodeBody(pair.body),
+			headers: decodeHeaders(pair.headers)
+		}).pipe(map$3(parts.toValue), mapError$2((error) => error.issue)),
+		encode: (input, options) => fail$3(new Forbidden$1({ message: "Decode only schema" }, input, options))
 	})));
 }
 function addResponseAlternative(map, status, contentType, decode) {
@@ -38255,7 +39750,7 @@ function failUnsupportedContentType(response, contentType, alternatives) {
 		description: `Unsupported response content-type for status ${response.status}: ${contentType || "<missing>"}. Expected one of: ${expected}`
 	}) }));
 }
-const reservedStreamFailureEvent = "effect/httpapi/stream/failure";
+const reservedStreamFailureEvent = "effect/http-api/stream/failure";
 const isWithHeadersStreamSuccess = (schema) => isWithHeaders(schema);
 function getStreamSuccessSchemas(endpoint) {
 	const schemas = [];
@@ -38265,39 +39760,40 @@ function getStreamSuccessSchemas(endpoint) {
 	}
 	return schemas;
 }
-function streamToResponse(successSchema) {
+function streamToResponse(successSchema, options, headersOptions) {
 	const isWithHeaders = isWithHeadersStreamSuccess(successSchema);
 	const streamSchema = isWithHeaders ? successSchema.schema : successSchema;
 	const sse = isStreamUint8Array(streamSchema) ? void 0 : {
 		declaration: streamSchema,
-		decoder: makeSseDecoder(streamSchema)
+		decoder: makeSseDecoder(streamSchema, options)
 	};
 	const toStream = (response, sseOptions) => map$3(context(), (context) => provideContext(sse === void 0 ? response.stream : decodeSseStream(response.stream, sse.declaration, sse.decoder(sseOptions)), context));
 	if (!isWithHeaders) return toStream;
-	const decodeHeaders = decodeUnknownEffect(successSchema.headers);
+	const decodeHeaders = decodeUnknownEffect(successSchema.headers, headersOptions);
 	return (response, sseOptions) => flatMap(decodeHeaders(response.headers), (headers) => map$3(toStream(response, sseOptions), (body) => withHeaders({
 		body,
 		headers
 	})));
 }
-function makeSseDecoder(declaration) {
+function makeSseDecoder(declaration, parseOptions) {
 	const Event = Union([Struct({
+		id: optional$5(String$2),
 		event: Literal(reservedStreamFailureEvent),
 		data: fromJsonString(toCodecJson(Cause(declaration.error, Defect())))
 	}), declaration.events]);
-	const defaultDecoder = decodeSchema(Event);
-	return (options) => options === void 0 ? defaultDecoder : decodeSchema(Event, options);
+	const defaultDecoder = decodeSchema(Event, void 0, parseOptions);
+	return (options) => options === void 0 ? defaultDecoder : decodeSchema(Event, options, parseOptions);
 }
 function decodeSseStream(stream, declaration, decoder) {
 	const events = transformPull(stream.pipe(decodeText$1, pipeThroughChannel(decoder)), (pull) => sync(() => {
 		let pendingFailureCause = void 0;
 		return suspend$2(() => {
-			if (pendingFailureCause !== void 0) return failCause$2(pendingFailureCause);
+			if (pendingFailureCause !== void 0) return failCause$3(pendingFailureCause);
 			return flatMap(pull, (events) => {
 				for (let i = 0; i < events.length; i++) {
 					const event = events[i];
 					if (event.event === reservedStreamFailureEvent && isCause(event.data)) {
-						if (i === 0) return failCause$2(event.data);
+						if (i === 0) return failCause$3(event.data);
 						pendingFailureCause = event.data;
 						events = events.slice(0, i);
 						break;
@@ -38395,8 +39891,8 @@ function getEncodePayloadSchemaFromBody(schema, method) {
 	return out;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/httpapi/HttpApiGroup.js
-const TypeId$4 = "~effect/httpapi/HttpApiGroup";
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/http-api/HttpApiGroup.js
+const TypeId$4 = "~effect/http-api/HttpApiGroup";
 const Proto$2 = {
 	[TypeId$4]: TypeId$4,
 	add(...toAdd) {
@@ -38456,7 +39952,7 @@ const optionsFromGroup = (group) => ({
 const makeProto$1 = (options) => {
 	function HttpApiGroup() {}
 	Object.setPrototypeOf(HttpApiGroup, Proto$2);
-	HttpApiGroup.key = `effect/httpapi/HttpApiGroup/${options.identifier}`;
+	HttpApiGroup.key = `effect/http-api/HttpApiGroup/${options.identifier}`;
 	return Object.assign(HttpApiGroup, options);
 };
 /**
@@ -38468,10 +39964,11 @@ const makeProto$1 = (options) => {
 * and set `topLevel` when the generated client should expose endpoint methods
 * directly instead of nesting them under the group identifier.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$6 = (identifier, options) => makeProto$1({
+const make$8 = (identifier, options) => makeProto$1({
 	identifier,
 	topLevel: options?.topLevel ?? false,
 	endpoints: {},
@@ -38481,8 +39978,8 @@ const make$6 = (identifier, options) => makeProto$1({
 //#region ../../packages/core/src/generated/TipeeApi.ts
 const CreateProjectCommand = Struct({
 	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })),
-	"external_id": optionalKey(Union([String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })),
+	"external_id": optionalKey(Union([String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CreateProjectCommand" });
 const Snowflake = String$2.annotate({
 	"format": "snowflake",
@@ -38755,7 +40252,7 @@ const DeleteProjectTaskCommand = Struct({ "id": String$2.annotate({ "format": "s
 const CreateProjectTaskCommand = Struct({
 	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
 	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })),
+	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })),
 	"color": String$2,
 	"billable": Boolean,
 	"remark_required": optionalKey(Boolean.annotate({ "default": false })),
@@ -38868,7 +40365,7 @@ const CreateActivityCommand = Struct({
 		"description": "Required when type is `duration`. Must be ≤ 24h.",
 		"format": "duration"
 	}), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(65535).annotate({ "expected": "a value with a length of at most 65535" })), Null])),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(65535).annotate({ "expected": "a string with at most 65535 code points" })), Null])),
 	"start": optionalKey(String$2.annotate({
 		"format": "local-date-time",
 		"description": "Required when type is `range`."
@@ -39263,49 +40760,49 @@ const SubmitCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "SubmitCommand" });
 const SubmitForContributorCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "SubmitForContributorCommand" });
 const CancelSubmissionCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CancelSubmissionCommand" });
 const SubmitCorrectionCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "SubmitCorrectionCommand" });
 const ValidateCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "ValidateCommand" });
 const CancelValidationCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CancelValidationCommand" });
 const RejectCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "RejectCommand" });
 const CancelRejectionCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })), Null]))
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CancelRejectionCommand" });
 const ListDayTasksQuery = Struct({
 	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
@@ -39674,7 +41171,7 @@ const ListResourcesQuery = Struct({
 					"ends_with",
 					"none"
 				]),
-				"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxLength(255).annotate({ "expected": "a value with a length of at most 255" })))
+				"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })))
 			})
 		}),
 		Struct({
@@ -40902,7 +42399,7 @@ const PostAppUiApiTimeclockTimeclockcommandValidatetimecheck201 = StructWithRest
 const PostAppUiApiTimeclockTimeclockcommandDeletetimecheckRequestJson = DeleteTimecheckCommand;
 const PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson = ListTimechecksQuery;
 const PostAppUiApiTimeclockTimeclockqueryListtimechecks200 = ArraySchema(TimecheckView);
-var ActivityGroup = class extends make$6("Activity").add(post("postAppUiApiActivityConfigurationProjectcommandCreateproject", "/api/activity/projects.create", {
+var ActivityGroup = class extends make$8("Activity").add(post("postAppUiApiActivityConfigurationProjectcommandCreateproject", "/api/activity/projects.create", {
 	payload: PostAppUiApiActivityConfigurationProjectcommandCreateprojectRequestJson,
 	success: PostAppUiApiActivityConfigurationProjectcommandCreateproject201.pipe(status(201))
 }).annotate(Identifier, "post_app_ui_api_activity_configuration_projectcommand_createproject").annotate(Summary, "Create").annotate(Description, "Creates a new project. The project status is set to `draft` by default."), post("postAppUiApiActivityConfigurationProjectcommandDeleteproject", "/api/activity/projects.delete", {
@@ -40996,11 +42493,11 @@ var ActivityGroup = class extends make$6("Activity").add(post("postAppUiApiActiv
 	payload: PostAppUiApiActivityWorkflowWorkflowqueryDaytasklistRequestJson,
 	success: PostAppUiApiActivityWorkflowWorkflowqueryDaytasklist200
 }).annotate(Identifier, "post_app_ui_api_activity_workflow_workflowquery_daytasklist").annotate(Summary, "List").annotate(Description, "Returns day tasks matching the given filters (tasks, date range, resources).")).annotate(Description, "Activity") {};
-var BalancesGroup = class extends make$6("Balances").add(post("postAppUiApiBalancesWorkregimesWorkregimesqueryList", "/api/balances/work-regimes.list", {
+var BalancesGroup = class extends make$8("Balances").add(post("postAppUiApiBalancesWorkregimesWorkregimesqueryList", "/api/balances/work-regimes.list", {
 	payload: PostAppUiApiBalancesWorkregimesWorkregimesqueryListRequestJson,
 	success: PostAppUiApiBalancesWorkregimesWorkregimesqueryList200
 }).annotate(Identifier, "post_app_ui_api_balances_workregimes_workregimesquery_list").annotate(Summary, "List").annotate(Description, "Retrieves all work regimes.")).annotate(Description, "Balances") {};
-var DirectoryGroup = class extends make$6("Directory").add(post("postAppUiApiDirectoryDirectorycommandCreateresource", "/api/directory/resources.create", {
+var DirectoryGroup = class extends make$8("Directory").add(post("postAppUiApiDirectoryDirectorycommandCreateresource", "/api/directory/resources.create", {
 	payload: PostAppUiApiDirectoryDirectorycommandCreateresourceRequestJson,
 	success: PostAppUiApiDirectoryDirectorycommandCreateresource201.pipe(status(201))
 }).annotate(Identifier, "post_app_ui_api_directory_directorycommand_createresource").annotate(Summary, "Create").annotate(Description, "Creates a new resource. If a team_id is not provided, the resource will not be considered as active"), post("postAppUiApiDirectoryDirectorycommandUpdateresource", "/api/directory/resources.update", {
@@ -41057,7 +42554,7 @@ var DirectoryGroup = class extends make$6("Directory").add(post("postAppUiApiDir
 	payload: PostAppUiApiDirectoryDirectoryqueryListtagsRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryListtags200
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_listtags").annotate(Summary, "List").annotate(Description, "Retrieves all tags that can describe actions in tipee (e.g. timechecks, activities, etc.). Several filters can be used to narrow down the search.")).annotate(Description, "Directory") {};
-var ScheduleGroup = class extends make$6("Schedule").add(post("postAppUiApiScheduleSchedulecommandCreateschedule", "/api/schedule/schedules.create", {
+var ScheduleGroup = class extends make$8("Schedule").add(post("postAppUiApiScheduleSchedulecommandCreateschedule", "/api/schedule/schedules.create", {
 	payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson,
 	success: Empty(201),
 	error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(status(409))
@@ -41103,7 +42600,7 @@ var ScheduleGroup = class extends make$6("Schedule").add(post("postAppUiApiSched
 	payload: PostAppUiApiScheduleScheduletemplatetypequeryListscheduletemplatetypesRequestJson,
 	success: PostAppUiApiScheduleScheduletemplatetypequeryListscheduletemplatetypes200
 }).annotate(Identifier, "post_app_ui_api_schedule_scheduletemplatetypequery_listscheduletemplatetypes").annotate(Summary, "List").annotate(Description, "Retrieves all schedule template type details, or the ones corresponding to the provided ids or teams.")).annotate(Description, "Schedule") {};
-var TimeclockGroup = class extends make$6("Timeclock").add(post("postAppUiApiTimeclockTimeclockcommandProposetimecheck", "/api/timeclock/timechecks.propose", {
+var TimeclockGroup = class extends make$8("Timeclock").add(post("postAppUiApiTimeclockTimeclockcommandProposetimecheck", "/api/timeclock/timechecks.propose", {
 	payload: PostAppUiApiTimeclockTimeclockcommandProposetimecheckRequestJson,
 	success: [PostAppUiApiTimeclockTimeclockcommandProposetimecheck201.pipe(status(201)), Empty(204)]
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockcommand_proposetimecheck").annotate(Summary, "Propose").annotate(Description, "Creates one timecheck in the \"proposal\" state, or modifies this state for an existing timecheck."), post("postAppUiApiTimeclockTimeclockcommandValidatetimecheck", "/api/timeclock/timechecks.validate", {
@@ -41116,13 +42613,13 @@ var TimeclockGroup = class extends make$6("Timeclock").add(post("postAppUiApiTim
 	payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson,
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids).<br />Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
-var Tipee = class extends make$8("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
+var Tipee = class extends make$10("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 //#endregion
 //#region ../../packages/core/src/TipeeClient.ts
 const TIPEE_API_VERSION = "26.06.25";
 const RETRY_ATTEMPTS = 3;
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
-	static layer = (credentials) => effect(TipeeClient, make$7(Tipee, {
+	static layer = (credentials) => effect(TipeeClient, make$9(Tipee, {
 		baseUrl: `https://${credentials.instance}.tipee.net`,
 		transformClient: (client) => client.pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), retryTransient({
 			schedule: exponential("250 millis"),
@@ -41290,7 +42787,7 @@ const explain = (error, target) => gen(function* () {
 });
 const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target), fail$3)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/AiError.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/AiError.js
 /**
 * Defines shared errors for AI operations.
 *
@@ -41302,6 +42799,7 @@ const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeErro
 * constructors, and helpers for converting HTTP response information into AI
 * error reasons.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
@@ -41310,7 +42808,7 @@ const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeErro
 * **Example** (Describing an HTTP request)
 *
 * ```ts import.meta.vitest
-* import type { AiError } from "effect/unstable/ai"
+* import type { AiError } from "effect/ai"
 *
 * const requestDetails: typeof AiError.HttpRequestDetails.Type = {
 *   method: "POST",
@@ -41322,6 +42820,7 @@ const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeErro
 * const result = [requestDetails.method, requestDetails.urlParams] // => ["POST", []]
 * ```
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -41334,7 +42833,8 @@ const HttpRequestDetails = /*#__PURE__*/ Struct({
 		"DELETE",
 		"HEAD",
 		"OPTIONS",
-		"TRACE"
+		"TRACE",
+		"QUERY"
 	]),
 	url: String$2,
 	urlParams: ArraySchema(Tuple([String$2, String$2])),
@@ -41347,7 +42847,7 @@ const HttpRequestDetails = /*#__PURE__*/ Struct({
 * **Example** (Describing an HTTP response)
 *
 * ```ts import.meta.vitest
-* import type { AiError } from "effect/unstable/ai"
+* import type { AiError } from "effect/ai"
 *
 * const responseDetails: typeof AiError.HttpResponseDetails.Type = {
 *   status: 200,
@@ -41359,6 +42859,7 @@ const HttpRequestDetails = /*#__PURE__*/ Struct({
 * const result = [responseDetails.status, responseDetails.headers["X-Request-Id"]] // => [200, "req_abc123"]
 * ```
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -41389,7 +42890,7 @@ const redactHeaders = (headers) => {
 * **Example** (Creating a network error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.NetworkError({
 *   reason: "TransportError",
@@ -41406,6 +42907,7 @@ const redactHeaders = (headers) => {
 * const result = [error.reason, error.isRetryable] // => ["TransportError", true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41422,12 +42924,14 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 	/**
 	* Marks `NetworkError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Transport errors are retryable; encoding and URL errors are not.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41439,8 +42943,8 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 	* **Example** (Creating a network error from a request error)
 	*
 	* ```ts import.meta.vitest
-	* import { AiError } from "effect/unstable/ai"
-	* import { HttpClientError, HttpClientRequest } from "effect/unstable/http"
+	* import { AiError } from "effect/ai"
+	* import { HttpClientError, HttpClientRequest } from "effect/http"
 	*
 	* const platformError = new HttpClientError.TransportError({
 	*   request: HttpClientRequest.get("https://example.com/models"),
@@ -41451,6 +42955,7 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 	* aiError.reason // => "TransportError"
 	* ```
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static fromRequestError(error) {
@@ -41507,6 +43012,7 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 * Array.of(metadata.openai.errorCode, metadata.anthropic) // => ["rate_limit_exceeded", null]
 * ```
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -41519,6 +43025,7 @@ const ProviderMetadata = /*#__PURE__*/ Record(String$2, /*#__PURE__*/ NullOr(Mut
 * Schema for optional provider-reported token counts for prompt tokens,
 * completion tokens, and total tokens.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -41543,6 +43050,7 @@ const UsageInfo = /*#__PURE__*/ Struct({
 * @see {@link HttpRequestDetails} for captured request details
 * @see {@link HttpResponseDetails} for captured response details
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -41563,7 +43071,7 @@ const HttpContext = /*#__PURE__*/ Struct({
 *
 * ```ts import.meta.vitest
 * import { Duration } from "effect"
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const rateLimitError = new AiError.RateLimitError({
 *   retryAfter: Duration.seconds(60)
@@ -41572,6 +43080,7 @@ const HttpContext = /*#__PURE__*/ Struct({
 * const result = [rateLimitError._tag, rateLimitError.isRetryable] // => ["RateLimitError", true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41584,12 +43093,14 @@ var RateLimitError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/Rat
 	/**
 	* Marks `RateLimitError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Rate limit errors are always retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41611,13 +43122,14 @@ var RateLimitError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/Rat
 * **Example** (Creating a quota exhausted error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const quotaError = new AiError.QuotaExhaustedError({})
 *
 * const result = [quotaError._tag, quotaError.isRetryable] // => ["QuotaExhaustedError", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41630,12 +43142,14 @@ var QuotaExhaustedError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 	/**
 	* Marks `QuotaExhaustedError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Quota exhausted errors require user action and are not retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41657,7 +43171,7 @@ var QuotaExhaustedError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 * **Example** (Creating an authentication error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const authError = new AiError.AuthenticationError({
 *   kind: "InvalidKey"
@@ -41673,6 +43187,7 @@ var QuotaExhaustedError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 * detailed.message // => "InsufficientPermissions: Your API key lacks required permissions. Token expired"
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41692,12 +43207,14 @@ var AuthenticationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 	/**
 	* Marks `AuthenticationError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Authentication errors require credential changes and are not retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41725,7 +43242,7 @@ var AuthenticationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 * **Example** (Creating a content policy error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const policyError = new AiError.ContentPolicyError({
 *   description: "Input contains prohibited content"
@@ -41734,6 +43251,7 @@ var AuthenticationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 * const result = [policyError.description, policyError.isRetryable] // => ["Input contains prohibited content", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41746,12 +43264,14 @@ var ContentPolicyError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError
 	/**
 	* Marks `ContentPolicyError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Content policy errors require content changes and are not retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41771,7 +43291,7 @@ var ContentPolicyError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError
 * **Example** (Creating an invalid request error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const invalidRequestError = new AiError.InvalidRequestError({
 *   parameter: "temperature",
@@ -41782,6 +43302,7 @@ var ContentPolicyError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError
 * const result = [invalidRequestError.parameter, invalidRequestError.isRetryable] // => ["temperature", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41796,12 +43317,14 @@ var InvalidRequestError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 	/**
 	* Marks `InvalidRequestError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Invalid request errors require fixing the request and are not retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41825,7 +43348,7 @@ var InvalidRequestError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 * **Example** (Creating an internal provider error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const providerError = new AiError.InternalProviderError({
 *   description: "Server encountered an unexpected error"
@@ -41834,6 +43357,7 @@ var InvalidRequestError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 * const result = [providerError.description, providerError.isRetryable] // => ["Server encountered an unexpected error", true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41846,12 +43370,14 @@ var InternalProviderError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 	/**
 	* Marks `InternalProviderError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Internal provider errors are typically transient and are retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41871,7 +43397,7 @@ var InternalProviderError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 * **Example** (Creating an invalid output error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const parseError = new AiError.InvalidOutputError({
 *   description: "Expected a string but received a number"
@@ -41880,6 +43406,7 @@ var InternalProviderError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 * const result = [parseError.description, parseError.isRetryable] // => ["Expected a string but received a number", true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41892,12 +43419,14 @@ var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1
 	/**
 	* Marks `InvalidOutputError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Invalid output errors are retryable since LLM outputs are non-deterministic.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41910,7 +43439,7 @@ var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1
 	*
 	* ```ts import.meta.vitest
 	* import { Effect, Schema } from "effect"
-	* import { AiError } from "effect/unstable/ai"
+	* import { AiError } from "effect/ai"
 	*
 	* const schemaError = await Effect.runPromise(
 	*   Schema.decodeUnknownEffect(Schema.Number)("not a number").pipe(Effect.flip)
@@ -41919,6 +43448,7 @@ var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1
 	* parseError.description // => "Expected number"
 	* ```
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static fromSchemaError(error) {
@@ -41939,7 +43469,7 @@ var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1
 * **Example** (Creating a structured output error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.StructuredOutputError({
 *   description: "Expected a valid JSON object",
@@ -41949,6 +43479,7 @@ var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1
 * const result = [error.description, error.responseText, error.isRetryable] // => ["Expected a valid JSON object", '{"foo":}', true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -41962,12 +43493,14 @@ var StructuredOutputError = class StructuredOutputError extends (/*#__PURE__*/ E
 	/**
 	* Marks `StructuredOutputError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Structured output errors are retryable since LLM outputs are non-deterministic.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -41980,7 +43513,7 @@ var StructuredOutputError = class StructuredOutputError extends (/*#__PURE__*/ E
 	*
 	* ```ts import.meta.vitest
 	* import { Effect, Schema } from "effect"
-	* import { AiError } from "effect/unstable/ai"
+	* import { AiError } from "effect/ai"
 	*
 	* const schemaError = await Effect.runPromise(
 	*   Schema.decodeUnknownEffect(Schema.Struct({ name: Schema.String }))({}).pipe(Effect.flip)
@@ -41989,6 +43522,7 @@ var StructuredOutputError = class StructuredOutputError extends (/*#__PURE__*/ E
 	* parseError.responseText // => "{}"
 	* ```
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static fromSchemaError(error, responseText) {
@@ -42013,7 +43547,7 @@ var StructuredOutputError = class StructuredOutputError extends (/*#__PURE__*/ E
 * **Example** (Creating an unsupported schema error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.UnsupportedSchemaError({
 *   description: "Unions are not supported in Anthropic structured output"
@@ -42022,6 +43556,7 @@ var StructuredOutputError = class StructuredOutputError extends (/*#__PURE__*/ E
 * const result = [error.description, error.isRetryable] // => ["Unions are not supported in Anthropic structured output", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42033,12 +43568,14 @@ var UnsupportedSchemaError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 	/**
 	* Marks `UnsupportedSchemaError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Unsupported schema errors are not retryable because they indicate a programmer error.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42058,7 +43595,7 @@ var UnsupportedSchemaError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 * **Example** (Creating an unknown error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const unknownError = new AiError.UnknownError({
 *   description: "An unexpected error occurred"
@@ -42067,6 +43604,7 @@ var UnsupportedSchemaError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 * const result = [unknownError.description, unknownError.isRetryable] // => ["An unexpected error occurred", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42079,12 +43617,14 @@ var UnknownError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/Unkno
 	/**
 	* Marks `UnknownError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Unknown errors are not retryable by default.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42105,7 +43645,7 @@ var UnknownError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/Unkno
 * **Example** (Creating a tool not found error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.ToolNotFoundError({
 *   toolName: "unknownTool",
@@ -42115,6 +43655,7 @@ var UnknownError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/Unkno
 * const result = [error.toolName, error.availableTools, error.isRetryable] // => ["unknownTool", ["GetWeather", "GetTime"], true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42126,12 +43667,14 @@ var ToolNotFoundError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/
 	/**
 	* Marks `ToolNotFoundError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Tool not found errors are retryable because the model may self-correct.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42153,7 +43696,7 @@ var ToolNotFoundError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/
 * **Example** (Creating a tool parameter validation error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.ToolParameterValidationError({
 *   toolName: "GetWeather",
@@ -42163,6 +43706,7 @@ var ToolNotFoundError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/
 * const result = [error.toolName, error.description, error.isRetryable] // => ["GetWeather", "Expected string, got number", true]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42174,12 +43718,14 @@ var ToolParameterValidationError = class extends (/*#__PURE__*/ Error$1("effect/
 	/**
 	* Marks `ToolParameterValidationError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Parameter validation errors are retryable because the model may correct parameters.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42201,7 +43747,7 @@ var ToolParameterValidationError = class extends (/*#__PURE__*/ Error$1("effect/
 * **Example** (Creating an invalid tool result error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.InvalidToolResultError({
 *   toolName: "GetWeather",
@@ -42211,6 +43757,7 @@ var ToolParameterValidationError = class extends (/*#__PURE__*/ Error$1("effect/
 * const result = [error.toolName, error.isRetryable] // => ["GetWeather", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42222,12 +43769,14 @@ var InvalidToolResultError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 	/**
 	* Marks `InvalidToolResultError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Invalid tool result errors are not retryable because they indicate a bug in the handler.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42248,7 +43797,7 @@ var InvalidToolResultError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 * **Example** (Creating a tool result encoding error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.ToolResultEncodingError({
 *   toolName: "GetWeather",
@@ -42259,6 +43808,7 @@ var InvalidToolResultError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 * const result = [error.toolName, error.description, error.isRetryable] // => ["GetWeather", "Cannot encode bigint values as JSON", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42271,12 +43821,14 @@ var ToolResultEncodingError = class extends (/*#__PURE__*/ Error$1("effect/ai/Ai
 	/**
 	* Marks `ToolResultEncodingError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Encoding errors are not retryable because they indicate a code bug.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42297,7 +43849,7 @@ var ToolResultEncodingError = class extends (/*#__PURE__*/ Error$1("effect/ai/Ai
 * **Example** (Creating a tool configuration error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.ToolConfigurationError({
 *   toolName: "OpenAiCodeInterpreter",
@@ -42307,6 +43859,7 @@ var ToolResultEncodingError = class extends (/*#__PURE__*/ Error$1("effect/ai/Ai
 * const result = [error.toolName, error.description, error.isRetryable] // => ["OpenAiCodeInterpreter", "Invalid container ID format", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42318,12 +43871,14 @@ var ToolConfigurationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 	/**
 	* Marks `ToolConfigurationError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Configuration errors are not retryable because they indicate a code bug.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42344,7 +43899,7 @@ var ToolConfigurationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 * **Example** (Creating a toolkit required error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.ToolkitRequiredError({
 *   pendingApprovals: ["GetWeather", "SendEmail"]
@@ -42353,6 +43908,7 @@ var ToolConfigurationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 * const result = [error.pendingApprovals, error.isRetryable] // => [["GetWeather", "SendEmail"], false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42364,12 +43920,14 @@ var ToolkitRequiredError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErr
 	/**
 	* Marks `ToolkitRequiredError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Toolkit required errors are not retryable without providing a toolkit.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42391,7 +43949,7 @@ var ToolkitRequiredError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErr
 * **Example** (Creating an invalid user input error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = new AiError.InvalidUserInputError({
 *   description: "Unsupported media type 'video/mp4'. Supported types include images, application/pdf, text/plain"
@@ -42400,6 +43958,7 @@ var ToolkitRequiredError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErr
 * const result = [error._tag, error.isRetryable] // => ["InvalidUserInputError", false]
 * ```
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -42410,12 +43969,14 @@ var InvalidUserInputError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 	/**
 	* Marks `InvalidUserInputError` as a semantic AI error reason for runtime guards.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	[ReasonTypeId] = ReasonTypeId;
 	/**
 	* Invalid user input errors require fixing the input and are not retryable.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42438,6 +43999,7 @@ var InvalidUserInputError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 *
 * @see {@link isAiErrorReason} for checking an existing value without Schema decoding
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -42479,7 +44041,7 @@ const TypeId$3 = "~effect/ai/AiError";
 *
 * ```ts import.meta.vitest
 * import { Duration, Effect } from "effect"
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const aiOperation = Effect.fail(new AiError.AiError({
 *   module: "OpenAI",
@@ -42500,6 +44062,7 @@ const TypeId$3 = "~effect/ai/AiError";
 * await Effect.runPromise(handled) // => "Retry after 30000 millis"
 * ```
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -42514,6 +44077,7 @@ var AiError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/AiError")(
 	/**
 	* Delegates to the underlying reason's `isRetryable` getter.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get isRetryable() {
@@ -42522,6 +44086,7 @@ var AiError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/AiError")(
 	/**
 	* Delegates to the underlying reason's `retryAfter` if present.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	get retryAfter() {
@@ -42537,7 +44102,7 @@ var AiError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/AiError")(
 * **Example** (Checking for an AI error)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const someError = new Error("generic error")
 * const aiError = AiError.make({
@@ -42549,6 +44114,7 @@ var AiError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/AiError")(
 * const result = [AiError.isAiError(someError), AiError.isAiError(aiError)] // => [false, true]
 * ```
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
@@ -42559,7 +44125,7 @@ const isAiError = (u) => hasProperty(u, TypeId$3);
 * **Example** (Checking for an AI error reason)
 *
 * ```ts import.meta.vitest
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const rateLimitError = new AiError.RateLimitError({})
 * const genericError = new Error("generic error")
@@ -42567,6 +44133,7 @@ const isAiError = (u) => hasProperty(u, TypeId$3);
 * const result = [AiError.isAiErrorReason(rateLimitError), AiError.isAiErrorReason(genericError)] // => [true, false]
 * ```
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
@@ -42578,7 +44145,7 @@ const isAiErrorReason = (u) => hasProperty(u, ReasonTypeId);
 *
 * ```ts import.meta.vitest
 * import { Duration } from "effect"
-* import { AiError } from "effect/unstable/ai"
+* import { AiError } from "effect/ai"
 *
 * const error = AiError.make({
 *   module: "OpenAI",
@@ -42591,12 +44158,13 @@ const isAiErrorReason = (u) => hasProperty(u, ReasonTypeId);
 * const result = [error.module, error.method, error.reason._tag] // => ["OpenAI", "completion", "RateLimitError"]
 * ```
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$5 = (params) => new AiError(params);
+const make$7 = (params) => new AiError(params);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/Tool.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/Tool.js
 /**
 * Definitions and helpers for tools that AI models can request during a
 * workflow.
@@ -42608,6 +44176,7 @@ const make$5 = (params) => new AiError(params);
 * includes the shared types and conversion helpers needed by language-model
 * requests, tool handlers, and provider integrations.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
@@ -42618,6 +44187,7 @@ const make$5 = (params) => new AiError(params);
 * The tool type guards use this marker, together with more specific markers,
 * to distinguish user-defined, provider-defined, and dynamic tools.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
@@ -42630,6 +44200,7 @@ const TypeId$2 = "~effect/ai/Tool";
 * `isDynamic` uses this marker to distinguish tools whose schema may be
 * provided at runtime from user-defined and provider-defined tools.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
@@ -42641,7 +44212,7 @@ const DynamicTypeId = "~effect/ai/Tool/Dynamic";
 *
 * ```ts import.meta.vitest
 * import { Schema } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const DynamicTool = Tool.dynamic("DynamicTool", {
 *   parameters: { type: "object", properties: {} }
@@ -42655,6 +44226,7 @@ const DynamicTypeId = "~effect/ai/Tool/Dynamic";
 * const result = [Tool.isDynamic(DynamicTool), Tool.isDynamic(UserDefinedTool)] // => [true, false]
 * ```
 *
+* @stability unstable
 * @category guards
 * @since 4.0.0
 */
@@ -42721,7 +44293,7 @@ const dynamicProto = (options) => {
 *
 * ```ts import.meta.vitest
 * import { Schema } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * // Simple tool with no parameters
 * const GetCurrentTime = Tool.make("GetCurrentTime", {
@@ -42731,10 +44303,11 @@ const dynamicProto = (options) => {
 * GetCurrentTime.name // => "GetCurrentTime"
 * ```
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$4 = (name, options) => {
+const make$6 = (name, options) => {
 	const successSchema = options?.success ?? Void;
 	const failureSchema = options?.failure ?? Never;
 	return userDefinedProto({
@@ -42766,7 +44339,7 @@ const make$4 = (name, options) => {
 *
 * ```ts import.meta.vitest
 * import { Schema } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * // With Effect Schema (typed parameters)
 * const Calculator = Tool.dynamic("Calculator", {
@@ -42791,6 +44364,7 @@ const make$4 = (name, options) => {
 * const result = [Calculator.name, McpTool.name] // => ["Calculator", "McpTool"]
 * ```
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -42824,7 +44398,7 @@ const dynamic = (name, options) => {
 * **Example** (Reading a tool description)
 *
 * ```ts import.meta.vitest
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const myTool = Tool.make("example", {
 *   description: "This is an example tool"
@@ -42834,6 +44408,7 @@ const dynamic = (name, options) => {
 * description // => "This is an example tool"
 * ```
 *
+* @stability unstable
 * @category getters
 * @since 4.0.0
 */
@@ -42842,81 +44417,20 @@ const getDescription = (tool) => {
 	if (isSchema(tool.parametersSchema)) return resolveDescription(tool.parametersSchema.ast);
 };
 /**
-* Generates a JSON Schema for a tool.
-*
-* **Details**
-*
-* This function creates a JSON Schema representation that can be used by
-* large language models to indicate the structure and type of the parameters
-* that a given tool call should receive.
-*
-* May accept an optional `CodecTransformer` which can be used to transform the
-* tool parameter schema so that the resultant JSON schema for the tool call
-* parameters are in a format that conforms to any provider-specific constraints.
-*
-* **Example** (Generating a tool JSON schema)
-*
-* ```ts import.meta.vitest
-* import { Schema } from "effect"
-* import { Tool } from "effect/unstable/ai"
-*
-* const weatherTool = Tool.make("get_weather", {
-*   parameters: Schema.Struct({
-*     location: Schema.String,
-*     units: Schema.Literals(["celsius", "fahrenheit"])
-*   })
-* })
-*
-* const jsonSchema = Tool.getJsonSchema(weatherTool)
-* jsonSchema.type // => "object"
-* if (typeof jsonSchema.properties === "object" && jsonSchema.properties !== null) {
-*   Object.keys(jsonSchema.properties) // => ["location", "units"]
-* }
-* ```
-*
-* @category getters
-* @since 4.0.0
-*/
-const getJsonSchema = (tool, options) => {
-	if (isDynamic(tool) && tool.jsonSchema !== void 0) return tool.jsonSchema;
-	return getJsonSchemaFromSchema(tool.parametersSchema, options);
-};
-/**
-* Generates a JSON Schema from an Effect `Schema`.
-*
-* **Details**
-*
-* If a `CodecTransformer` is supplied, the transformed schema's JSON Schema is
-* returned. Otherwise, the schema is converted with
-* `Schema.toJsonSchemaDocument` and any generated definitions are attached as
-* `$defs`.
-*
-* @category converting
-* @since 4.0.0
-*/
-const getJsonSchemaFromSchema = (schema, options) => {
-	return getJsonSchemaFromSchemaWith(schema, toJsonSchemaDocument, options);
-};
-const getJsonSchemaFromSchemaWith = (schema, toJsonSchemaDocument, options) => {
-	if (isNotUndefined(options?.transformer)) return options.transformer(schema).jsonSchema;
-	const document = toJsonSchemaDocument(schema);
-	if (Object.keys(document.definitions).length > 0) document.schema.$defs = document.definitions;
-	return document.schema;
-};
-/**
 * Annotation for providing a human-readable title for tools.
 *
 * **Example** (Annotating a tool title)
 *
 * ```ts import.meta.vitest
 * import { Context } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const myTool = Tool.make("calculate_tip")
 *   .annotate(Tool.Title, "Tip Calculator")
 * Context.getUnsafe(myTool.annotations, Tool.Title) // => "Tip Calculator"
 * ```
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -42928,13 +44442,14 @@ var Title = class extends (/*#__PURE__*/ Service$1()("effect/ai/Tool/Title")) {}
 *
 * ```ts import.meta.vitest
 * import { Context } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const myCalculatorUi = Tool.make("calculator_ui", {})
 *   .annotate(Tool.Meta, { ui: { resourceUri: "ui://example/calculator-ui" } })
 * "ui" in Context.getUnsafe(myCalculatorUi.annotations, Tool.Meta) // => true
 * ```
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -42951,13 +44466,14 @@ var Meta$2 = class extends (/*#__PURE__*/ Service$1()("effect/ai/Tool/Meta")) {}
 *
 * ```ts import.meta.vitest
 * import { Context } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const readOnlyTool = Tool.make("get_user_info")
 *   .annotate(Tool.Readonly, true)
 * Context.get(readOnlyTool.annotations, Tool.Readonly) // => true
 * ```
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -42974,13 +44490,14 @@ const Readonly = /*#__PURE__*/ Reference("effect/ai/Tool/Readonly", { defaultVal
 *
 * ```ts import.meta.vitest
 * import { Context } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const safeTool = Tool.make("search_database")
 *   .annotate(Tool.Destructive, false)
 * Context.get(safeTool.annotations, Tool.Destructive) // => false
 * ```
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -42998,13 +44515,14 @@ const Destructive = /*#__PURE__*/ Reference("effect/ai/Tool/Destructive", { defa
 *
 * ```ts import.meta.vitest
 * import { Context } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const idempotentTool = Tool.make("get_current_time")
 *   .annotate(Tool.Idempotent, true)
 * Context.get(idempotentTool.annotations, Tool.Idempotent) // => true
 * ```
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -43022,20 +44540,70 @@ const Idempotent = /*#__PURE__*/ Reference("effect/ai/Tool/Idempotent", { defaul
 *
 * ```ts import.meta.vitest
 * import { Context } from "effect"
-* import { Tool } from "effect/unstable/ai"
+* import { Tool } from "effect/ai"
 *
 * const restrictedTool = Tool.make("internal_operation")
 *   .annotate(Tool.OpenWorld, false)
 * Context.get(restrictedTool.annotations, Tool.OpenWorld) // => false
 * ```
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
 const OpenWorld = /*#__PURE__*/ Reference("effect/ai/Tool/OpenWorld", { defaultValue: constTrue });
 /**
+* Annotation controlling whether strict JSON schema mode is enabled for a tool.
+*
+* **Details**
+*
+* When `true`, providers that support strict mode will send `strict: true` to
+* the model API (e.g. OpenAI's Structured Outputs).
+*
+* When `false`, strict mode is disabled and `strict: false` is sent.
+*
+* When `undefined` (default), the provider's global configuration determines
+* the behavior (e.g. `Config.strictJsonSchema` for OpenAI).
+*
+* **Example** (Disabling strict JSON schema mode)
+*
+* ```ts import.meta.vitest
+* import { Tool } from "effect/ai"
+*
+* const flexibleTool = Tool.make("search")
+*   .annotate(Tool.Strict, false)
+* Tool.getStrictMode(flexibleTool) // => false
+* ```
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+const Strict = /*#__PURE__*/ Reference("effect/ai/Tool/Strict", { defaultValue: () => void 0 });
+/**
+* Returns the strict mode setting for a tool, or `undefined` if not set.
+*
+* **When to use**
+*
+* Use to inspect the per-tool strict JSON Schema override attached through
+* `Tool.Strict`.
+*
+* **Gotchas**
+*
+* `undefined` means no per-tool override is set. It is distinct from `false`;
+* provider or global configuration determines the final behavior.
+*
+* @see {@link Strict} for the annotation read by this helper
+*
+* @stability unstable
+* @category getters
+* @since 4.0.0
+*/
+const getStrictMode = (tool) => get$2(tool.annotations, Strict);
+/**
 * Schema for denied or interrupted tool calls.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43051,6 +44619,7 @@ const ExecutionFailure = /*#__PURE__*/ Struct({
 * `AiError` comes first to restore error instances. The user schema precedes
 * {@link ExecutionFailure} to preserve user fields.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43073,13 +44642,91 @@ const failureResultSchema = (tool) => Union([
 *
 * @see {@link make} for the tool constructor that defaults omitted parameters to this schema
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
 const EmptyParams = /*#__PURE__*/ Record(String$2, Never);
+/**
+* @internal
+*/
+function resolveReference($ref, definitions) {
+	const key = getReferenceKey($ref);
+	if (key === void 0) throw new Error(`Unsupported reference ${JSON.stringify($ref)}`);
+	if (!Object.hasOwn(definitions, key)) throw new Error(`Invalid reference ${JSON.stringify($ref)}`);
+	return definitions[key];
+}
+/**
+* @internal
+*/
+function resolveTopLevelReference(document) {
+	if (typeof document.schema.$ref !== "string") return document;
+	return {
+		...document,
+		schema: resolveReference(document.schema.$ref, document.definitions)
+	};
+}
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/Toolkit.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/Toolkit.js
+/**
+* Groups AI tools together with their handlers.
+*
+* A toolkit connects `Tool` schemas to the handler functions an application
+* provides for a language model workflow. It can build a handler context or
+* layer and execute tool calls by name. Execution validates parameters, runs the
+* handler, encodes the result, supports preliminary streamed results, and
+* applies the tool's failure mode.
+*
+* @stability unstable
+* @since 4.0.0
+*/
 const TypeId$1 = "~effect/ai/Toolkit";
+/**
+* Cause annotation identifying the phase of a typed `Toolkit.handle` failure.
+*
+* **Details**
+*
+* Typed failures raised by `Toolkit.handle` carry one of these origins:
+*
+* - `"parameters"`: the tool call arguments failed to decode
+* - `"handler"`: the tool handler itself failed
+* - `"result"`: the handler's output failed to validate or encode
+*
+* Unannotated causes default to `"result"`, allowing consumers to treat them
+* as internal failures.
+*
+* Returned failures expose the same origin in `Tool.HandlerResult.failureOrigin`.
+*
+* **Example** (Reading a handler failure's origin)
+*
+* ```ts import.meta.vitest
+* import { Cause, Context, Effect, Schema, Stream } from "effect"
+* import { Tool, Toolkit } from "effect/ai"
+*
+* const toolkit = Toolkit.make(Tool.make("Lookup", {
+*   failure: Schema.String,
+*   failureMode: "error"
+* }))
+*
+* const program = Effect.gen(function*() {
+*   const handlers = yield* toolkit
+*   yield* handlers.handle("Lookup", {}).pipe(Effect.flatMap(Stream.runDrain))
+* }).pipe(
+*   Effect.catchCause((cause) =>
+*     Effect.succeed(Context.get(Cause.annotations(cause), Toolkit.FailureOrigin))
+*   ),
+*   Effect.provide(toolkit.toLayer({ Lookup: () => Effect.fail("Not found") }))
+* )
+*
+* await Effect.runPromise(program) // => "handler"
+* ```
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+const FailureOrigin = /*#__PURE__*/ Reference("effect/ai/Toolkit/FailureOrigin", { defaultValue: () => "result" });
+const failureCause = (error, origin) => annotate$1(fail$4(error), make$49(FailureOrigin, origin));
 const Proto = {
 	.../*#__PURE__*/ Prototype({
 		label: "Toolkit",
@@ -43107,13 +44754,13 @@ const Proto = {
 			};
 			return {
 				tools,
-				handle: fnUntraced(function* (name, params, toolCallId) {
+				handle: fnUntraced(function* (name, params, toolCallId, options) {
 					const tool = Object.hasOwn(tools, name) ? tools[name] : void 0;
 					yield* annotateCurrentSpan({
 						tool: name,
 						parameters: params
 					});
-					if (isUndefined(tool)) return yield* make$5({
+					if (isUndefined(tool)) return yield* make$7({
 						module: "Toolkit",
 						method: `${name}.handle`,
 						reason: new ToolNotFoundError({
@@ -43122,7 +44769,7 @@ const Proto = {
 						})
 					});
 					const schemas = getSchemas(tool);
-					const encodeResult = (result, isFailure) => schemas.encodeResult(result, isFailure).pipe(mapError$2((cause) => make$5({
+					const encodeResult = (result, isFailure) => schemas.encodeResult(result, isFailure).pipe(mapError$2((cause) => make$7({
 						module: "Toolkit",
 						method: `${name}.handle`,
 						reason: new ToolResultEncodingError({
@@ -43131,9 +44778,9 @@ const Proto = {
 							description: cause.message
 						})
 					})));
-					const decodedParamsResult = yield* result$1(schemas.decodeParameters(params));
+					const decodedParamsResult = yield* result$1(schemas.decodeParameters(params, options));
 					if (isFailure$1(decodedParamsResult)) {
-						const error = make$5({
+						const error = make$7({
 							module: "Toolkit",
 							method: `${name}.handle`,
 							reason: new ToolParameterValidationError({
@@ -43141,16 +44788,17 @@ const Proto = {
 								description: decodedParamsResult.failure.message
 							})
 						});
-						if (tool.failureMode === "error") return yield* error;
+						if (tool.failureMode === "error") return yield* failCause$3(failureCause(error, "parameters"));
 						return fromEffect(map$3(encodeResult(error, true), (encodedResult) => ({
 							result: error,
 							isFailure: true,
+							failureOrigin: "parameters",
 							preliminary: false,
 							encodedResult
 						})));
 					}
 					const decodedParams = decodedParamsResult.success;
-					const queue = yield* make$38();
+					const queue = yield* make$39();
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -43164,18 +44812,18 @@ const Proto = {
 						isFailure: false,
 						preliminary: false
 					})), updateContext((input) => merge$1(schemas.context, input)), matchCauseEffect({
-						onFailure: (cause) => failCause$1(queue, cause),
+						onFailure: (cause) => failCause$2(queue, cause),
 						onSuccess: () => end(queue)
 					}), forkChild);
 					const normalizeError = (error) => {
-						return isSchemaError(error) ? make$5({
+						return isSchemaError(error) ? make$7({
 							module: "Toolkit",
 							method: `${name}.handle`,
 							reason: new InvalidToolResultError({
 								toolName: name,
 								description: `Tool handler returned invalid result: ${error.message}`
 							})
-						}) : isAiErrorReason(error) ? make$5({
+						}) : isAiErrorReason(error) ? make$7({
 							module: "Toolkit",
 							method: `${name}.handle`,
 							reason: error
@@ -43183,9 +44831,11 @@ const Proto = {
 					};
 					return fromQueue(queue).pipe(catch_((error) => {
 						const normalizedError = normalizeError(error);
-						return tool.failureMode === "error" ? fail$1(normalizedError) : succeed$1({
+						const failureOrigin = isSchemaError(error) ? "result" : "handler";
+						return tool.failureMode === "error" ? failCause(failureCause(normalizedError, failureOrigin)) : succeed$1({
 							result: normalizedError,
 							isFailure: true,
+							failureOrigin,
 							preliminary: false
 						});
 					}), mapEffect(fnUntraced(function* (output) {
@@ -43246,7 +44896,7 @@ const resolveInput = (...tools) => {
 *
 * ```ts import.meta.vitest
 * import { Effect, Schema } from "effect"
-* import { Tool, Toolkit } from "effect/unstable/ai"
+* import { Tool, Toolkit } from "effect/ai"
 *
 * const GetCurrentTime = Tool.make("GetCurrentTime", {
 *   description: "Get the current timestamp",
@@ -43271,12 +44921,13 @@ const resolveInput = (...tools) => {
 * Object.keys((await Effect.runPromise(ready)).tools) // => ["GetCurrentTime", "get_weather"]
 * ```
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
-const make$3 = (...tools) => makeProto(resolveInput(...tools));
+const make$5 = (...tools) => makeProto(resolveInput(...tools));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/rpc/RpcMiddleware.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/rpc/RpcMiddleware.js
 /**
 * Middleware services for the unstable RPC runtime.
 *
@@ -43286,11 +44937,13 @@ const make$3 = (...tools) => makeProto(resolveInput(...tools));
 * implementation, the schema for server-visible failures, the client-only error
 * type, and whether generated clients must require the matching client layer.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
 * The runtime type id used to attach and inspect RPC middleware metadata.
 *
+* @stability unstable
 * @category type IDs
 * @since 4.0.0
 */
@@ -43300,6 +44953,7 @@ const TypeId = "~effect/rpc/RpcMiddleware";
 * requirements, provided services, error schema, and client-side requirement
 * metadata.
 *
+* @stability unstable
 * @category constructors
 * @since 4.0.0
 */
@@ -43324,12 +44978,12 @@ const Service = () => (id, options) => {
 	return ServiceClass;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/McpSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/McpSchema.js
 /**
 * Defines schemas for Model Context Protocol messages.
 *
 * MCP clients and servers use these schemas to describe the JSON-RPC requests,
-* notifications, results, and errors that can cross the protocol boundary. This
+* notifications, results, and errors that can cross the protocol boundary.
 * This is the stable public compatibility and authoring surface. It is not an
 * exact dated wire contract: MCP protocol adapters use frozen schemas under
 * `internal/mcpSchema` for decoding and encoding. This module groups the
@@ -43337,6 +44991,7 @@ const Service = () => (id, options) => {
 * for optional fields and parameter metadata. Transport and server behavior
 * live in other modules.
 *
+* @stability unstable
 * @since 4.0.0
 */
 /**
@@ -43348,13 +45003,14 @@ const Service = () => (id, options) => {
 * The default is used during decoding and as the constructor default for the
 * schema field.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
 const optionalWithDefault = (schema, defaultValue) => {
 	const effect = sync(defaultValue);
 	return optionalKey(schema).pipe(decode$2({
-		decode: withDefault$1(effect),
+		decode: withDefault$2(effect),
 		encode: passthrough$1()
 	}), withConstructorDefault(effect));
 };
@@ -43366,6 +45022,7 @@ const optionalWithDefault = (schema, defaultValue) => {
 * The field may be absent, and explicit `undefined` values are omitted when
 * encoding.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43376,6 +45033,7 @@ const optional$4 = (schema) => optionalKey(schema).pipe(decodeTo(optional$5(sche
 /**
 * Schema for JSON-RPC request identifiers, allowing string or number ids.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43384,6 +45042,7 @@ const RequestId$1 = /*#__PURE__*/ Union([String$2, Finite]);
 * Schema for MCP progress tokens that associate progress notifications with the
 * original request.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43396,10 +45055,11 @@ const ProgressToken$1 = /*#__PURE__*/ Union([String$2, Finite]);
 * Request metadata may include a progress token that asks the receiver to send
 * out-of-band progress notifications for the request.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
-var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ 
+var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ 
 /**
 * If specified, the caller is requesting out-of-band progress notifications
 * for this request (as represented by notifications/progress). The value of
@@ -43407,7 +45067,7 @@ var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 * notifications. The receiver is not obligated to provide these
 * notifications.
 */
-progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) })) }))) {};
+progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [JsonObject$3])) }))) {};
 /**
 * Schema for optional MCP result metadata.
 *
@@ -43416,6 +45076,7 @@ progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) })) }))) {};
 * The `_meta` field is reserved for protocol, extension, or implementation
 * metadata attached to a result.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43433,6 +45094,7 @@ _meta: /*#__PURE__*/ optional$4(JsonObject$3) }))) {};
 * The `_meta` field is reserved for protocol, extension, or implementation
 * metadata attached to a notification.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43445,6 +45107,7 @@ _meta: /*#__PURE__*/ optional$4(JsonObject$3) }))) {};
 /**
 * Schema for opaque cursor tokens used in pagination.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43463,6 +45126,7 @@ const Cursor = String$2;
 * It includes the base result metadata fields plus an optional `nextCursor`,
 * which indicates that more results may be available.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43477,6 +45141,7 @@ var PaginatedResultMeta = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ St
 /**
 * Schema for MCP conversation roles, allowing user and assistant.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43489,6 +45154,7 @@ const Role$1 = /*#__PURE__*/ Literals(["user", "assistant"]);
 * Use to describe intended audience and priority metadata for objects shown or
 * processed by a client.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43520,6 +45186,7 @@ var Annotations$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 /**
 * Schema for an icon that an MCP client can display.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43544,6 +45211,7 @@ var Icon$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Icon")({
 /**
 * Describes the name and version of an MCP implementation.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43568,6 +45236,7 @@ var Implementation$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struc
 * Known capabilities are represented by this schema, but the capability set is
 * open and clients may define additional capabilities.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43633,6 +45302,7 @@ listChanged: /*#__PURE__*/ optional$4(Boolean) })),
 * Known capabilities are represented by this schema, but the capability set is
 * open and servers may define additional capabilities.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43696,6 +45366,7 @@ listChanged: /*#__PURE__*/ optional$4(Boolean) }))
 * It contains the numeric error `code`, a concise `message`, and optional
 * sender-defined `data`.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43723,6 +45394,7 @@ var McpErrorBase = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/McpE
 * Use when building an MCP/JSON-RPC error response for a syntactically parsed
 * request object that fails request-shape validation.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
@@ -43736,6 +45408,7 @@ const INVALID_REQUEST_ERROR_CODE = -32600;
 * Use when building an MCP/JSON-RPC error response for a request whose
 * `method` is unknown or unavailable.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
@@ -43748,6 +45421,7 @@ const METHOD_NOT_FOUND_ERROR_CODE = -32601;
 * Use when building an MCP/JSON-RPC error response for decoded request
 * parameters that fail method-specific validation.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
@@ -43760,6 +45434,7 @@ const INVALID_PARAMS_ERROR_CODE = -32602;
 * Use when building an MCP/JSON-RPC error response for an unexpected
 * server-side failure.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
@@ -43772,10 +45447,25 @@ const INTERNAL_ERROR_CODE = -32603;
 * Use when building an MCP/JSON-RPC error response before a request object is
 * available because the JSON payload could not be parsed.
 *
+* @stability unstable
 * @category constants
 * @since 4.0.0
 */
 const PARSE_ERROR_CODE = -32700;
+/**
+* Represents the MCP error code for HTTP headers that do not match the
+* corresponding request values.
+*
+* **When to use**
+*
+* Use when building an MCP error response for missing, malformed, or
+* mismatched request-routing headers.
+*
+* @stability unstable
+* @category constants
+* @since 4.0.0
+*/
+const HEADER_MISMATCH_ERROR_CODE = -32020;
 /**
 * Represents an MCP/JSON-RPC error for invalid JSON that could not be parsed.
 *
@@ -43788,6 +45478,7 @@ const PARSE_ERROR_CODE = -32700;
 *
 * Uses the standard JSON-RPC parse error code `-32700`.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -43808,6 +45499,7 @@ var ParseError = class extends (/*#__PURE__*/ Error$1("effect/ai/McpSchema/Parse
 *
 * Uses the standard JSON-RPC invalid request code `-32600`.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -43827,6 +45519,7 @@ var InvalidRequest = class extends (/*#__PURE__*/ Error$1("effect/ai/McpSchema/I
 *
 * Uses the standard JSON-RPC method-not-found code `-32601`.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -43847,6 +45540,7 @@ var MethodNotFound = class extends (/*#__PURE__*/ Error$1("effect/ai/McpSchema/M
 *
 * Uses the standard JSON-RPC invalid params code `-32602`.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -43868,6 +45562,7 @@ var InvalidParams = class extends (/*#__PURE__*/ Error$1("effect/ai/McpSchema/In
 * Uses the standard JSON-RPC internal error code `-32603` and includes
 * `InternalError.notImplemented` for unimplemented handlers.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -43882,6 +45577,7 @@ var InternalError = class InternalError extends (/*#__PURE__*/ Error$1("effect/a
 * Schema for MCP protocol errors returned in JSON-RPC failure responses,
 * including standard protocol errors and custom `McpErrorBase` values.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -43904,10 +45600,11 @@ const McpError$1 = /*#__PURE__*/ Union([
 *
 * The receiver should respond promptly; otherwise the sender may disconnect.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var Ping$1 = class extends (/*#__PURE__*/ make$16("ping", {
+var Ping$1 = class extends (/*#__PURE__*/ make$18("ping", {
 	success: /*#__PURE__*/ Struct({}),
 	error: McpError$1,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta$1)
@@ -43915,6 +45612,7 @@ var Ping$1 = class extends (/*#__PURE__*/ make$16("ping", {
 /**
 * Schema for the server's response to an initialize request from the client.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -43941,10 +45639,11 @@ var InitializeResult$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Str
 * Sent from the client to the server when it first connects, asking it to begin
 * initialization.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var Initialize$4 = class extends (/*#__PURE__*/ make$16("initialize", {
+var Initialize$4 = class extends (/*#__PURE__*/ make$18("initialize", {
 	success: InitializeResult$4,
 	error: McpError$1,
 	payload: {
@@ -43975,10 +45674,11 @@ var Initialize$4 = class extends (/*#__PURE__*/ make$16("initialize", {
 * The payload identifies the request to cancel and may include a
 * human-readable reason.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var CancelledNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/cancelled", { payload: {
+var CancelledNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/cancelled", { payload: {
 	...NotificationMeta$1.fields,
 	/**
 	* The ID of the request to cancel.
@@ -43996,10 +45696,11 @@ var CancelledNotification$1 = class extends (/*#__PURE__*/ make$16("notification
 /**
 * Sent from either peer to report progress for a long-running request.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var ProgressNotification$2 = class extends (/*#__PURE__*/ make$16("notifications/progress", { payload: {
+var ProgressNotification$2 = class extends (/*#__PURE__*/ make$18("notifications/progress", { payload: {
 	...NotificationMeta$1.fields,
 	/**
 	* The progress token which was given in the initial request, used to
@@ -44023,6 +45724,7 @@ var ProgressNotification$2 = class extends (/*#__PURE__*/ make$16("notifications
 /**
 * Schema for a known resource that the server is capable of reading.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44076,6 +45778,7 @@ var Resource$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Resour
 /**
 * Schema for the contents of a specific resource or sub-resource.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44096,6 +45799,7 @@ var ResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Str
 /**
 * Schema for text resource contents represented as a string.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44110,6 +45814,7 @@ var TextResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/
 /**
 * Schema for binary resource contents represented as a `Uint8Array`.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44140,10 +45845,11 @@ var BlobResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/
 *
 * Servers may send this notification without a previous client subscription.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var ResourceListChangedNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
+var ResourceListChangedNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
 (
 /**
 * The URI of the resource to subscribe to. The URI can use any protocol;
@@ -44164,10 +45870,11 @@ var ResourceListChangedNotification$1 = class extends (/*#__PURE__*/ make$16("no
 * The URI may identify a sub-resource of the resource that the client
 * originally subscribed to.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var ResourceUpdatedNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/resources/updated", { payload: {
+var ResourceUpdatedNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/resources/updated", { payload: {
 	...NotificationMeta$1.fields,
 	/**
 	* The URI of the resource that has been updated. This might be a sub-resource of the one that the client actually subscribed to.
@@ -44177,6 +45884,7 @@ var ResourceUpdatedNotification$1 = class extends (/*#__PURE__*/ make$16("notifi
 /**
 * Describes an argument that a prompt can accept.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44198,6 +45906,7 @@ var PromptArgument$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struc
 /**
 * Represents a prompt or prompt template that the server offers.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44224,6 +45933,7 @@ var Prompt$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Prompt")
 /**
 * Represents text content provided to or from an LLM.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44242,6 +45952,7 @@ var TextContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 /**
 * Represents image content provided to or from an LLM.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44265,6 +45976,7 @@ var ImageContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct(
 /**
 * Represents audio content provided to or from an LLM.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44293,6 +46005,7 @@ var AudioContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct(
 * It is up to the client how best to render embedded resources for the benefit
 * of the LLM and/or the user.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44313,6 +46026,7 @@ var EmbeddedResource$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Str
 * Resource links returned by tools are not guaranteed to appear in the results
 * of `resources/list` requests.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44324,6 +46038,7 @@ var ResourceLink$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct(
 * Schema for MCP content blocks that can appear in prompt messages or tool
 * results.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44342,6 +46057,7 @@ const ContentBlock$2 = /*#__PURE__*/ Union([
 * This is similar to `SamplingMessage`, but also supports the embedding of
 * resources from the MCP server.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44353,6 +46069,7 @@ var PromptMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct
 /**
 * Represents the server response to a prompts/get request from the client.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44380,10 +46097,11 @@ var GetPromptResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema
 *
 * Servers may send this notification without a previous client subscription.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var PromptListChangedNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
+var PromptListChangedNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
 /**
 * Schema for additional properties describing a tool to clients.
 *
@@ -44398,6 +46116,7 @@ var PromptListChangedNotification$1 = class extends (/*#__PURE__*/ make$16("noti
 * Clients should never make tool use decisions based on ToolAnnotations
 * received from untrusted servers.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44441,19 +46160,29 @@ var ToolAnnotations$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Stru
 	openWorldHint: /*#__PURE__*/ optionalWithDefault(Boolean, constTrue)
 }))) {};
 /**
-* Schema for {@link ToolJsonSchema}.
+* Schema for {@link ToolJson}.
 *
+* @stability unstable
 * @category tools
 * @since 4.0.0
 */
-const ToolJsonSchema$1 = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
+const ToolJson = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("object"),
 	properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, JsonObject$3)),
 	required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
 }), [JsonObject$3]);
 /**
+* Schema for {@link ToolOutputJson}.
+*
+* @stability unstable
+* @category tools
+* @since 4.0.0
+*/
+const ToolOutputJson = JsonObject$3;
+/**
 * Schema for the definition of a tool the client can call.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44472,11 +46201,11 @@ var Tool$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
 	/**
 	* A JSON Schema object defining the expected parameters for the tool.
 	*/
-	inputSchema: ToolJsonSchema$1,
+	inputSchema: ToolJson,
 	/**
 	* An optional JSON Schema object defining the structure of the tool output.
 	*/
-	outputSchema: /*#__PURE__*/ optional$4(ToolJsonSchema$1),
+	outputSchema: /*#__PURE__*/ optional$4(ToolOutputJson),
 	/**
 	* Optional additional tool information.
 	*/
@@ -44506,6 +46235,7 @@ var Tool$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
 * indicating that the server does not support tool calls, or any other
 * exceptional conditions, should be reported as an MCP error response.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44535,15 +46265,17 @@ var CallToolResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/
 *
 * Servers may send this notification without a previous client subscription.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var ToolListChangedNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
+var ToolListChangedNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
 /**
 * Schema for log message severity levels, mapped to syslog message severities
 * as specified in RFC 5424 section 6.2.1:
 * https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1.
 *
+* @stability unstable
 * @category logging
 * @since 4.0.0
 */
@@ -44572,10 +46304,11 @@ const LoggingLevel$1 = /*#__PURE__*/ Literals([
 * The notification includes the severity level, optional logger name, and
 * JSON-serializable log data.
 *
+* @stability unstable
 * @category logging
 * @since 4.0.0
 */
-var LoggingMessageNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/message", { payload: /*#__PURE__*/ Struct({
+var LoggingMessageNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/message", { payload: /*#__PURE__*/ Struct({
 	...NotificationMeta$1.fields,
 	/**
 	* The severity of this log message.
@@ -44594,6 +46327,7 @@ var LoggingMessageNotification$1 = class extends (/*#__PURE__*/ make$16("notific
 /**
 * Schema for a tool-use request produced during MCP sampling.
 *
+* @stability unstable
 * @category sampling
 * @since 4.0.0
 */
@@ -44616,6 +46350,7 @@ var ToolUseContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/
 /**
 * Schema for the result of a tool use supplied in a sampling message.
 *
+* @stability unstable
 * @category sampling
 * @since 4.0.0
 */
@@ -44632,7 +46367,7 @@ var ToolResultContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSche
 	/**
 	* Optional structured result returned by the tool.
 	*/
-	structuredContent: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, Unknown)),
+	structuredContent: /*#__PURE__*/ optional$4(Json),
 	/**
 	* Whether tool execution ended in an error.
 	*/
@@ -44642,6 +46377,7 @@ var ToolResultContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSche
 /**
 * Schema for content blocks accepted in MCP sampling messages.
 *
+* @stability unstable
 * @category sampling
 * @since 4.0.0
 */
@@ -44655,6 +46391,7 @@ const SamplingMessageContentBlock$1 = /*#__PURE__*/ Union([
 /**
 * Describes a message issued to or received from an LLM API.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44666,6 +46403,7 @@ var SamplingMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Stru
 /**
 * Schema for controlling tool selection during MCP sampling.
 *
+* @stability unstable
 * @category sampling
 * @since 4.0.0
 */
@@ -44686,6 +46424,7 @@ mode: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals([
 * Keys not declared here are currently left unspecified by the spec and are up
 * to the client to interpret.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44721,6 +46460,7 @@ name: /*#__PURE__*/ optional$4(String$2) }))) {};
 * up to the client to decide how to interpret these preferences and how to
 * balance them against other considerations.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44775,6 +46515,7 @@ var ModelPreferences$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchem
 * The client should let the user inspect the sampled message before returning
 * it to the server.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44804,10 +46545,11 @@ var CreateMessageResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSc
 * The client chooses the model and should ask the user to approve the sampling
 * request before it begins.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var CreateMessage$4 = class extends (/*#__PURE__*/ make$16("sampling/createMessage", {
+var CreateMessage$4 = class extends (/*#__PURE__*/ make$18("sampling/createMessage", {
 	success: CreateMessageResult$4,
 	error: McpError$1,
 	payload: {
@@ -44857,6 +46599,7 @@ var CreateMessage$4 = class extends (/*#__PURE__*/ make$16("sampling/createMessa
 /**
 * Represents a root directory or file that the server can operate on.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44885,6 +46628,7 @@ var Root$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Root")({
 *
 * Use to return the directories or files that an MCP server may operate on.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -44901,10 +46645,11 @@ var ListRootsResult$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema
 * system structure or access specific locations that the client has permission
 * to read from.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var ListRoots$2 = class extends (/*#__PURE__*/ make$16("roots/list", {
+var ListRoots$2 = class extends (/*#__PURE__*/ make$18("roots/list", {
 	success: ListRootsResult$2,
 	error: McpError$1,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta$1)
@@ -44912,10 +46657,11 @@ var ListRoots$2 = class extends (/*#__PURE__*/ make$16("roots/list", {
 /**
 * Schema for a string field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var StringSchema$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/StringSchema")({
+var ElicitationString = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitationString")({
 	type: /*#__PURE__*/ tag$2("string"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -44932,10 +46678,11 @@ var StringSchema$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/St
 /**
 * Schema for a numeric field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var NumberSchema$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/NumberSchema")({
+var ElicitationNumber = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitationNumber")({
 	type: /*#__PURE__*/ Literals(["number", "integer"]),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -44946,10 +46693,11 @@ var NumberSchema$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Nu
 /**
 * Schema for a boolean field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var BooleanSchema$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/BooleanSchema")({
+var ElicitationBoolean = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitationBoolean")({
 	type: /*#__PURE__*/ tag$2("boolean"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -44958,10 +46706,11 @@ var BooleanSchema$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/B
 /**
 * Schema for an untitled single-select field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var UntitledSingleSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/UntitledSingleSelectEnumSchema")({
+var UntitledSingleSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/UntitledSingleSelectEnum")({
 	type: /*#__PURE__*/ tag$2("string"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -44971,10 +46720,11 @@ var UntitledSingleSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effe
 /**
 * Schema for a titled single-select field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var TitledSingleSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/TitledSingleSelectEnumSchema")({
+var TitledSingleSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/TitledSingleSelectEnum")({
 	type: /*#__PURE__*/ tag$2("string"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -44987,17 +46737,19 @@ var TitledSingleSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect
 /**
 * Schema for every single-select field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-const SingleSelectEnumSchema$1 = /*#__PURE__*/ Union([UntitledSingleSelectEnumSchema$1, TitledSingleSelectEnumSchema$1]);
+const SingleSelectEnum = /*#__PURE__*/ Union([UntitledSingleSelectEnum, TitledSingleSelectEnum]);
 /**
 * Schema for an untitled multi-select field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var UntitledMultiSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/UntitledMultiSelectEnumSchema")({
+var UntitledMultiSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/UntitledMultiSelectEnum")({
 	type: /*#__PURE__*/ tag$2("array"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -45012,10 +46764,11 @@ var UntitledMultiSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effec
 /**
 * Schema for a titled multi-select field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var TitledMultiSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/TitledMultiSelectEnumSchema")({
+var TitledMultiSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/TitledMultiSelectEnum")({
 	type: /*#__PURE__*/ tag$2("array"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -45030,18 +46783,20 @@ var TitledMultiSelectEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/
 /**
 * Schema for every multi-select field in an MCP elicitation form.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-const MultiSelectEnumSchema$1 = /*#__PURE__*/ Union([UntitledMultiSelectEnumSchema$1, TitledMultiSelectEnumSchema$1]);
+const MultiSelectEnum = /*#__PURE__*/ Union([UntitledMultiSelectEnum, TitledMultiSelectEnum]);
 /**
 * Schema for the legacy titled single-select elicitation field.
 *
-* @deprecated Use {@link TitledSingleSelectEnumSchema} instead.
+* @deprecated Use {@link TitledSingleSelectEnum} instead.
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var LegacyTitledEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/LegacyTitledEnumSchema")({
+var LegacyTitledEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/LegacyTitledEnum")({
 	type: /*#__PURE__*/ tag$2("string"),
 	title: /*#__PURE__*/ optional$4(String$2),
 	description: /*#__PURE__*/ optional$4(String$2),
@@ -45049,24 +46804,25 @@ var LegacyTitledEnumSchema$1 = class extends (/*#__PURE__*/ Class("@effect/ai/Mc
 	enumNames: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2)),
 	default: /*#__PURE__*/ optional$4(String$2)
 })) {};
-const ElicitationFormSchema = /*#__PURE__*/ Struct({
+const ElicitationForm = /*#__PURE__*/ Struct({
 	$schema: /*#__PURE__*/ optional$4(String$2),
 	type: /*#__PURE__*/ tag$2("object"),
 	properties: /*#__PURE__*/ Record(String$2, /* @__PURE__ */ Union([
-		StringSchema$2,
-		NumberSchema$2,
-		BooleanSchema$2,
 		/* @__PURE__ */ Union([
-			SingleSelectEnumSchema$1,
-			MultiSelectEnumSchema$1,
-			LegacyTitledEnumSchema$1
-		])
+			LegacyTitledEnum,
+			SingleSelectEnum,
+			MultiSelectEnum
+		]),
+		ElicitationString,
+		ElicitationNumber,
+		ElicitationBoolean
 	])),
 	required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
 });
 /**
 * Schema for form-mode MCP elicitation requests.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
@@ -45074,11 +46830,12 @@ var ElicitRequestFormParams$1 = class extends (/*#__PURE__*/ Class("@effect/ai/M
 	...RequestMeta$1.fields,
 	mode: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literal("form")),
 	message: String$2,
-	requestedSchema: ElicitationFormSchema
+	requestedSchema: ElicitationForm
 })) {};
 /**
 * Schema for URL-mode MCP elicitation requests.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
@@ -45092,6 +46849,7 @@ var ElicitRequestURLParams$1 = class extends (/*#__PURE__*/ Class("@effect/ai/Mc
 /**
 * Schema for every MCP elicitation request mode.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
@@ -45099,6 +46857,7 @@ const ElicitRequestParams$1 = /*#__PURE__*/ Union([ElicitRequestFormParams$1, El
 /**
 * Schema for an accepted client response to an elicitation request.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -45125,6 +46884,7 @@ var ElicitAcceptResult = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchem
 /**
 * Schema for a declined or canceled client response to an elicitation request.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -45141,6 +46901,7 @@ var ElicitDeclineResult = class extends (/*#__PURE__*/ Class("@effect/ai/McpSche
 /**
 * Schema for every client response to an elicitation request.
 *
+* @stability unstable
 * @category schemas
 * @since 4.0.0
 */
@@ -45154,10 +46915,11 @@ const ElicitResult$2 = /*#__PURE__*/ Union([ElicitAcceptResult, ElicitDeclineRes
 * The client responds with accepted content, an explicit decline, or a
 * cancellation.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var Elicit$2 = class extends (/*#__PURE__*/ make$16("elicitation/create", {
+var Elicit$2 = class extends (/*#__PURE__*/ make$18("elicitation/create", {
 	success: ElicitResult$2,
 	error: McpError$1,
 	payload: ElicitRequestParams$1
@@ -45165,15 +46927,17 @@ var Elicit$2 = class extends (/*#__PURE__*/ make$16("elicitation/create", {
 /**
 * Notifies a client that a URL-mode elicitation completed.
 *
+* @stability unstable
 * @category elicitation
 * @since 4.0.0
 */
-var ElicitationCompleteNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
+var ElicitationCompleteNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
 Elicit$2.payloadSchema;
 /**
 * Raised when the negotiated MCP revision or client capabilities do not
 * support a server-initiated operation.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
@@ -45182,10 +46946,24 @@ var McpReverseOperationUnsupported = class extends (/*#__PURE__*/ TaggedError$1(
 * A reverse MCP operation failed while being sent or projected through a
 * version adapter.
 *
+* @stability unstable
 * @category errors
 * @since 4.0.0
 */
 var McpReverseOperationError = class extends (/*#__PURE__*/ TaggedError$1("McpReverseOperationError")) {};
+/**
+* Protocol-neutral context available while handling an MCP request.
+*
+* **Details**
+*
+* Unlike `McpServerClient`, this service does not imply an initialized session
+* or support for server-initiated requests.
+*
+* @stability unstable
+* @category services
+* @since 4.0.0
+*/
+var McpRequestContext = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/McpRequestContext")) {};
 /**
 * Service available while handling an MCP client request.
 *
@@ -45194,6 +46972,7 @@ var McpReverseOperationError = class extends (/*#__PURE__*/ TaggedError$1("McpRe
 * It exposes the current client id, normalized initialization data, and a
 * scoped version-neutral facade for server-initiated requests.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -45202,6 +46981,7 @@ var McpServerClient = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSch
 * RPC middleware that provides `McpServerClient` to handlers for initialized
 * MCP clients.
 *
+* @stability unstable
 * @category middleware
 * @since 4.0.0
 */
@@ -45211,46 +46991,80 @@ var McpServerClientMiddleware = class extends (/*#__PURE__*/ Service()("effect/a
 * including cancellation, progress, logging, and list or resource update
 * notifications.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$12(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
+var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$14(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
 /**
 * Annotation to conditionally enable or disable tools based on client
 * information.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
-var EnabledWhen = class extends (/*#__PURE__*/ Service$1()("effect/unstable/ai/McpSchema/EnabledWhen")) {};
+var EnabledWhen = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/EnabledWhen")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpCore.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpCore.js
 /**
 * Version-neutral MCP server records and semantic operations.
 *
 * @internal
 */
-/** @internal */
+/**
+* @internal
+*/
+const OperationOutcome = {
+	Complete: (value) => ({
+		_tag: "Complete",
+		value
+	}),
+	InputRequired: (fields) => ({
+		_tag: "InputRequired",
+		...fields
+	})
+};
+/**
+* @internal
+*/
 var ResourceNotFound = class extends (/*#__PURE__*/ TaggedError$1("ResourceNotFound")) {};
-/** @internal */
+/**
+* @internal
+*/
 var ToolNotFound = class extends (/*#__PURE__*/ TaggedError$1("ToolNotFound")) {};
-/** @internal */
+/**
+* @internal
+*/
 var InvalidToolInput = class extends (/*#__PURE__*/ TaggedError$1("InvalidToolInput")) {};
-/** @internal */
+/**
+* @internal
+*/
+var InvalidToolContinuation = class extends (/*#__PURE__*/ TaggedError$1("InvalidToolContinuation")) {};
+/**
+* @internal
+*/
 var ToolExecutionError = class extends (/*#__PURE__*/ TaggedError$1("ToolExecutionError")) {};
-/** @internal */
-var ToolResultProjectionError = class extends (/*#__PURE__*/ TaggedError$1("ToolResultProjectionError")) {};
-/** @internal */
-/** @internal */
+/**
+* @internal
+*/
 var UnsupportedByProtocol = class extends (/*#__PURE__*/ TaggedError$1("UnsupportedByProtocol")) {};
-/** @internal */
+/**
+* @internal
+*/
 var PromptNotFound = class extends (/*#__PURE__*/ TaggedError$1("PromptNotFound")) {};
-/** @internal */
+/**
+* @internal
+*/
 const ClientNotification = /*#__PURE__*/ taggedEnum();
-/** @internal */
+/**
+* @internal
+*/
 const ServerNotification = /*#__PURE__*/ taggedEnum();
-/** @internal */
-const make$2 = /*#__PURE__*/ sync(() => {
+/**
+* @internal
+*/
+const make$4 = /*#__PURE__*/ sync(() => {
 	const registrations = /* @__PURE__ */ new Map();
 	const resourceRegistrations = [];
 	const resourceTemplateRegistrations = [];
@@ -45332,65 +47146,182 @@ const make$2 = /*#__PURE__*/ sync(() => {
 	};
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpProtocol.js
-/** @internal */
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpProtocol.js
+const LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE = -32002;
+const BASE64_SENTINEL_PREFIX = "=?base64?";
+const BASE64_SENTINEL_SUFFIX = "?=";
+const routingHeaderDecoder = /*#__PURE__*/ new TextDecoder("utf-8", {
+	fatal: true,
+	ignoreBOM: true
+});
+/**
+* @internal
+*/
+const mcpLogLevels = {
+	debug: {
+		effect: "Debug",
+		order: 0
+	},
+	info: {
+		effect: "Info",
+		order: 1
+	},
+	notice: {
+		effect: "Info",
+		order: 2
+	},
+	warning: {
+		effect: "Warn",
+		order: 3
+	},
+	error: {
+		effect: "Error",
+		order: 4
+	},
+	critical: {
+		effect: "Fatal",
+		order: 5
+	},
+	alert: {
+		effect: "Fatal",
+		order: 6
+	},
+	emergency: {
+		effect: "Fatal",
+		order: 7
+	}
+};
+/**
+* @internal
+*/
+const decodeRoutingHeader = (value) => {
+	const startsWithSentinel = value.startsWith(BASE64_SENTINEL_PREFIX);
+	const endsWithSentinel = value.endsWith(BASE64_SENTINEL_SUFFIX);
+	if (!startsWithSentinel || !endsWithSentinel) return /^[\t\x20-\x7e]*$/.test(value) ? value : void 0;
+	const decoded = decode$3(value.slice(9, -2));
+	if (isFailure$1(decoded)) return void 0;
+	try {
+		return routingHeaderDecoder.decode(decoded.success);
+	} catch {
+		return;
+	}
+};
+/**
+* @internal
+*/
 const profileFromClient = (request) => ({
 	protocolVersion: request.protocolVersion,
 	clientCapabilities: request.clientCapabilities,
 	clientInfo: request.clientInfo,
 	requestMetadata: request.initializePayload._meta
 });
-/** @internal */
+/**
+* @internal
+*/
 const invocationFromClient = (request) => ({
 	clientId: request.clientId,
 	protocol: profileFromClient(request),
-	requestContext: request
+	requestContext: McpRequestContext.of({
+		clientId: request.clientId,
+		protocolVersion: request.protocolVersion,
+		clientCapabilities: request.clientCapabilities,
+		clientInfo: request.clientInfo,
+		requestMetadata: request.requestMetadata
+	}),
+	serverClient: request
 });
-/** @internal */
+/**
+* @internal
+*/
+const requireCompleteOperation = (protocolVersion, outcome) => outcome._tag === "Complete" ? succeed$3(outcome.value) : fail$3(new UnsupportedByProtocol({
+	protocolVersion,
+	feature: "Client input"
+}));
+/**
+* Unquotes an exact text mirror when the protocol drops string `structuredContent`.
+*
+* @internal
+*/
+const unwrapStringStructuredContent = (result) => {
+	const { content, structuredContent } = result;
+	if (typeof structuredContent !== "string" || content.length !== 1) return content;
+	const [block] = content;
+	return block.type === "text" && block.text === JSON.stringify(structuredContent) ? [{
+		...block,
+		text: structuredContent
+	}] : content;
+};
+const isSamplingToolContent = (content) => isReadonlyObject(content) && (content.type === "tool_use" || content.type === "tool_result");
+/**
+* @internal
+*/
+const samplingRequestRequiresTools = (request) => {
+	if (!isReadonlyObject(request)) return false;
+	if (request.tools !== void 0 || request.toolChoice !== void 0) return true;
+	if (!Array.isArray(request.messages)) return false;
+	return request.messages.some((message) => {
+		if (!isReadonlyObject(message)) return false;
+		const content = message.content;
+		return Array.isArray(content) ? content.some(isSamplingToolContent) : isSamplingToolContent(content);
+	});
+};
+/**
+* @internal
+*/
 var ProtocolError = class ProtocolError extends (/*#__PURE__*/ TaggedError$1("ProtocolError")) {
 	static fromTool(error) {
 		const message = value(error).pipe(tag("ToolNotFound", (error) => `Tool '${error.name}' not found`), tag("UnsupportedByProtocol", (error) => `${error.feature} is not supported by MCP ${error.protocolVersion}`), tags({
 			InvalidToolInput: (error) => error.message,
-			ToolExecutionError: (error) => error.message,
-			ToolResultProjectionError: (error) => error.message
+			InvalidToolContinuation: (error) => error.message,
+			ToolExecutionError: (error) => error.message
 		}), exhaustive);
 		return new ProtocolError({
-			code: -32602,
+			code: error._tag === "ToolExecutionError" ? INTERNAL_ERROR_CODE : INVALID_PARAMS_ERROR_CODE,
 			message
 		});
 	}
 	static fromFeature(error) {
-		if (error instanceof PromptNotFound) return new ProtocolError({
-			code: -32602,
-			message: `Prompt '${error.name}' not found`
-		});
-		if (error instanceof ResourceNotFound) return new ProtocolError({
-			code: -32002,
-			message: `Resource '${error.uri}' not found`
-		});
-		const decoded = decodeUnknownResult(ProtocolErrorFields)(error);
-		if (isSuccess$1(decoded)) return new ProtocolError(decoded.success);
-		return new ProtocolError({
-			code: -32603,
+		if (hasProperty(error, "_tag")) {
+			if (error._tag === "PromptNotFound" && hasProperty(error, "name") && isString(error.name)) return new ProtocolError({
+				code: INVALID_PARAMS_ERROR_CODE,
+				message: `Prompt '${error.name}' not found`
+			});
+			if (error._tag === "ResourceNotFound" && hasProperty(error, "uri") && isString(error.uri)) return new ProtocolError({
+				code: LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE,
+				message: `Resource '${error.uri}' not found`
+			});
+		}
+		const decoded = decodeProtocolErrorFields(error);
+		return isSuccess$1(decoded) ? new ProtocolError(decoded.success) : new ProtocolError({
+			code: INTERNAL_ERROR_CODE,
 			message: "MCP feature handler failed"
 		});
 	}
 };
-const ProtocolErrorFields = /*#__PURE__*/ Struct({
-	code: Number$1,
+const decodeProtocolErrorFields = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__ */ Struct({
+	code: Finite,
 	message: String$2,
 	data: /*#__PURE__*/ optionalKey(Unknown)
-});
-/** @internal */
-const reverseError = (operation) => (cause) => cause instanceof McpReverseOperationUnsupported ? cause : new McpReverseOperationError({
+}));
+const isReverseOperationUnsupported = (cause) => isTagged(cause, "McpReverseOperationUnsupported");
+/**
+* @internal
+*/
+const reverseError = (operation) => (cause) => isReverseOperationUnsupported(cause) ? cause : new McpReverseOperationError({
 	operation,
 	cause
 });
-/** @internal */
+/**
+* @internal
+*/
 const transcode = (from, to, input) => encodeEffect(from)(input).pipe(flatMap(decodeUnknownEffect(to)));
-/** @internal */
+/**
+* @internal
+*/
 const transcodeStrict = (from, to, input) => encodeEffect(from)(input).pipe(flatMap(decodeUnknownEffect(to, { onExcessProperty: "error" })));
-/** @internal */
+/**
+* @internal
+*/
 const makeNotificationProjector = /*#__PURE__*/ fn(function* (options, notification) {
 	return ServerNotification.$match(notification, {
 		Cancelled: (notification) => ({
@@ -45442,8 +47373,22 @@ const makeNotificationProjector = /*#__PURE__*/ fn(function* (options, notificat
 		ElicitationComplete: () => void 0
 	});
 });
-/** @internal */
-const make$1 = (options) => {
+/**
+* @internal
+*/
+const isSubscriptionServerNotification = (notification) => {
+	switch (notification._tag) {
+		case "ToolsChanged":
+		case "PromptsChanged":
+		case "ResourcesChanged":
+		case "ResourceUpdated": return true;
+		default: return false;
+	}
+};
+/**
+* @internal
+*/
+const make$3 = (options) => {
 	const payloadCodecsCache = /* @__PURE__ */ new WeakMap();
 	const payloadCodecs = (rpc) => {
 		let codecs = payloadCodecsCache.get(rpc);
@@ -45457,8 +47402,8 @@ const make$1 = (options) => {
 		}
 		return codecs;
 	};
-	const installHandlers = (core, lifecycle, target) => options.handlerRpcs === void 0 || options.makeHandlers === void 0 ? void_$1 : target.install(options, options.handlerRpcs, options.makeHandlers(core, lifecycle));
-	const makeReverseClient = (profile) => make$15(options.serverRequestRpcs, { spanPrefix: "McpServer/Client" }).pipe(map$3((client) => options.toReverseClient(profile, client)));
+	const installHandlers = (core, lifecycle, target) => options.handlerRpcs === void 0 || options.makeHandlers === void 0 ? void_$1 : lifecycle === void 0 && options.runtime._tag === "Stateful" ? die("MCP sessionful handler installation requires a lifecycle runtime") : target.install(options, options.handlerRpcs, options.makeHandlers(core, options.runtime._tag === "Stateful" ? lifecycle : void 0, target.context));
+	const makeReverseClient = (profile) => make$17(options.serverRequestRpcs, { spanPrefix: "McpServer/Client" }).pipe(map$3((client) => options.toReverseClient(profile, client)));
 	return {
 		...options,
 		payloadCodecs,
@@ -45467,7 +47412,474 @@ const make$1 = (options) => {
 	};
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpSchema/v2024_11_05.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
+const prefix = (protocol) => `@effect/mcp/${encodeURIComponent(protocol.protocolVersion)}/`;
+/**
+* @internal
+*/
+const make$2 = /*#__PURE__*/ fnUntraced(function* (protocols) {
+	if (protocols.length === 0) return yield* new IllegalArgumentError("MCP protocol declaration must contain at least one MCP protocol");
+	const snapshot = Object.freeze(Array.from(protocols));
+	const byVersion = /* @__PURE__ */ new Map();
+	for (const protocol of snapshot) {
+		if (byVersion.has(protocol.protocolVersion)) return yield* new IllegalArgumentError(`Duplicate MCP protocol version: ${protocol.protocolVersion}`);
+		byVersion.set(protocol.protocolVersion, protocol);
+	}
+	let clientRpcs = snapshot[0].clientRpcs.prefix(prefix(snapshot[0]));
+	for (let i = 1; i < snapshot.length; i++) clientRpcs = clientRpcs.merge(snapshot[i].clientRpcs.prefix(prefix(snapshot[i])));
+	return {
+		protocols: snapshot,
+		clientRpcs,
+		select: (offeredVersion) => byVersion.get(offeredVersion) ?? snapshot[0],
+		protocolForInternalTag: (tag) => snapshot.find((protocol) => tag.startsWith(prefix(protocol))) ?? snapshot[0],
+		routeClientRequest: (protocol, request) => ({
+			...request,
+			tag: `${prefix(protocol)}${request.tag}`
+		}),
+		handlerTarget: (contextMap, context) => ({
+			context,
+			install: fnUntraced(function* (protocol, rpcs, handlers) {
+				const handlerContext = yield* rpcs.toHandlers(handlers);
+				for (const rpcDefinition of rpcs.requests.values()) {
+					const namespacedRpc = clientRpcs.requests.get(`${prefix(protocol)}${rpcDefinition._tag}`);
+					const handler = handlerContext.mapUnsafe.get(rpcDefinition.key);
+					if (namespacedRpc === void 0 || handler === void 0) return yield* die(`MCP handler registration invariant failed for ${protocol.protocolVersion}/${rpcDefinition._tag}`);
+					contextMap.set(namespacedRpc.key, handler);
+				}
+			})
+		})
+	};
+});
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
+/**
+* Stateful lifecycle storage for MCP revisions before v2026-07-28.
+*
+* @internal
+*/
+const MCP_SESSION_ID_HEADER$2 = "mcp-session-id";
+const makeSession = (registration) => ({
+	initializePayload: registration.initializePayload,
+	negotiatedProfile: registration.negotiatedProfile,
+	protocol: registration.protocol,
+	resourceSubscriptions: registration.supportsResourceSubscriptions ? /* @__PURE__ */ new Set() : void 0,
+	logLevel: {
+		_tag: "Effect",
+		level: registration.logLevel
+	}
+});
+/**
+* @internal
+*/
+const make$1 = () => {
+	const bySessionId = /* @__PURE__ */ new Map();
+	const byClientId = /* @__PURE__ */ new Map();
+	const initializedClientIds = /* @__PURE__ */ new Set();
+	const resolveSession = (clientId, headers) => {
+		const sessionId = headers[MCP_SESSION_ID_HEADER$2];
+		return sessionId === void 0 ? byClientId.get(clientId) : bySessionId.get(sessionId);
+	};
+	const effectLogLevel = (clientId, headers, fallback) => {
+		const session = resolveSession(clientId, headers);
+		return session?.logLevel._tag === "Mcp" ? mcpLogLevels[session.logLevel.level].effect : session?.logLevel.level ?? fallback;
+	};
+	return {
+		registerHttp: (sessionId, registration) => {
+			const session = makeSession(registration);
+			bySessionId.set(sessionId, session);
+			return session;
+		},
+		registerConnection: (clientId, registration) => {
+			const session = makeSession(registration);
+			byClientId.set(clientId, session);
+			return session;
+		},
+		resolve: resolveSession,
+		resolveSessionId: (sessionId) => bySessionId.get(sessionId),
+		setLogLevel: (level, clientId, headers) => sync(() => {
+			const session = resolveSession(clientId, headers);
+			if (session !== void 0) session.logLevel = {
+				_tag: "Mcp",
+				level
+			};
+		}),
+		subscribe: (uri, clientId, headers) => {
+			const subscriptions = resolveSession(clientId, headers)?.resourceSubscriptions;
+			if (subscriptions === void 0) return fail$3(new ProtocolError({
+				code: METHOD_NOT_FOUND_ERROR_CODE,
+				message: "Resource subscriptions are not supported"
+			}));
+			return sync(() => subscriptions.add(uri)).pipe(asVoid);
+		},
+		unsubscribe: (uri, clientId, headers) => {
+			const subscriptions = resolveSession(clientId, headers)?.resourceSubscriptions;
+			if (subscriptions === void 0) return fail$3(new ProtocolError({
+				code: METHOD_NOT_FOUND_ERROR_CODE,
+				message: "Resource subscriptions are not supported"
+			}));
+			return sync(() => subscriptions.delete(uri)).pipe(asVoid);
+		},
+		effectLogLevel,
+		canDeliver: (clientId, headers, notification, fallbackLogLevel) => {
+			const session = resolveSession(clientId, headers);
+			if (notification._tag === "LoggingMessage") {
+				const minimum = session?.logLevel;
+				return minimum?._tag === "Mcp" ? mcpLogLevels[notification.level].order >= mcpLogLevels[minimum.level].order : isGreaterThanOrEqualTo(mcpLogLevels[notification.level].effect, minimum?.level ?? fallbackLogLevel);
+			}
+			return notification._tag !== "ResourceUpdated" || session?.resourceSubscriptions?.has(notification.uri) === true;
+		},
+		markInitialized: (clientId) => {
+			initializedClientIds.add(clientId);
+		},
+		initializedClientIds: () => initializedClientIds.values(),
+		disconnect: (clientId) => {
+			byClientId.delete(clientId);
+			initializedClientIds.delete(clientId);
+		}
+	};
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpRuntime.js
+const MCP_SESSION_ID_HEADER$1 = "mcp-session-id";
+const MCP_PROTOCOL_VERSION_HEADER$1 = "mcp-protocol-version";
+const MCP_METHOD_HEADER = "mcp-method";
+const MCP_NAME_HEADER = "mcp-name";
+const PROTOCOL_VERSION_METADATA_KEY = "io.modelcontextprotocol/protocolVersion";
+const CLIENT_CAPABILITIES_METADATA_KEY = "io.modelcontextprotocol/clientCapabilities";
+const UNSUPPORTED_PROTOCOL_VERSION_ERROR_CODE = -32022;
+const asRecord = (input) => typeof input === "object" && input !== null ? input : void 0;
+const protocolVersionClaim = (input) => {
+	const metadata = asRecord(input);
+	return metadata !== void 0 && PROTOCOL_VERSION_METADATA_KEY in metadata ? {
+		present: true,
+		value: metadata[PROTOCOL_VERSION_METADATA_KEY]
+	} : {
+		present: false,
+		value: void 0
+	};
+};
+/**
+* @internal
+*/
+const hasRequestProtocolVersion = (input) => protocolVersionClaim(asRecord(asRecord(input)?.params)?._meta).present;
+const routingNameKey = (method) => {
+	switch (method) {
+		case "tools/call":
+		case "prompts/get": return "name";
+		case "resources/read": return "uri";
+		default: return;
+	}
+};
+const headerMismatch = (message) => ({
+	_tag: "Rejected",
+	status: 400,
+	error: {
+		code: HEADER_MISMATCH_ERROR_CODE,
+		message
+	}
+});
+const PingRpcs = /*#__PURE__*/ make$14(Ping$1);
+/**
+* @internal
+*/
+const stateful = (transport) => ({
+	_tag: "Stateful",
+	transport
+});
+/**
+* @internal
+*/
+var ServerRuntime = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpRuntime/ServerRuntime")) {};
+/**
+* @internal
+*/
+const selectStatefulProtocol = (protocols, offeredVersion) => protocols.find((protocol) => protocol.runtime._tag === "Stateful" && protocol.protocolVersion === offeredVersion) ?? protocols.find((protocol) => protocol.runtime._tag === "Stateful");
+/**
+* @internal
+*/
+const make = /*#__PURE__*/ fnUntraced(function* (protocols) {
+	const stateful = protocols.find((protocol) => protocol.runtime._tag === "Stateful") === void 0 ? void 0 : make$1();
+	const protocolVersions = protocols.map((protocol) => protocol.protocolVersion);
+	let statelessDescriptor;
+	let statelessProtocol;
+	for (const protocol of protocols) {
+		if (protocol.runtime._tag !== "Stateless") continue;
+		if (statelessDescriptor !== void 0) return yield* new IllegalArgumentError("MCP runtime supports at most one stateless protocol");
+		statelessDescriptor = protocol.runtime;
+		statelessProtocol = protocol;
+	}
+	const registry = yield* make$2(protocols);
+	const selectHttpProtocol = (headers, input) => {
+		const protocolVersion = headers[MCP_PROTOCOL_VERSION_HEADER$1];
+		const sessionId = headers[MCP_SESSION_ID_HEADER$1];
+		const inputRecord = asRecord(input);
+		const metadata = asRecord(asRecord(inputRecord?.params)?._meta);
+		const claim = protocolVersionClaim(metadata);
+		const id = inputRecord?.id;
+		const isInitialize = inputRecord?.jsonrpc === "2.0" && inputRecord.method === "initialize" && (typeof id === "string" || typeof id === "number");
+		const isCancellationNotification = inputRecord?.jsonrpc === "2.0" && inputRecord.method === "notifications/cancelled" && id === void 0;
+		if (claim.present || (!isInitialize || stateful === void 0) && statelessProtocol !== void 0 && (protocolVersion === statelessProtocol.protocolVersion || stateful === void 0 && inputRecord?.jsonrpc === "2.0" && typeof inputRecord.method === "string" && (typeof id === "string" || typeof id === "number"))) {
+			if (protocolVersion === void 0) return headerMismatch("MCP-Protocol-Version header is required");
+			if (!isCancellationNotification && (metadata === void 0 || typeof claim.value !== "string")) return {
+				_tag: "Rejected",
+				status: 400,
+				error: {
+					code: INVALID_PARAMS_ERROR_CODE,
+					message: "Required request metadata is missing"
+				}
+			};
+			if ((!isCancellationNotification || claim.present) && claim.value !== protocolVersion) return headerMismatch("MCP-Protocol-Version header does not match request metadata");
+			if (!isCancellationNotification && asRecord(metadata?.[CLIENT_CAPABILITIES_METADATA_KEY]) === void 0) return {
+				_tag: "Rejected",
+				status: 400,
+				error: {
+					code: INVALID_PARAMS_ERROR_CODE,
+					message: `${CLIENT_CAPABILITIES_METADATA_KEY} request metadata is required`
+				}
+			};
+			if (statelessProtocol === void 0 || protocolVersion !== statelessProtocol.protocolVersion) return {
+				_tag: "Rejected",
+				status: 400,
+				error: {
+					code: UNSUPPORTED_PROTOCOL_VERSION_ERROR_CODE,
+					message: `Unsupported protocol version '${protocolVersion}'`,
+					data: {
+						supported: protocolVersions,
+						requested: protocolVersion
+					}
+				}
+			};
+			const method = inputRecord?.method;
+			if (typeof method !== "string" || headers[MCP_METHOD_HEADER] !== method) return headerMismatch("Mcp-Method header does not match request method");
+			const nameKey = routingNameKey(method);
+			if (nameKey !== void 0) {
+				const name = asRecord(inputRecord?.params)?.[nameKey];
+				const header = headers[MCP_NAME_HEADER];
+				if (typeof name !== "string" || header === void 0 || decodeRoutingHeader(header) !== name) return headerMismatch("Mcp-Name header does not match request parameters");
+			}
+			return {
+				_tag: "Accepted",
+				binding: void 0,
+				protocol: statelessProtocol
+			};
+		}
+		const binding = sessionId === void 0 ? void 0 : stateful?.resolveSessionId(sessionId);
+		if (sessionId !== void 0 && binding === void 0) return {
+			_tag: "Rejected",
+			status: 404
+		};
+		if (!isInitialize && protocolVersion !== void 0 && !registry.protocols.some((protocol) => protocol.protocolVersion === protocolVersion)) return {
+			_tag: "Rejected",
+			status: 400
+		};
+		if (!isInitialize && binding?.protocol.runtime.transport.http.requiresVersionHeader === true && protocolVersion !== binding.protocol.protocolVersion) return {
+			_tag: "Rejected",
+			status: 400
+		};
+		return {
+			_tag: "Accepted",
+			binding,
+			protocol: binding?.protocol
+		};
+	};
+	return ServerRuntime.of({
+		protocols: registry.protocols,
+		clientRpcs: registry.clientRpcs,
+		selectProtocol: registry.select,
+		protocolForInternalTag: registry.protocolForInternalTag,
+		routeClientRequest: registry.routeClientRequest,
+		prepareRequest: fnUntraced(function* (clientId, headers, request) {
+			const metadata = asRecord(request.payload)?._meta;
+			const claim = protocolVersionClaim(metadata);
+			const requestedVersion = typeof claim.value === "string" ? claim.value : void 0;
+			const binding = claim.present ? void 0 : stateful?.resolve(clientId, headers);
+			let protocol;
+			if (claim.present) protocol = registry.protocols.find((protocol) => protocol.protocolVersion === requestedVersion) ?? statelessProtocol ?? registry.protocols[0];
+			else if (binding !== void 0) protocol = binding.protocol;
+			else if (request.tag === "initialize") {
+				const offeredVersion = request.payload?.protocolVersion;
+				const selected = selectStatefulProtocol(registry.protocols, offeredVersion);
+				if (selected === void 0) return yield* new ProtocolError({
+					code: UNSUPPORTED_PROTOCOL_VERSION_ERROR_CODE,
+					message: `initialize is not supported by the configured MCP protocols (requested '${offeredVersion}')`
+				});
+				protocol = selected;
+			} else if (request.tag === "ping") protocol = selectStatefulProtocol(registry.protocols, void 0) ?? registry.protocols[0];
+			else protocol = registry.protocols[0];
+			if (protocol.runtime._tag === "Stateful") return {
+				protocol,
+				binding
+			};
+			if (request.isNotification && request.tag === "notifications/cancelled") return { protocol };
+			if (statelessDescriptor === void 0) return yield* die("MCP stateless runtime invariant failed");
+			if (requestedVersion !== void 0 && requestedVersion !== protocol.protocolVersion) return yield* new ProtocolError({
+				code: UNSUPPORTED_PROTOCOL_VERSION_ERROR_CODE,
+				message: `Unsupported protocol version '${requestedVersion}'`,
+				data: {
+					supported: protocolVersions,
+					requested: requestedVersion
+				}
+			});
+			const decodedProfile = yield* statelessDescriptor.profileFromRequestMetadata(metadata);
+			const profile = {
+				protocolVersion: decodedProfile.protocolVersion,
+				clientCapabilities: decodedProfile.clientCapabilities,
+				clientInfo: decodedProfile.clientInfo,
+				requestMetadata: decodedProfile.requestMetadata
+			};
+			const requestContext = McpRequestContext.of({
+				clientId,
+				protocolVersion: profile.protocolVersion,
+				clientCapabilities: profile.clientCapabilities,
+				clientInfo: profile.clientInfo,
+				requestMetadata: profile.requestMetadata
+			});
+			return {
+				protocol,
+				profile,
+				requestContext
+			};
+		}),
+		resolveRequest: (clientId, headers) => stateful?.resolve(clientId, headers),
+		admitHttp: (headers, parsed) => {
+			const reject = (status, error, id = null) => ({
+				_tag: "Rejected",
+				response: error === void 0 ? empty({ status }) : jsonUnsafe({
+					jsonrpc: "2.0",
+					id,
+					error
+				}, { status })
+			});
+			if (isFailure$1(parsed)) {
+				const version = headers[MCP_PROTOCOL_VERSION_HEADER$1];
+				if (version !== void 0 && !registry.protocols.some((protocol) => protocol.protocolVersion === version)) return reject(400);
+				const admission = selectHttpProtocol(headers, void 0);
+				return admission._tag === "Rejected" && admission.error === void 0 ? reject(admission.status) : reject(200, new ParseError({ message: "Parse error" }));
+			}
+			const input = parsed.success;
+			if (Array.isArray(input)) {
+				if (input.length === 0) return reject(400, new InvalidRequest({ message: "Invalid Request" }));
+				const admission = selectHttpProtocol(headers, input);
+				if (admission._tag === "Rejected" || input.some(hasRequestProtocolVersion) || input.some((message) => hasProperty(message, "method") && message.method === "initialize") || admission.binding?.protocol.runtime.transport.jsonRpc.acceptsBatches !== true) return reject(400);
+				return {
+					_tag: "Accepted",
+					acknowledge: !input.some((message) => hasProperty(message, "method") && hasProperty(message, "id")),
+					isSubscription: false
+				};
+			}
+			const hasId = hasProperty(input, "id");
+			const id = hasId && (typeof input.id === "string" || typeof input.id === "number") ? input.id : null;
+			const isJsonRpc = hasProperty(input, "jsonrpc") && input.jsonrpc === "2.0";
+			const hasValidRequestId = !hasId || typeof input.id === "string" || typeof input.id === "number";
+			const isRequest = isJsonRpc && hasValidRequestId && hasProperty(input, "method") && typeof input.method === "string";
+			const hasValidResponseId = hasId && (typeof input.id === "string" || typeof input.id === "number" || input.id === null);
+			const hasResult = hasProperty(input, "result");
+			const hasError = hasProperty(input, "error");
+			const isResponse = isJsonRpc && hasValidResponseId && hasResult !== hasError;
+			const admission = selectHttpProtocol(headers, input);
+			if (admission._tag === "Rejected") return reject(admission.status, admission.error, id);
+			if (!isRequest && !isResponse) return reject(200, new InvalidRequest({ message: "Invalid Request" }), id);
+			const isInitialize = hasProperty(input, "method") && input.method === "initialize";
+			const hasSession = headers[MCP_SESSION_ID_HEADER$1] !== void 0;
+			if (isInitialize ? hasSession : !hasSession && admission.protocol?.runtime._tag !== "Stateless") return reject(400);
+			if (isRequest && admission.protocol?.runtime._tag === "Stateless" && !(admission.protocol.handlerRpcs?.requests.has(input.method) ?? admission.protocol.clientRpcs.requests.has(input.method))) return reject(404, new MethodNotFound({ message: `Method not found: ${input.method}` }), id);
+			return {
+				_tag: "Accepted",
+				acknowledge: !isRequest || !hasId,
+				isSubscription: hasProperty(input, "method") && input.method === "subscriptions/listen"
+			};
+		},
+		effectLogLevel: (clientId, headers, fallback) => stateful?.effectLogLevel(clientId, headers, fallback) ?? fallback,
+		disconnect: (clientId) => stateful?.disconnect(clientId),
+		deliveryClientIds: () => stateful?.initializedClientIds() ?? [],
+		canDeliver: (clientId, headers, notification, fallback) => stateful?.canDeliver(clientId, headers, notification, fallback) ?? true,
+		installHandlers: fnUntraced(function* (options) {
+			const contextMap = /* @__PURE__ */ new Map();
+			const installationContext = {
+				subscribeServerNotifications: options.subscribeServerNotifications,
+				...options.sendNotification === void 0 ? {} : { sendNotification: options.sendNotification },
+				...options.markSubscriptionCancelled === void 0 ? {} : { markSubscriptionCancelled: options.markSubscriptionCancelled },
+				...options.terminateSubscription === void 0 ? {} : { terminateSubscription: options.terminateSubscription },
+				supportedVersions: protocolVersions,
+				serverInfo: options.serverInfo,
+				registrationPresence: options.core.registrationPresence
+			};
+			const handlerTarget = registry.handlerTarget(contextMap, installationContext);
+			for (const protocol of registry.protocols) {
+				if (protocol.runtime._tag === "Stateless") {
+					yield* protocol.installHandlers(options.core, void 0, handlerTarget);
+					continue;
+				}
+				if (stateful === void 0) return yield* die("MCP sessionful runtime invariant failed");
+				yield* handlerTarget.install(protocol, PingRpcs, PingRpcs.of({ ping: () => succeed$3({}) }));
+				const lifecycle = {
+					initialize: fnUntraced(function* (protocolVersion, profile, clientId) {
+						const presence = yield* options.core.registrationPresence;
+						return yield* withFiber((fiber) => {
+							const httpRequest = getOrUndefined(fiber.context, HttpServerRequest);
+							const capabilities = {
+								completions: true,
+								logging: true,
+								...presence.tools ? { tools: { listChanged: true } } : {},
+								...presence.resources ? { resources: {
+									listChanged: true,
+									subscribe: httpRequest === void 0
+								} } : {},
+								...presence.prompts ? { prompts: { listChanged: true } } : {},
+								...options.serverInfo.extensions ? { extensions: options.serverInfo.extensions } : {}
+							};
+							const registration = {
+								initializePayload: Initialize$4.payloadSchema.make({
+									protocolVersion,
+									capabilities: profile.clientCapabilities,
+									clientInfo: profile.clientInfo,
+									_meta: profile.requestMetadata
+								}),
+								negotiatedProfile: profile,
+								protocol,
+								supportsResourceSubscriptions: httpRequest === void 0 && capabilities.resources?.subscribe === true,
+								logLevel: options.defaultLogLevel
+							};
+							if (httpRequest !== void 0) {
+								const sessionId = crypto.randomUUID();
+								stateful.registerHttp(sessionId, registration);
+								appendPreResponseHandlerUnsafe(httpRequest, (_request, response) => succeed$3(setHeaders(response, {
+									[MCP_SESSION_ID_HEADER$1]: sessionId,
+									[MCP_PROTOCOL_VERSION_HEADER$1]: protocol.protocolVersion
+								})));
+							} else stateful.registerConnection(clientId, registration);
+							return succeed$3({
+								capabilities,
+								instructions: options.serverInfo.instructions,
+								serverInfo: Implementation$3.make({
+									name: options.serverInfo.name,
+									version: options.serverInfo.version,
+									description: options.serverInfo.description,
+									websiteUrl: options.serverInfo.websiteUrl,
+									icons: options.serverInfo.icons
+								})
+							});
+						});
+					}),
+					setLogLevel: stateful.setLogLevel,
+					subscribe: stateful.subscribe,
+					unsubscribe: stateful.unsubscribe,
+					clientNotification: fnUntraced(function* (notification, clientId) {
+						if (notification._tag === "Initialized") stateful.markInitialized(clientId);
+					})
+				};
+				yield* protocol.installHandlers(options.core, lifecycle, handlerTarget);
+			}
+			return makeUnsafe$7(contextMap);
+		})
+	});
+});
+/**
+* @internal
+*/
+const layer = (protocols) => effect(ServerRuntime)(make(protocols));
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
 /**
 * Exact MCP v2024-11-05 wire schemas.
 *
@@ -45476,15 +47888,33 @@ const make$1 = (options) => {
 *
 * @internal
 */
+/**
+* @internal
+*/
 const protocolVersion$3 = "2024-11-05";
+/**
+* @internal
+*/
 const optional$3 = (schema) => optionalKey(schema).pipe(decodeTo(optional$5(schema), {
 	decode: passthrough$1(),
 	encode: transformOptional(flatMap$3(fromUndefinedOr))
 }));
 const JsonObject$2 = JsonObject$3;
+/**
+* @internal
+*/
 const RequestId = /*#__PURE__*/ Union([String$2, Finite]);
+/**
+* @internal
+*/
 const ProgressToken = /*#__PURE__*/ Union([String$2, Finite]);
+/**
+* @internal
+*/
 const Role = /*#__PURE__*/ Literals(["user", "assistant"]);
+/**
+* @internal
+*/
 const LoggingLevel = /*#__PURE__*/ Literals([
 	"debug",
 	"info",
@@ -45495,26 +47925,50 @@ const LoggingLevel = /*#__PURE__*/ Literals([
 	"alert",
 	"emergency"
 ]);
-const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) })) });
+/**
+* @internal
+*/
+const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) }), [JsonObject$3])) });
+/**
+* @internal
+*/
 const NotificationMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(JsonObject$2) });
+/**
+* @internal
+*/
 const ResultMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(JsonObject$2) });
+/**
+* @internal
+*/
 const PaginatedRequest = /*#__PURE__*/ Struct({
 	...RequestMeta.fields,
 	cursor: /*#__PURE__*/ optional$3(String$2)
 });
+/**
+* @internal
+*/
 const PaginatedResult = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	nextCursor: /*#__PURE__*/ optional$3(String$2)
 });
+/**
+* @internal
+*/
 const Implementation$2 = /*#__PURE__*/ Struct({
 	name: String$2,
 	version: String$2
 });
+/**
+* @internal
+*/
 const ClientCapabilities$2 = /*#__PURE__*/ Struct({
 	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, JsonObject$2)),
 	roots: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean) })),
 	sampling: /*#__PURE__*/ optional$3(JsonObject$2)
 });
+/**
+* @internal
+*/
 const ServerCapabilities$2 = /*#__PURE__*/ Struct({
 	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, JsonObject$2)),
 	logging: /*#__PURE__*/ optional$3(JsonObject$2),
@@ -45525,11 +47979,17 @@ const ServerCapabilities$2 = /*#__PURE__*/ Struct({
 	})),
 	tools: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean) }))
 });
+/**
+* @internal
+*/
 const McpError = /*#__PURE__*/ Struct({
 	code: Int,
 	message: String$2,
 	data: /*#__PURE__*/ optional$3(Any)
 });
+/**
+* @internal
+*/
 const Annotation = /*#__PURE__*/ Struct({
 	audience: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(Role)),
 	priority: /*#__PURE__*/ optional$3(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
@@ -45537,39 +47997,66 @@ const Annotation = /*#__PURE__*/ Struct({
 		maximum: 1
 	})))
 });
+/**
+* @internal
+*/
 const TextResourceContents$1 = /*#__PURE__*/ Struct({
 	uri: String$2,
 	mimeType: /*#__PURE__*/ optional$3(String$2),
 	text: String$2
 });
+/**
+* @internal
+*/
 const BlobResourceContents$1 = /*#__PURE__*/ Struct({
 	uri: String$2,
 	mimeType: /*#__PURE__*/ optional$3(String$2),
 	blob: String$2
 });
+/**
+* @internal
+*/
 const ResourceContents$1 = /*#__PURE__*/ Union([TextResourceContents$1, BlobResourceContents$1]);
+/**
+* @internal
+*/
 const TextContent$2 = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("text"),
 	text: String$2,
 	annotations: /*#__PURE__*/ optional$3(Annotation)
 });
+/**
+* @internal
+*/
 const ImageContent$2 = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("image"),
 	data: String$2,
 	mimeType: String$2,
 	annotations: /*#__PURE__*/ optional$3(Annotation)
 });
+/**
+* @internal
+*/
 const EmbeddedResource$2 = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("resource"),
 	resource: ResourceContents$1,
 	annotations: /*#__PURE__*/ optional$3(Annotation)
 });
+/**
+* @internal
+*/
 const PromptOrToolContent$1 = /*#__PURE__*/ Union([
 	TextContent$2,
 	ImageContent$2,
 	EmbeddedResource$2
 ]);
+/**
+* @internal
+*/
 const SamplingContent$2 = /*#__PURE__*/ Union([TextContent$2, ImageContent$2]);
+/**
+* @internal
+*/
 const Resource$2 = /*#__PURE__*/ Struct({
 	uri: String$2,
 	name: String$2,
@@ -45578,6 +48065,9 @@ const Resource$2 = /*#__PURE__*/ Struct({
 	size: /*#__PURE__*/ optional$3(Finite),
 	annotations: /*#__PURE__*/ optional$3(Annotation)
 });
+/**
+* @internal
+*/
 const ResourceTemplate$2 = /*#__PURE__*/ Struct({
 	uriTemplate: String$2,
 	name: String$2,
@@ -45585,20 +48075,32 @@ const ResourceTemplate$2 = /*#__PURE__*/ Struct({
 	mimeType: /*#__PURE__*/ optional$3(String$2),
 	annotations: /*#__PURE__*/ optional$3(Annotation)
 });
+/**
+* @internal
+*/
 const PromptArgument$1 = /*#__PURE__*/ Struct({
 	name: String$2,
 	description: /*#__PURE__*/ optional$3(String$2),
 	required: /*#__PURE__*/ optional$3(Boolean)
 });
+/**
+* @internal
+*/
 const Prompt$2 = /*#__PURE__*/ Struct({
 	name: String$2,
 	description: /*#__PURE__*/ optional$3(String$2),
 	arguments: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(PromptArgument$1))
 });
+/**
+* @internal
+*/
 const PromptMessage$3 = /*#__PURE__*/ Struct({
 	role: Role,
 	content: PromptOrToolContent$1
 });
+/**
+* @internal
+*/
 const Tool$3 = /*#__PURE__*/ Struct({
 	name: String$2,
 	description: /*#__PURE__*/ optional$3(String$2),
@@ -45608,6 +48110,9 @@ const Tool$3 = /*#__PURE__*/ Struct({
 		required: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(String$2))
 	})
 });
+/**
+* @internal
+*/
 const ModelPreferences = /*#__PURE__*/ Struct({
 	hints: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(/* @__PURE__ */ Struct({ name: /*#__PURE__*/ optional$3(String$2) }))),
 	costPriority: /*#__PURE__*/ optional$3(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
@@ -45623,22 +48128,37 @@ const ModelPreferences = /*#__PURE__*/ Struct({
 		maximum: 1
 	})))
 });
+/**
+* @internal
+*/
 const SamplingMessage$3 = /*#__PURE__*/ Struct({
 	role: Role,
 	content: SamplingContent$2
 });
+/**
+* @internal
+*/
 const ResourceReference = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("ref/resource"),
 	uri: String$2
 });
+/**
+* @internal
+*/
 const PromptReference$1 = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("ref/prompt"),
 	name: String$2
 });
+/**
+* @internal
+*/
 const Root$1 = /*#__PURE__*/ Struct({
 	uri: String$2,
 	name: /*#__PURE__*/ optional$3(String$2)
 });
+/**
+* @internal
+*/
 const InitializeResult$3 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	protocolVersion: String$2,
@@ -45646,36 +48166,60 @@ const InitializeResult$3 = /*#__PURE__*/ Struct({
 	serverInfo: Implementation$2,
 	instructions: /*#__PURE__*/ optional$3(String$2)
 });
+/**
+* @internal
+*/
 const ListResourcesResult$2 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	resources: /*#__PURE__*/ ArraySchema(Resource$2)
 });
+/**
+* @internal
+*/
 const ListResourceTemplatesResult$2 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$2)
 });
+/**
+* @internal
+*/
 const ReadResourceResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	contents: /*#__PURE__*/ ArraySchema(ResourceContents$1)
 });
+/**
+* @internal
+*/
 const ListPromptsResult$2 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	prompts: /*#__PURE__*/ ArraySchema(Prompt$2)
 });
+/**
+* @internal
+*/
 const GetPromptResult$3 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	description: /*#__PURE__*/ optional$3(String$2),
 	messages: /*#__PURE__*/ ArraySchema(PromptMessage$3)
 });
+/**
+* @internal
+*/
 const ListToolsResult$3 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	tools: /*#__PURE__*/ ArraySchema(Tool$3)
 });
+/**
+* @internal
+*/
 const CallToolResult$3 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	content: /*#__PURE__*/ ArraySchema(PromptOrToolContent$1),
 	isError: /*#__PURE__*/ optional$3(Boolean)
 });
+/**
+* @internal
+*/
 const CreateMessageResult$3 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	role: Role,
@@ -45683,6 +48227,9 @@ const CreateMessageResult$3 = /*#__PURE__*/ Struct({
 	model: String$2,
 	stopReason: /*#__PURE__*/ optional$3(String$2)
 });
+/**
+* @internal
+*/
 const CompleteResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	completion: /*#__PURE__*/ Struct({
@@ -45691,16 +48238,25 @@ const CompleteResult$1 = /*#__PURE__*/ Struct({
 		hasMore: /*#__PURE__*/ optional$3(Boolean)
 	})
 });
+/**
+* @internal
+*/
 const ListRootsResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	roots: /*#__PURE__*/ ArraySchema(Root$1)
 });
-var Ping = class extends (/*#__PURE__*/ make$16("ping", {
+/**
+* @internal
+*/
+var Ping = class extends (/*#__PURE__*/ make$18("ping", {
 	success: ResultMeta,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
 })) {};
-var Initialize$3 = class extends (/*#__PURE__*/ make$16("initialize", {
+/**
+* @internal
+*/
+var Initialize$3 = class extends (/*#__PURE__*/ make$18("initialize", {
 	success: InitializeResult$3,
 	error: McpError,
 	payload: {
@@ -45710,7 +48266,10 @@ var Initialize$3 = class extends (/*#__PURE__*/ make$16("initialize", {
 		clientInfo: Implementation$2
 	}
 })) {};
-var Complete$1 = class extends (/*#__PURE__*/ make$16("completion/complete", {
+/**
+* @internal
+*/
+var Complete$1 = class extends (/*#__PURE__*/ make$18("completion/complete", {
 	success: CompleteResult$1,
 	error: McpError,
 	payload: {
@@ -45722,7 +48281,10 @@ var Complete$1 = class extends (/*#__PURE__*/ make$16("completion/complete", {
 		})
 	}
 })) {};
-var SetLevel = class extends (/*#__PURE__*/ make$16("logging/setLevel", {
+/**
+* @internal
+*/
+var SetLevel = class extends (/*#__PURE__*/ make$18("logging/setLevel", {
 	success: ResultMeta,
 	error: McpError,
 	payload: {
@@ -45730,7 +48292,10 @@ var SetLevel = class extends (/*#__PURE__*/ make$16("logging/setLevel", {
 		level: LoggingLevel
 	}
 })) {};
-var GetPrompt$3 = class extends (/*#__PURE__*/ make$16("prompts/get", {
+/**
+* @internal
+*/
+var GetPrompt$3 = class extends (/*#__PURE__*/ make$18("prompts/get", {
 	success: GetPromptResult$3,
 	error: McpError,
 	payload: {
@@ -45739,22 +48304,34 @@ var GetPrompt$3 = class extends (/*#__PURE__*/ make$16("prompts/get", {
 		arguments: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, String$2))
 	}
 })) {};
-var ListPrompts$2 = class extends (/*#__PURE__*/ make$16("prompts/list", {
+/**
+* @internal
+*/
+var ListPrompts$2 = class extends (/*#__PURE__*/ make$18("prompts/list", {
 	success: ListPromptsResult$2,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ListResources$2 = class extends (/*#__PURE__*/ make$16("resources/list", {
+/**
+* @internal
+*/
+var ListResources$2 = class extends (/*#__PURE__*/ make$18("resources/list", {
 	success: ListResourcesResult$2,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ListResourceTemplates$2 = class extends (/*#__PURE__*/ make$16("resources/templates/list", {
+/**
+* @internal
+*/
+var ListResourceTemplates$2 = class extends (/*#__PURE__*/ make$18("resources/templates/list", {
 	success: ListResourceTemplatesResult$2,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ReadResource$1 = class extends (/*#__PURE__*/ make$16("resources/read", {
+/**
+* @internal
+*/
+var ReadResource$1 = class extends (/*#__PURE__*/ make$18("resources/read", {
 	success: ReadResourceResult$1,
 	error: McpError,
 	payload: {
@@ -45762,7 +48339,10 @@ var ReadResource$1 = class extends (/*#__PURE__*/ make$16("resources/read", {
 		uri: String$2
 	}
 })) {};
-var Subscribe = class extends (/*#__PURE__*/ make$16("resources/subscribe", {
+/**
+* @internal
+*/
+var Subscribe = class extends (/*#__PURE__*/ make$18("resources/subscribe", {
 	success: ResultMeta,
 	error: McpError,
 	payload: {
@@ -45770,7 +48350,10 @@ var Subscribe = class extends (/*#__PURE__*/ make$16("resources/subscribe", {
 		uri: String$2
 	}
 })) {};
-var Unsubscribe = class extends (/*#__PURE__*/ make$16("resources/unsubscribe", {
+/**
+* @internal
+*/
+var Unsubscribe = class extends (/*#__PURE__*/ make$18("resources/unsubscribe", {
 	success: ResultMeta,
 	error: McpError,
 	payload: {
@@ -45778,7 +48361,10 @@ var Unsubscribe = class extends (/*#__PURE__*/ make$16("resources/unsubscribe", 
 		uri: String$2
 	}
 })) {};
-var CallTool$3 = class extends (/*#__PURE__*/ make$16("tools/call", {
+/**
+* @internal
+*/
+var CallTool$3 = class extends (/*#__PURE__*/ make$18("tools/call", {
 	success: CallToolResult$3,
 	error: McpError,
 	payload: {
@@ -45787,12 +48373,18 @@ var CallTool$3 = class extends (/*#__PURE__*/ make$16("tools/call", {
 		arguments: /*#__PURE__*/ optional$3(JsonObject$2)
 	}
 })) {};
-var ListTools$3 = class extends (/*#__PURE__*/ make$16("tools/list", {
+/**
+* @internal
+*/
+var ListTools$3 = class extends (/*#__PURE__*/ make$18("tools/list", {
 	success: ListToolsResult$3,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var CreateMessage$3 = class extends (/*#__PURE__*/ make$16("sampling/createMessage", {
+/**
+* @internal
+*/
+var CreateMessage$3 = class extends (/*#__PURE__*/ make$18("sampling/createMessage", {
 	success: CreateMessageResult$3,
 	error: McpError,
 	payload: {
@@ -45811,45 +48403,89 @@ var CreateMessage$3 = class extends (/*#__PURE__*/ make$16("sampling/createMessa
 		metadata: /*#__PURE__*/ optional$3(JsonObject$2)
 	}
 })) {};
-var ListRoots$1 = class extends (/*#__PURE__*/ make$16("roots/list", {
+/**
+* @internal
+*/
+var ListRoots$1 = class extends (/*#__PURE__*/ make$18("roots/list", {
 	success: ListRootsResult$1,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
 })) {};
-var CancelledNotification = class extends (/*#__PURE__*/ make$16("notifications/cancelled", { payload: {
+/**
+* @internal
+*/
+var CancelledNotification = class extends (/*#__PURE__*/ make$18("notifications/cancelled", { payload: {
 	...NotificationMeta.fields,
 	requestId: RequestId,
 	reason: /*#__PURE__*/ optional$3(String$2)
 } })) {};
-var ProgressNotification$1 = class extends (/*#__PURE__*/ make$16("notifications/progress", { payload: {
+/**
+* @internal
+*/
+var ProgressNotification$1 = class extends (/*#__PURE__*/ make$18("notifications/progress", { payload: {
 	...NotificationMeta.fields,
 	progressToken: ProgressToken,
 	progress: Finite,
 	total: /*#__PURE__*/ optional$3(Finite)
 } })) {};
-var InitializedNotification = class extends (/*#__PURE__*/ make$16("notifications/initialized", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var RootsListChangedNotification = class extends (/*#__PURE__*/ make$16("notifications/roots/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var LoggingMessageNotification = class extends (/*#__PURE__*/ make$16("notifications/message", { payload: {
+/**
+* @internal
+*/
+var InitializedNotification = class extends (/*#__PURE__*/ make$18("notifications/initialized", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+/**
+* @internal
+*/
+var RootsListChangedNotification = class extends (/*#__PURE__*/ make$18("notifications/roots/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+/**
+* @internal
+*/
+var LoggingMessageNotification = class extends (/*#__PURE__*/ make$18("notifications/message", { payload: {
 	...NotificationMeta.fields,
 	level: LoggingLevel,
 	logger: /*#__PURE__*/ optional$3(String$2),
 	data: Any
 } })) {};
-var ResourceUpdatedNotification = class extends (/*#__PURE__*/ make$16("notifications/resources/updated", { payload: {
+/**
+* @internal
+*/
+var ResourceUpdatedNotification = class extends (/*#__PURE__*/ make$18("notifications/resources/updated", { payload: {
 	...NotificationMeta.fields,
 	uri: String$2
 } })) {};
-var ResourceListChangedNotification = class extends (/*#__PURE__*/ make$16("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var ToolListChangedNotification = class extends (/*#__PURE__*/ make$16("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var PromptListChangedNotification = class extends (/*#__PURE__*/ make$16("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$12(Ping, Initialize$3, Complete$1, SetLevel, GetPrompt$3, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$3, ListTools$3)) {};
-var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$12(Ping, CreateMessage$3, ListRoots$1)) {};
-var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification$1, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+/**
+* @internal
+*/
+var ResourceListChangedNotification = class extends (/*#__PURE__*/ make$18("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+/**
+* @internal
+*/
+var ToolListChangedNotification = class extends (/*#__PURE__*/ make$18("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+/**
+* @internal
+*/
+var PromptListChangedNotification = class extends (/*#__PURE__*/ make$18("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+/**
+* @internal
+*/
+var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$14(Ping, Initialize$3, Complete$1, SetLevel, GetPrompt$3, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$3, ListTools$3)) {};
+/**
+* @internal
+*/
+var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
+/**
+* @internal
+*/
+var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$14(Ping, CreateMessage$3, ListRoots$1)) {};
+/**
+* @internal
+*/
+var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification$1, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpProtocol/v2024_11_05.js
-/** @internal */
-const ClientRpcs$3 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$3.middleware(McpServerClientMiddleware)).merge(ClientNotificationRpcs$3);
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
+/**
+* @internal
+*/
+const ClientRpcs$3 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$3.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$3);
 const AdapterRpcs$3 = /*#__PURE__*/ ClientRpcs$3.omit("ping");
 const profileFromInitialize$2 = (initialize) => ({
 	protocolVersion: protocolVersion$3,
@@ -45877,7 +48513,7 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 	})), when({ type: "image" }, (content) => ImageContent$2.make({
 		type: "image",
 		mimeType: content.mimeType,
-		data: encodeBase64$1(content.data),
+		data: encode(content.data),
 		annotations: content.annotations
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
@@ -45895,7 +48531,7 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 			resource: {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
-				blob: encodeBase64$1(resource.blob)
+				blob: encode(resource.blob)
 			},
 			annotations: content.annotations
 		});
@@ -45905,13 +48541,15 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 	})), exhaustive);
 	return projected instanceof UnsupportedByProtocol ? yield* projected : projected;
 });
-/** @internal */
-const protocol$3 = /*#__PURE__*/ make$1({
+/**
+* @internal
+*/
+const protocol$3 = /*#__PURE__*/ make$3({
 	protocolVersion: protocolVersion$3,
-	transport: {
-		acceptsJsonRpcBatches: false,
-		requiresVersionHeader: false
-	},
+	runtime: /*#__PURE__*/ stateful({
+		jsonRpc: { acceptsBatches: false },
+		http: { requiresVersionHeader: false }
+	}),
 	clientRpcs: ClientRpcs$3,
 	clientNotificationRpcs: ClientNotificationRpcs$3,
 	serverRequestRpcs: ServerRequestRpcs$3,
@@ -45947,7 +48585,7 @@ const protocol$3 = /*#__PURE__*/ make$1({
 				} : {
 					uri: content.uri,
 					mimeType: content.mimeType,
-					blob: encodeBase64$1(content.blob)
+					blob: encode(content.blob)
 				}),
 				_meta: result._meta
 			});
@@ -45965,7 +48603,12 @@ const protocol$3 = /*#__PURE__*/ make$1({
 		})) }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
-			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			if (outcome._tag === "InputRequired") return yield* ProtocolError.fromFeature(new UnsupportedByProtocol({
+				protocolVersion: protocolVersion$3,
+				feature: "prompt input requirements"
+			}));
+			const result = outcome.value;
 			const messages = yield* forEach$1(result.messages, (message) => projectContent$3(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
@@ -46011,8 +48654,8 @@ const protocol$3 = /*#__PURE__*/ make$1({
 			const result = yield* core.tools.call({
 				...call,
 				arguments: call.arguments ?? {}
-			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach$1(result.content, projectContent$3).pipe(mapError$2(ProtocolError.fromTool));
+			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion$3, outcome)), mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent$3).pipe(mapError$2(ProtocolError.fromTool));
 			return CallToolResult$3.make({
 				content,
 				isError: result.isError,
@@ -46043,7 +48686,7 @@ const protocol$3 = /*#__PURE__*/ make$1({
 	})))
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpSchema/v2025_03_26.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
 /**
 * Exact MCP v2025-03-26 wire schemas.
 *
@@ -46053,37 +48696,61 @@ const protocol$3 = /*#__PURE__*/ make$1({
 *
 * @internal
 */
+/**
+* @internal
+*/
 const protocolVersion$2 = "2025-03-26";
 const optional$2 = optional$3;
+/**
+* @internal
+*/
 const ServerCapabilities$1 = /*#__PURE__*/ Struct({
 	...ServerCapabilities$2.fields,
 	completions: /*#__PURE__*/ optional$2(/*#__PURE__*/ Struct({}))
 });
+/**
+* @internal
+*/
 const AudioContent$2 = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("audio"),
 	data: String$2,
 	mimeType: String$2,
 	annotations: /*#__PURE__*/ optional$2(Annotation)
 });
+/**
+* @internal
+*/
 const PromptOrToolContent = /*#__PURE__*/ Union([
 	TextContent$2,
 	ImageContent$2,
 	AudioContent$2,
 	EmbeddedResource$2
 ]);
+/**
+* @internal
+*/
 const SamplingContent$1 = /*#__PURE__*/ Union([
 	TextContent$2,
 	ImageContent$2,
 	AudioContent$2
 ]);
+/**
+* @internal
+*/
 const PromptMessage$2 = /*#__PURE__*/ Struct({
 	role: Role,
 	content: PromptOrToolContent
 });
+/**
+* @internal
+*/
 const SamplingMessage$2 = /*#__PURE__*/ Struct({
 	role: Role,
 	content: SamplingContent$1
 });
+/**
+* @internal
+*/
 const ToolAnnotations = /*#__PURE__*/ Struct({
 	title: /*#__PURE__*/ optional$2(String$2),
 	readOnlyHint: /*#__PURE__*/ optional$2(Boolean),
@@ -46091,10 +48758,16 @@ const ToolAnnotations = /*#__PURE__*/ Struct({
 	idempotentHint: /*#__PURE__*/ optional$2(Boolean),
 	openWorldHint: /*#__PURE__*/ optional$2(Boolean)
 });
+/**
+* @internal
+*/
 const Tool$2 = /*#__PURE__*/ Struct({
 	...Tool$3.fields,
 	annotations: /*#__PURE__*/ optional$2(ToolAnnotations)
 });
+/**
+* @internal
+*/
 const InitializeResult$2 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	protocolVersion: String$2,
@@ -46102,20 +48775,32 @@ const InitializeResult$2 = /*#__PURE__*/ Struct({
 	serverInfo: Implementation$2,
 	instructions: /*#__PURE__*/ optional$2(String$2)
 });
+/**
+* @internal
+*/
 const GetPromptResult$2 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	description: /*#__PURE__*/ optional$2(String$2),
 	messages: /*#__PURE__*/ ArraySchema(PromptMessage$2)
 });
+/**
+* @internal
+*/
 const ListToolsResult$2 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	tools: /*#__PURE__*/ ArraySchema(Tool$2)
 });
+/**
+* @internal
+*/
 const CallToolResult$2 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	content: /*#__PURE__*/ ArraySchema(PromptOrToolContent),
 	isError: /*#__PURE__*/ optional$2(Boolean)
 });
+/**
+* @internal
+*/
 const CreateMessageResult$2 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	role: Role,
@@ -46123,7 +48808,10 @@ const CreateMessageResult$2 = /*#__PURE__*/ Struct({
 	model: String$2,
 	stopReason: /*#__PURE__*/ optional$2(String$2)
 });
-var Initialize$2 = class extends (/*#__PURE__*/ make$16("initialize", {
+/**
+* @internal
+*/
+var Initialize$2 = class extends (/*#__PURE__*/ make$18("initialize", {
 	success: InitializeResult$2,
 	error: McpError,
 	payload: {
@@ -46133,7 +48821,10 @@ var Initialize$2 = class extends (/*#__PURE__*/ make$16("initialize", {
 		clientInfo: Implementation$2
 	}
 })) {};
-var GetPrompt$2 = class extends (/*#__PURE__*/ make$16("prompts/get", {
+/**
+* @internal
+*/
+var GetPrompt$2 = class extends (/*#__PURE__*/ make$18("prompts/get", {
 	success: GetPromptResult$2,
 	error: McpError,
 	payload: {
@@ -46142,12 +48833,18 @@ var GetPrompt$2 = class extends (/*#__PURE__*/ make$16("prompts/get", {
 		arguments: /*#__PURE__*/ optional$2(/*#__PURE__*/ Record(String$2, String$2))
 	}
 })) {};
-var ListTools$2 = class extends (/*#__PURE__*/ make$16("tools/list", {
+/**
+* @internal
+*/
+var ListTools$2 = class extends (/*#__PURE__*/ make$18("tools/list", {
 	success: ListToolsResult$2,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var CallTool$2 = class extends (/*#__PURE__*/ make$16("tools/call", {
+/**
+* @internal
+*/
+var CallTool$2 = class extends (/*#__PURE__*/ make$18("tools/call", {
 	success: CallToolResult$2,
 	error: McpError,
 	payload: {
@@ -46156,7 +48853,10 @@ var CallTool$2 = class extends (/*#__PURE__*/ make$16("tools/call", {
 		arguments: /*#__PURE__*/ optional$2(JsonObject$3)
 	}
 })) {};
-var CreateMessage$2 = class extends (/*#__PURE__*/ make$16("sampling/createMessage", {
+/**
+* @internal
+*/
+var CreateMessage$2 = class extends (/*#__PURE__*/ make$18("sampling/createMessage", {
 	success: CreateMessageResult$2,
 	error: McpError,
 	payload: {
@@ -46175,21 +48875,38 @@ var CreateMessage$2 = class extends (/*#__PURE__*/ make$16("sampling/createMessa
 		metadata: /*#__PURE__*/ optional$2(JsonObject$3)
 	}
 })) {};
-var ProgressNotification = class extends (/*#__PURE__*/ make$16("notifications/progress", { payload: {
+/**
+* @internal
+*/
+var ProgressNotification = class extends (/*#__PURE__*/ make$18("notifications/progress", { payload: {
 	...NotificationMeta.fields,
 	progressToken: ProgressToken,
 	progress: Finite,
 	total: /*#__PURE__*/ optional$2(Finite),
 	message: /*#__PURE__*/ optional$2(String$2)
 } })) {};
-var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$12(Ping, Initialize$2, Complete$1, SetLevel, GetPrompt$2, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$2, ListTools$2)) {};
-var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$12(Ping, CreateMessage$2, ListRoots$1)) {};
-var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+/**
+* @internal
+*/
+var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$14(Ping, Initialize$2, Complete$1, SetLevel, GetPrompt$2, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$2, ListTools$2)) {};
+/**
+* @internal
+*/
+var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
+/**
+* @internal
+*/
+var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$14(Ping, CreateMessage$2, ListRoots$1)) {};
+/**
+* @internal
+*/
+var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpProtocol/v2025_03_26.js
-/** @internal */
-const ClientRpcs$2 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$2.middleware(McpServerClientMiddleware)).merge(ClientNotificationRpcs$2);
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
+/**
+* @internal
+*/
+const ClientRpcs$2 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$2.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$2);
 const AdapterRpcs$2 = /*#__PURE__*/ ClientRpcs$2.omit("ping");
 const profileFromInitialize$1 = (initialize) => ({
 	protocolVersion: protocolVersion$2,
@@ -46210,7 +48927,7 @@ const projectContent$2 = /*#__PURE__*/ fnUntraced(function* (content) {
 	})), when({ type: is("image", "audio") }, (content) => ({
 		type: content.type,
 		mimeType: content.mimeType,
-		data: encodeBase64$1(content.data),
+		data: encode(content.data),
 		annotations: content.annotations
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
@@ -46228,7 +48945,7 @@ const projectContent$2 = /*#__PURE__*/ fnUntraced(function* (content) {
 			resource: {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
-				blob: encodeBase64$1(resource.blob)
+				blob: encode(resource.blob)
 			},
 			annotations: content.annotations
 		});
@@ -46245,15 +48962,17 @@ const projectResourceContents$1 = (content) => "text" in content ? {
 } : {
 	uri: content.uri,
 	mimeType: content.mimeType,
-	blob: encodeBase64$1(content.blob)
+	blob: encode(content.blob)
 };
-/** @internal */
-const protocol$2 = /*#__PURE__*/ make$1({
+/**
+* @internal
+*/
+const protocol$2 = /*#__PURE__*/ make$3({
 	protocolVersion: protocolVersion$2,
-	transport: {
-		acceptsJsonRpcBatches: true,
-		requiresVersionHeader: false
-	},
+	runtime: /*#__PURE__*/ stateful({
+		jsonRpc: { acceptsBatches: true },
+		http: { requiresVersionHeader: false }
+	}),
 	clientRpcs: ClientRpcs$2,
 	clientNotificationRpcs: ClientNotificationRpcs$2,
 	serverRequestRpcs: ServerRequestRpcs$2,
@@ -46320,7 +49039,12 @@ const protocol$2 = /*#__PURE__*/ make$1({
 		})) }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
-			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			if (outcome._tag === "InputRequired") return yield* ProtocolError.fromFeature(new UnsupportedByProtocol({
+				protocolVersion: protocolVersion$2,
+				feature: "prompt input requirements"
+			}));
+			const result = outcome.value;
 			const messages = yield* forEach$1(result.messages, (message) => projectContent$2(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
@@ -46371,8 +49095,8 @@ const protocol$2 = /*#__PURE__*/ make$1({
 			const result = yield* core.tools.call({
 				...call,
 				arguments: call.arguments ?? {}
-			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach$1(result.content, projectContent$2).pipe(mapError$2(ProtocolError.fromTool));
+			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion$2, outcome)), mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent$2).pipe(mapError$2(ProtocolError.fromTool));
 			return CallToolResult$2.make({
 				content,
 				isError: result.isError,
@@ -46403,7 +49127,7 @@ const protocol$2 = /*#__PURE__*/ make$1({
 	})))
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpSchema/v2025_06_18.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
 /**
 * Exact MCP v2025-06-18 wire schemas.
 *
@@ -46412,19 +49136,31 @@ const protocol$2 = /*#__PURE__*/ make$1({
 *
 * @internal
 */
+/**
+* @internal
+*/
 const protocolVersion$1 = "2025-06-18";
 const optional$1 = optional$3;
 const JsonObject$1 = JsonObject$3;
 const Meta$1 = /*#__PURE__*/ optional$1(JsonObject$1);
+/**
+* @internal
+*/
 const Implementation$1 = /*#__PURE__*/ Struct({
 	name: String$2,
 	title: /*#__PURE__*/ optional$1(String$2),
 	version: String$2
 });
+/**
+* @internal
+*/
 const ClientCapabilities$1 = /*#__PURE__*/ Struct({
 	...ClientCapabilities$2.fields,
 	elicitation: /*#__PURE__*/ optional$1(/*#__PURE__*/ Struct({}))
 });
+/**
+* @internal
+*/
 const Annotations$1 = /*#__PURE__*/ Struct({
 	audience: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Role)),
 	priority: /*#__PURE__*/ optional$1(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
@@ -46432,18 +49168,27 @@ const Annotations$1 = /*#__PURE__*/ Struct({
 		maximum: 1
 	})))
 });
+/**
+* @internal
+*/
 const Resource$1 = /*#__PURE__*/ Struct({
 	...Resource$2.fields,
 	title: /*#__PURE__*/ optional$1(String$2),
 	annotations: /*#__PURE__*/ optional$1(Annotations$1),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const ResourceTemplate$1 = /*#__PURE__*/ Struct({
 	...ResourceTemplate$2.fields,
 	title: /*#__PURE__*/ optional$1(String$2),
 	annotations: /*#__PURE__*/ optional$1(Annotations$1),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const ResourceContents = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
 	...TextResourceContents$1.fields,
 	_meta: Meta$1
@@ -46451,41 +49196,65 @@ const ResourceContents = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
 	...BlobResourceContents$1.fields,
 	_meta: Meta$1
 })]);
+/**
+* @internal
+*/
 const PromptArgument = /*#__PURE__*/ Struct({
 	...PromptArgument$1.fields,
 	title: /*#__PURE__*/ optional$1(String$2)
 });
+/**
+* @internal
+*/
 const Prompt$1 = /*#__PURE__*/ Struct({
 	...Prompt$2.fields,
 	title: /*#__PURE__*/ optional$1(String$2),
 	arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(PromptArgument)),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const EmbeddedResource$1 = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("resource"),
 	resource: ResourceContents,
 	annotations: /*#__PURE__*/ optional$1(Annotations$1),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const ResourceLink$1 = /*#__PURE__*/ Struct({
 	...Resource$1.fields,
 	type: /*#__PURE__*/ Literal("resource_link")
 });
+/**
+* @internal
+*/
 const TextContent$1 = /*#__PURE__*/ Struct({
 	...TextContent$2.fields,
 	annotations: /*#__PURE__*/ optional$1(Annotations$1),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const ImageContent$1 = /*#__PURE__*/ Struct({
 	...ImageContent$2.fields,
 	annotations: /*#__PURE__*/ optional$1(Annotations$1),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const AudioContent$1 = /*#__PURE__*/ Struct({
 	...AudioContent$2.fields,
 	annotations: /*#__PURE__*/ optional$1(Annotations$1),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const ContentBlock$1 = /*#__PURE__*/ Union([
 	TextContent$1,
 	ImageContent$1,
@@ -46493,20 +49262,35 @@ const ContentBlock$1 = /*#__PURE__*/ Union([
 	EmbeddedResource$1,
 	ResourceLink$1
 ]);
+/**
+* @internal
+*/
 const SamplingContent = /*#__PURE__*/ Union([
 	TextContent$1,
 	ImageContent$1,
 	AudioContent$1
 ]);
+/**
+* @internal
+*/
 const PromptMessage$1 = /*#__PURE__*/ Struct({
 	role: Role,
 	content: ContentBlock$1
 });
+/**
+* @internal
+*/
 const SamplingMessage$1 = /*#__PURE__*/ Struct({
 	role: Role,
 	content: SamplingContent
 });
+/**
+* @internal
+*/
 const ServerCapabilities = /*#__PURE__*/ Struct({ ...ServerCapabilities$1.fields });
+/**
+* @internal
+*/
 const InitializeResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	protocolVersion: String$2,
@@ -46514,7 +49298,10 @@ const InitializeResult$1 = /*#__PURE__*/ Struct({
 	serverInfo: Implementation$1,
 	instructions: /*#__PURE__*/ optional$1(String$2)
 });
-var Initialize$1 = class extends (/*#__PURE__*/ make$16("initialize", {
+/**
+* @internal
+*/
+var Initialize$1 = class extends (/*#__PURE__*/ make$18("initialize", {
 	success: InitializeResult$1,
 	error: McpError,
 	payload: {
@@ -46529,6 +49316,9 @@ const ToolJsonSchema = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	properties: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, JsonObject$1)),
 	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
 }), [JsonObject$3]);
+/**
+* @internal
+*/
 const Tool$1 = /*#__PURE__*/ Struct({
 	name: String$2,
 	title: /*#__PURE__*/ optional$1(String$2),
@@ -46538,12 +49328,18 @@ const Tool$1 = /*#__PURE__*/ Struct({
 	annotations: /*#__PURE__*/ optional$1(ToolAnnotations),
 	_meta: Meta$1
 });
+/**
+* @internal
+*/
 const CallToolResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	content: /*#__PURE__*/ ArraySchema(ContentBlock$1),
 	structuredContent: /*#__PURE__*/ optional$1(JsonObject$1),
 	isError: /*#__PURE__*/ optional$1(Boolean)
 });
+/**
+* @internal
+*/
 const CreateMessageResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	role: Role,
@@ -46551,7 +49347,10 @@ const CreateMessageResult$1 = /*#__PURE__*/ Struct({
 	model: String$2,
 	stopReason: /*#__PURE__*/ optional$1(String$2)
 });
-var CreateMessage$1 = class extends (/*#__PURE__*/ make$16("sampling/createMessage", {
+/**
+* @internal
+*/
+var CreateMessage$1 = class extends (/*#__PURE__*/ make$18("sampling/createMessage", {
 	success: CreateMessageResult$1,
 	error: McpError,
 	payload: {
@@ -46570,16 +49369,28 @@ var CreateMessage$1 = class extends (/*#__PURE__*/ make$16("sampling/createMessa
 		metadata: /*#__PURE__*/ optional$1(JsonObject$1)
 	}
 })) {};
+/**
+* @internal
+*/
 const PromptReference = /*#__PURE__*/ Struct({
 	...PromptReference$1.fields,
 	title: /*#__PURE__*/ optional$1(String$2)
 });
+/**
+* @internal
+*/
 const ResourceTemplateReference = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("ref/resource"),
 	uri: String$2
 });
+/**
+* @internal
+*/
 const CompleteResult = CompleteResult$1;
-var Complete = class extends (/*#__PURE__*/ make$16("completion/complete", {
+/**
+* @internal
+*/
+var Complete = class extends (/*#__PURE__*/ make$18("completion/complete", {
 	success: CompleteResult,
 	error: McpError,
 	payload: {
@@ -46592,42 +49403,69 @@ var Complete = class extends (/*#__PURE__*/ make$16("completion/complete", {
 		context: /*#__PURE__*/ optional$1(/*#__PURE__*/ Struct({ arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, String$2)) }))
 	}
 })) {};
+/**
+* @internal
+*/
 const ListResourcesResult$1 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	resources: /*#__PURE__*/ ArraySchema(Resource$1)
 });
+/**
+* @internal
+*/
 const ListResourceTemplatesResult$1 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$1)
 });
+/**
+* @internal
+*/
 const ReadResourceResult = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	contents: /*#__PURE__*/ ArraySchema(ResourceContents)
 });
+/**
+* @internal
+*/
 const ListPromptsResult$1 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	prompts: /*#__PURE__*/ ArraySchema(Prompt$1)
 });
+/**
+* @internal
+*/
 const GetPromptResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	description: /*#__PURE__*/ optional$1(String$2),
 	messages: /*#__PURE__*/ ArraySchema(PromptMessage$1)
 });
+/**
+* @internal
+*/
 const ListToolsResult$1 = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	tools: /*#__PURE__*/ ArraySchema(Tool$1)
 });
-var ListResources$1 = class extends (/*#__PURE__*/ make$16("resources/list", {
+/**
+* @internal
+*/
+var ListResources$1 = class extends (/*#__PURE__*/ make$18("resources/list", {
 	success: ListResourcesResult$1,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ListResourceTemplates$1 = class extends (/*#__PURE__*/ make$16("resources/templates/list", {
+/**
+* @internal
+*/
+var ListResourceTemplates$1 = class extends (/*#__PURE__*/ make$18("resources/templates/list", {
 	success: ListResourceTemplatesResult$1,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ReadResource = class extends (/*#__PURE__*/ make$16("resources/read", {
+/**
+* @internal
+*/
+var ReadResource = class extends (/*#__PURE__*/ make$18("resources/read", {
 	success: ReadResourceResult,
 	error: McpError,
 	payload: {
@@ -46635,12 +49473,18 @@ var ReadResource = class extends (/*#__PURE__*/ make$16("resources/read", {
 		uri: String$2
 	}
 })) {};
-var ListPrompts$1 = class extends (/*#__PURE__*/ make$16("prompts/list", {
+/**
+* @internal
+*/
+var ListPrompts$1 = class extends (/*#__PURE__*/ make$18("prompts/list", {
 	success: ListPromptsResult$1,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var GetPrompt$1 = class extends (/*#__PURE__*/ make$16("prompts/get", {
+/**
+* @internal
+*/
+var GetPrompt$1 = class extends (/*#__PURE__*/ make$18("prompts/get", {
 	success: GetPromptResult$1,
 	error: McpError,
 	payload: {
@@ -46649,12 +49493,18 @@ var GetPrompt$1 = class extends (/*#__PURE__*/ make$16("prompts/get", {
 		arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, String$2))
 	}
 })) {};
-var ListTools$1 = class extends (/*#__PURE__*/ make$16("tools/list", {
+/**
+* @internal
+*/
+var ListTools$1 = class extends (/*#__PURE__*/ make$18("tools/list", {
 	success: ListToolsResult$1,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var CallTool$1 = class extends (/*#__PURE__*/ make$16("tools/call", {
+/**
+* @internal
+*/
+var CallTool$1 = class extends (/*#__PURE__*/ make$18("tools/call", {
 	success: CallToolResult$1,
 	error: McpError,
 	payload: {
@@ -46663,6 +49513,9 @@ var CallTool$1 = class extends (/*#__PURE__*/ make$16("tools/call", {
 		arguments: /*#__PURE__*/ optional$1(JsonObject$1)
 	}
 })) {};
+/**
+* @internal
+*/
 const ElicitResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	action: /*#__PURE__*/ Literals([
@@ -46715,7 +49568,10 @@ const RequestedSchema$1 = /*#__PURE__*/ Struct({
 	])),
 	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
 });
-var Elicit$1 = class extends (/*#__PURE__*/ make$16("elicitation/create", {
+/**
+* @internal
+*/
+var Elicit$1 = class extends (/*#__PURE__*/ make$18("elicitation/create", {
 	success: ElicitResult$1,
 	error: McpError,
 	payload: {
@@ -46724,14 +49580,32 @@ var Elicit$1 = class extends (/*#__PURE__*/ make$16("elicitation/create", {
 		requestedSchema: RequestedSchema$1
 	}
 })) {};
-var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$12(Ping, Initialize$1, Complete, SetLevel, GetPrompt$1, ListPrompts$1, ListResources$1, ListResourceTemplates$1, ReadResource, Subscribe, Unsubscribe, CallTool$1, ListTools$1)) {};
-var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$12(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
-var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+/**
+* @internal
+*/
+var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$14(Ping, Initialize$1, Complete, SetLevel, GetPrompt$1, ListPrompts$1, ListResources$1, ListResourceTemplates$1, ReadResource, Subscribe, Unsubscribe, CallTool$1, ListTools$1)) {};
+/**
+* @internal
+*/
+var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
+/**
+* @internal
+*/
+var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$14(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
+/**
+* @internal
+*/
+var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpProtocol/v2025_06_18.js
-const ClientRpcs$1 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$1.middleware(McpServerClientMiddleware)).merge(ClientNotificationRpcs$1);
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
+const ClientRpcs$1 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$1.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$1);
 const AdapterRpcs$1 = /*#__PURE__*/ ClientRpcs$1.omit("ping");
+const isToolOutputSchema$1 = (schema) => {
+	if (schema?.type !== "object") return false;
+	const isPropertiesSupported = schema.properties === void 0 || isReadonlyObject(schema.properties) && Object.values(schema.properties).every(isReadonlyObject);
+	const isRequiredDefined = schema.required === void 0 || Array.isArray(schema.required) && schema.required.every(isString);
+	return isPropertiesSupported && isRequiredDefined;
+};
 const profileFromInitialize = (initialize) => ({
 	protocolVersion: protocolVersion$1,
 	clientCapabilities: ClientCapabilities$3.make(initialize.capabilities),
@@ -46748,7 +49622,7 @@ const projectContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
 	return value(content).pipe(when({ type: is("text", "resource_link") }, (content) => content), when({ type: is("image", "audio") }, (content) => ({
 		type: content.type,
 		mimeType: content.mimeType,
-		data: encodeBase64$1(content.data),
+		data: encode(content.data),
 		annotations: content.annotations,
 		_meta: content._meta
 	})), when({ type: "resource" }, (content) => {
@@ -46770,7 +49644,7 @@ const projectContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
 				_meta: resource._meta,
-				blob: encodeBase64$1(resource.blob)
+				blob: encode(resource.blob)
 			},
 			annotations: content.annotations,
 			_meta: content._meta
@@ -46786,23 +49660,19 @@ const projectResourceContents = (content) => "text" in content ? {
 	uri: content.uri,
 	mimeType: content.mimeType,
 	_meta: content._meta,
-	blob: encodeBase64$1(content.blob)
+	blob: encode(content.blob)
 };
-const projectStructuredContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
-	if (content === void 0 || isJsonObject(content)) return content;
-	return yield* new UnsupportedByProtocol({
-		protocolVersion: protocolVersion$1,
-		feature: "non-object structured tool content"
-	});
-});
-const isJsonObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
-/** @internal */
-const protocol$1 = /*#__PURE__*/ make$1({
+const projectStructuredContent$1 = (content) => content === void 0 || isJsonObject$1(content) ? content : void 0;
+const isJsonObject$1 = (value) => isReadonlyObject(value);
+/**
+* @internal
+*/
+const protocol$1 = /*#__PURE__*/ make$3({
 	protocolVersion: protocolVersion$1,
-	transport: {
-		acceptsJsonRpcBatches: false,
-		requiresVersionHeader: true
-	},
+	runtime: /*#__PURE__*/ stateful({
+		jsonRpc: { acceptsBatches: false },
+		http: { requiresVersionHeader: true }
+	}),
 	clientRpcs: ClientRpcs$1,
 	clientNotificationRpcs: ClientNotificationRpcs$1,
 	serverRequestRpcs: ServerRequestRpcs$1,
@@ -46848,7 +49718,12 @@ const protocol$1 = /*#__PURE__*/ make$1({
 		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$3((prompts) => ListPromptsResult$1.make({ prompts }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
-			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			if (outcome._tag === "InputRequired") return yield* ProtocolError.fromFeature(new UnsupportedByProtocol({
+				protocolVersion: protocolVersion$1,
+				feature: "prompt input requirements"
+			}));
+			const result = outcome.value;
 			const messages = yield* forEach$1(result.messages, (message) => projectContent$1(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
@@ -46891,8 +49766,9 @@ const protocol$1 = /*#__PURE__*/ make$1({
 				title: tool.title,
 				description: tool.description,
 				inputSchema: tool.inputSchema,
-				outputSchema: tool.outputSchema,
+				outputSchema: isToolOutputSchema$1(tool.outputSchema) ? tool.outputSchema : void 0,
 				annotations: tool.annotations === void 0 ? void 0 : ToolAnnotations.make({
+					title: tool.annotations.title,
 					readOnlyHint: tool.annotations.readOnlyHint,
 					destructiveHint: tool.annotations.destructiveHint,
 					idempotentHint: tool.annotations.idempotentHint,
@@ -46906,9 +49782,9 @@ const protocol$1 = /*#__PURE__*/ make$1({
 			const result = yield* core.tools.call({
 				...call,
 				arguments: call.arguments ?? {}
-			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach$1(result.content, projectContent$1).pipe(mapError$2(ProtocolError.fromTool));
-			const structuredContent = yield* projectStructuredContent$1(result.structuredContent).pipe(mapError$2(ProtocolError.fromTool));
+			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion$1, outcome)), mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent$1).pipe(mapError$2(ProtocolError.fromTool));
+			const structuredContent = projectStructuredContent$1(result.structuredContent);
 			return CallToolResult$1.make({
 				content,
 				structuredContent,
@@ -46946,7 +49822,7 @@ const protocol$1 = /*#__PURE__*/ make$1({
 	})))
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpSchema/v2025_11_25.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
 /**
 * Supported non-Task MCP v2025-11-25 wire schemas.
 *
@@ -46955,22 +49831,34 @@ const protocol$1 = /*#__PURE__*/ make$1({
 *
 * @internal
 */
+/**
+* @internal
+*/
 const protocolVersion = "2025-11-25";
 const optional = optional$3;
 const JsonObject = JsonObject$3;
 const Meta = /*#__PURE__*/ optional(JsonObject);
+/**
+* @internal
+*/
 const Icon = /*#__PURE__*/ Struct({
 	src: String$2,
 	mimeType: /*#__PURE__*/ optional(String$2),
 	sizes: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2)),
 	theme: /*#__PURE__*/ optional(/*#__PURE__*/ Literals(["light", "dark"]))
 });
+/**
+* @internal
+*/
 const Implementation = /*#__PURE__*/ Struct({
 	...Implementation$1.fields,
 	description: /*#__PURE__*/ optional(String$2),
 	websiteUrl: /*#__PURE__*/ optional(String$2),
 	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
 });
+/**
+* @internal
+*/
 const ClientCapabilities = /*#__PURE__*/ Struct({
 	...ClientCapabilities$1.fields,
 	sampling: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
@@ -46982,40 +49870,67 @@ const ClientCapabilities = /*#__PURE__*/ Struct({
 		url: /*#__PURE__*/ optional(JsonObject)
 	}))
 });
+/**
+* @internal
+*/
 const Annotations = /*#__PURE__*/ Struct({
 	...Annotations$1.fields,
 	lastModified: /*#__PURE__*/ optional(String$2)
 });
+/**
+* @internal
+*/
 const Resource = /*#__PURE__*/ Struct({
 	...Resource$1.fields,
 	annotations: /*#__PURE__*/ optional(Annotations),
 	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
 });
+/**
+* @internal
+*/
 const ResourceTemplate = /*#__PURE__*/ Struct({
 	...ResourceTemplate$1.fields,
 	annotations: /*#__PURE__*/ optional(Annotations),
 	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
 });
+/**
+* @internal
+*/
 const Prompt = /*#__PURE__*/ Struct({
 	...Prompt$1.fields,
 	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
 });
+/**
+* @internal
+*/
 const TextContent = /*#__PURE__*/ Struct({
 	...TextContent$1.fields,
 	annotations: /*#__PURE__*/ optional(Annotations)
 });
+/**
+* @internal
+*/
 const ImageContent = /*#__PURE__*/ Struct({
 	...ImageContent$1.fields,
 	annotations: /*#__PURE__*/ optional(Annotations)
 });
+/**
+* @internal
+*/
 const AudioContent = /*#__PURE__*/ Struct({
 	...AudioContent$1.fields,
 	annotations: /*#__PURE__*/ optional(Annotations)
 });
+/**
+* @internal
+*/
 const EmbeddedResource = /*#__PURE__*/ Struct({
 	...EmbeddedResource$1.fields,
 	annotations: /*#__PURE__*/ optional(Annotations)
 });
+/**
+* @internal
+*/
 const ContentBlock = /*#__PURE__*/ Union([
 	TextContent,
 	ImageContent,
@@ -47026,23 +49941,38 @@ const ContentBlock = /*#__PURE__*/ Union([
 	}),
 	EmbeddedResource
 ]);
+/**
+* @internal
+*/
 const PromptMessage = /*#__PURE__*/ Struct({
 	role: Role,
 	content: ContentBlock
 });
+/**
+* @internal
+*/
 const Tool = /*#__PURE__*/ Struct({
 	...Tool$1.fields,
 	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
 });
+/**
+* @internal
+*/
 const CallToolResult = /*#__PURE__*/ Struct({
 	...CallToolResult$1.fields,
 	content: /*#__PURE__*/ ArraySchema(ContentBlock)
 });
-var CallTool = class extends (/*#__PURE__*/ make$16("tools/call", {
+/**
+* @internal
+*/
+var CallTool = class extends (/*#__PURE__*/ make$18("tools/call", {
 	success: CallToolResult,
 	error: McpError,
 	payload: CallTool$1.payloadSchema
 })) {};
+/**
+* @internal
+*/
 const SamplingMessageContentBlock = /*#__PURE__*/ Union([
 	TextContent,
 	ImageContent,
@@ -47063,23 +49993,35 @@ const SamplingMessageContentBlock = /*#__PURE__*/ Union([
 		_meta: Meta
 	})
 ]);
+/**
+* @internal
+*/
 const SamplingMessage = /*#__PURE__*/ Struct({
 	role: Role,
 	content: /*#__PURE__*/ Union([SamplingMessageContentBlock, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock)]),
 	_meta: Meta
 });
+/**
+* @internal
+*/
 const ToolChoice = /*#__PURE__*/ Struct({ mode: /*#__PURE__*/ optional(/*#__PURE__*/ Literals([
 	"auto",
 	"required",
 	"none"
 ])) });
+/**
+* @internal
+*/
 const CreateMessageResult = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	...SamplingMessage.fields,
 	model: String$2,
 	stopReason: /*#__PURE__*/ optional(String$2)
 });
-var CreateMessage = class extends (/*#__PURE__*/ make$16("sampling/createMessage", {
+/**
+* @internal
+*/
+var CreateMessage = class extends (/*#__PURE__*/ make$18("sampling/createMessage", {
 	success: CreateMessageResult,
 	error: McpError,
 	payload: {
@@ -47090,19 +50032,31 @@ var CreateMessage = class extends (/*#__PURE__*/ make$16("sampling/createMessage
 		toolChoice: /*#__PURE__*/ optional(ToolChoice)
 	}
 })) {};
+/**
+* @internal
+*/
 const Root = /*#__PURE__*/ Struct({
 	...Root$1.fields,
 	_meta: Meta
 });
+/**
+* @internal
+*/
 const ListRootsResult = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	roots: /*#__PURE__*/ ArraySchema(Root)
 });
-var ListRoots = class extends (/*#__PURE__*/ make$16("roots/list", {
+/**
+* @internal
+*/
+var ListRoots = class extends (/*#__PURE__*/ make$18("roots/list", {
 	success: ListRootsResult,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
 })) {};
+/**
+* @internal
+*/
 const StringSchema = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("string"),
 	title: /*#__PURE__*/ optional(String$2),
@@ -47117,6 +50071,9 @@ const StringSchema = /*#__PURE__*/ Struct({
 	])),
 	default: /*#__PURE__*/ optional(String$2)
 });
+/**
+* @internal
+*/
 const NumberSchema = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literals(["number", "integer"]),
 	title: /*#__PURE__*/ optional(String$2),
@@ -47125,6 +50082,9 @@ const NumberSchema = /*#__PURE__*/ Struct({
 	maximum: /*#__PURE__*/ optional(Finite),
 	default: /*#__PURE__*/ optional(Finite)
 });
+/**
+* @internal
+*/
 const BooleanSchema = /*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("boolean"),
 	title: /*#__PURE__*/ optional(String$2),
@@ -47135,14 +50095,22 @@ const EnumOption = /*#__PURE__*/ Struct({
 	const: String$2,
 	title: String$2
 });
+/**
+* @internal
+*/
 const RequestedSchema = /*#__PURE__*/ Struct({
 	$schema: /*#__PURE__*/ optional(String$2),
 	type: /*#__PURE__*/ Literal("object"),
 	properties: /*#__PURE__*/ Record(String$2, /* @__PURE__ */ Union([
-		StringSchema,
-		NumberSchema,
-		BooleanSchema,
 		/* @__PURE__ */ Union([
+			/* @__PURE__ */ Struct({
+				type: /*#__PURE__*/ Literal("string"),
+				title: /*#__PURE__*/ optional(String$2),
+				description: /*#__PURE__*/ optional(String$2),
+				enum: /*#__PURE__*/ ArraySchema(String$2),
+				enumNames: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2)),
+				default: /*#__PURE__*/ optional(String$2)
+			}),
 			/* @__PURE__ */ Union([/* @__PURE__ */ Struct({
 				type: /*#__PURE__*/ Literal("string"),
 				title: /*#__PURE__*/ optional(String$2),
@@ -47175,19 +50143,17 @@ const RequestedSchema = /*#__PURE__*/ Struct({
 				maxItems: /*#__PURE__*/ optional(Int),
 				items: /*#__PURE__*/ Struct({ anyOf: /*#__PURE__*/ ArraySchema(EnumOption) }),
 				default: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2))
-			})]),
-			/* @__PURE__ */ Struct({
-				type: /*#__PURE__*/ Literal("string"),
-				title: /*#__PURE__*/ optional(String$2),
-				description: /*#__PURE__*/ optional(String$2),
-				enum: /*#__PURE__*/ ArraySchema(String$2),
-				enumNames: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2)),
-				default: /*#__PURE__*/ optional(String$2)
-			})
-		])
+			})])
+		]),
+		StringSchema,
+		NumberSchema,
+		BooleanSchema
 	])),
 	required: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2))
 });
+/**
+* @internal
+*/
 const ElicitRequestParams = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
 	...RequestMeta.fields,
 	mode: /*#__PURE__*/ optional(/*#__PURE__*/ Literal("form")),
@@ -47200,6 +50166,9 @@ const ElicitRequestParams = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
 	elicitationId: String$2,
 	url: String$2
 })]);
+/**
+* @internal
+*/
 const ElicitResult = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	action: /*#__PURE__*/ Literals([
@@ -47214,17 +50183,29 @@ const ElicitResult = /*#__PURE__*/ Struct({
 		/*#__PURE__*/ ArraySchema(String$2)
 	])))
 });
-var Elicit = class extends (/*#__PURE__*/ make$16("elicitation/create", {
+/**
+* @internal
+*/
+var Elicit = class extends (/*#__PURE__*/ make$18("elicitation/create", {
 	success: ElicitResult,
 	error: McpError,
 	payload: ElicitRequestParams
 })) {};
-var ElicitationCompleteNotification = class extends (/*#__PURE__*/ make$16("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
+/**
+* @internal
+*/
+var ElicitationCompleteNotification = class extends (/*#__PURE__*/ make$18("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
+/**
+* @internal
+*/
 const InitializeResult = /*#__PURE__*/ Struct({
 	...InitializeResult$1.fields,
 	serverInfo: Implementation
 });
-var Initialize = class extends (/*#__PURE__*/ make$16("initialize", {
+/**
+* @internal
+*/
+var Initialize = class extends (/*#__PURE__*/ make$18("initialize", {
 	success: InitializeResult,
 	error: McpError,
 	payload: {
@@ -47233,42 +50214,69 @@ var Initialize = class extends (/*#__PURE__*/ make$16("initialize", {
 		clientInfo: Implementation
 	}
 })) {};
+/**
+* @internal
+*/
 const ListResourcesResult = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	resources: /*#__PURE__*/ ArraySchema(Resource)
 });
+/**
+* @internal
+*/
 const ListResourceTemplatesResult = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate)
 });
+/**
+* @internal
+*/
 const ListPromptsResult = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	prompts: /*#__PURE__*/ ArraySchema(Prompt)
 });
+/**
+* @internal
+*/
 const GetPromptResult = /*#__PURE__*/ Struct({
 	...GetPromptResult$1.fields,
 	messages: /*#__PURE__*/ ArraySchema(PromptMessage)
 });
+/**
+* @internal
+*/
 const ListToolsResult = /*#__PURE__*/ Struct({
 	...PaginatedResult.fields,
 	tools: /*#__PURE__*/ ArraySchema(Tool)
 });
-var ListResources = class extends (/*#__PURE__*/ make$16("resources/list", {
+/**
+* @internal
+*/
+var ListResources = class extends (/*#__PURE__*/ make$18("resources/list", {
 	success: ListResourcesResult,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ListResourceTemplates = class extends (/*#__PURE__*/ make$16("resources/templates/list", {
+/**
+* @internal
+*/
+var ListResourceTemplates = class extends (/*#__PURE__*/ make$18("resources/templates/list", {
 	success: ListResourceTemplatesResult,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ListPrompts = class extends (/*#__PURE__*/ make$16("prompts/list", {
+/**
+* @internal
+*/
+var ListPrompts = class extends (/*#__PURE__*/ make$18("prompts/list", {
 	success: ListPromptsResult,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var GetPrompt = class extends (/*#__PURE__*/ make$16("prompts/get", {
+/**
+* @internal
+*/
+var GetPrompt = class extends (/*#__PURE__*/ make$18("prompts/get", {
 	success: GetPromptResult,
 	error: McpError,
 	payload: {
@@ -47277,29 +50285,46 @@ var GetPrompt = class extends (/*#__PURE__*/ make$16("prompts/get", {
 		arguments: /*#__PURE__*/ optional(/*#__PURE__*/ Record(String$2, String$2))
 	}
 })) {};
-var ListTools = class extends (/*#__PURE__*/ make$16("tools/list", {
+/**
+* @internal
+*/
+var ListTools = class extends (/*#__PURE__*/ make$18("tools/list", {
 	success: ListToolsResult,
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ClientRequestRpcs = class extends (/*#__PURE__*/ make$12(Ping, Initialize, Complete, SetLevel, GetPrompt, ListPrompts, ListResources, ListResourceTemplates, ReadResource, Subscribe, Unsubscribe, CallTool, ListTools)) {};
-var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs = class extends (/*#__PURE__*/ make$12(Ping, CreateMessage, ListRoots, Elicit)) {};
-var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$12(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
+/**
+* @internal
+*/
+var ClientRequestRpcs = class extends (/*#__PURE__*/ make$14(Ping, Initialize, Complete, SetLevel, GetPrompt, ListPrompts, ListResources, ListResourceTemplates, ReadResource, Subscribe, Unsubscribe, CallTool, ListTools)) {};
+/**
+* @internal
+*/
+var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
+/**
+* @internal
+*/
+var ServerRequestRpcs = class extends (/*#__PURE__*/ make$14(Ping, CreateMessage, ListRoots, Elicit)) {};
+/**
+* @internal
+*/
+var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$14(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpProtocol/v2025_11_25.js
-const ClientRpcs = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs.middleware(McpServerClientMiddleware)).merge(ClientNotificationRpcs);
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
+const ClientRpcs = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs);
 const AdapterRpcs = /*#__PURE__*/ ClientRpcs.omit("ping");
+const isToolOutputSchema = (schema) => {
+	if (schema?.type !== "object") return false;
+	const isPropertiesSupported = schema.properties === void 0 || isReadonlyObject(schema.properties) && Object.values(schema.properties).every(isReadonlyObject);
+	const isRequiredDefined = schema.required === void 0 || Array.isArray(schema.required) && schema.required.every(isString);
+	return isPropertiesSupported && isRequiredDefined;
+};
 const unsupported = (operation, reason) => new McpReverseOperationUnsupported({
 	operation,
 	protocolVersion,
 	reason
 });
 const requireCapability = (profile, operation, capability) => Object.hasOwn(profile.clientCapabilities, capability) && profile.clientCapabilities[capability] !== void 0 ? void_$1 : fail$3(unsupported(operation, `Client did not advertise the ${capability} capability`));
-const requiresSamplingTools = (request) => request.tools !== void 0 || request.toolChoice !== void 0 || request.messages.some((message) => {
-	const content = message.content;
-	return "type" in content ? content.type === "tool_use" || content.type === "tool_result" : content.some((block) => block.type === "tool_use" || block.type === "tool_result");
-});
 const resultRequiresSamplingTools = (result) => result.stopReason === "toolUse" || ("type" in result.content ? result.content.type === "tool_use" || result.content.type === "tool_result" : result.content.some((block) => block.type === "tool_use" || block.type === "tool_result"));
 const hasElicitationModeCapability = (profile, mode) => {
 	const elicitation = profile.clientCapabilities.elicitation;
@@ -47310,7 +50335,7 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 	return value(content).pipe(when({ type: is("text", "resource_link") }, (content) => content), when({ type: is("image", "audio") }, (content) => ({
 		type: content.type,
 		mimeType: content.mimeType,
-		data: encodeBase64$1(content.data),
+		data: encode(content.data),
 		annotations: content.annotations,
 		_meta: content._meta
 	})), when({ type: "resource" }, (content) => {
@@ -47332,34 +50357,30 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
 				_meta: resource._meta,
-				blob: encodeBase64$1(resource.blob)
+				blob: encode(resource.blob)
 			},
 			annotations: content.annotations,
 			_meta: content._meta
 		});
 	}), exhaustive);
 });
-const projectStructuredContent = /*#__PURE__*/ fnUntraced(function* (content) {
-	if (content === void 0 || is$2(JsonObject$3)(content)) return content;
-	return yield* new UnsupportedByProtocol({
-		protocolVersion,
-		feature: "non-object structured tool content"
-	});
-});
+const projectStructuredContent = (content) => content === void 0 || isJsonObject(content) ? content : void 0;
+const isJsonObject = (value) => isReadonlyObject(value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/McpProtocol.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/McpProtocol.js
 /**
 * The MCP 2025-11-25 protocol implementation.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
-const v2025_11_25 = /* @__PURE__ */ make$1({
+const v2025_11_25 = /* @__PURE__ */ make$3({
 	protocolVersion,
-	transport: {
-		acceptsJsonRpcBatches: false,
-		requiresVersionHeader: true
-	},
+	runtime: /*#__PURE__*/ stateful({
+		jsonRpc: { acceptsBatches: false },
+		http: { requiresVersionHeader: true }
+	}),
 	clientRpcs: ClientRpcs,
 	clientNotificationRpcs: ClientNotificationRpcs,
 	serverRequestRpcs: ServerRequestRpcs,
@@ -47410,7 +50431,7 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 					uri: content.uri,
 					mimeType: content.mimeType,
 					_meta: content._meta,
-					blob: encodeBase64$1(content.blob)
+					blob: encode(content.blob)
 				}),
 				_meta: result._meta
 			});
@@ -47420,7 +50441,12 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$3((prompts) => ListPromptsResult.make({ prompts: prompts.map((prompt) => Prompt.make(prompt)) }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
-			const result = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
+			if (outcome._tag === "InputRequired") return yield* ProtocolError.fromFeature(new UnsupportedByProtocol({
+				protocolVersion,
+				feature: "prompt input requirements"
+			}));
+			const result = outcome.value;
 			const messages = yield* forEach$1(result.messages, (message) => projectContent(message.content).pipe(map$3((content) => ({
 				role: message.role,
 				content
@@ -47463,9 +50489,10 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 				title: tool.title,
 				description: tool.description,
 				inputSchema: tool.inputSchema,
-				outputSchema: tool.outputSchema,
+				outputSchema: isToolOutputSchema(tool.outputSchema) ? tool.outputSchema : void 0,
 				icons: tool.icons,
 				annotations: tool.annotations === void 0 ? void 0 : ToolAnnotations.make({
+					title: tool.annotations.title,
 					readOnlyHint: tool.annotations.readOnlyHint,
 					destructiveHint: tool.annotations.destructiveHint,
 					idempotentHint: tool.annotations.idempotentHint,
@@ -47479,15 +50506,15 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 			const result = yield* core.tools.call({
 				...call,
 				arguments: call.arguments ?? {}
-			}, invocationFromClient(request)).pipe(catchTag("InvalidToolInput", (error) => succeed$3(CallToolResult$4.make({
+			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion, outcome)), catchTag(["InvalidToolInput", "ToolExecutionError"], (error) => succeed$3(CallToolResult$4.make({
 				content: [TextContent$3.make({
 					type: "text",
 					text: error.message
 				})],
 				isError: true
 			}))), mapError$2(ProtocolError.fromTool));
-			const content = yield* forEach$1(result.content, projectContent).pipe(mapError$2(ProtocolError.fromTool));
-			const structuredContent = yield* projectStructuredContent(result.structuredContent).pipe(mapError$2(ProtocolError.fromTool));
+			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent).pipe(mapError$2(ProtocolError.fromTool));
+			const structuredContent = projectStructuredContent(result.structuredContent);
 			return CallToolResult.make({
 				content,
 				structuredContent,
@@ -47505,7 +50532,7 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 		}),
 		createMessage: fnUntraced(function* (request) {
 			yield* requireCapability(profile, "sampling/createMessage", "sampling");
-			if (requiresSamplingTools(request) && profile.clientCapabilities.sampling?.tools == void 0) return yield* unsupported("sampling/createMessage", "Client did not advertise the sampling.tools capability");
+			if (samplingRequestRequiresTools(request) && profile.clientCapabilities.sampling?.tools == void 0) return yield* unsupported("sampling/createMessage", "Client did not advertise the sampling.tools capability");
 			if ((request.includeContext === "thisServer" || request.includeContext === "allServers") && profile.clientCapabilities.sampling?.context == void 0) return yield* unsupported("sampling/createMessage", "Client did not advertise the sampling.context capability");
 			const wireRequest = yield* transcode(CreateMessage$4.payloadSchema, CreateMessage.payloadSchema, request).pipe(mapError$2(() => unsupported("sampling/createMessage", "Request is not representable by this protocol")));
 			const result = yield* client["sampling/createMessage"](wireRequest).pipe(mapError$2(reverseError("sampling/createMessage")));
@@ -47534,6 +50561,7 @@ const v2025_11_25 = /* @__PURE__ */ make$1({
 /**
 * The MCP 2025-06-18 protocol implementation.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
@@ -47541,6 +50569,7 @@ const v2025_06_18 = protocol$1;
 /**
 * The MCP 2025-03-26 protocol implementation.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
@@ -47555,68 +50584,29 @@ const v2025_03_26 = protocol$2;
 * compatibility transport; it does not implement the historical two-endpoint
 * HTTP+SSE transport.
 *
+* @stability unstable
 * @category protocols
 * @since 4.0.0
 */
 const v2024_11_05 = protocol$3;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/internal/mcpProtocolRegistry.js
-const prefix = (protocol) => `@effect/mcp/${encodeURIComponent(protocol.protocolVersion)}/`;
-/** @internal */
-const make = /*#__PURE__*/ fnUntraced(function* (protocols) {
-	if (protocols.length === 0) return yield* new IllegalArgumentError("MCP protocol declaration must contain at least one MCP protocol");
-	const snapshot = Object.freeze(Array.from(protocols));
-	const byVersion = /* @__PURE__ */ new Map();
-	for (const protocol of snapshot) {
-		if (byVersion.has(protocol.protocolVersion)) return yield* new IllegalArgumentError(`Duplicate MCP protocol version: ${protocol.protocolVersion}`);
-		byVersion.set(protocol.protocolVersion, protocol);
-	}
-	let clientRpcs = snapshot[0].clientRpcs.prefix(prefix(snapshot[0]));
-	for (let i = 1; i < snapshot.length; i++) clientRpcs = clientRpcs.merge(snapshot[i].clientRpcs.prefix(prefix(snapshot[i])));
-	return {
-		protocols: snapshot,
-		clientRpcs,
-		select: (offeredVersion) => byVersion.get(offeredVersion) ?? snapshot[0],
-		routeClientRequest: (protocol, request) => ({
-			...request,
-			tag: `${prefix(protocol)}${request.tag}`
-		}),
-		handlerTarget: (contextMap) => ({ install: fnUntraced(function* (protocol, rpcs, handlers) {
-			const handlerContext = yield* rpcs.toHandlers(handlers);
-			for (const rpcDefinition of rpcs.requests.values()) {
-				const namespacedRpc = clientRpcs.requests.get(`${prefix(protocol)}${rpcDefinition._tag}`);
-				const handler = handlerContext.mapUnsafe.get(rpcDefinition.key);
-				if (namespacedRpc === void 0 || handler === void 0) return yield* die(`MCP handler registration invariant failed for ${protocol.protocolVersion}/${rpcDefinition._tag}`);
-				contextMap.set(namespacedRpc.key, handler);
-			}
-		}) })
-	};
-});
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.0-rc.115/node_modules/effect/dist/unstable/ai/McpServer.js
+//#region ../../node_modules/.pnpm/effect@4.0.0-rc.118/node_modules/effect/dist/ai/McpServer.js
 /**
 * Builds Model Context Protocol (MCP) servers with Effect.
 *
 * The `McpServer` service stores the tools, resources, resource templates,
-* prompts, completions, initialized clients, and outgoing notifications exposed
-* by a server. This module also includes the server runner, custom protocol,
+* prompts, completions, and outgoing notifications exposed by a server. This
+* module also includes the server runner, custom protocol,
 * stdio, and HTTP layers, registration helpers, and APIs that let handlers ask
 * the connected client for structured input or read its advertised
 * capabilities.
 *
+* @stability unstable
 * @since 4.0.0
 */
 const internalState = /*#__PURE__*/ new WeakMap();
 const BroadcastServerNotificationRpcs = /*#__PURE__*/ ServerNotificationRpcs$4.omit("notifications/elicitation/complete");
-/**
-* MCP models `structuredContent` as a JSON object, so a `null` or array
-* encoded result must be omitted rather than sent through as-is.
-*/
-const toStructuredContent = (value) => typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
-const validateStructuredContent = (toolName, value) => is$2(Json)(value) ? succeed$3(value) : fail$3(new ToolResultProjectionError({
-	name: toolName,
-	message: `Tool '${toolName}' returned structured content that is not valid JSON`
-}));
+const isLoggingLevel = /*#__PURE__*/ is$2(LoggingLevel$1);
 const toInternalServerNotification = (message) => {
 	switch (message.tag) {
 		case "notifications/cancelled": return ServerNotification.Cancelled({
@@ -47647,6 +50637,14 @@ const toInternalServerNotification = (message) => {
 		default: return;
 	}
 };
+const omitRequestServices = /*#__PURE__*/ omit$2(McpRequestContext, McpServerClient, HttpServerRequest, CurrentLogLevel);
+const provideInvocationContext = (effect, invocation) => {
+	let provided = provideService(effect, McpRequestContext, invocation.requestContext);
+	const requestMetadata = invocation.requestContext.requestMetadata;
+	const logLevel = hasProperty(requestMetadata, "io.modelcontextprotocol/logLevel") ? requestMetadata["io.modelcontextprotocol/logLevel"] : void 0;
+	if (isLoggingLevel(logLevel)) provided = provideService(provided, CurrentLogLevel, mcpLogLevels[logLevel].effect);
+	return invocation.serverClient === void 0 ? provided : provideService(provided, McpServerClient, invocation.serverClient);
+};
 /**
 * Service that stores and serves an MCP server's registered tools, resources,
 * prompts, completions, and outgoing notifications.
@@ -47656,6 +50654,7 @@ const toInternalServerNotification = (message) => {
 * Handlers use this service to register capabilities and resolve incoming MCP
 * requests.
 *
+* @stability unstable
 * @category services
 * @since 4.0.0
 */
@@ -47663,44 +50662,63 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 	/**
 	* Builds an MCP server service from registered tools, prompts, resources, and completions.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static make = /*#__PURE__*/ gen(function* () {
-		const internalCore = yield* make$2;
+		const internalCore = yield* make$4;
 		const tools = empty$10();
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$38();
-		const listChangedHandles = /* @__PURE__ */ new Map();
+		const notificationsQueue = yield* make$39();
+		const notificationDelivery = { consumers: 0 };
+		const pendingListChanges = /* @__PURE__ */ new Set();
+		const dispatcher = (yield* Scheduler).makeDispatcher();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
-			onFromClient: (options) => suspend$2(() => {
+			onFromClient: (options) => make$46().pipe(flatMap((delivered) => withFiber((fiber) => {
 				const message = options.message;
 				if (message._tag !== "Request") return void_$1;
 				const notification = toInternalServerNotification(message);
 				if (notification === void 0) return void_$1;
+				const queued = {
+					notification,
+					delivered,
+					requestContext: getOrUndefined(fiber.context, McpRequestContext),
+					requestHeaders: getOrUndefined(fiber.context, HttpServerRequest)?.headers
+				};
+				let enqueued = false;
 				if (message.tag.includes("list_changed")) {
-					if (!listChangedHandles.has(message.tag)) listChangedHandles.set(message.tag, setTimeout(() => {
-						offerUnsafe(notificationsQueue, { notification });
-						listChangedHandles.delete(message.tag);
-					}, 0));
-				} else offerUnsafe(notificationsQueue, { notification });
-				return notifications.write({
+					if (!pendingListChanges.has(message.tag)) {
+						enqueued = true;
+						const tag = message.tag;
+						dispatcher.scheduleTask(() => {
+							offerUnsafe(notificationsQueue, queued);
+							pendingListChanges.delete(message.tag);
+						}, 0);
+						pendingListChanges.add(tag);
+					}
+				} else {
+					enqueued = true;
+					offerUnsafe(notificationsQueue, queued);
+				}
+				const acknowledge = suspend$2(() => notifications.write({
 					clientId: 0,
 					requestId: message.id,
 					_tag: "Exit",
 					exit: void_$2
-				});
-			})
+				}));
+				return enqueued && queued.requestContext !== void 0 && notificationDelivery.consumers > 0 ? andThen(_await(delivered), acknowledge) : acknowledge;
+			})))
 		});
 		const service = McpServer.of({
 			notifications: notifications.client,
-			notifyElicitationComplete: ({ clientId, elicitationId }) => offer(notificationsQueue, {
+			notifyElicitationComplete: ({ clientId, elicitationId }) => make$46().pipe(flatMap((delivered) => offer(notificationsQueue, {
 				notification: ServerNotification.ElicitationComplete({ elicitationId }),
-				targetClientId: clientId
-			}),
-			initializedClients: /* @__PURE__ */ new Set(),
+				targetClientId: clientId,
+				delivered
+			}).pipe(andThen(suspend$2(() => notificationDelivery.consumers > 0 ? _await(delivered) : void_$1))))),
 			get tools() {
 				return tools;
 			},
@@ -47719,30 +50737,24 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 						capabilities: profile.clientCapabilities,
 						clientInfo: profile.clientInfo
 					}),
-					handle: (call, invocation) => options.handle(call.arguments).pipe(provideService(McpServerClient, invocation.requestContext), catchTags({
+					handle: (call, invocation) => provideInvocationContext(options.handle(call.arguments), invocation).pipe(catchTags({
 						InternalError: (error) => fail$3(new ToolExecutionError({
 							name: options.tool.name,
 							message: error.message
 						})),
-						InvalidParams: (error) => fail$3(new InvalidToolInput({
+						InvalidParams: (error) => fail$3(new (invocation.requestContext.requestState === void 0 && invocation.requestContext.inputResponses === void 0 ? InvalidToolInput : InvalidToolContinuation)({
 							name: options.tool.name,
 							message: error.message
 						}))
-					}), flatMap((result) => result.structuredContent === void 0 ? succeed$3(result) : validateStructuredContent(options.tool.name, result.structuredContent).pipe(as(result))))
+					}), map$3((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
 				});
 				yield* notifications.client["notifications/tools/list_changed"]({});
 			}),
 			callTool: (request) => gen(function* () {
 				const client = yield* McpServerClient;
-				return yield* internalCore.tools.call(request, {
-					clientId: client.clientId,
-					protocol: {
-						protocolVersion: client.protocolVersion,
-						clientCapabilities: client.initializePayload.capabilities,
-						clientInfo: client.initializePayload.clientInfo
-					},
-					requestContext: client
-				}).pipe(mapError$2((error) => new InvalidParams({ message: error._tag === "ToolNotFound" ? `Tool '${error.name}' not found` : error.message })));
+				const result = yield* internalCore.tools.call(request, invocationFromClient(client)).pipe(mapError$2((error) => new InvalidParams({ message: error._tag === "ToolNotFound" ? `Tool '${error.name}' not found` : error.message })));
+				if (result._tag === "InputRequired") return yield* new InvalidParams({ message: "Client input is not supported by this MCP protocol" });
+				return result.value;
 			}),
 			get resources() {
 				return resources;
@@ -47764,7 +50776,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 							clientInfo: profile.clientInfo
 						});
 					},
-					read: (invocation) => options.handle.pipe(provideService(McpServerClient, invocation.requestContext))
+					read: (invocation) => provideInvocationContext(options.handle, invocation)
 				});
 				yield* notifications.client["notifications/resources/list_changed"]({});
 			}),
@@ -47797,9 +50809,9 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 						for (const key of Object.keys(match.params)) params[Number(key)] = match.params[key];
 						return params;
 					},
-					read: (uri, params, invocation) => handle(uri, Array.from(params)).pipe(provideService(McpServerClient, invocation.requestContext))
+					read: (uri, params, invocation) => provideInvocationContext(handle(uri, Array.from(params)), invocation)
 				});
-				for (const [param, handle] of Object.entries(completions)) yield* internalCore.completions.register(`resource/${template.uriTemplate}/${param}`, (request) => handle(request.argument.value, request.context).pipe(map$3((result) => ({
+				for (const [param, handle] of Object.entries(completions)) yield* internalCore.completions.register(`resource/${template.uriTemplate}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$3((result) => ({
 					values: result.completion.values,
 					total: result.completion.total,
 					hasMore: result.completion.hasMore,
@@ -47809,16 +50821,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			}),
 			findResource: (uri) => gen(function* () {
 				const client = yield* McpServerClient;
-				return yield* internalCore.resources.read(uri, {
-					clientId: client.clientId,
-					protocol: {
-						protocolVersion: client.protocolVersion,
-						clientCapabilities: client.clientCapabilities,
-						clientInfo: client.clientInfo,
-						requestMetadata: client.initializePayload._meta
-					},
-					requestContext: client
-				}).pipe(catchTag("ResourceNotFound", (error) => fail$3(new InvalidParams({ message: `Resource '${error.uri}' not found` }))));
+				return yield* internalCore.resources.read(uri, invocationFromClient(client)).pipe(catchTag("ResourceNotFound", (error) => fail$3(new InvalidParams({ message: `Resource '${error.uri}' not found` }))));
 			}),
 			get prompts() {
 				return prompts;
@@ -47837,9 +50840,9 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 							clientInfo: profile.clientInfo
 						});
 					},
-					get: (params, invocation) => options.handle(params).pipe(provideService(McpServerClient, invocation.requestContext))
+					get: (params, invocation) => provideInvocationContext(options.handle(params), invocation).pipe(map$3((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
 				});
-				for (const [param, handle] of Object.entries(options.completions)) yield* internalCore.completions.register(`prompt/${options.prompt.name}/${param}`, (request, invocation) => handle(request.argument.value, request.context).pipe(provideService(McpServerClient, invocation.requestContext), map$3((result) => ({
+				for (const [param, handle] of Object.entries(options.completions)) yield* internalCore.completions.register(`prompt/${options.prompt.name}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$3((result) => ({
 					values: result.completion.values,
 					total: result.completion.total,
 					hasMore: result.completion.hasMore,
@@ -47849,7 +50852,8 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			}),
 			getPromptResult: fnUntraced(function* ({ arguments: params, name }) {
 				const client = yield* McpServerClient;
-				return yield* internalCore.prompts.get(name, params ?? {}, invocationFromClient(client)).pipe(catchTag("PromptNotFound", () => new InvalidParams({ message: `Prompt '${name}' not found` })));
+				const outcome = yield* internalCore.prompts.get(name, params ?? {}, invocationFromClient(client)).pipe(catchTag("PromptNotFound", () => new InvalidParams({ message: `Prompt '${name}' not found` })));
+				return outcome._tag === "Complete" ? outcome.value : yield* new InvalidParams({ message: "Client input is not supported by this MCP protocol" });
 			}),
 			completion: fnUntraced(function* (complete) {
 				const client = yield* McpServerClient;
@@ -47877,13 +50881,15 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		});
 		internalState.set(service, {
 			core: internalCore,
-			notifications: notificationsQueue
+			notifications: notificationsQueue,
+			notificationDelivery
 		});
 		return service;
 	});
 	/**
 	* Layer that provides the MCP server and client services.
 	*
+	* @stability unstable
 	* @since 4.0.0
 	*/
 	static layer = /*#__PURE__*/ effect(McpServer)(McpServer.make);
@@ -47891,37 +50897,91 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 const MCP_SESSION_ID_HEADER = "mcp-session-id";
 const MCP_PROTOCOL_VERSION_HEADER = "mcp-protocol-version";
 const MCP_INVALID_BATCH_METHOD = "invalid/json-rpc-batch";
+const cancelledResponses = /*#__PURE__*/ new WeakMap();
 const requestKey = (requestId) => `${typeof requestId}:${requestId}`;
 var McpClientKey = class extends Class$1 {};
-var McpProtocolState = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpServer/McpProtocolState")) {};
-const makeMcpProtocolState = /*#__PURE__*/ fnUntraced(function* (protocols) {
-	return McpProtocolState.of({
-		sessions: {
-			bySessionId: /* @__PURE__ */ new Map(),
-			byClientId: /* @__PURE__ */ new Map()
-		},
-		protocolRegistry: yield* make(protocols)
-	});
-});
-const layerMcpProtocolState = (protocols) => effect(McpProtocolState)(makeMcpProtocolState(protocols));
-const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protocolState) {
-	const protocolRegistry = protocolState.protocolRegistry;
-	const serverScope = yield* scope;
+const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, transport) {
 	const protocol = yield* Protocol;
 	const server = yield* McpServer;
 	const defaultLogLevel = yield* CurrentLogLevel;
-	const isHttp = isSome(yield* serviceOption(HttpRouter));
-	const sessions = protocolState.sessions;
-	const clientProtocols = /* @__PURE__ */ new Map();
+	const isHttp = transport === "http";
+	const clientStates = /* @__PURE__ */ new Map();
 	const activeRequests = /* @__PURE__ */ new Map();
-	const clientProfiles = /* @__PURE__ */ new Map();
-	const handlers = yield* build(layerHandlers(options, {
-		sessions,
-		protocolRegistry
-	}));
-	const clients = yield* make$36({
+	const reverseRequestClients = /* @__PURE__ */ new Map();
+	const disconnectClient = (clientId) => {
+		activeRequests.delete(clientId);
+		clientStates.delete(clientId);
+		runtime.disconnect(clientId);
+	};
+	const sendRequestError = (clientId, requestId, error) => protocol.send(clientId, {
+		_tag: "Exit",
+		requestId,
+		exit: {
+			_tag: "Failure",
+			cause: [{
+				_tag: "Fail",
+				error
+			}]
+		}
+	});
+	const removeReverseRequestClient = (requestId, key) => {
+		const waiting = reverseRequestClients.get(requestId);
+		if (waiting === void 0) return;
+		const remaining = waiting.filter((entry) => entry !== key);
+		if (remaining.length === 0) reverseRequestClients.delete(requestId);
+		else reverseRequestClients.set(requestId, remaining);
+	};
+	const serverNotifications = yield* unbounded$1();
+	const sendNotification = (protocolVersion, clientId, notification) => suspend$2(() => {
+		const selectedProtocol = runtime.selectProtocol(protocolVersion);
+		const rpc = selectedProtocol.serverNotificationRpcs.requests.get(notification.tag);
+		if (rpc === void 0) return die(`MCP protocol ${protocolVersion} does not define server notification ${notification.tag}`);
+		return selectedProtocol.payloadCodecs(rpc).encode(notification.payload).pipe(orDie, flatMap((payload) => protocol.send(clientId, {
+			_tag: "Request",
+			id: "",
+			tag: notification.tag,
+			payload,
+			headers: [],
+			isNotification: true
+		})));
+	});
+	const cancelRequest = (clientId, requestId) => {
+		const requests = activeRequests.get(clientId);
+		const key = requestKey(requestId);
+		const request = requests?.get(key);
+		if (request === void 0) return false;
+		requests.set(key, {
+			...request,
+			cancelled: true
+		});
+		return true;
+	};
+	const terminateSubscription = (protocolVersion, clientId, requestId, reason) => suspend$2(() => {
+		if (!cancelRequest(clientId, requestId)) return void_$1;
+		return isHttp ? protocol.end(clientId) : sendNotification(protocolVersion, clientId, {
+			tag: "notifications/cancelled",
+			payload: {
+				requestId,
+				reason
+			}
+		});
+	});
+	const handlers = yield* runtime.installHandlers({
+		core: internalState.get(server).core,
+		subscribeServerNotifications: subscribe(serverNotifications),
+		...!protocol.supportsNotifications ? {} : {
+			sendNotification,
+			markSubscriptionCancelled: (clientId, requestId) => sync(() => {
+				cancelRequest(clientId, requestId);
+			}),
+			terminateSubscription
+		},
+		defaultLogLevel,
+		serverInfo: options
+	});
+	const clients = yield* make$37({
 		lookup: fnUntraced(function* (key) {
-			const selectedProtocol = protocolRegistry.select(key.profile.protocolVersion);
+			const selectedProtocol = runtime.selectProtocol(key.profile.protocolVersion);
 			let write;
 			const reverseProtocol = yield* Protocol$1.make(fnUntraced(function* (writeResponse) {
 				let cid = 0;
@@ -47929,13 +50989,20 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 				return {
 					send(id, request, _transferables) {
 						cid = id;
-						if (request._tag === "Request") return protocol.send(key.clientId, {
-							_tag: "Request",
-							id: request.id,
-							tag: request.tag,
-							payload: request.payload,
-							headers: []
-						});
+						if (request._tag === "Request") {
+							const requestId = requestKey(request.id);
+							const waiting = reverseRequestClients.get(requestId) ?? [];
+							waiting.push(key);
+							reverseRequestClients.set(requestId, waiting);
+							return protocol.send(key.clientId, {
+								_tag: "Request",
+								id: request.id,
+								tag: request.tag,
+								payload: request.payload,
+								headers: []
+							}).pipe(onError(() => sync(() => removeReverseRequestClient(requestId, key))));
+						}
+						if (request._tag === "Interrupt") removeReverseRequestClient(requestKey(request.requestId), key);
 						return protocol.send(key.clientId, request);
 					},
 					supportsAck: true,
@@ -47952,32 +51019,42 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 		idleTimeToLive: 1e4
 	});
 	const clientMiddleware = McpServerClientMiddleware.of((effect, { client, headers, payload, rpc }) => {
-		const session = getClientSession(sessions, client.id, headers);
+		const session = runtime.resolveRequest(client.id, headers);
 		if (!rpc._tag.endsWith("/initialize") && !session) {
 			const fiber = getCurrent();
 			const httpRequest = getOrUndefined(fiber.context, HttpServerRequest);
 			if (httpRequest) appendPreResponseHandlerUnsafe(httpRequest, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
 			return die(/* @__PURE__ */ new Error(`Mcp-Session-Id does not exist`));
 		}
-		const selectedProtocol = session?.protocol ?? protocolForInternalTag(protocolRegistry, rpc._tag);
 		const initializePayload = session?.initializePayload ?? payload;
+		const clientState = clientStates.get(client.id);
+		const selectedProtocol = session?.protocol ?? clientState?.protocol ?? runtime.protocolForInternalTag(rpc._tag);
+		if (!isProtocolVersion(selectedProtocol.protocolVersion) || selectedProtocol.protocolVersion === "2026-07-28") return die(`Unsupported selected MCP protocol version: ${selectedProtocol.protocolVersion}`);
 		const profile = session?.negotiatedProfile ?? {
 			protocolVersion: selectedProtocol.protocolVersion,
 			clientCapabilities: initializePayload.capabilities,
 			clientInfo: initializePayload.clientInfo
 		};
-		clientProfiles.set(client.id, profile);
-		return provideService(provideService(effect, McpServerClient, McpServerClient.of({
+		if (clientState !== void 0) clientState.profile = profile;
+		const requestContext = McpRequestContext.of({
 			clientId: client.id,
-			protocolVersion: session?.negotiatedProfile.protocolVersion ?? selectedProtocol.protocolVersion,
+			protocolVersion: profile.protocolVersion,
+			clientCapabilities: profile.clientCapabilities,
+			clientInfo: profile.clientInfo,
+			requestMetadata: initializePayload._meta
+		});
+		return provideService(provideService(provideService(effect, McpServerClient, McpServerClient.of({
+			clientId: client.id,
+			protocolVersion: profile.protocolVersion,
 			clientCapabilities: profile.clientCapabilities,
 			clientInfo: profile.clientInfo,
 			initializePayload,
+			requestMetadata: isReadonlyObject(payload) && isReadonlyObject(payload._meta) ? payload._meta : void 0,
 			getClient: get(clients, new McpClientKey({
 				clientId: client.id,
 				profile
 			})).pipe(map$3(({ client }) => client))
-		})), CurrentLogLevel, effectLogLevel(session?.logLevel, defaultLogLevel));
+		})), McpRequestContext, requestContext), CurrentLogLevel, runtime.effectLogLevel(client.id, headers, defaultLogLevel));
 	});
 	const patchedProtocol = Protocol.of({
 		...protocol,
@@ -47985,9 +51062,13 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 			if (response._tag === "Exit") {
 				const requests = activeRequests.get(clientId);
 				const key = requestKey(response.requestId);
-				const cancelled = requests?.get(key);
+				const cancelled = requests?.get(key)?.cancelled;
 				if (requests !== void 0 && requests.delete(key) && requests.size === 0) activeRequests.delete(clientId);
-				if (cancelled === true) return void_$1;
+				if (cancelled === true) {
+					if (transport === "custom") return void_$1;
+					cancelledResponses.set(response, response.requestId);
+					return protocol.send(clientId, response);
+				}
 				if (response.exit._tag === "Failure" && !response.exit.cause.some((failure) => failure._tag === "Fail")) return protocol.send(clientId, {
 					_tag: "Exit",
 					requestId: response.requestId,
@@ -48013,108 +51094,96 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 			switch (request._tag) {
 				case "Request": {
 					const headers = isHttp ? getUnsafe(getCurrent().context, HttpServerRequest).headers : fromInput$1(request.headers);
-					const session = getClientSession(sessions, clientId, headers);
-					const selectedProtocol = session?.protocol ?? (request.tag === "initialize" ? protocolRegistry.select(getOfferedProtocolVersion(request.payload)) : protocolRegistry.protocols[0]);
-					clientProtocols.set(clientId, selectedProtocol);
-					if (request.tag === MCP_INVALID_BATCH_METHOD) return protocol.send(clientId, {
-						_tag: "Exit",
-						requestId: request.id,
-						exit: {
-							_tag: "Failure",
-							cause: [{
-								_tag: "Fail",
-								error: new InvalidRequest({ message: "JSON-RPC batches are not supported" })
-							}]
-						}
-					});
-					if (isHttp) {
-						const fiber = getCurrent();
-						const httpRequest = getUnsafe(fiber.context, HttpServerRequest);
-						if (session) appendPreResponseHandlerUnsafe(httpRequest, (_, res) => succeed$3(setHeader(res, MCP_PROTOCOL_VERSION_HEADER, session.protocol.protocolVersion)));
-					}
-					const routedRequest = protocolRegistry.routeClientRequest(selectedProtocol, request);
-					const rpc = protocolRegistry.clientRpcs.requests.get(routedRequest.tag);
-					if (rpc && selectedProtocol.clientNotificationRpcs.requests.has(request.tag)) {
-						if (!session) {
-							if (httpRequest) appendPreResponseHandlerUnsafe(httpRequest, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
-							return void_$1;
-						}
-						return selectedProtocol.payloadCodecs(rpc).decode(request.payload).pipe(flatMap((payload) => {
-							if (request.tag === "notifications/roots/list_changed" && session.initializePayload.capabilities.roots?.listChanged === true && httpRequest === void 0) return get(clients, new McpClientKey({
-								clientId,
-								profile: session.negotiatedProfile
-							})).pipe(flatMap(({ client }) => client.listRoots()), scoped, ignoreCause, forkIn(serverScope), asVoid);
-							if (request.tag === "notifications/cancelled") return selectedProtocol.normalizeCancellation(payload).pipe(flatMap((cancellation) => {
-								const key = requestKey(cancellation.requestId);
-								const requests = activeRequests.get(clientId);
-								if (requests?.has(key) !== true) return void_$1;
-								requests.set(key, true);
-								return f(clientId, {
-									_tag: "Interrupt",
-									requestId: String(cancellation.requestId)
-								});
-							}));
-							const handler = handlers.mapUnsafe.get(rpc.key);
-							return handler ? handler.handler(payload, {
-								rpc,
-								requestId: RequestId$2(request.id),
-								client: new ServerClient(clientId),
-								headers
-							}) : void_$1;
-						}), ignoreCause);
-					}
-					if (!rpc) {
-						if (request.isNotification) return void_$1;
-						return protocol.send(clientId, {
-							_tag: "Exit",
-							requestId: request.id,
-							exit: {
-								_tag: "Failure",
-								cause: [{
-									_tag: "Fail",
-									error: new MethodNotFound({ message: `Method not found: ${request.tag}` })
-								}]
-							}
+					const cancellationRequest = request.tag === "notifications/cancelled" && typeof request.payload === "object" && request.payload !== null && "requestId" in request.payload && (typeof request.payload.requestId === "string" || typeof request.payload.requestId === "number") ? activeRequests.get(clientId)?.get(requestKey(request.payload.requestId)) : void 0;
+					const prepare = cancellationRequest === void 0 ? runtime.prepareRequest(clientId, headers, request) : succeed$3(cancellationRequest.prepared);
+					return gen(function* () {
+						const prepared = yield* prepare;
+						const clientState = clientStates.get(clientId);
+						if (isHttp && clientState === void 0) yield* addFinalizer$1(getUnsafe(fiber.context, Scope), sync(() => disconnectClient(clientId)));
+						const session = prepared.binding;
+						const selectedProtocol = prepared.protocol;
+						clientStates.set(clientId, {
+							protocol: selectedProtocol,
+							profile: prepared.profile ?? clientState?.profile,
+							sessionHeaders: isHttp && headers[MCP_SESSION_ID_HEADER] !== void 0 ? fromInput$1({ [MCP_SESSION_ID_HEADER]: headers[MCP_SESSION_ID_HEADER] }) : clientState?.sessionHeaders
 						});
-					}
-					return selectedProtocol.payloadCodecs(rpc).decode(request.payload).pipe(matchEffect({
-						onSuccess: () => {
-							if (request.isNotification !== true) {
-								const requests = activeRequests.get(clientId) ?? /* @__PURE__ */ new Map();
-								requests.set(requestKey(request.id), false);
-								activeRequests.set(clientId, requests);
+						if (request.tag === MCP_INVALID_BATCH_METHOD) return yield* sendRequestError(clientId, request.id, new InvalidRequest({ message: "JSON-RPC batches are not supported" }));
+						if (httpRequest !== void 0 && session !== void 0) appendPreResponseHandlerUnsafe(httpRequest, (_, res) => succeed$3(setHeader(res, MCP_PROTOCOL_VERSION_HEADER, session.protocol.protocolVersion)));
+						const routedRequest = runtime.routeClientRequest(selectedProtocol, request);
+						const rpc = runtime.clientRpcs.requests.get(routedRequest.tag);
+						const isClientNotification = selectedProtocol.clientNotificationRpcs.requests.has(request.tag);
+						if (rpc && isClientNotification && request.isNotification) {
+							if (!session && selectedProtocol.runtime._tag === "Stateful") {
+								if (httpRequest) appendPreResponseHandlerUnsafe(httpRequest, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
+								return;
 							}
-							return f(clientId, routedRequest);
-						},
-						onFailure: () => request.isNotification ? void_$1 : protocol.send(clientId, {
-							_tag: "Exit",
-							requestId: request.id,
-							exit: {
-								_tag: "Failure",
-								cause: [{
-									_tag: "Fail",
-									error: new InvalidParams({ message: "Invalid method parameters" })
-								}]
-							}
-						})
-					}));
+							const decode = selectedProtocol.payloadCodecs(rpc).decode(request.payload);
+							return yield* gen(function* () {
+								const payload = yield* decode;
+								if (request.tag === "notifications/cancelled") {
+									const cancellation = yield* selectedProtocol.normalizeCancellation(payload);
+									const key = requestKey(cancellation.requestId);
+									let ownerClientId = clientId;
+									if (isHttp) {
+										if (session === void 0) return;
+										const owner = Array.from(activeRequests).find(([, requests]) => requests.get(key)?.prepared.binding === session);
+										if (owner === void 0) return;
+										ownerClientId = owner[0];
+									}
+									if (!cancelRequest(ownerClientId, cancellation.requestId)) return;
+									return yield* f(ownerClientId, {
+										_tag: "Interrupt",
+										requestId: cancellation.requestId
+									});
+								}
+								const handler = handlers.mapUnsafe.get(rpc.key);
+								const handled = handler ? handler.handler(payload, {
+									rpc,
+									requestId: RequestId$2(request.id),
+									client: new ServerClient(clientId),
+									headers
+								}) : void_$1;
+								return yield* prepared.requestContext === void 0 ? handled : provideService(handled, McpRequestContext, prepared.requestContext);
+							}).pipe(ignoreCause);
+						}
+						if (!rpc || isClientNotification) {
+							if (request.isNotification) return;
+							return yield* sendRequestError(clientId, request.id, new MethodNotFound({ message: `Method not found: ${request.tag}` }));
+						}
+						const decoded = yield* result$1(selectedProtocol.payloadCodecs(rpc).decode(request.payload));
+						if (isFailure$1(decoded)) return yield* request.isNotification ? void_$1 : sendRequestError(clientId, request.id, new InvalidParams({ message: "Invalid method parameters" }));
+						if (request.isNotification !== true) {
+							const requests = activeRequests.get(clientId) ?? /* @__PURE__ */ new Map();
+							requests.set(requestKey(request.id), {
+								prepared,
+								cancelled: false
+							});
+							activeRequests.set(clientId, requests);
+						}
+						const handled = f(clientId, routedRequest);
+						return yield* prepared.requestContext === void 0 ? handled : provideService(handled, McpRequestContext, prepared.requestContext);
+					}).pipe(catch_$2((error) => request.isNotification ? void_$1 : sendRequestError(clientId, request.id, isTagged(error, "ProtocolError") ? ProtocolError.fromFeature(error) : new InvalidParams({ message: "Invalid request metadata" }))));
 				}
 				case "Ping":
 				case "Ack":
 				case "Interrupt": return f(clientId, request);
 				case "Eof":
-					activeRequests.delete(clientId);
-					clientProtocols.delete(clientId);
-					clientProfiles.delete(clientId);
-					if (!isHttp) sessions.byClientId.delete(clientId);
+					if (!isHttp) disconnectClient(clientId);
 					return f(clientId, request);
 				case "Pong":
 				case "Exit":
 				case "Chunk":
 				case "ClientProtocolError":
 				case "Defect": {
-					const selectedProtocol = getProtocolForClient(clientProtocols, clientId, protocolRegistry);
-					const profile = clientProfiles.get(clientId) ?? {
+					const requestId = request._tag === "Exit" ? requestKey(request.requestId) : void 0;
+					const session = isHttp ? runtime.resolveRequest(clientId, getUnsafe(getCurrent().context, HttpServerRequest).headers) : void 0;
+					const reverseKey = (requestId === void 0 ? void 0 : reverseRequestClients.get(requestId))?.find((key) => isHttp ? key.profile === session?.negotiatedProfile : key.clientId === clientId);
+					if (request._tag === "Exit" && reverseKey === void 0) return void_$1;
+					if (reverseKey !== void 0 && requestId !== void 0) removeReverseRequestClient(requestId, reverseKey);
+					const targetClientId = reverseKey?.clientId ?? clientId;
+					const clientState = clientStates.get(targetClientId);
+					const selectedProtocol = clientState?.protocol ?? runtime.protocols[0];
+					const profile = reverseKey?.profile ?? clientState?.profile ?? {
 						protocolVersion: selectedProtocol.protocolVersion,
 						clientCapabilities: {},
 						clientInfo: {
@@ -48123,35 +51192,59 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 						}
 					};
 					return get(clients, new McpClientKey({
-						clientId,
+						clientId: targetClientId,
 						profile
 					})).pipe(flatMap(({ write }) => write(request)), scoped);
 				}
 			}
 		})
 	});
-	yield* take(internalState.get(server).notifications).pipe(flatMap(fnUntraced(function* ({ notification, targetClientId }) {
+	const { notificationDelivery, notifications } = internalState.get(server);
+	yield* acquireRelease(sync(() => {
+		notificationDelivery.consumers++;
+	}), () => sync(() => {
+		notificationDelivery.consumers--;
+	}));
+	const notificationTails = /* @__PURE__ */ new Map();
+	yield* take(notifications).pipe(flatMap(fnUntraced(function* (queued) {
+		const { delivered, notification, targetClientId, requestContext, requestHeaders } = queued;
+		if (isSubscriptionServerNotification(notification)) yield* publish(serverNotifications, {
+			notification,
+			targetClientId
+		});
 		const clientIds = yield* patchedProtocol.clientIds;
-		for (const clientId of clientProtocols.keys()) if (!clientIds.has(clientId)) {
-			clientProtocols.delete(clientId);
-			clientProfiles.delete(clientId);
-			if (!isHttp) sessions.byClientId.delete(clientId);
+		for (const clientId of clientStates.keys()) if (!clientIds.has(clientId)) {
+			clientStates.delete(clientId);
+			runtime.disconnect(clientId);
 		}
-		for (const clientId of server.initializedClients.keys()) {
+		const requestNotification = notification._tag === "LoggingMessage" || notification._tag === "Progress";
+		const deliveryClientIds = requestNotification && requestContext !== void 0 ? [requestContext.clientId] : targetClientId === void 0 ? isHttp ? clientStates.keys() : runtime.deliveryClientIds() : [targetClientId];
+		const deliveries = [];
+		let hasOriginDelivery = false;
+		for (const clientId of deliveryClientIds) {
 			if (targetClientId !== void 0 && clientId !== targetClientId) continue;
 			if (!clientIds.has(clientId)) {
-				server.initializedClients.delete(clientId);
+				runtime.disconnect(clientId);
 				continue;
 			}
 			if (!patchedProtocol.supportsNotifications) continue;
-			const selectedProtocol = clientProtocols.get(clientId);
+			const selectedProtocol = requestNotification && requestContext !== void 0 ? runtime.selectProtocol(requestContext.protocolVersion) : clientStates.get(clientId)?.protocol;
 			if (!selectedProtocol) continue;
-			yield* gen(function* () {
+			const previous = notificationTails.get(clientId);
+			const isOrigin = clientId === (targetClientId ?? requestContext?.clientId);
+			hasOriginDelivery ||= isOrigin;
+			const completed = isOrigin ? delivered : makeUnsafe$6();
+			notificationTails.set(clientId, completed);
+			const delivery = gen(function* () {
+				if (previous !== void 0) yield* _await(previous);
 				const projected = yield* selectedProtocol.projectNotification(notification);
 				if (projected === void 0) return;
-				const session = sessions.byClientId.get(clientId);
-				if (notification._tag === "LoggingMessage" && !isMcpLogLevelEnabled(notification.level, session?.logLevel, defaultLogLevel)) return;
-				if (notification._tag === "ResourceUpdated" && session?.resourceSubscriptions?.has(notification.uri) !== true) return;
+				if (notification._tag === "Progress" && selectedProtocol.runtime._tag === "Stateless" && requestContext?.requestMetadata?.progressToken !== notification.progressToken) return;
+				if (notification._tag === "LoggingMessage" && selectedProtocol.runtime._tag === "Stateless") {
+					const metadata = requestContext?.requestMetadata;
+					const level = hasProperty(metadata, "io.modelcontextprotocol/logLevel") ? metadata["io.modelcontextprotocol/logLevel"] : void 0;
+					if (requestContext?.clientId !== clientId || !isLoggingLevel(level) || LoggingLevel$1.literals.indexOf(notification.level) < LoggingLevel$1.literals.indexOf(level)) return;
+				} else if (!runtime.canDeliver(clientId, (requestContext?.clientId === clientId ? requestHeaders : void 0) ?? clientStates.get(clientId)?.sessionHeaders ?? empty$4, notification, defaultLogLevel)) return;
 				const rpc = selectedProtocol.serverNotificationRpcs.requests.get(projected.tag);
 				if (!rpc) return;
 				const encoded = yield* selectedProtocol.payloadCodecs(rpc).encode(projected.payload);
@@ -48163,47 +51256,26 @@ const runWithProtocolState = /*#__PURE__*/ fnUntraced(function* (options, protoc
 					headers: [],
 					isNotification: true
 				});
-			}).pipe(catchCause$1(() => void_$1));
+			}).pipe(ignoreCause, ensuring$2(sync(() => {
+				doneUnsafe(completed, void_$2);
+				if (notificationTails.get(clientId) === completed) notificationTails.delete(clientId);
+			})));
+			deliveries.push(delivery);
 		}
-	})), catchCause$1(() => void_$1), forever, forkScoped);
-	return yield* make$13(protocolRegistry.clientRpcs, {
+		if (!hasOriginDelivery) yield* succeed$6(delivered, void 0);
+		yield* all$1(deliveries, {
+			concurrency: "unbounded",
+			discard: true
+		}).pipe(forkScoped({ startImmediately: true }));
+	})), ignoreCause, forever, forkScoped);
+	return yield* make$15(runtime.clientRpcs, {
 		spanPrefix: "McpServer",
 		disableFatalDefects: true
 	}).pipe(provideService(Protocol, patchedProtocol), provideService(McpServerClientMiddleware, clientMiddleware), provide(handlers));
 }, scoped);
-/**
-* Creates a layer that starts an MCP server over an existing
-* `RpcServer.Protocol` and provides the `McpServer` and `McpServerClient`
-* services.
-*
-* **When to use**
-*
-* Use when you already have a custom or externally provided
-* `RpcServer.Protocol` and want to start an MCP server as part of a layer
-* graph.
-*
-* **Details**
-*
-* The returned layer forks `run(options)` in the layer scope and merges
-* `McpServer.layer`, so registration layers can use the `McpServer` service
-* while the server is running.
-*
-* **Gotchas**
-*
-* Unlike `layerStdio` and `layerHttp`, this layer does not install a concrete
-* transport. The surrounding layer graph must provide `RpcServer.Protocol`.
-*
-* @see {@link run} for the effect form used by this layer
-* @see {@link layerStdio} for a stdio-backed layer that installs the MCP protocol and NDJSON-RPC serialization
-* @see {@link layerHttp} for an HTTP-backed layer that registers with `HttpRouter` and installs JSON-RPC serialization
-*
-* @category layers
-* @since 4.0.0
-*/
-const layer = (options) => layerWithProtocolState(options).pipe(provide$2(layerMcpProtocolState(options.protocols)));
-const layerWithProtocolState = (options) => effectDiscard(gen(function* () {
-	const protocolState = yield* McpProtocolState;
-	yield* forkScoped(runWithProtocolState(options, protocolState));
+const layerWithRuntime = (options, transport) => effectDiscard(gen(function* () {
+	const runtime = yield* ServerRuntime;
+	yield* forkScoped(runWithRuntime(options, runtime, transport));
 })).pipe(provideMerge(McpServer.layer));
 /**
 * Creates a layer that runs an MCP server over standard input and output.
@@ -48216,18 +51288,20 @@ const layerWithProtocolState = (options) => effectDiscard(gen(function* () {
 * **Details**
 *
 * The selected protocol adapter controls the dated RPC schemas and JSON-RPC
-* batch policy. The layer provides `McpServer` and `McpServerClient` and
+* batch policy. The layer provides `McpServer`, supplies request-scoped
+* `McpRequestContext` and legacy `McpServerClient` services to handlers, and
 * requires `Stdio`.
 *
 * @see {@link layer} for running over an existing `RpcServer.Protocol`
 * @see {@link layerHttp} for the single-endpoint HTTP transport
 *
+* @stability unstable
 * @category layers
 * @since 4.0.0
 */
-const layerStdio = (options) => layer(options).pipe(provide$2(layerProtocolStdio), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
+const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$2(layer(options.protocols)), provide$2(layerProtocolStdio), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
 const mcpStdioSerialization = (protocols) => {
-	const serialization = jsonRpc({ contentType: "application/json-rpc" });
+	const serialization = mcpJsonRpcSerialization({ contentType: "application/json-rpc" });
 	return RpcSerialization.of({
 		contentType: serialization.contentType,
 		includesFraming: true,
@@ -48241,7 +51315,7 @@ const mcpStdioSerialization = (protocols) => {
 					const decoded = [];
 					for (const frame of frames.decode(data)) {
 						if (Array.isArray(frame)) {
-							if (!(selectedProtocol?.transport.acceptsJsonRpcBatches === true) || frame.length === 0 || frame.some(isInitializeJsonRpcMessage)) {
+							if (!(selectedProtocol?.runtime.transport.jsonRpc.acceptsBatches === true) || frame.length === 0 || frame.some(hasRequestProtocolVersion) || frame.some(isInitializeJsonRpcMessage)) {
 								decoded.push({
 									_tag: "Request",
 									id: null,
@@ -48253,7 +51327,7 @@ const mcpStdioSerialization = (protocols) => {
 							}
 						} else if (isInitializeJsonRpcMessage(frame)) {
 							const offered = getJsonRpcProtocolVersion(frame);
-							selectedProtocol = protocols.find((protocol) => protocol.protocolVersion === offered) ?? protocols[0];
+							selectedProtocol = selectStatefulProtocol(protocols, offered);
 						}
 						decoded.push(...parser.decode(JSON.stringify(frame)));
 					}
@@ -48265,10 +51339,8 @@ const mcpStdioSerialization = (protocols) => {
 						jsonrpc: "2.0",
 						id: null,
 						error: {
-							_tag: "Cause",
 							code: INVALID_REQUEST_ERROR_CODE,
-							message: "JSON-RPC batches are not supported",
-							data: invalidBatchExit.success.exit.cause
+							message: "JSON-RPC batches are not supported"
 						}
 					}) + "\n";
 					const encoded = parser.encode(response);
@@ -48278,6 +51350,50 @@ const mcpStdioSerialization = (protocols) => {
 		}
 	});
 };
+const isEncodedMcpFailureCause = /*#__PURE__*/ is$2(/*#__PURE__*/ TaggedStruct("Cause", { data: /*#__PURE__*/ Tuple([/*#__PURE__*/ TaggedStruct("Fail", { error: /*#__PURE__*/ toEncoded(McpError$1) })]) }));
+const normalizeMcpJsonRpcResponse = (response) => {
+	if (Array.isArray(response)) return response.map(normalizeMcpJsonRpcResponse);
+	if (!isReadonlyObject(response) || !hasProperty(response, "error")) return response;
+	return isEncodedMcpFailureCause(response.error) ? {
+		...response,
+		error: response.error.data[0].error
+	} : response;
+};
+function mcpJsonRpcSerialization(options) {
+	const serialization = jsonRpc(options);
+	return RpcSerialization.of({
+		...serialization,
+		makeUnsafe: () => {
+			const parser = serialization.makeUnsafe();
+			const cancelledIds = /* @__PURE__ */ new Set();
+			return {
+				decode: parser.decode,
+				encode: (response) => {
+					if (isReadonlyObject(response)) {
+						const cancelledId = cancelledResponses.get(response);
+						if (cancelledId !== void 0) {
+							cancelledResponses.delete(response);
+							cancelledIds.add(cancelledId);
+						}
+					}
+					const encoded = parser.encode(response);
+					if (typeof encoded !== "string") return encoded;
+					if (cancelledIds.size === 0 && !encoded.includes("\"_tag\":\"Cause\"")) return encoded;
+					let message = JSON.parse(encoded);
+					if (cancelledIds.size > 0) {
+						const keep = (message) => !(isReadonlyObject(message) && !hasProperty(message, "method") && (typeof message.id === "string" || typeof message.id === "number") && cancelledIds.delete(message.id));
+						if (Array.isArray(message)) {
+							const remaining = message.filter(keep);
+							if (remaining.length === 0) return void 0;
+							message = remaining;
+						} else if (!keep(message)) return;
+					}
+					return JSON.stringify(normalizeMcpJsonRpcResponse(message));
+				}
+			};
+		}
+	});
+}
 const InitializeJsonRpcMessage = /*#__PURE__*/ Struct({ method: /*#__PURE__*/ Literal("initialize") });
 const isInitializeJsonRpcMessage = (message) => isSuccess$1(decodeUnknownResult(InitializeJsonRpcMessage)(message));
 const JsonRpcProtocolVersion = /*#__PURE__*/ Struct({ params: /*#__PURE__*/ Struct({ protocolVersion: String$2 }) });
@@ -48293,29 +51409,70 @@ const toolErrorResult = (message) => new CallToolResult$4({
 		text: message
 	}]
 });
+const toolResultContent = (encoded) => encoded === void 0 ? [] : [{
+	type: "text",
+	text: JSON.stringify(encoded)
+}];
 /**
 * Registers a `Toolkit` with the `McpServer`.
 *
+* @stability unstable
 * @category handlers
 * @since 4.0.0
 */
 const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 	const registry = yield* McpServer;
-	const built = yield* toolkit;
-	const services = yield* context();
+	const built = yield* toolkit.pipe(updateContext((context) => {
+		const services = new Map(context.mapUnsafe);
+		for (const tool of Object.values(toolkit.tools)) {
+			const handler = services.get(tool.id);
+			if (handler !== void 0) services.set(tool.id, {
+				...handler,
+				context: omitRequestServices(handler.context)
+			});
+		}
+		return makeUnsafe$7(services);
+	}));
+	const services = omitRequestServices(yield* context());
 	const reportCause = (cause) => provideContext$2(report(cause), services);
+	const internalToolError = (cause) => {
+		const failure = findFail(cause);
+		return isFailure$1(failure) && !hasDies(cause) ? failCause$3(failure.failure) : logError(cause).pipe(andThen(reportCause(cause)), as(toolErrorResult(INTERNAL_TOOL_ERROR_MESSAGE)));
+	};
+	const registrations = [];
 	for (const tool of Object.values(built.tools)) {
+		const strict = getStrictMode(tool) === true;
+		const rawJsonSchema = isDynamic(tool) ? tool.jsonSchema : void 0;
+		if (strict && rawJsonSchema !== void 0) return yield* die(`McpServer cannot strictly validate the raw JSON Schema for tool '${tool.name}'; use an Effect Schema instead`);
+		const decodeOptions = {
+			onExcessProperty: strict ? "error" : "ignore",
+			errors: "all"
+		};
 		const annotations = tool.annotations;
 		const toolMeta = getOrUndefined(annotations, Meta$2);
 		const isDeclaredFailure = is$2(tool.failureSchema);
-		const outputJsonSchema = getJsonSchemaFromSchema(tool.successSchema);
-		const outputSchema = outputJsonSchema.type === "object" ? yield* decodeUnknownEffect(ToolJsonSchema$1)(outputJsonSchema).pipe(orDie) : void 0;
-		const inputSchema = yield* decodeUnknownEffect(ToolJsonSchema$1)(getJsonSchema(tool)).pipe(orDie);
+		const encodeFailure = encodeUnknownEffect(tool.failureSchema);
+		const declaredFailureResult = (error) => error instanceof Error && error.message !== "" ? succeed$3(toolErrorResult(error.message)) : map$3(encodeFailure(error), (encoded) => new CallToolResult$4({
+			isError: true,
+			content: toolResultContent(encoded)
+		}));
+		const handleCause = (cause) => {
+			const failure = findFail(cause);
+			if (isSuccess$1(failure)) {
+				const error = failure.success.error;
+				const origin = get$2(reasonAnnotations(failure.success), FailureOrigin);
+				if (origin === "parameters" && isParameterValidationError(error)) return fail$3(new InvalidParams({ message: error.reason.message }));
+				if (origin === "handler" && isDeclaredFailure(error)) return catchCause$1(declaredFailureResult(error), internalToolError);
+			}
+			return internalToolError(cause);
+		};
+		const outputSchema = yield* decodeUnknownEffect(ToolOutputJson)(toolJsonSchema(tool.successSchema, false)).pipe(orDie);
+		const inputSchema = yield* decodeUnknownEffect(ToolJson)(rawJsonSchema ?? toolJsonSchema(tool.parametersSchema, strict)).pipe(catchTag("SchemaError", (error) => die(rawJsonSchema !== void 0 ? `McpServer cannot register tool '${tool.name}': its raw JSON Schema must have an object root (type: "object").\n\n${error.message}` : `McpServer cannot register tool '${tool.name}': its parameters must encode to a JSON Schema with an object root (type: "object"), such as a Schema.Struct. Use Tool.EmptyParams for a tool without parameters.\n\n${error.message}`)));
 		const mcpTool = new Tool$4({
 			name: tool.name,
 			description: getDescription(tool),
 			inputSchema,
-			...outputSchema === void 0 ? {} : { outputSchema },
+			outputSchema,
 			annotations: {
 				...getOption(tool.annotations, Title).pipe(map$8((title) => ({ title })), getOrUndefined$1),
 				readOnlyHint: get$2(tool.annotations, Readonly),
@@ -48325,35 +51482,32 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 			},
 			_meta: toolMeta
 		});
-		yield* registry.addTool({
+		registrations.push({
 			tool: mcpTool,
 			annotations,
 			handle(payload) {
-				return built.handle(tool.name, payload ?? {}).pipe(unwrap, run$1(last()), flatMap(fromOption), map$3((result) => new CallToolResult$4({
-					isError: false,
-					structuredContent: toStructuredContent(result.encodedResult),
-					content: result.encodedResult === void 0 ? [] : [{
-						type: "text",
-						text: JSON.stringify(result.encodedResult)
-					}]
-				})), provideContext$2(services), tapCause(logError), catchCause$1((cause) => {
-					const failure = findError(cause);
-					if (isFailure$1(failure)) return hasDies(cause) ? as(reportCause(cause), toolErrorResult(INTERNAL_TOOL_ERROR_MESSAGE)) : failCause$2(failure.failure);
-					const error = failure.success;
-					if (isAiError(error)) {
-						const reason = error.reason;
-						return reason._tag === "ToolParameterValidationError" ? fail$3(new InvalidParams({ message: reason.message })) : as(reportCause(cause), toolErrorResult(INTERNAL_TOOL_ERROR_MESSAGE));
-					}
-					const message = isDeclaredFailure(error) && error instanceof Error ? error.message : INTERNAL_TOOL_ERROR_MESSAGE;
-					return as(reportCause(cause), toolErrorResult(message));
-				}));
+				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap, runLast, flatMap(fromOption), flatMap((result) => result.isFailure && result.failureOrigin !== "handler" ? failCause$3(annotate$1(fail$4(result.result), make$49(FailureOrigin, result.failureOrigin ?? "result"))) : succeed$3(new CallToolResult$4({
+					isError: result.isFailure,
+					structuredContent: result.isFailure ? void 0 : result.encodedResult,
+					content: toolResultContent(result.encodedResult)
+				}))), catchCause$1(handleCause), provideContext$2(services));
 			}
 		});
 	}
+	for (const registration of registrations) yield* registry.addTool(registration);
 });
+const isParameterValidationError = (error) => isAiError(error) && error.reason._tag === "ToolParameterValidationError";
+const toolJsonSchema = (schema, strict) => {
+	const document = resolveTopLevelReference(toJsonSchemaDocument(schema, { onExcessProperty: strict ? "error" : "ignore" }));
+	return Object.keys(document.definitions).length === 0 ? document.schema : {
+		...document.schema,
+		$defs: document.definitions
+	};
+};
 /**
 * Registers an `AiToolkit` with the `McpServer`.
 *
+* @stability unstable
 * @category layers
 * @since 4.0.0
 */
@@ -48374,6 +51528,7 @@ const toolkit = (toolkit) => effectDiscard(registerToolkit(toolkit)).pipe(provid
 *
 * @see {@link prompt} for the layer-based prompt registration wrapper
 *
+* @stability unstable
 * @category handlers
 * @since 4.0.0
 */
@@ -48387,6 +51542,7 @@ const registerPrompt = (options) => {
 	});
 	const prompt = new Prompt$3({
 		name: options.name,
+		title: options.title,
 		description: options.description,
 		arguments: args
 	});
@@ -48394,7 +51550,7 @@ const registerPrompt = (options) => {
 	const completion = options.completion ?? {};
 	return gen(function* () {
 		const registry = yield* McpServer;
-		const services = yield* context();
+		const services = omitRequestServices(yield* context());
 		const completions = Object.create(null);
 		for (const [param, handle] of Object.entries(completion)) {
 			const encodeArray = encodeEffect(ArraySchema(props[param]));
@@ -48443,12 +51599,13 @@ const registerPrompt = (options) => {
 *
 * @see {@link registerPrompt} for the Effect-level prompt registration API
 *
+* @stability unstable
 * @category layers
 * @since 4.0.0
 */
 const prompt = (options) => effectDiscard(registerPrompt(options)).pipe(provide$2(McpServer.layer));
 const makeUriMatcher = () => {
-	const router = make$21({
+	const router = make$23({
 		ignoreTrailingSlash: true,
 		ignoreDuplicateSlashes: true,
 		caseSensitive: true
@@ -48462,186 +51619,11 @@ const makeUriMatcher = () => {
 		find
 	};
 };
-const PingRpcs = /*#__PURE__*/ make$12(Ping$1).middleware(McpServerClientMiddleware);
-const layerHandlers = (serverInfo, options) => effectContext(gen(function* () {
-	const server = yield* McpServer;
-	const defaultLogLevel = yield* CurrentLogLevel;
-	const contextMap = /* @__PURE__ */ new Map();
-	const internalCore = internalState.get(server).core;
-	const handlerTarget = options.protocolRegistry.handlerTarget(contextMap);
-	for (const protocol of options.protocolRegistry.protocols) {
-		const wireHandlers = PingRpcs.of({ ping: () => succeed$3({}) });
-		yield* handlerTarget.install(protocol, PingRpcs, wireHandlers);
-		const lifecycle = {
-			initialize: fnUntraced(function* (protocolVersion, profile, clientId) {
-				const presence = yield* internalCore.registrationPresence;
-				let capabilities = {
-					completions: true,
-					logging: true
-				};
-				if (presence.tools) capabilities = {
-					...capabilities,
-					tools: { listChanged: true }
-				};
-				if (presence.resources) capabilities = {
-					...capabilities,
-					resources: {
-						listChanged: true,
-						subscribe: true
-					}
-				};
-				if (presence.prompts) capabilities = {
-					...capabilities,
-					prompts: { listChanged: true }
-				};
-				if (serverInfo.extensions) capabilities = {
-					...capabilities,
-					extensions: serverInfo.extensions
-				};
-				return yield* withFiber((fiber) => {
-					const httpRequest = getOrUndefined(fiber.context, HttpServerRequest);
-					if (httpRequest !== void 0 && capabilities.resources !== void 0) capabilities = {
-						...capabilities,
-						resources: {
-							...capabilities.resources,
-							subscribe: false
-						}
-					};
-					const session = {
-						initializePayload: Initialize$4.payloadSchema.make({
-							protocolVersion,
-							capabilities: profile.clientCapabilities,
-							clientInfo: profile.clientInfo,
-							_meta: profile.requestMetadata
-						}),
-						negotiatedProfile: profile,
-						protocol,
-						resourceSubscriptions: httpRequest === void 0 && capabilities.resources?.subscribe === true ? /* @__PURE__ */ new Set() : void 0,
-						logLevel: {
-							_tag: "Effect",
-							level: defaultLogLevel
-						}
-					};
-					if (httpRequest) {
-						const sessionId = crypto.randomUUID();
-						options.sessions.bySessionId.set(sessionId, session);
-						appendPreResponseHandlerUnsafe(httpRequest, (_req, res) => succeed$3(setHeaders(res, {
-							[MCP_SESSION_ID_HEADER]: sessionId,
-							[MCP_PROTOCOL_VERSION_HEADER]: protocol.protocolVersion
-						})));
-					} else options.sessions.byClientId.set(clientId, session);
-					return succeed$3({
-						capabilities,
-						serverInfo: Implementation$3.make({
-							name: serverInfo.name,
-							version: serverInfo.version,
-							description: serverInfo.description,
-							websiteUrl: serverInfo.websiteUrl,
-							icons: serverInfo.icons
-						})
-					});
-				});
-			}),
-			setLogLevel: fnUntraced(function* (level, clientId, headers) {
-				const session = getClientSession(options.sessions, clientId, headers);
-				if (session === void 0) return;
-				session.logLevel = {
-					_tag: "Mcp",
-					level
-				};
-			}),
-			subscribe: fnUntraced(function* (uri, clientId, headers) {
-				const subscriptions = getClientSession(options.sessions, clientId, headers)?.resourceSubscriptions;
-				if (subscriptions === void 0) return yield* new ProtocolError({
-					code: METHOD_NOT_FOUND_ERROR_CODE,
-					message: "Resource subscriptions are not supported"
-				});
-				subscriptions.add(uri);
-			}),
-			unsubscribe: fnUntraced(function* (uri, clientId, headers) {
-				const subscriptions = getClientSession(options.sessions, clientId, headers)?.resourceSubscriptions;
-				if (subscriptions === void 0) return yield* new ProtocolError({
-					code: METHOD_NOT_FOUND_ERROR_CODE,
-					message: "Resource subscriptions are not supported"
-				});
-				subscriptions.delete(uri);
-			}),
-			clientNotification: fnUntraced(function* (notification, clientId) {
-				if (notification._tag === "Initialized") server.initializedClients.add(clientId);
-			})
-		};
-		yield* protocol.installHandlers(internalCore, lifecycle, handlerTarget);
-	}
-	return makeUnsafe$7(contextMap);
-}));
-const getClientSession = (sessions, clientId, headers) => {
-	const sessionId = headers[MCP_SESSION_ID_HEADER];
-	if (sessionId === void 0) return sessions.byClientId.get(clientId);
-	return sessions.bySessionId.get(sessionId);
-};
-const decodeInvalidBatchExit = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__ */ Struct({
-	_tag: /*#__PURE__*/ Literal("Exit"),
+const decodeInvalidBatchExit = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__ */ TaggedStruct("Exit", {
 	requestId: Null,
-	exit: /*#__PURE__*/ Struct({
-		_tag: /*#__PURE__*/ Literal("Failure"),
-		cause: Unknown
-	})
+	exit: /*#__PURE__*/ TaggedStruct("Failure", { cause: Unknown })
 }));
-const mcpLogLevels = {
-	debug: {
-		effect: "Debug",
-		order: 0
-	},
-	info: {
-		effect: "Info",
-		order: 1
-	},
-	notice: {
-		effect: "Info",
-		order: 2
-	},
-	warning: {
-		effect: "Warn",
-		order: 3
-	},
-	error: {
-		effect: "Error",
-		order: 4
-	},
-	critical: {
-		effect: "Fatal",
-		order: 5
-	},
-	alert: {
-		effect: "Fatal",
-		order: 6
-	},
-	emergency: {
-		effect: "Fatal",
-		order: 7
-	}
-};
-const effectLogLevel = (logLevel, fallback) => logLevel?._tag === "Mcp" ? mcpLogLevels[logLevel.level].effect : logLevel?.level ?? fallback;
-const isMcpLogLevelEnabled = (level, minimum, fallback) => minimum?._tag === "Mcp" ? mcpLogLevels[level].order >= mcpLogLevels[minimum.level].order : isGreaterThanOrEqualTo(mcpLogLevels[level].effect, minimum?.level ?? fallback);
-const OfferedProtocolVersion = /*#__PURE__*/ Struct({ protocolVersion: String$2 });
-const getOfferedProtocolVersion = (payload) => {
-	const decoded = decodeUnknownResult(OfferedProtocolVersion)(payload);
-	return isSuccess$1(decoded) ? decoded.success.protocolVersion : "";
-};
-const protocolForInternalTag = (registry, tag) => {
-	for (const protocol of registry.protocols) {
-		const routed = registry.routeClientRequest(protocol, {
-			_tag: "Request",
-			id: 0,
-			tag: "",
-			payload: void 0,
-			headers: []
-		});
-		if (tag.startsWith(routed.tag)) return protocol;
-	}
-	return registry.protocols[0];
-};
-const getProtocolForClient = (clientProtocols, clientId, registry) => clientProtocols.get(clientId) ?? registry.protocols[0];
+const isProtocolVersion = (version) => version === "2024-11-05" || version === "2025-03-26" || version === "2025-06-18" || version === "2025-11-25" || version === "2026-07-28";
 //#endregion
 //#region ../../packages/mcp/src/Install.ts
 const UUID_PARTS = [
@@ -48983,7 +51965,7 @@ const UpdateReport = Struct({
 	url: String$2,
 	version: String$2
 });
-const Check = make$4("check", {
+const Check = make$6("check", {
 	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when another tool fails: it names the integration the key belongs to and where its rights are set, explains missing authorizations, detects the day Tipee changes a response shape, and says when a newer version of the plugin exists. Stores nothing.",
 	failure: TipeeError,
 	parameters: Struct({
@@ -48998,7 +51980,7 @@ const Check = make$4("check", {
 		update: optionalKey(UpdateReport.annotate({ description: "A newer version of this plugin, when one exists, and where to download it." }))
 	})
 }).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
-const InstallUpdate = make$4("update", {
+const InstallUpdate = make$6("update", {
 	description: "Installs the newer version of this plugin that check reported. In Claude Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks the user to confirm; the instance and key are kept. In Claude Code it answers with the commands to run. Call it only after the user agreed to update.",
 	failure: UpdateFailed,
 	parameters: Struct({ version: optionalKey(String$2.annotate({ description: "The version check reported, for the record; the latest release is installed." })) }),
@@ -49013,7 +51995,7 @@ const toolFor = (operation) => dynamic(operation.name, {
 	parameters: operation.parameters,
 	success: operation.success ?? Done
 }).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
-const TipeeToolkit = make$3(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)));
+const TipeeToolkit = make$5(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)));
 //#endregion
 //#region ../../packages/mcp/src/Handlers.ts
 const PAGE_SIZE = 100;
@@ -49170,7 +52152,7 @@ const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function
 			properties: { tool }
 		});
 	}
-	return yield* failCause$2(exit$2.cause);
+	return yield* failCause$3(exit$2.cause);
 });
 const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 	const client = yield* TipeeClient;
