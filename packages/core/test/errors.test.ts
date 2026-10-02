@@ -18,13 +18,30 @@ const KINDS_URL = `${BASE}/api/directory/kinds.list`;
 const SCHEDULES_URL = `${BASE}/api/schedule/schedules.list`;
 const RESOURCES_URL = `${BASE}/api/directory/resources.list`;
 const PROJECTS_URL = `${BASE}/api/activity/projects.list`;
+const SCHEDULES_CREATE_URL = `${BASE}/api/schedule/schedules.create`;
+const SCHEDULES_DELETE_URL = `${BASE}/api/schedule/schedules.delete`;
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
+const HTTP_CONFLICT = 409;
 const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS = 429;
 const HTTP_SERVER_ERROR = 500;
+
+const NEW_SCHEDULE = {
+  hour_ranges: [{ auto_correct: null, hour_range: '08:00/PT8H', paid_break: null }],
+  options: {
+    allow_partial: false,
+    employee_resident_ratio: false,
+    schedule_on_bank_holidays: false,
+    special_hour_range: null,
+    text_color: null,
+  },
+  resource_id: '1',
+  team_id: '2',
+  when: '2026-10-05',
+};
 
 const credentials = { apiKey: Redacted.make(API_KEY), instance: 'acme' };
 const TestClient = TipeeClient.layer(credentials).pipe(Layer.provide(FetchHttpClient.layer));
@@ -91,6 +108,41 @@ layer(TestClient)('errors', (it) => {
       expect(error.message).toBe(
         'Tipee rejected the request: Text cannot be parsed to an interval: 01.11.2026',
       );
+    }),
+  );
+
+  it.effect('quotes the overlap Tipee declares for a schedule create', () =>
+    Effect.gen(function* () {
+      server.use(
+        status(HTTP_CONFLICT, {
+          body: {
+            body: { conflicting_dates: [{ date: '2026-10-05', resource: '1' }] },
+            error: 'OVERLAPPING',
+          },
+          url: SCHEDULES_CREATE_URL,
+        }),
+      );
+      const error = yield* failure(call('schedules_create', NEW_SCHEDULE));
+
+      expect(error.reason).toMatchObject({ _tag: 'Rejected', code: 'OVERLAPPING', status: 409 });
+      expect(error.message).toMatch(/^Tipee rejected the request: .*OVERLAPPING.*2026-10-05/u);
+    }),
+  );
+
+  it.effect('quotes the locked schedules Tipee declares for a delete', () =>
+    Effect.gen(function* () {
+      server.use(
+        status(HTTP_CONFLICT, {
+          body: { description: 'Some schedules are locked.', warning_type: 'locked_schedules' },
+          url: SCHEDULES_DELETE_URL,
+        }),
+      );
+      const error = yield* failure(
+        call('schedules_delete', { ids: ['1'], options: { group_action: 'single' } }),
+      );
+
+      expect(error.reason).toMatchObject({ _tag: 'Rejected', code: 'locked_schedules' });
+      expect(error.message).toMatch(/Some schedules are locked\./u);
     }),
   );
 

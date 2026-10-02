@@ -15,6 +15,7 @@ const CHLOE = '1000000000000000104';
 const WEEK = '2026-09-07/2026-09-13';
 const HTTP_NO_CONTENT = 204;
 const HTTP_FORBIDDEN = 403;
+const HTTP_CONFLICT = 409;
 
 const clientFor = (apiKey: string) =>
   TipeeToolkitLayer.pipe(
@@ -89,6 +90,35 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       expect(recorded[3]?.properties.message).toMatch(/does not match/u);
       expect(JSON.stringify(recorded)).not.toContain(WEEK);
       expect(JSON.stringify(recorded)).not.toContain('Opérations');
+    }),
+  );
+
+  it.effect('records the status and code of a refusal', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      server.use(
+        http.post(
+          `${BASE}/api/schedule/schedules.delete`,
+          () =>
+            HttpResponse.json(
+              { description: 'Some schedules are locked.', warning_type: 'locked_schedules' },
+              { status: HTTP_CONFLICT },
+            ),
+          { once: true },
+        ),
+      );
+      yield* Effect.flip(
+        call('schedules_delete', { ids: ['1'], options: { group_action: 'single' } }),
+      );
+
+      expect(recorded.at(-1)?.properties).toMatchObject({
+        error_code: 'locked_schedules',
+        http_status: HTTP_CONFLICT,
+        outcome: 'failed',
+        reason: 'Rejected',
+        tool: 'schedules_delete',
+      });
+      expect(JSON.stringify(recorded)).not.toContain('Some schedules are locked');
     }),
   );
 

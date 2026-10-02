@@ -26439,11 +26439,11 @@ function decodeUnknownEffect$1(schema, options) {
 	return options === void 0 ? parser : (input, overrideOptions) => parser(input, mergeParseOptions(options, overrideOptions));
 }
 /** @internal */
-function decodeUnknownOption(schema, options) {
+function decodeUnknownOption$1(schema, options) {
 	return asOption(decodeUnknownEffect$1(schema, options));
 }
 /** @internal */
-const decodeOption$1 = decodeUnknownOption;
+const decodeOption$1 = decodeUnknownOption$1;
 /**
 * Creates a decoder for `unknown` input that reports failure safely as a
 * `Result`.
@@ -28367,6 +28367,33 @@ function decodeUnknownEffect(schema, options) {
 * @since 4.0.0
 */
 const decodeEffect = decodeUnknownEffect;
+/**
+* Decodes an `unknown` input against a schema, returning an `Option` that is
+* `Some` with the decoded value on success or `None` for schema mismatches.
+*
+* **When to use**
+*
+* Use when you do not know the input type statically and only need to know
+* whether decoding succeeded.
+*
+* **Details**
+*
+* Prefer this over {@link decodeUnknownExit} or {@link decodeUnknownEffect}
+* when you don't need error details. For input already typed as the schema's
+* `Encoded` type use {@link decodeOption}.
+* Options may be provided either when creating the decoder or when applying it;
+* application options override creation options.
+*
+* **Gotchas**
+*
+* Only causes made entirely of schema issues are converted to `None`. Causes
+* that contain defects, interruptions, or other non-schema reasons throw
+* instead.
+*
+* @category decoding
+* @since 3.10.0
+*/
+const decodeUnknownOption = decodeUnknownOption$1;
 /**
 * Decodes a typed input (the schema's `Encoded` type) against a schema,
 * returning an `Option` that is `Some` with the decoded value on success or
@@ -36944,6 +36971,11 @@ const ProblemBody = fromJsonString(Struct({
 	message: optionalKey(String$2)
 }));
 const explained = (body) => decodeOption(ProblemBody)(body).pipe(flatMap$3((problem) => fromNullishOr(problem.detail ?? problem.message)), getOrElse(() => body));
+const ErrorCode = Struct({
+	error: optionalKey(String$2),
+	warning_type: optionalKey(String$2)
+});
+const codeOf = (found) => getOrUndefined$1(flatMap$3(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
 /** The key is not one Tipee knows (typo, revoked, or another instance's). */
 var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: String$2 }) {
 	get message() {
@@ -36976,7 +37008,12 @@ var RateLimited = class extends TaggedError()("RateLimited", {}) {
 	}
 };
 /** Tipee refused the request on its own terms (a documented 4xx such as 409). */
-var Rejected = class extends TaggedError()("Rejected", { body: String$2 }) {
+var Rejected = class extends TaggedError()("Rejected", {
+	body: String$2,
+	/** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
+	code: optionalKey(String$2),
+	status: optionalKey(Int)
+}) {
 	get message() {
 		return `Tipee rejected the request: ${this.body}`;
 	}
@@ -37038,7 +37075,14 @@ const statusReason = (status, rawBody) => {
 	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing() : new ApiKeyRejected({ body });
 	if (status === HTTP_FORBIDDEN) return new Forbidden({ body });
 	if (status === HTTP_NOT_FOUND) return new NotFound({ body });
-	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) return new Rejected({ body });
+	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
+		const code = codeOf(decodeOption(fromJsonString(ErrorCode))(rawBody));
+		return new Rejected({
+			body,
+			status,
+			...code === void 0 ? {} : { code }
+		});
+	}
 	if (status === HTTP_TOO_MANY_REQUESTS) return new RateLimited();
 	return new UnexpectedStatus({
 		body,
@@ -37069,6 +37113,14 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			return new TipeeError({ reason: new Unreachable({ description: cause.message }) });
 		}
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
+		if (typeof cause === "object" && cause !== null && !(cause instanceof Error)) {
+			const code = codeOf(decodeUnknownOption(ErrorCode)(cause));
+			return new TipeeError({ reason: new Rejected({
+				body: JSON.stringify(cause),
+				status: HTTP_CONFLICT,
+				...code === void 0 ? {} : { code }
+			}) });
+		}
 		const body = cause instanceof Error ? cause.message : String(cause);
 		return new TipeeError({ reason: new Rejected({ body }) });
 	});
@@ -39690,15 +39742,15 @@ const ListResourcesQuery = Struct({
 			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 		})
 	], { mode: "oneOf" }))),
-	"orders": optionalKey(ArraySchema(Union([Struct({
+	"orders": ArraySchema(Union([Struct({
 		"key": Literal("resource.attribute"),
 		"direction": optionalKey(Literals(["asc", "desc"])),
 		"attribute": optionalKey(String$2)
-	})], { mode: "oneOf" }))),
-	"pagination": optionalKey(Struct({
+	})], { mode: "oneOf" })),
+	"pagination": Struct({
 		"limit": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
 		"next_token": Union([String$2, Null])
-	}))
+	})
 }).annotate({ "identifier": "ListResourcesQuery" });
 const ResourceListView = StructWithRest(Struct({
 	"data": ArraySchema(StructWithRest(Struct({
@@ -49057,6 +49109,15 @@ const update = map$3(flatMap(Updates, (updates) => updates.install), (outcome) =
 	outcome
 }));
 const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
+const detailOf = (failure) => {
+	if (!(failure instanceof TipeeError)) return {};
+	const { reason } = failure;
+	if (reason._tag === "Rejected") return {
+		error_code: reason.code,
+		http_status: reason.status
+	};
+	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
+};
 const REPORTED = /* @__PURE__ */ new Set([
 	"UnexpectedShape",
 	"UnexpectedStatus",
@@ -49091,6 +49152,7 @@ const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function
 		const reason = reasonOf(failure.success);
 		yield* telemetry.capture("tool_called", {
 			...common,
+			...detailOf(failure.success),
 			outcome: "failed",
 			reason
 		});
@@ -49147,7 +49209,7 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.6";
+const SERVER_VERSION = "0.3.7";
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	name: SERVER_NAME,
