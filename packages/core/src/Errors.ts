@@ -3,7 +3,7 @@
 // Surfaces show `message`, which explains the cause and the fix.
 
 import { Effect, Option, Schema } from 'effect';
-import { HttpClientError } from 'effect/unstable/http';
+import { HttpClientError } from 'effect/http';
 
 // Tipee's error bodies are JSON with a `message`, or RFC 9457 problem details
 // With a `detail`; either reads better than the raw body.

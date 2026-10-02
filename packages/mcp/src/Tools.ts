@@ -6,7 +6,7 @@
 import { TipeeError, operations } from '@tipee-tools/core';
 import type { Operation } from '@tipee-tools/core';
 import { Schema } from 'effect';
-import { Tool, Toolkit } from 'effect/unstable/ai';
+import { Tool, Toolkit } from 'effect/ai';
 
 import { Installed, UpdateFailed } from './Updates.ts';
 

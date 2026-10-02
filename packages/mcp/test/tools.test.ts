@@ -5,8 +5,8 @@ import { describe, expect, it, layer } from '@effect/vitest';
 import { TipeeClient, operations } from '@tipee-tools/core';
 import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
 import { Context, Effect, Layer, Option, Redacted, Stream } from 'effect';
-import { Tool } from 'effect/unstable/ai';
-import { FetchHttpClient } from 'effect/unstable/http';
+import { Tool } from 'effect/ai';
+import { FetchHttpClient } from 'effect/http';
 import { HttpResponse, http } from 'msw';
 
 import { Telemetry, TipeeToolkit, TipeeToolkitLayer, Updates } from '../src/index.ts';

@@ -14,7 +14,7 @@ import path from 'node:path';
 import { platform } from 'node:process';
 
 import { Config, Context, Effect, FileSystem, Layer, Option, Schema } from 'effect';
-import { HttpClient, HttpClientResponse } from 'effect/unstable/http';
+import { HttpClient, HttpClientResponse } from 'effect/http';
 
 import { channel as detectedChannel } from './Install.ts';
 

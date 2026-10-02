@@ -7,7 +7,7 @@ import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { SERVER_VERSION, SETUP_PROMPT, TipeeToolkit } from '@tipee-tools/mcp';
-import { Tool } from 'effect/unstable/ai';
+import { Tool } from 'effect/ai';
 
 const root = path.join(import.meta.dirname, '..');
 const staging = path.join(root, 'dist', 'mcpb');
