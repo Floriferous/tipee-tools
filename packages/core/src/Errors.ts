@@ -20,6 +20,18 @@ const explained = (body: string): string =>
     Option.getOrElse(() => body),
   );
 
+// Tipee names some refusals with a constant (`error` or `warning_type`, such
+// As OVERLAPPING), safe to record because it says nothing about anyone.
+const ErrorCode = Schema.Struct({
+  error: Schema.optionalKey(Schema.String),
+  warning_type: Schema.optionalKey(Schema.String),
+});
+
+const codeOf = (found: Option.Option<typeof ErrorCode.Type>): string | undefined =>
+  Option.getOrUndefined(
+    Option.flatMap(found, (code) => Option.fromNullishOr(code.error ?? code.warning_type)),
+  );
+
 /** The key is not one Tipee knows (typo, revoked, or another instance's). */
 export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKeyRejected', {
   body: Schema.String,
@@ -69,6 +81,9 @@ export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited'
 /** Tipee refused the request on its own terms (a documented 4xx such as 409). */
 export class Rejected extends Schema.TaggedError<Rejected>()('Rejected', {
   body: Schema.String,
+  /** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
+  code: Schema.optionalKey(Schema.String),
+  status: Schema.optionalKey(Schema.Int),
 }) {
   public override get message(): string {
     return `Tipee rejected the request: ${this.body}`;
@@ -159,7 +174,8 @@ const statusReason = (status: number, rawBody: string): TipeeErrorReason => {
     return new NotFound({ body });
   }
   if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
-    return new Rejected({ body });
+    const code = codeOf(Schema.decodeOption(Schema.fromJsonString(ErrorCode))(rawBody));
+    return new Rejected({ body, status, ...(code === undefined ? {} : { code }) });
   }
   if (status === HTTP_TOO_MANY_REQUESTS) {
     return new RateLimited();
@@ -206,6 +222,19 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
       }
       if (Schema.isSchemaError(cause)) {
         return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
+      }
+      // An error the document declares (every one is a 409) arrives decoded,
+      // As the plain object Tipee answered: quote it whole, since it names
+      // The conflicting dates or locked schedules.
+      if (typeof cause === 'object' && cause !== null && !(cause instanceof Error)) {
+        const code = codeOf(Schema.decodeUnknownOption(ErrorCode)(cause));
+        return new TipeeError({
+          reason: new Rejected({
+            body: JSON.stringify(cause),
+            status: HTTP_CONFLICT,
+            ...(code === undefined ? {} : { code }),
+          }),
+        });
       }
       const body = cause instanceof Error ? cause.message : String(cause);
       return new TipeeError({ reason: new Rejected({ body }) });

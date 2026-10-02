@@ -80,6 +80,13 @@ describe('/api/directory/resources.list', (current) =>
   `${current} Pagination: send pagination with a limit and next_token ` +
   '(null on the first page), explicit orders, and identical filters and orders on every ' +
   'page; a non-null next_token can come back on the last full page, whose next page is empty.');
+// Tipee answers 422 without them, and the description alone did not stop
+// Claude from leaving them out: the schema says so instead.
+patch.push({
+  op: 'replace',
+  path: '/components/schemas/ListResourcesQuery/required',
+  value: ['kind_id', 'orders', 'pagination'],
+});
 describe('/api/directory/kinds.list', (current) =>
   current.replace(
     "Only 'employee' is available at the moment.",

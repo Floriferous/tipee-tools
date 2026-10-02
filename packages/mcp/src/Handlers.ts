@@ -153,6 +153,19 @@ type Handler = (params: unknown) => Effect.Effect<unknown, Failure>;
 const reasonOf = (failure: Failure): string =>
   failure instanceof TipeeError ? failure.reason._tag : failure._tag;
 
+// What else a refusal says about its cause: the HTTP status and Tipee's own
+// Constant for it, such as OVERLAPPING. Neither carries anything a user wrote.
+const detailOf = (failure: Failure): Properties => {
+  if (!(failure instanceof TipeeError)) {
+    return {};
+  }
+  const { reason } = failure;
+  if (reason._tag === 'Rejected') {
+    return { error_code: reason.code, http_status: reason.status };
+  }
+  return reason._tag === 'UnexpectedStatus' ? { http_status: reason.status } : {};
+};
+
 // Failures that mean a bug here or a change at Tipee, not a user's mistake.
 const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest']);
 
@@ -197,7 +210,12 @@ const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler):
     const failure = Cause.findError(exit.cause);
     if (Result.isSuccess(failure)) {
       const reason = reasonOf(failure.success);
-      yield* telemetry.capture('tool_called', { ...common, outcome: 'failed', reason });
+      yield* telemetry.capture('tool_called', {
+        ...common,
+        ...detailOf(failure.success),
+        outcome: 'failed',
+        reason,
+      });
       if (REPORTED.has(reason)) {
         yield* telemetry.exception(failure.success, { handled: true, properties: { tool } });
       }
