@@ -37634,6 +37634,10 @@ const ListProjectsQuery = Struct({
 			})
 		}),
 		Struct({
+			"key": Literal("project.assignable_for"),
+			"value": String$2.annotate({ "format": "snowflake" })
+		}),
+		Struct({
 			"key": Literal("project.date_range"),
 			"value": String$2.annotate({ "format": "local-date-interval" })
 		}),
@@ -37845,6 +37849,13 @@ const ListProjectTasksQuery = Struct({ "filters": optionalKey(ArraySchema(Union(
 	}),
 	Struct({
 		"key": Literal("task.effective"),
+		"value": Struct({
+			"resource_id": String$2.annotate({ "format": "snowflake" }),
+			"date_range": String$2.annotate({ "format": "local-date-interval" })
+		})
+	}),
+	Struct({
+		"key": Literal("task.in_activity_day"),
 		"value": Struct({
 			"resource_id": String$2.annotate({ "format": "snowflake" }),
 			"date_range": String$2.annotate({ "format": "local-date-interval" })
@@ -38147,17 +38158,9 @@ const ActivityDetailedView = StructWithRest(Struct({
 			"label": String$2,
 			"short_label": String$2,
 			"sort_label": String$2,
-			"gender": Literals([
-				"m",
-				"f",
-				"n"
-			]),
+			"gender": String$2.annotate({ "description": "Known values: m, f, n." }),
 			"picture": StructWithRest(Struct({
-				"shape": Literals([
-					"round",
-					"rounded-square",
-					"square"
-				]),
+				"shape": String$2.annotate({ "description": "Known values: round, rounded-square, square." }),
 				"initial": String$2,
 				"url": Union([String$2, Null])
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
@@ -38175,17 +38178,9 @@ const ActivityDetailedView = StructWithRest(Struct({
 			"label": String$2,
 			"short_label": String$2,
 			"sort_label": String$2,
-			"gender": Literals([
-				"m",
-				"f",
-				"n"
-			]),
+			"gender": String$2.annotate({ "description": "Known values: m, f, n." }),
 			"picture": StructWithRest(Struct({
-				"shape": Literals([
-					"round",
-					"rounded-square",
-					"square"
-				]),
+				"shape": String$2.annotate({ "description": "Known values: round, rounded-square, square." }),
 				"initial": String$2,
 				"url": Union([String$2, Null])
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
@@ -38299,54 +38294,54 @@ const ActivityTotalsView = StructWithRest(Struct({
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityTotalsView" });
 const SubmitCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "SubmitCommand" });
 const SubmitForContributorCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "SubmitForContributorCommand" });
 const CancelSubmissionCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CancelSubmissionCommand" });
 const SubmitCorrectionCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "SubmitCorrectionCommand" });
 const ValidateCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "ValidateCommand" });
 const CancelValidationCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CancelValidationCommand" });
 const RejectCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "RejectCommand" });
 const CancelRejectionCommand = Struct({
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
 }).annotate({ "identifier": "CancelRejectionCommand" });
 const ListDayTasksQuery = Struct({
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null returns every task the days are made of, including those the resource is no longer assigned to but still has entries or a day task on." })),
 	"date_range": String$2.annotate({ "format": "local-date-interval" }),
 	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"is_own": Boolean
@@ -38355,27 +38350,19 @@ const DayTaskView = StructWithRest(Struct({
 	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"task_id": String$2.annotate({ "format": "snowflake" }),
 	"date": String$2.annotate({ "format": "local-date" }),
-	"actor_id": String$2.annotate({ "format": "snowflake" }),
+	"actor_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
 	"status": Literals([
 		"editing",
 		"submitted",
 		"validated",
 		"rejected"
 	]),
-	"at": String$2.annotate({ "format": "zoned-date-time" }),
+	"at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
 	"remark": Union([String$2, Null]),
 	"validator_remark": Union([String$2, Null]),
 	"editable": Boolean,
-	"enabled_transitions": ArraySchema(Literals([
-		"submit",
-		"submit-for-contributor",
-		"cancel-submission",
-		"submit-correction",
-		"validate",
-		"cancel-validation",
-		"reject",
-		"cancel-rejection"
-	]))
+	"virtual": Boolean.annotate({ "title": "True when the day task has no record of its own and carries the status of its day." }),
+	"enabled_transitions": ArraySchema(String$2.annotate({ "description": "Known values: submit, submit-for-contributor, cancel-submission, submit-correction, validate, cancel-validation, reject, cancel-rejection." }))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DayTaskView" });
 const ListWorkRegimesQuery = Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "identifier": "ListWorkRegimesQuery" });
 const WorkRegimesView = StructWithRest(Struct({ "work_regimes": ArraySchema(StructWithRest(Struct({
@@ -38475,11 +38462,10 @@ const AssignResourceTeamCommand = Struct({
 		"default": false
 	}))
 }).annotate({ "identifier": "AssignResourceTeamCommand" });
-const ResourceTeamWarningType = Literals([
-	"assign-conflicting-resource-teams",
-	"unassign-remove-all-resource-teams",
-	"unassign-conflicting-resource-teams"
-]).annotate({ "identifier": "ResourceTeamWarningType" });
+const ResourceTeamWarningType = String$2.annotate({
+	"description": "Known values: assign-conflicting-resource-teams, unassign-remove-all-resource-teams, unassign-conflicting-resource-teams.",
+	"identifier": "ResourceTeamWarningType"
+});
 const ResourceTeamAssignWarningDetails = StructWithRest(Struct({
 	"modifications": ArraySchema(StructWithRest(Struct({
 		"team_id": String$2.annotate({ "format": "snowflake" }),
@@ -38555,13 +38541,13 @@ const DisableTeamCommand = Struct({ "id": String$2.annotate({ "format": "snowfla
 const ListResourcesQuery = Struct({
 	"kind_id": String$2.annotate({
 		"format": "snowflake",
-		"description": "Only the \"employee\" kind is available at the moment."
+		"description": "The id of a kind from kinds_list: the 'employee' kind lists people, the 'integration' kind the API integrations."
 	}),
 	"at_date": optionalKey(String$2.annotate({
 		"format": "local-date",
 		"description": "If you do not specify a date, today's date will be used."
 	})),
-	"attributes": optionalKey(ArraySchema(String$2).annotate({ "description": "Several filters can be used to narrow down the search (except for activity rate). Correct filter types should be used based on the data type of the attribute. The 'api/directory/kinds.show' endpoint gives you information about attribute types and whether you can filter or order them." })),
+	"attributes": optionalKey(ArraySchema(String$2).annotate({ "description": "Several filters can be used to narrow down the search (except for activity rate). Correct filter types should be used based on the data type of the attribute. The kinds_show tool gives you information about attribute types and whether you can filter or order them." })),
 	"with_teams": optionalKey(Boolean.annotate({
 		"description": "Will give additional information about the team they are assigned to at the date provided.",
 		"default": false
@@ -38798,11 +38784,7 @@ const ResourceListView = StructWithRest(Struct({
 		"short_label": String$2,
 		"sort_label": String$2,
 		"picture": StructWithRest(Struct({
-			"shape": Literals([
-				"round",
-				"rounded-square",
-				"square"
-			]),
+			"shape": String$2.annotate({ "description": "Known values: round, rounded-square, square." }),
 			"initial": String$2,
 			"url": Union([String$2, Null])
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
@@ -38834,24 +38816,7 @@ const KindView = StructWithRest(Struct({
 	"attributes": ArraySchema(StructWithRest(Struct({
 		"attribute": StructWithRest(Struct({
 			"id": String$2,
-			"content_type": Literals([
-				"text/address",
-				"text/avs",
-				"boolean/plain",
-				"date/plain",
-				"date-time/plain",
-				"decimal/plain",
-				"duration/plain",
-				"text/email",
-				"enum/plain",
-				"id/plain",
-				"integer/plain",
-				"text/multiline",
-				"percentage/plain",
-				"text/phone",
-				"text/regrouping",
-				"text/plain"
-			]),
+			"content_type": String$2.annotate({ "description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, month-day/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain." }),
 			"label": Struct({
 				"fr": optionalKey(String$2),
 				"en": optionalKey(String$2),
@@ -38860,59 +38825,14 @@ const KindView = StructWithRest(Struct({
 			"choices": Union([StructWithRest(Struct({
 				"values": Union([Record(String$2, String$2), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 				"strict": Boolean,
-				"input_type": Literals([
-					"select",
-					"combobox",
-					"radio"
-				])
+				"input_type": String$2.annotate({ "description": "Known values: select, combobox, radio." })
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-			"icon": Union([Literals([
-				"email",
-				"phone",
-				"mobile-phone",
-				"address",
-				"description",
-				"external-id",
-				"job",
-				"company",
-				"is-company",
-				"civility",
-				"first-name",
-				"last-name",
-				"joining-date",
-				"website"
-			]), Null], { mode: "oneOf" }),
-			"type": Literals([
-				"boolean",
-				"date",
-				"date-time",
-				"decimal",
-				"duration",
-				"enum",
-				"id",
-				"int",
-				"percentage",
-				"string"
-			]),
-			"format": Union([Literals([
-				"avs",
-				"email",
-				"phone",
-				"address"
-			]), Null], { mode: "oneOf" })
+			"icon": Union([String$2.annotate({ "description": "Known values: email, phone, mobile-phone, address, description, external-id, job, company, is-company, civility, first-name, last-name, joining-date, website." }), Null], { mode: "oneOf" }),
+			"type": String$2.annotate({ "description": "Known values: boolean, date, date-time, decimal, duration, enum, id, int, percentage, string." }),
+			"format": Union([String$2.annotate({ "description": "Known values: avs, email, phone, address." }), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		"classification_level": Literals([
-			"unclassified",
-			"internal",
-			"confidential",
-			"secret"
-		]),
-		"access_level": Literals([
-			"none",
-			"read-own",
-			"read",
-			"write"
-		]),
+		"classification_level": String$2.annotate({ "description": "Known values: unclassified, internal, confidential, secret." }),
+		"access_level": String$2.annotate({ "description": "Known values: none, read-own, read, write." }),
 		"searchable": Boolean,
 		"sortable": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
@@ -38928,29 +38848,14 @@ const KindView = StructWithRest(Struct({
 			"en": optionalKey(String$2),
 			"de": optionalKey(String$2)
 		}),
-		"classification_level": Literals([
-			"unclassified",
-			"internal",
-			"confidential",
-			"secret"
-		]),
-		"access_level": Literals([
-			"none",
-			"read-own",
-			"read",
-			"write"
-		]),
+		"classification_level": String$2.annotate({ "description": "Known values: unclassified, internal, confidential, secret." }),
+		"access_level": String$2.annotate({ "description": "Known values: none, read-own, read, write." }),
 		"inverse": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"sections": ArraySchema(StructWithRest(Struct({
 		"id": String$2,
 		"label": String$2,
-		"classification_level": Literals([
-			"unclassified",
-			"internal",
-			"confidential",
-			"secret"
-		]),
+		"classification_level": String$2.annotate({ "description": "Known values: unclassified, internal, confidential, secret." }),
 		"attribute_ids": ArraySchema(String$2),
 		"relation_type_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
@@ -39015,6 +38920,16 @@ const ResourceTeamView = StructWithRest(Struct({
 		Null
 	])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamView" });
+const ListResourcesRolesQuery = Struct({
+	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+	"role_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })))
+}).annotate({ "identifier": "ListResourcesRolesQuery" });
+const ResourceRoleView = StructWithRest(Struct({
+	"resource_id": String$2.annotate({ "format": "snowflake" }),
+	"role_id": String$2.annotate({ "format": "snowflake" }),
+	"is_assigned": Boolean,
+	"team_ids": Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceRoleView" });
 const ShowResourceActivityRatesQuery = Struct({
 	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" }))
@@ -39594,11 +39509,7 @@ const ScheduleTemplateView260625 = StructWithRest(Struct({
 			"de": optionalKey(String$2)
 		}),
 		"machine_name": String$2,
-		"display_mode": Literals([
-			"normal",
-			"hour",
-			"corner"
-		]),
+		"display_mode": String$2.annotate({ "description": "Known values: normal, hour, corner." }),
 		"is_on_call": Boolean
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
 	"color": String$2,
@@ -39665,11 +39576,7 @@ const ScheduleTemplateTypeView260625 = StructWithRest(Struct({
 		"de": optionalKey(String$2)
 	}),
 	"machine_name": String$2,
-	"display_mode": Literals([
-		"normal",
-		"hour",
-		"corner"
-	]),
+	"display_mode": String$2.annotate({ "description": "Known values: normal, hour, corner." }),
 	"is_on_call": Boolean
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateTypeView260625" });
 const ProposeTimecheckCommand = Struct({
@@ -39726,12 +39633,7 @@ const TimecheckView = StructWithRest(Struct({
 	}), Null], { mode: "oneOf" }),
 	"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
 	"expected_time_range": String$2.annotate({ "format": "local-date-time-interval" }),
-	"type": Literals([
-		"device",
-		"adjusted",
-		"proposal",
-		"validation"
-	]),
+	"type": String$2.annotate({ "description": "Known values: device, adjusted, proposal, validation." }),
 	"color": String$2,
 	"device": StructWithRest(Struct({
 		"in": Union([StructWithRest(Struct({
@@ -39884,6 +39786,8 @@ const PostAppUiApiDirectoryDirectoryqueryShowteamRequestJson = ShowTeamQuery;
 const PostAppUiApiDirectoryDirectoryqueryShowteam200 = TeamShowView;
 const PostAppUiApiDirectoryDirectoryqueryResourceteamsshowRequestJson = ShowResourceTeamsQuery;
 const PostAppUiApiDirectoryDirectoryqueryResourceteamsshow200 = ArraySchema(ResourceTeamView);
+const PostAppUiApiDirectoryDirectoryqueryListresourcesrolesRequestJson = ListResourcesRolesQuery;
+const PostAppUiApiDirectoryDirectoryqueryListresourcesroles200 = ArraySchema(ResourceRoleView);
 const PostAppUiApiDirectoryDirectoryqueryResourceactivityratesshowRequestJson = ShowResourceActivityRatesQuery;
 const PostAppUiApiDirectoryDirectoryqueryResourceactivityratesshow200 = ArraySchema(ActivityRateView);
 const PostAppUiApiDirectoryDirectoryqueryListtagsRequestJson = ListTagsQuery;
@@ -40079,7 +39983,7 @@ var DirectoryGroup = class extends make$12("Directory").add(post("postAppUiApiDi
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindslist").annotate(Summary, "List").annotate(Description, "Retrieves all kinds of possible resources. The 'integration' kind lists the API integrations, including the one this key belongs to."), post("postAppUiApiDirectoryDirectoryqueryKindsshow", "/api/directory/kinds.show", {
 	payload: PostAppUiApiDirectoryDirectoryqueryKindsshowRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryKindsshow200
-}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindsshow").annotate(Summary, "Show").annotate(Description, "Retrieves a specific kind with its attributes. Regarding attributes, while using 'api/directory/resources.list', 'searchable' refers to whether you can apply a filter to it or not (according to the filter type) and 'sortable' refers to 'orders'."), post("postAppUiApiDirectoryDirectoryqueryTeamslist", "/api/directory/teams.list", {
+}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_kindsshow").annotate(Summary, "Show").annotate(Description, "Retrieves a specific kind with its attributes. Regarding attributes, while using resources_list, 'searchable' refers to whether you can apply a filter to it or not (according to the filter type) and 'sortable' refers to 'orders'."), post("postAppUiApiDirectoryDirectoryqueryTeamslist", "/api/directory/teams.list", {
 	payload: PostAppUiApiDirectoryDirectoryqueryTeamslistRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryTeamslist200
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_teamslist").annotate(Summary, "List").annotate(Description, "Teams represent either the instance, a site or a sector"), post("postAppUiApiDirectoryDirectoryqueryShowteam", "/api/directory/teams.show", {
@@ -40088,7 +39992,10 @@ var DirectoryGroup = class extends make$12("Directory").add(post("postAppUiApiDi
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_showteam").annotate(Summary, "Show").annotate(Description, "Retrieves detailed information for a specific team."), post("postAppUiApiDirectoryDirectoryqueryResourceteamsshow", "/api/directory/resources.show-teams", {
 	payload: PostAppUiApiDirectoryDirectoryqueryResourceteamsshowRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryResourceteamsshow200
-}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_resourceteamsshow").annotate(Summary, "Show teams").annotate(Description, "Retrieves team assignations for a specific resource."), post("postAppUiApiDirectoryDirectoryqueryResourceactivityratesshow", "/api/directory/resources.show-activity-rates", {
+}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_resourceteamsshow").annotate(Summary, "Show teams").annotate(Description, "Retrieves team assignations for a specific resource."), post("postAppUiApiDirectoryDirectoryqueryListresourcesroles", "/api/directory/resources.list-roles", {
+	payload: PostAppUiApiDirectoryDirectoryqueryListresourcesrolesRequestJson,
+	success: PostAppUiApiDirectoryDirectoryqueryListresourcesroles200
+}).annotate(Identifier, "post_app_ui_api_directory_directoryquery_listresourcesroles").annotate(Summary, "List roles").annotate(Description, "Retrieves all resource role associations you are allowed to view."), post("postAppUiApiDirectoryDirectoryqueryResourceactivityratesshow", "/api/directory/resources.show-activity-rates", {
 	payload: PostAppUiApiDirectoryDirectoryqueryResourceactivityratesshowRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryResourceactivityratesshow200
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_resourceactivityratesshow").annotate(Summary, "Show activity rates").annotate(Description, "Retrieves activity rate periods for a specific resource, including activity rate patterns (per weekday) and associated or inherited work regimes."), post("postAppUiApiDirectoryDirectoryqueryListtags", "/api/directory/tags.list", {
@@ -40099,7 +40006,7 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 	payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson,
 	success: Empty(201),
 	error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(status(409))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. Tipee answers with no body: read the day back with schedules.list to get the id of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. Tipee answers with no body: read the day back with schedules_list to get the id of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson,
 	success: Empty(204),
 	error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(status(409))
@@ -40153,7 +40060,7 @@ var TimeclockGroup = class extends make$12("Timeclock").add(post("postAppUiApiTi
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockcommand_deletetimecheck").annotate(Summary, "Delete").annotate(Description, "Deletes a timecheck."), post("postAppUiApiTimeclockTimeclockqueryListtimechecks", "/api/timeclock/timechecks.list", {
 	payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson,
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
-}).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids).<br />Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
+}).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
 var Tipee = class extends make$14("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 //#endregion
 //#region ../../packages/core/src/Rights.ts
@@ -51031,6 +50938,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 			instance: config.instance,
 			node_version: version,
 			os: platform,
+			tipee_api_version: TIPEE_API_VERSION,
 			...base
 		};
 		const properties = (own) => ({

@@ -13,6 +13,7 @@ import {
   INTEGRATION_KIND_ID,
   absences,
   activityRates,
+  dayTasks,
   integrations,
   kinds,
   onCalls,
@@ -66,6 +67,12 @@ const ListByDateQuery = Schema.Struct({
 const ListOnCallsQuery = Schema.Struct({
   ...ListByDateQuery.fields,
   team_ids: Schema.optionalKey(Ids),
+});
+const ListDayTasksQuery = Schema.Struct({
+  date_range: DateRange,
+  is_own: Schema.Boolean,
+  resource_ids: Ids,
+  task_ids: Schema.optionalKey(Schema.NullOr(Ids)),
 });
 const ShowActivityRatesQuery = Schema.Struct({
   date_range: Schema.optionalKey(DateRange),
@@ -265,6 +272,9 @@ export const handlers = [
         (duty) => team_ids === undefined || team_ids.includes(duty.row.team_id),
       ),
     ),
+  ),
+  endpoint('/api/activity/day-tasks.list', ListDayTasksQuery, ({ resource_ids }) =>
+    rawOf(forPeople(dayTasks, resource_ids)),
   ),
   endpoint('/api/directory/resources.show-activity-rates', ShowActivityRatesQuery, (query) =>
     rawOf(people.some((person) => person.row.id === query.resource_id) ? activityRates : []),

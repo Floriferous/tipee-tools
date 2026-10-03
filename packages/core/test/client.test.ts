@@ -50,6 +50,20 @@ layer(TestClient)('TipeeClient', (it) => {
       }),
     );
 
+    // Tipee added month-day/plain inside 26.06.25: a content type the
+    // Document does not list yet must not fail the whole kind.
+    it.effect('shows a kind whose attributes include a month-day', () =>
+      Effect.gen(function* () {
+        const kind = (yield* call('kinds_show', { id: EMPLOYEE_KIND_ID })) as {
+          attributes: ReadonlyArray<{ attribute: { content_type: string } }>;
+        };
+
+        expect(kind.attributes.map((entry) => entry.attribute.content_type)).toContain(
+          'month-day/plain',
+        );
+      }),
+    );
+
     it.effect('decodes a delete whose failed map is empty', () =>
       Effect.gen(function* () {
         const result = (yield* call('schedules_delete', {
@@ -118,6 +132,20 @@ layer(TestClient)('TipeeClient', (it) => {
 
         expect(all.length).toBeGreaterThan(alice.length);
         expect(alice.every((shift) => shift.resource_id === ALICE)).toBe(true);
+      }),
+    );
+
+    // A virtual day task has no record of its own: no actor, no timestamp.
+    it.effect('lists day tasks, virtual ones included', () =>
+      Effect.gen(function* () {
+        const tasks = (yield* call('day_tasks_list', {
+          date_range: WEEK,
+          is_own: false,
+          resource_ids: [ALICE],
+        })) as ReadonlyArray<{ actor_id: string | null; at: string | null; virtual: boolean }>;
+
+        expect(tasks.map((task) => task.virtual)).toEqual([false, true]);
+        expect(tasks[1]).toMatchObject({ actor_id: null, at: null });
       }),
     );
 

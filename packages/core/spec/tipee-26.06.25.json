@@ -1247,6 +1247,62 @@
         "x-latest-version": "26.06.25"
       }
     },
+    "/api/directory/resources.grant-roles": {
+      "post": {
+        "tags": ["Directory"],
+        "summary": "Grant roles",
+        "description": "Grants role access, optionally scoped to teams (additive operation). Only resources whose kind supports roles (employees and integrations) can be granted one.",
+        "operationId": "post_app_ui_api_directory_directorycommand_grantresourcesroles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantResourcesRolesCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Resource roles granted."
+          }
+        },
+        "x-mint": {
+          "metadata": {
+            "tag": "new"
+          }
+        },
+        "x-latest-version": "26.06.25"
+      }
+    },
+    "/api/directory/resources.revoke-roles": {
+      "post": {
+        "tags": ["Directory"],
+        "summary": "Revoke roles",
+        "description": "Revokes role access, or narrows its team scope (see \"team_ids\"). Only resources whose kind supports roles (employees and integrations) can have one revoked. The role that defines the kind of a resource can only have its teams revoked, never the role itself. Revoking a role, or a team, that such a resource does not have changes nothing.",
+        "operationId": "post_app_ui_api_directory_directorycommand_revokeresourcesroles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeResourcesRolesCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Resource roles revoked."
+          }
+        },
+        "x-mint": {
+          "metadata": {
+            "tag": "new"
+          }
+        },
+        "x-latest-version": "26.06.25"
+      }
+    },
     "/api/directory/teams.create": {
       "post": {
         "tags": ["Directory"],
@@ -1562,6 +1618,44 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ResourceTeamView"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-mint": {
+          "metadata": {
+            "tag": "new"
+          }
+        },
+        "x-latest-version": "26.06.25"
+      }
+    },
+    "/api/directory/resources.list-roles": {
+      "post": {
+        "tags": ["Directory"],
+        "summary": "List roles",
+        "description": "Retrieves all resource role associations you are allowed to view.",
+        "operationId": "post_app_ui_api_directory_directoryquery_listresourcesroles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListResourcesRolesQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceRoleView"
                   }
                 }
               }
@@ -3341,8 +3435,10 @@
           "seniority",
           "joining_date",
           "departure_date",
+          "source",
           "activity_rate",
           "schedule_period",
+          "schedule_period_start",
           "work_regime",
           "weekly_worked_hours",
           "holiday_regime",
@@ -3380,13 +3476,14 @@
         "x-enum-varnames": ["Employee", "Resident", "Client", "Thing", "Extern", "Integration"]
       },
       "CancelRejectionCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -3405,13 +3502,14 @@
         "type": "object"
       },
       "CancelSubmissionCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -3430,13 +3528,14 @@
         "type": "object"
       },
       "CancelValidationCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -3505,6 +3604,7 @@
           "enum/plain",
           "id/plain",
           "integer/plain",
+          "month-day/plain",
           "text/multiline",
           "percentage/plain",
           "text/phone",
@@ -3523,6 +3623,7 @@
           "Enum",
           "Id",
           "Integer",
+          "MonthDay",
           "Multiline",
           "Percentage",
           "Phone",
@@ -4007,6 +4108,7 @@
           "remark",
           "validator_remark",
           "editable",
+          "virtual",
           "enabled_transitions"
         ],
         "properties": {
@@ -4020,13 +4122,27 @@
             "$ref": "#/components/schemas/LocalDate"
           },
           "actor_id": {
-            "$ref": "#/components/schemas/Snowflake"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Snowflake"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/DayTaskStatus"
           },
           "at": {
-            "$ref": "#/components/schemas/Instant"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Instant"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "remark": {
             "type": ["string", "null"]
@@ -4035,6 +4151,10 @@
             "type": ["string", "null"]
           },
           "editable": {
+            "type": "boolean"
+          },
+          "virtual": {
+            "title": "True when the day task has no record of its own and carries the status of its day.",
             "type": "boolean"
           },
           "enabled_transitions": {
@@ -4417,6 +4537,28 @@
             "items": {
               "$ref": "#/components/schemas/ProjectAccessRights"
             }
+          }
+        },
+        "type": "object"
+      },
+      "GrantResourcesRolesCommand": {
+        "required": ["resource_ids", "role_ids"],
+        "properties": {
+          "resource_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
+          },
+          "team_ids": {
+            "$ref": "#/components/schemas/TeamList",
+            "description": "Omitting it, or sending an empty array, grants a bare role (on no team) on a new assignment and leaves the teams of an existing one untouched. Sending \"*\" scopes the role to every team, which supersedes the teams already granted. A disabled team is rejected: it is no target for a role."
           }
         },
         "type": "object"
@@ -4811,10 +4953,11 @@
         ]
       },
       "ListDayTasksQuery": {
-        "required": ["task_ids", "date_range", "resource_ids", "is_own"],
+        "required": ["date_range", "resource_ids", "is_own"],
         "properties": {
           "task_ids": {
-            "type": "array",
+            "title": "Null returns every task the days are made of, including those the resource is no longer assigned<br />to but still has entries or a day task on.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -5470,6 +5613,20 @@
             "properties": {
               "key": {
                 "type": "string",
+                "example": "task.in_activity_day",
+                "enum": ["task.in_activity_day"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/ResourceDateRangeValue"
+              }
+            },
+            "type": "object"
+          },
+          {
+            "required": ["key", "value"],
+            "properties": {
+              "key": {
+                "type": "string",
                 "example": "task.billable",
                 "enum": ["task.billable"]
               },
@@ -5707,6 +5864,20 @@
               },
               "value": {
                 "$ref": "#/components/schemas/ProjectAccessRightsValue"
+              }
+            },
+            "type": "object"
+          },
+          {
+            "required": ["key", "value"],
+            "properties": {
+              "key": {
+                "type": "string",
+                "example": "project.assignable_for",
+                "enum": ["project.assignable_for"]
+              },
+              "value": {
+                "$ref": "#/components/schemas/Snowflake"
               }
             },
             "type": "object"
@@ -6114,6 +6285,24 @@
             "type": "object"
           }
         ]
+      },
+      "ListResourcesRolesQuery": {
+        "required": ["resource_ids"],
+        "properties": {
+          "resource_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
+          }
+        },
+        "type": "object"
       },
       "ListScheduleTemplateTypesQuery260625": {
         "properties": {
@@ -7072,13 +7261,14 @@
         "enum": ["resource", "team"]
       },
       "RejectCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -7195,6 +7385,24 @@
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
+          }
+        },
+        "type": "object"
+      },
+      "ResourceRoleView": {
+        "required": ["resource_id", "role_id", "is_assigned", "team_ids"],
+        "properties": {
+          "resource_id": {
+            "$ref": "#/components/schemas/Snowflake"
+          },
+          "role_id": {
+            "$ref": "#/components/schemas/Snowflake"
+          },
+          "is_assigned": {
+            "type": "boolean"
+          },
+          "team_ids": {
+            "$ref": "#/components/schemas/TeamList"
           }
         },
         "type": "object"
@@ -7434,6 +7642,28 @@
             "items": {
               "$ref": "#/components/schemas/ResourceRelationSummaryView"
             }
+          }
+        },
+        "type": "object"
+      },
+      "RevokeResourcesRolesCommand": {
+        "required": ["resource_ids", "role_ids"],
+        "properties": {
+          "resource_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
+          },
+          "role_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
+          },
+          "team_ids": {
+            "$ref": "#/components/schemas/TeamList",
+            "description": "Teams to revoke from the role. Omitting it removes the role from the resources entirely. Sending \"*\" revokes every team and keeps the role assigned on no team, as does revoking its last remaining teams. Revoking specific teams from a role held on \"*\" turns it into the explicit list of the remaining enabled teams, which no longer follows the teams created afterwards. An empty array is rejected."
           }
         },
         "type": "object"
@@ -8164,13 +8394,14 @@
         ]
       },
       "SubmitCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -8189,13 +8420,14 @@
         "type": "object"
       },
       "SubmitCorrectionCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -8214,13 +8446,14 @@
         "type": "object"
       },
       "SubmitForContributorCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }
@@ -9375,13 +9608,14 @@
         "type": "object"
       },
       "ValidateCommand": {
-        "required": ["date_range", "task_ids", "resource_ids"],
+        "required": ["date_range", "resource_ids"],
         "properties": {
           "date_range": {
             "$ref": "#/components/schemas/LocalDateInterval"
           },
           "task_ids": {
-            "type": "array",
+            "title": "Null applies the transition to the day as a whole, covering every task it is made of.",
+            "type": ["array", "null"],
             "items": {
               "$ref": "#/components/schemas/Snowflake"
             }

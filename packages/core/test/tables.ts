@@ -17,7 +17,8 @@ export const PersonRow = Schema.Struct({
   attributes: Schema.Struct({ last_name: Schema.String }),
   teams: Schema.optionalKey(Schema.Array(Schema.Struct({ id: Schema.String }))),
 });
-const ByResource = Schema.Struct({ ...Row.fields, resource_id: Schema.String });
+const ForResource = Schema.Struct({ resource_id: Schema.String });
+const ByResource = Schema.Struct({ ...Row.fields, ...ForResource.fields });
 const OnCallRow = Schema.Struct({ ...ByResource.fields, team_id: Schema.String });
 const AnyRow = Schema.Struct({});
 
@@ -44,6 +45,7 @@ export const shifts = load(ByResource, 'shifts');
 export const absences = load(ByResource, 'absences');
 export const onCalls = load(OnCallRow, 'on-calls');
 export const activityRates = load(AnyRow, 'activity-rates');
+export const dayTasks = load(ForResource, 'day-tasks');
 
 const employeeKind = kinds.find((kind) => kind.row.machine_name === 'employee');
 if (employeeKind === undefined) {
