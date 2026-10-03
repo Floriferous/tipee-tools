@@ -83,6 +83,8 @@ jobs:
       - name: Setup the oldest supported Node
         uses: actions/setup-node@v7
         with:
+          # Pinned on purpose to the floor in pack-mcpb.ts; renovate.json keeps
+          # it there, and it moves only when that floor does.
           node-version: '22.19.0'
 
       - name: Smoke-test the bundle
