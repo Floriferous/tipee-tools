@@ -29,6 +29,12 @@
       "description": "Node types follow the Node 24 runtime pinned in .node-version.",
       "matchPackageNames": ["@types/node"],
       "allowedVersions": "24.x"
+    },
+    {
+      "description": "The smoke test runs on the oldest Node the extension declares (runtimes.node in plugins/tipee/scripts/pack-mcpb.ts): it moves only when that floor does.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["node"],
+      "enabled": false
     }
   ]
 }
