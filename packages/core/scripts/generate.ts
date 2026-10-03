@@ -182,8 +182,9 @@ for (const [name, schema] of Object.entries(document.components.schemas)) {
   }
 }
 
-// Request bodies reject unknown keys. This also makes the generated request
-// Schemas plain structs, whose JSON Schema is a third shorter.
+// Closed request objects make the generated request schemas plain structs,
+// Whose JSON Schema is a third shorter. They do not refuse unknown keys on
+// Their own (decoding drops them): the MCP tools are strict, which does.
 const visited = new Set<string>();
 const closeObjects = (node: Schema | undefined, at: string): void => {
   if (node === undefined) {
