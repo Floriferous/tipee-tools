@@ -9,17 +9,6 @@
   "sortPackageJson": {
     "sortScripts": true,
   },
-  "ignorePatterns": [
-    ".git/**",
-    "**/.git/**",
-    "node_modules/**",
-    "**/node_modules/**",
-    "dist/**",
-    "**/dist/**",
-    ".claude/**",
-    "**/.claude/**",
-    "plugins/tipee/server/**",
-    "packages/*/src/generated/**",
-    "opensrc/**",
-  ],
+  // Generated files; oxfmt already skips node_modules and what git ignores.
+  "ignorePatterns": ["plugins/tipee/server/**", "packages/*/src/generated/**"],
 }

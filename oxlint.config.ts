@@ -14,14 +14,8 @@ export default defineConfig({
     es6: true,
     node: true,
   },
-  ignorePatterns: [
-    '.git/**',
-    '**/node_modules/**',
-    '**/dist/**',
-    'plugins/*/server/**',
-    'packages/*/src/generated/**',
-    'opensrc/**',
-  ],
+  // Generated files; oxlint already skips node_modules and what git ignores.
+  ignorePatterns: ['plugins/*/server/**', 'packages/*/src/generated/**'],
   overrides: [
     {
       // Build-tool configs run in Node and are the one place `process.env` belongs.
