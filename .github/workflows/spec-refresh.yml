@@ -3,8 +3,8 @@ name: Spec refresh
 # Every Monday morning (UTC), brings Tipee's OpenAPI document up to date with
 # `pnpm spec:refresh` and, when anything changed, opens or updates one PR with
 # the summary as its body and the version bumped. That PR is the alert: review
-# the summary and the diff, merge, release. A broken run is reported by
-# GitHub's failure email.
+# the summary and the diff, and merge, which releases it. A broken run is
+# reported by GitHub's failure email.
 on:
   schedule:
     - cron: '23 6 * * 1'

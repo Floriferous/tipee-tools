@@ -1,5 +1,7 @@
 name: Verify
 
+# Checks every pull request and every push to main. On main, a version that
+# has no tag yet is then released, from the very bytes verify tested.
 on:
   pull_request:
   push:
@@ -9,10 +11,11 @@ on:
 permissions:
   contents: read
 
-# One run per branch: a new push cancels the previous run of the same ref.
+# One run per branch: a new push to a pull request cancels its previous run;
+# runs on main always finish, so that no release is cut short.
 concurrency:
   group: verify-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
@@ -22,11 +25,36 @@ jobs:
     name: Verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      version: ${{ steps.drift.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      # Claude Code installs from main and caches the plugin by version: a
+      # change to what ships under a version already released never reaches
+      # existing installs. An untagged version is a pending release and passes.
+      - name: Check plugins/tipee against its released version
+        id: drift
+        run: |
+          set -euo pipefail
+          v=$(jq -r .version plugins/tipee/.claude-plugin/plugin.json)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          # ls-remote exits 2 when the tag does not exist.
+          tagged=0
+          git ls-remote --exit-code --tags origin "refs/tags/v$v" > /dev/null || tagged=$?
+          if [ "$tagged" = 2 ]; then
+            exit 0
+          elif [ "$tagged" != 0 ]; then
+            exit "$tagged"
+          fi
+          git fetch --depth=1 --no-tags origin "refs/tags/v$v:refs/tags/v$v"
+          if ! git diff --quiet "v$v" HEAD -- plugins/tipee/server plugins/tipee/skills plugins/tipee/.mcp.json plugins/tipee/.claude-plugin; then
+            echo "::error::plugins/tipee differs from released v$v: bump plugin.json and SERVER_VERSION, or existing installs never get this change"
+            exit 1
+          fi
 
       # No version pinned here on purpose: the action reads the `packageManager`
       # field in package.json, so the version only has to be bumped in one place.
@@ -60,11 +88,57 @@ jobs:
       - name: Smoke-test the bundle
         run: node plugins/tipee/scripts/smoke.ts
 
-      # The Claude Desktop extension built by `pnpm verify`, downloadable from
-      # the run to try a branch before it is released.
+      # The Claude Desktop extension built by `pnpm verify`: downloadable from
+      # the run to try a branch, and the file the release job publishes.
       - name: Upload the Claude Desktop extension
         uses: actions/upload-artifact@v7
         with:
           name: tipee-mcpb
           path: plugins/tipee/dist/*.mcpb
           if-no-files-found: error
+
+  # Merging a version bump publishes it: the tag, and the extension verify
+  # tested, byte for byte. A version already tagged has nothing to release.
+  release:
+    name: Release
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - name: Download the Claude Desktop extension
+        uses: actions/download-artifact@v8
+        with:
+          name: tipee-mcpb
+          path: dist
+
+      # Frozen: every installed 0.3.x update tool downloads
+      # v<version>/SHA256SUMS and v<version>/tipee-<version>.mcpb, and reads
+      # the sums as sha256sum's "<hash>  <file>" lines; the README's download
+      # link resolves to tipee.mcpb on the latest release. Renaming any of
+      # them breaks updates for everyone already installed.
+      - name: Publish the release
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          # ls-remote exits 2 when the tag does not exist.
+          tagged=0
+          git ls-remote --exit-code --tags "https://github.com/$GH_REPO" "refs/tags/v$VERSION" > /dev/null || tagged=$?
+          if [ "$tagged" = 0 ]; then
+            echo "v$VERSION is already released."
+            exit 0
+          elif [ "$tagged" != 2 ]; then
+            exit "$tagged"
+          fi
+          cp "tipee-$VERSION.mcpb" tipee.mcpb
+          sha256sum "tipee-$VERSION.mcpb" tipee.mcpb > SHA256SUMS
+          gh release create "v$VERSION" "tipee-$VERSION.mcpb" tipee.mcpb SHA256SUMS \
+            --target "$GITHUB_SHA" \
+            --title "Tipee for Claude $VERSION" \
+            --generate-notes

@@ -21,7 +21,7 @@ tipee-tools/
 │       └── scripts/pack-mcpb.ts         # Claude Desktop manifest and .mcpb
 ├── .claude-plugin/marketplace.json      # lists ./plugins/tipee: the repo is the marketplace
 ├── .claude/skills/                      # contributor skills: tipee, effect-v4
-└── .github/workflows/                   # verify.yml, release.yml, spec-refresh.yml
+└── .github/workflows/                   # verify.yml (checks, then releases), spec-refresh.yml
 ```
 
 ## Why Effect 4
@@ -123,18 +123,19 @@ system's certificates where a network inspects HTTPS. Contributors use Node
 - Every package is tested against the MSW fake of Tipee in
   `@tipee-tools/core/testing`, which enforces Tipee's real rules.
 - `@effect/tsgo` adds Effect diagnostics to `tsc`, oxlint and the editor;
-  Renovate proposes weekly updates, and pnpm refuses versions younger than a
-  day, trust downgrades and exotic transitive sources.
+  Renovate proposes weekly npm and Actions updates, and pnpm refuses versions
+  younger than a day, trust downgrades and exotic transitive sources.
 
 ## Releases
 
-`main` is the Claude Code channel, and Claude Code installs a new plugin only
-when its version changes. So a change to what ships (the bundle, the skill,
-`.mcp.json`, the manifest) bumps `plugin.json` and `SERVER_VERSION` together.
-Pushing the tag `v<version>` runs `release.yml`, which refuses a tag that
-differs from both, builds the `.mcpb` and publishes it as
-`tipee-<version>.mcpb` and `tipee.mcpb` with `SHA256SUMS`, names every
-installed update tool relies on. A broken release is fixed by a new patch.
+`main` is the Claude Code channel, which updates a plugin only when its
+version changes. A PR that changes what ships (the bundle, the skill,
+`.mcp.json`, the manifest) bumps `plugin.json` and `SERVER_VERSION`, Renovate
+and spec-refresh PRs included, and CI fails it otherwise once that version is
+tagged. Merging a bump publishes the release: `verify.yml` tags `v<version>`
+and uploads the `.mcpb` it tested as `tipee-<version>.mcpb` and `tipee.mcpb`
+with `SHA256SUMS`, names every installed update tool relies on. A broken
+release is fixed by a new patch; [SECURITY.md](SECURITY.md) covers reporting.
 
 ## Not planned, and what would change that
 
