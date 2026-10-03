@@ -1,8 +1,11 @@
 // Shared by the core tests: a client for the fake Tipee, and one-off answers
 // To make it fail the way the real one does.
 
-import { Effect, Layer, Redacted } from 'effect';
+import { setImmediate } from 'node:timers/promises';
+
+import { Effect, Fiber, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
+import { TestClock } from 'effect/testing';
 import { HttpResponse, http } from 'msw';
 import type { HttpHandler } from 'msw';
 
@@ -73,3 +76,17 @@ export const call = (
 export const failure = <A, R>(
   effect: Effect.Effect<A, TipeeError, R>,
 ): Effect.Effect<TipeeError, A, R> => Effect.flip(effect);
+
+// Runs an effect whose retries sleep on the test clock. MSW answers `fetch`
+// On the real event loop, so a single `TestClock.adjust` can pass before a
+// Retry's sleep is even scheduled: let real I/O run, then step the clock,
+// Until the effect is done.
+export const settled = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
+  Effect.gen(function* () {
+    const fiber = yield* Effect.forkChild(effect);
+    while (fiber.pollUnsafe() === undefined) {
+      yield* Effect.promise(async () => setImmediate());
+      yield* TestClock.adjust('1 second');
+    }
+    return yield* Fiber.join(fiber);
+  });

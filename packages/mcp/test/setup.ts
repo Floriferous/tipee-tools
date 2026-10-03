@@ -5,7 +5,7 @@ import { server } from '@tipee-tools/core/testing';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
 });
 
 afterEach(() => {

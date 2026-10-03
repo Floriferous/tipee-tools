@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { server } from './server.ts';
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
 });
 
 afterEach(() => {
