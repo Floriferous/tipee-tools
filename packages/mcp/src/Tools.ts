@@ -110,8 +110,11 @@ const describe = (operation: Operation): string => {
   if (operation.readOnly) {
     return operation.description;
   }
+  // Some Tipee descriptions lack a final period; CONFIRM must not run into them.
+  const text = operation.description.trimEnd();
+  const base = /[.!?]$/u.test(text) ? text : `${text}.`;
   const final = /\.delete/u.test(operation.path) ? ' It cannot be undone.' : '';
-  return `${operation.description} ${CONFIRM}${final}`;
+  return `${base} ${CONFIRM}${final}`;
 };
 
 const words = (part: string): string => part.replaceAll('-', ' ');

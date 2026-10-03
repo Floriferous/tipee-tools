@@ -158,10 +158,12 @@ describe('toolkit', () => {
     const descriptionOf = (name: string): string => descriptions.get(name) ?? '';
 
     for (const target of operations) {
-      expect(descriptionOf(target.name).includes('wait for their yes')).toBe(!target.readOnly);
+      const description = descriptionOf(target.name);
+      expect(description.includes('wait for their yes')).toBe(!target.readOnly);
+      expect(description.endsWith('It cannot be undone.')).toBe(/\.delete/u.test(target.path));
+      expect(description).not.toMatch(/[^.!?] Changes Tipee:/u);
     }
-    expect(descriptionOf('absences_delete')).toMatch(/It cannot be undone\.$/u);
-    expect(descriptionOf('absences_update')).not.toMatch(/undone/u);
+    expect(descriptionOf('resources_create')).toContain('. Changes Tipee:');
   });
 
   it('makes every tool strict', () => {
