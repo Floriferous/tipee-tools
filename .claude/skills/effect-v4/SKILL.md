@@ -8,11 +8,13 @@ description: Writing idiomatic Effect 4 code in this repo — services, layers, 
 This repo pins `effect@4.0.0` (and `@effect/platform-node`,
 `@effect/vitest` at the same version). v4 renamed and merged a lot; most
 model training data describes v3. **Read the installed sources, not memory**:
-`node_modules/effect/src/<Module>.ts` in any package (JSDoc with examples on
-every export), and Effect's own agent docs shipped beside them:
-`node_modules/effect/AGENTS.md` and `node_modules/effect/ai-docs/`.
+`packages/core/node_modules/effect/src/<Module>.ts` (JSDoc with examples on
+every export; pnpm links `effect` into each package, not the root), and
+Effect's own agent docs shipped beside them:
+`packages/core/node_modules/effect/AGENTS.md` and
+`packages/core/node_modules/effect/ai-docs/`.
 
-## Conventions (from Effect's LLMS.md, applied here)
+## Conventions (from Effect's AGENTS.md, applied here)
 
 - `Effect.gen(function* () { … })` inline; `Effect.fn("Name.method")(function* (…) { … })`
   for reusable functions (the string becomes the span name). Never wrap a
