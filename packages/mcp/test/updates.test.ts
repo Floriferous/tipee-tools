@@ -5,7 +5,6 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { NodeFileSystem } from '@effect/platform-node';
 import { describe, expect, it } from '@effect/vitest';
 import { server } from '@tipee-tools/core/testing';
 import { ConfigProvider, Effect, Layer, Option } from 'effect';
@@ -51,7 +50,6 @@ const using = <A, E>(
         Layer.provide(
           Layer.mergeAll(
             FetchHttpClient.layer,
-            NodeFileSystem.layer,
             ConfigProvider.layer(
               // An empty opener is what a platform without one gets by default.
               ConfigProvider.fromUnknown(
