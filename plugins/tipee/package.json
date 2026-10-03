@@ -1,6 +1,5 @@
 {
   "name": "@tipee-tools/plugin",
-  "version": "0.3.9",
   "private": true,
   "description": "The tipee Claude Code plugin: manifest, skill, and the bundled MCP server",
   "license": "MIT",

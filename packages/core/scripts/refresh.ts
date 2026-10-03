@@ -92,6 +92,7 @@ schemas.removed = Object.keys(before.components.schemas).filter(
 
 // The plugin version a reviewer merges: tool names are the public surface, so
 // a removed or renamed operation needs a major version, which a person decides.
+// The version lives in plugin.json and SERVER_VERSION only (see version.test.ts).
 const bump = (): string => {
   const manifest = path.join(repository, 'plugins', 'tipee', '.claude-plugin', 'plugin.json');
   const current = (JSON.parse(readFileSync(manifest, 'utf8')) as { version: string }).version;
@@ -103,13 +104,6 @@ const bump = (): string => {
     `SERVER_VERSION = '${current}'`,
     `SERVER_VERSION = '${next}'`,
   );
-  // The packages carry the version too, until they no longer do.
-  for (const workspace of ['packages/core', 'packages/mcp', 'plugins/tipee']) {
-    const manifestOf = path.join(repository, workspace, 'package.json');
-    if (readFileSync(manifestOf, 'utf8').includes(`"version": "${current}"`)) {
-      rewrite(manifestOf, `"version": "${current}"`, `"version": "${next}"`);
-    }
-  }
   return `${current} → ${next}`;
 };
 

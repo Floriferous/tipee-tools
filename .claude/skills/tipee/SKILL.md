@@ -131,7 +131,7 @@ new version), with the version bumped: minor when operations were added,
 patch otherwise, and a `needs-major` label when one disappeared or was
 renamed, since tool names are the public surface. The routine: refresh PR →
 review the summary and the generated diff (fix or drop patches in
-`generate.ts`, add a fixture for a new shape) → merge → release.
+`generate.ts`, add a fixture for a new shape) → merge, which releases it.
 Run `pnpm spec:refresh` locally (without `--bump`) to do the same by hand.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
 derives tool names from paths; the MCP package turns each entry into a
@@ -162,6 +162,12 @@ strict, titled `Tool.dynamic`. Failure messages end with their next step
   against the `effect-v4` skill. `@effect/tsgo`, oxlint, oxlint-tsgolint and
   TypeScript move together as the TypeScript toolchain. No Dependabot: its
   updater cannot run pnpm 12.
+- Releases: the version lives in `plugins/tipee/.claude-plugin/plugin.json`
+  and `SERVER_VERSION` only (the packages carry none, and core and mcp are
+  private). A change to what ships bumps both; `verify.yml` fails a change
+  under a version already tagged, and on main releases an untagged version
+  from the `.mcpb` it built. It also runs `plugins/tipee/scripts/smoke.ts`
+  on the committed bundle with Node 22.19.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the
   server into `plugins/tipee/server/` (the plugin is the workspace package

@@ -121,7 +121,8 @@ exists and offers to install it. Say yes, then:
 Run **Check Tipee setup** first: its answer names most problems and how to
 fix them. If that does not help,
 [open an issue](https://github.com/Floriferous/tipee-tools/issues) with its
-output and the version you run. Never paste your API key.
+output and the version you run. Never paste your API key. Report a security
+problem privately instead, as [SECURITY.md](SECURITY.md) explains.
 
 ## Privacy and telemetry
 
@@ -164,7 +165,8 @@ The tools are generated from Tipee's OpenAPI document, vendored in
 published version, so a workflow runs `pnpm spec:refresh` every Monday: it
 downloads the newest stable document, regenerates the tools and, when
 anything changed, opens a PR listing the operations and schemas that moved,
-with the version bumped. Review it, merge it, release it. Run
+with the version bumped. Review it and merge it: merging a version bump
+publishes the release. Run
 `pnpm spec:refresh` yourself to do the same locally. [ARCHITECTURE.md](ARCHITECTURE.md)
 explains the design, and the skills in `.claude/skills` brief agents working
 in this repository.
