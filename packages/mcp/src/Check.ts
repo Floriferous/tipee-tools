@@ -1,7 +1,7 @@
 // The check_setup tool: probes the main read endpoints with real requests,
-// One report line each, so a user learns which rights are missing and the
-// Day Tipee changes a response shape, without the check ever aborting on a
-// Refusal it can describe.
+// one report line each, so a user learns which rights are missing and the
+// day Tipee changes a response shape, without the check ever aborting on a
+// refusal it can describe.
 
 import type { TipeeClient, TipeeError } from '@tipee-tools/core';
 import { integrationLink, operation, rightFor, invoke } from '@tipee-tools/core';
@@ -42,9 +42,9 @@ interface Probe {
 }
 
 // One report line per endpoint. Shape mismatches are reported as failures,
-// And to the telemetry, since they mean Tipee changed; a module that is off
-// Or a missing right is skipped; auth and network errors abort the whole
-// Check so the user sees their explanation once.
+// and to the telemetry, since they mean Tipee changed; a module that is off
+// or a missing right is skipped; auth and network errors abort the whole
+// check so the user sees their explanation once.
 const probe = (
   name: string,
   params: unknown,
@@ -88,8 +88,8 @@ const unavailable = ({ report }: Probe): string => {
 };
 
 // Probes an endpoint with parameters built from an earlier probe's answer, or
-// Reports it skipped when that answer had no id to build them from (undefined
-// Parameters): a refused list never aborts the check.
+// reports it skipped when that answer had no id to build them from (undefined
+// parameters): a refused list never aborts the check.
 const probeWith = (
   name: string,
   source: Probe,

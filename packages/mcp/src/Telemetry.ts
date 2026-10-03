@@ -1,12 +1,12 @@
 // Usage data that helps improve the plugin: which tools run, how long they
-// Take, how they fail, and the errors worth a look (Tipee drifting from its
-// Document, crashes), as PostHog product analytics and error tracking.
+// take, how they fail, and the errors worth a look (Tipee drifting from its
+// document, crashes), as PostHog product analytics and error tracking.
 // Each installation is one PostHog person, identified by a hash of the
-// Machine and account, and belongs to the group of its Tipee instance, so
-// Companies and people can be told apart. Nothing about the people in Tipee, and
-// Never the key, leaves the machine; stack frames are cut down to the bundle.
+// machine and account, and belongs to the group of its Tipee instance, so
+// companies and people can be told apart. Nothing about the people in Tipee, and
+// never the key, leaves the machine; stack frames are cut down to the bundle.
 // Events are batched to PostHog in the background and never delay a tool;
-// Every failure of the telemetry itself is swallowed.
+// every failure of the telemetry itself is swallowed.
 
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -72,7 +72,7 @@ const SEND_RETRIES = 2;
 const FRAME_LIMIT = 30;
 
 // Overridable so tests and forks can point elsewhere. The instance is the
-// Same value the Tipee client reads, normalized the same way so `acme` and
+// same value the Tipee client reads, normalized the same way so `acme` and
 // `acme.tipee.net/` are one company; empty when absent or not an instance.
 const settings = Config.all({
   host: Config.String('TIPEE_POSTHOG_HOST').pipe(Config.withDefault(POSTHOG_HOST)),
@@ -90,7 +90,7 @@ const silent: Sink = {
 };
 
 // "    at fn (file:line:col)" or "    at file:line:col"; the file is cut down
-// To what is ours (the bundle or a source file), so no user path travels.
+// to what is ours (the bundle or a source file), so no user path travels.
 const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
 const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
 
@@ -126,8 +126,8 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
     .slice(0, FRAME_LIMIT);
 
 // A Tipee failure told without anything Tipee answered or anyone wrote: its
-// Reason, the HTTP status, and where a schema mismatch is (field paths such
-// As [0]["id"], never the values found there).
+// reason, the HTTP status, and where a schema mismatch is (field paths such
+// as [0]["id"], never the values found there).
 const withheld = (reason: TipeeErrorReason): string => {
   if (reason._tag === 'UnexpectedShape' || reason._tag === 'InvalidRequest') {
     const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
@@ -140,7 +140,7 @@ const withheld = (reason: TipeeErrorReason): string => {
 };
 
 // What PostHog's error tracking groups on: a type and a message, plus frames
-// When the error carries a stack worth reading (a TipeeError's does not).
+// when the error carries a stack worth reading (a TipeeError's does not).
 const describe = (
   error: unknown,
 ): { readonly type: string; readonly value: string; readonly frames: ReadonlyArray<Frame> } => {
@@ -158,7 +158,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
   public static readonly layerOff: Layer.Layer<Telemetry> = Layer.succeed(Telemetry, silent);
 
   // Sends to PostHog; `base` is added to every event, as is a launch id that
-  // Ties one process's events together.
+  // ties one process's events together.
   public static readonly layer = (
     base: Properties,
   ): Layer.Layer<Telemetry, never, HttpClient.HttpClient> =>

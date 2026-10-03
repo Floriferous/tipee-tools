@@ -3,13 +3,13 @@ packages:
   - 'plugins/*'
 
 # Supply-chain policy. A version must be at least a day old before pnpm
-# Installs it: the recent npm worms were pulled within hours of publishing.
+# installs it: the recent npm worms were pulled within hours of publishing.
 minimumReleaseAge: 1440
 # Never accept a dependency whose publishing trust level went down.
 trustPolicy: no-downgrade
 # undici-types 6.21.0 is the version @types/node 22 pins (pulled in through
 # @anthropic-ai/mcpb's prompts); a later release of it was published with lower trust metadata, which the policy reads as a
-# Downgrade of the older version too.
+# downgrade of the older version too.
 trustPolicyExclude:
   - undici-types
 # Transitive dependencies only from the registry, never git or tarball URLs.

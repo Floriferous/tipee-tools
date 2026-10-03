@@ -1,6 +1,6 @@
 // Packs the Claude Desktop extension: the same bundled server as the Claude
 // Code plugin, plus a manifest generated from the toolkit so tool names and
-// Descriptions cannot drift. Output: dist/tipee-<version>.mcpb.
+// descriptions cannot drift. Output: dist/tipee-<version>.mcpb.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -68,8 +68,8 @@ const manifest = {
   })),
   tools_generated: false,
   // An array, not an object: Claude Desktop shows the fields in this order,
-  // And the easy, non-secret value comes first. Descriptions double as
-  // Placeholders, so they stay short.
+  // and the easy, non-secret value comes first. Descriptions double as
+  // placeholders, so they stay short.
   user_config: Object.fromEntries([
     [
       'instance',

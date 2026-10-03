@@ -1,5 +1,5 @@
 // MCP prompts: ready-made requests a client can offer in its menu. The
-// Setup prompt is the first thing a non-technical user should run.
+// setup prompt is the first thing a non-technical user should run.
 
 import { SETTINGS } from '@tipee-tools/core';
 import { Effect } from 'effect';

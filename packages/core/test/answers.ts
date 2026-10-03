@@ -1,5 +1,5 @@
 // Shared by the core tests: a client for the fake Tipee, and one-off answers
-// To make it fail the way the real one does.
+// to make it fail the way the real one does.
 
 import { setImmediate } from 'node:timers/promises';
 
@@ -79,9 +79,9 @@ export const failure = <A, R>(
 ): Effect.Effect<TipeeError, A, R> => Effect.flip(effect);
 
 // Runs an effect whose retries sleep on the test clock. MSW answers `fetch`
-// On the real event loop, so a single `TestClock.adjust` can pass before a
-// Retry's sleep is even scheduled: let real I/O run, then step the clock,
-// Until the effect is done.
+// on the real event loop, so a single `TestClock.adjust` can pass before a
+// retry's sleep is even scheduled: let real I/O run, then step the clock,
+// until the effect is done.
 export const settled = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
   Effect.gen(function* () {
     const fiber = yield* Effect.forkChild(effect);

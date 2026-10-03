@@ -39,8 +39,8 @@ export default defineConfig({
     },
     {
       // The MCPB manifest carries literal `${__dirname}` / `${user_config.x}`
-      // Placeholders that Claude Desktop substitutes at install time, and
-      // The configuration tests check what an unsubstituted one does.
+      // placeholders that Claude Desktop substitutes at install time, and
+      // the configuration tests check what an unsubstituted one does.
       files: ['plugins/*/scripts/**/*.ts', 'packages/core/test/config.test.ts'],
       rules: {
         'eslint/no-template-curly-in-string': 'off',
@@ -52,20 +52,22 @@ export default defineConfig({
   plugins: ['import', 'jsdoc', 'node', 'oxc', 'promise', 'typescript', 'unicorn'],
   // Rules are sorted by name. Most exemptions exist because Effect's idioms
   // (capitalised constructors, generators, `_tag`, `A`/`E`/`R` type parameters,
-  // Long declarative layers) contradict rules written for plain TypeScript.
+  // long declarative layers) contradict rules written for plain TypeScript.
   rules: {
+    // A comment starts with a capital; the lines that continue it do not.
+    'eslint/capitalized-comments': ['error', 'always', { ignoreConsecutiveComments: true }],
     // Tagged errors expose `get message()` without touching `this` when the
-    // Text is constant.
+    // text is constant.
     'eslint/class-methods-use-this': 'off',
     // `Effect.gen(function* () {})` and `Effect.fn("name")(function* () {})`
-    // Take anonymous generators; the span name is the function's name.
+    // take anonymous generators; the span name is the function's name.
     'eslint/func-names': 'off',
     // Effect's type parameters are `A`, `E`, `R`, `S`: one letter by convention.
     'eslint/id-length': 'off',
     // A module holds every error class of its domain (`Errors.ts`).
     'eslint/max-classes-per-file': 'off',
     // Layer factories, toolkits and test suites are one long, declarative
-    // Function each.
+    // function each.
     'eslint/max-lines-per-function': 'off',
     'eslint/max-statements': 'off',
     // Effect's public API is built from capitalised constructors called without
@@ -74,7 +76,7 @@ export default defineConfig({
     // Retry/backoff and cursor pagination are inherently sequential.
     'eslint/no-await-in-loop': 'off',
     // The import plugin's consistent-type-specifier-style splits type imports
-    // Into their own statement; without this option the two rules conflict.
+    // into their own statement; without this option the two rules conflict.
     'eslint/no-duplicate-imports': ['error', { allowSeparateTypeImports: true }],
     // Too many edge cases (like 0) make this rule unbearable.
     'eslint/no-magic-numbers': 'off',
@@ -92,13 +94,13 @@ export default defineConfig({
     // Still in nursery, but mature upstream ESLint rules; remove once they graduate.
     'eslint/no-unreachable-loop': 'error',
     // A service's static `layer` refers to a `make` declared after the class;
-    // The reference is inside an arrow, so it is resolved lazily.
+    // the reference is inside an arrow, so it is resolved lazily.
     'eslint/no-use-before-define': ['error', { functions: false, variables: false }],
     'eslint/no-useless-assignment': 'error',
     // Merging every declaration into one comma-separated statement hurts readability.
     'eslint/one-var': 'off',
     // Thin wrappers forward promises without awaiting; on them this rule
-    // Conflicts with promise-function-async (their fixers ping-pong).
+    // conflicts with promise-function-async (their fixers ping-pong).
     'eslint/require-await': 'off',
     // Imports are sorted by oxfmt (`sortImports`), which also fixes them.
     'eslint/sort-imports': 'off',
@@ -143,7 +145,7 @@ export default defineConfig({
     // `Effect.map(self, f)` data-first calls look like `array.map(f, thisArg)`.
     'unicorn/no-array-method-this-argument': 'off',
     // Tipee's wire format uses literal null (e.g. the first pagination
-    // Cursor); the fixer would silently replace it with undefined, which
+    // cursor); the fixer would silently replace it with undefined, which
     // JSON.stringify drops — and Tipee then rejects the request.
     'unicorn/no-null': 'off',
     // Still in nursery, but a mature upstream rule; remove once it graduates.

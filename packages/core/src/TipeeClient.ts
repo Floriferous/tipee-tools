@@ -1,7 +1,7 @@
 // The typed Tipee client, derived from the generated HttpApi: one method per
-// Operation, requests encoded and responses decoded with the schemas from
+// operation, requests encoded and responses decoded with the schemas from
 // Tipee's OpenAPI document. This file only adds what the document cannot
-// Say: the base URL, the headers Tipee insists on, a timeout, and retries.
+// say: the base URL, the headers Tipee insists on, a timeout, and retries.
 
 import {
   Config,
@@ -31,7 +31,7 @@ const HTTP_TOO_MANY_REQUESTS = 429;
 // Timeouts, rate limits and server errors that may pass on their own.
 const TRANSIENT_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 // Well under the minute after which MCP clients give up on a tool call, so
-// The agent hears what happened instead of a generic error.
+// the agent hears what happened instead of a generic error.
 const REQUEST_TIMEOUT = '20 seconds';
 
 // `*.list` and `*.show*` operations, the ones that only read.
@@ -40,16 +40,16 @@ export const readsOnly = (path: string): boolean =>
 
 // Whether a failed request may be sent again. Every Tipee operation is a
 // POST, and a write that timed out or lost its connection may already have
-// Been applied: sending it again could create it twice. Only reads are
-// Retried, plus a 429 for anything, since Tipee then did nothing.
+// been applied: sending it again could create it twice. Only reads are
+// retried, plus a 429 for anything, since Tipee then did nothing.
 const resendable = (request: HttpClientRequest.HttpClientRequest, status?: number): boolean =>
   status === HTTP_TOO_MANY_REQUESTS ||
   (readsOnly(new URL(request.url).pathname) &&
     (status === undefined || TRANSIENT_STATUSES.has(status)));
 
 // Each attempt has its own timeout, and an attempt that timed out is not
-// Sent again: three more would outlast the client's patience. Statuses are
-// Handled by the repeat, on the answer itself (the client fails with a
+// sent again: three more would outlast the client's patience. Statuses are
+// handled by the repeat, on the answer itself (the client fails with a
 // StatusCodeError only after this), so only a lost connection is retried.
 const retried = <E, R>(
   response: Effect.Effect<HttpClientResponse.HttpClientResponse, E, R>,
@@ -76,7 +76,7 @@ const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 
 // The subdomain in what the user typed: `acme`, ` ACME ` and
 // `https://acme.tipee.net/` all give `acme`. None when what is left is not a
-// Single DNS label, so no value can send the key to another host.
+// single DNS label, so no value can send the key to another host.
 export const normalizeInstance = (raw: string): Option.Option<string> => {
   const [host = ''] = raw
     .trim()
@@ -149,7 +149,7 @@ export class TipeeClient extends Context.Service<
     );
 
   // A client configured from `TIPEE_INSTANCE` and `TIPEE_API_KEY`, both as
-  // Pasted: the instance is normalized, the key trimmed.
+  // pasted: the instance is normalized, the key trimmed.
   public static readonly layerConfig = Layer.unwrap(
     Config.all({
       apiKey: Config.Redacted('TIPEE_API_KEY').pipe(

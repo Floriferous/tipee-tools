@@ -1,6 +1,6 @@
 // The catalogue of Tipee operations, read off the generated HttpApi: one
-// Entry per endpoint with its name, description, request and response
-// Schemas, and what it does to Tipee's data. Tools are built from this;
+// entry per endpoint with its name, description, request and response
+// schemas, and what it does to Tipee's data. Tools are built from this;
 // `invoke` (Invoke.ts) calls any of them.
 
 import { Context, Schema } from 'effect';
@@ -41,7 +41,7 @@ const verbOf = (path: string): string => path.slice(path.lastIndexOf('.') + 1);
 const isBody = (schema: Schema.Top): boolean => !HttpApiSchema.isNoContent(schema.ast);
 
 // Without its identifier the body's JSON Schema is inlined at the root (an
-// Object), which MCP tool parameters require; with it, the root is a $ref.
+// object), which MCP tool parameters require; with it, the root is a $ref.
 const bodySchema = (endpoint: HttpApiEndpoint.Top): Schema.Top => {
   for (const { schemas } of endpoint.payload.values()) {
     const body = schemas.find((schema) => isBody(schema));

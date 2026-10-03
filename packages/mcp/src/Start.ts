@@ -1,8 +1,8 @@
 // The process around the server: the one entry point of both the source
 // (`src/main.ts`) and the plugin's bundle. It trusts the system's
-// Certificates, reports crashes outside the Effect runtime the way one inside
-// It is, and keeps every log, a failed start's included, on stderr: stdout is
-// The MCP channel.
+// certificates, reports crashes outside the Effect runtime the way one inside
+// it is, and keeps every log, a failed start's included, on stderr: stdout is
+// the MCP channel.
 
 import tls from 'node:tls';
 
@@ -14,9 +14,9 @@ import { main, reportCrash } from './Server.ts';
 const EXIT_CRASHED = 1;
 
 // Node's fetch trusts only the roots it ships with, so on a network that
-// Inspects HTTPS (Zscaler, Netskope…) every call would fail while Claude
-// Itself works: trust the system's store too. Node 22.19 and 24.5 can; older
-// Ones skip it, and `--use-system-ca` would crash them.
+// inspects HTTPS (Zscaler, Netskope…) every call would fail while Claude
+// itself works: trust the system's store too. Node 22.19 and 24.5 can; older
+// ones skip it, and `--use-system-ca` would crash them.
 const trustSystemCertificates = (): void => {
   (tls as Partial<typeof tls>).setDefaultCACertificates?.([
     ...tls.getCACertificates('default'),
@@ -37,7 +37,7 @@ export const start = (): void => {
   process.on('unhandledRejection', crashed);
   trustSystemCertificates();
   // Why a start failed reaches stderr, which Claude keeps in its logs, in the
-  // Error's own words; a shutdown is not worth a line.
+  // error's own words; a shutdown is not worth a line.
   NodeRuntime.runMain(
     main.pipe(
       Effect.tapCause((cause) =>

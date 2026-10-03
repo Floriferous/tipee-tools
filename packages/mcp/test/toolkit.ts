@@ -1,6 +1,6 @@
 // Shared by the tool tests: the toolkit wired to the fake Tipee, and a call
-// That runs a tool the way the MCP server does (decode parameters, strictly
-// For a strict tool, run the handler, encode the result).
+// that runs a tool the way the MCP server does (decode parameters, strictly
+// for a strict tool, run the handler, encode the result).
 
 import { TipeeClient } from '@tipee-tools/core';
 import { Effect, Layer, Option, Redacted, Stream } from 'effect';
