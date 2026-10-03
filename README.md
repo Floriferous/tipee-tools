@@ -129,8 +129,9 @@ problem privately instead, as [SECURITY.md](SECURITY.md) explains.
 
 ## Privacy and telemetry
 
-The plugin sends usage data to PostHog's EU cloud (`eu.i.posthog.com`), with
-IP addresses discarded, to help improve it:
+The plugin sends usage data to PostHog's EU cloud (`eu.i.posthog.com`) to
+help improve it. PostHog discards IP addresses, after deriving an approximate
+location (country and city) from them:
 
 - which tools were called, how long they took and how they ended;
 - errors, by their reason, HTTP status, Tipee's error code (such as

@@ -49,7 +49,8 @@ const manifest = {
     'anything missing in plain words.\n\n' +
     'The extension sends usage data to PostHog to help improve it: which tools ran, how they ' +
     "failed (by reason, HTTP status, Tipee's error code and field paths), crash messages and " +
-    'stack traces, your instance name, your setup (system, Node and Claude versions), and a ' +
+    'stack traces, your instance name, your setup (system, Node and Claude versions), the ' +
+    'approximate location PostHog derives from your IP address before discarding it, and a ' +
     'pseudonymous installation ID computed from your computer and account names (the names ' +
     'are never sent); never your key, anything Tipee answered, or anything about your ' +
     'people. See the privacy policy.\n\n' +
