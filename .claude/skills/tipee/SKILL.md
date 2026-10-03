@@ -31,8 +31,8 @@ server. The user-facing skill lives in `plugins/tipee/skills/tipee`; this one is
   through what Tipee returns; Tipee redacts what the integration may not
   see. Never commit real responses — fixtures are anonymised (the fictional
   company "Acme").
-- **The API key is a secret**: only in `packages/mcp/.env` or the plugin's
-  keychain entry, never in chat, commits or CI. Rotate it in the Tipee admin
+- **The API key is a secret**: only in `packages/mcp/.env` or the Claude
+  app's own settings, never in chat, commits or CI. Rotate it in the Tipee admin
   if it leaks.
 
 ## Running the server
@@ -49,7 +49,7 @@ at `/admin/instance/integrations/`; integrations, their keys and their
 rights are then managed at `/hr-core/integrations`. The full rights list
 lives in `plugins/tipee/skills/tipee/roles.md`.
 
-The key belongs to an *integration* — a service account created like an
+The key belongs to an _integration_ — a service account created like an
 employee, given roles. Until it has the authorization
 **Configurations générales → "Se connecter avec des applications externes"**,
 every call answers `HTTP 401 {"message":"Tipee.api.token_rights_missing"}`
@@ -140,13 +140,15 @@ strict, titled `Tool.dynamic`. Failure messages end with their next step
 
 ## Repository notes
 
-- `ARCHITECTURE.md` is the target design (Effect 4 core, MCP server first,
-  the plugin bundles the server, the repo is its own marketplace). Check it
-  before adding a distribution channel or a configuration source.
+- `ARCHITECTURE.md` describes the design (Effect 4 core, an MCP server that
+  the plugin bundles, the same bundle as the Claude Desktop extension, the
+  repo as its own marketplace) and what is not planned. Check it before
+  adding a distribution channel or a configuration source.
 - Effect 4 is at 4.0.0 stable, pinned exactly; the `effect-v4` skill
   in `.claude/skills` lists the idioms and v4 gotchas. Read Effect's sources
-  in `node_modules/effect/src` (exact version) and its docs in
-  `opensrc/effect` (`pnpm docs:effect`) rather than memory.
+  in `node_modules/effect/src` (exact version) and its agent docs in
+  `node_modules/effect/AGENTS.md` and `node_modules/effect/ai-docs` rather
+  than memory.
 - TypeScript 7 (native compiler) with `@effect/tsgo`: `pnpm install` runs
   `effect-tsgo patch`, after which `tsc` and the type-aware lint report
   Effect diagnostics (for example preferTypedSchemaDecoder). Fix them rather

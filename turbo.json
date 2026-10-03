@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "agentGuidance": false,
   "tasks": {
     "//#format:check": {
       "inputs": [
@@ -8,6 +9,7 @@
         ".github/**",
         ".vscode/**",
         ".claude-plugin/**",
+        ".claude/skills/**",
         "packages/**",
         "plugins/**",
         "!plugins/*/server/**",
