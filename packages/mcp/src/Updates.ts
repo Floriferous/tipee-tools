@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { platform } from 'node:process';
 
+import { layer as fileSystemLayer } from '@effect/platform-node/NodeFileSystem';
 import { Config, Context, Effect, FileSystem, Layer, Option, Schema } from 'effect';
 import { HttpClient, HttpClientResponse } from 'effect/http';
 
@@ -132,10 +133,11 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
   // Never reports an update: for tests.
   public static readonly layerNone: Layer.Layer<Updates> = Layer.succeed(Updates, none);
 
-  // Compares GitHub's latest release with `current`.
+  // Compares GitHub's latest release with `current`; downloads go to the
+  // machine's temporary directory.
   public static readonly layer = (
     current: string,
-  ): Layer.Layer<Updates, never, HttpClient.HttpClient | FileSystem.FileSystem> =>
+  ): Layer.Layer<Updates, never, HttpClient.HttpClient> =>
     Layer.effect(
       Updates,
       Effect.gen(function* () {
@@ -235,5 +237,5 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
 
         return { available, install };
       }),
-    );
+    ).pipe(Layer.provide(fileSystemLayer));
 }

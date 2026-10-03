@@ -6,8 +6,8 @@ import { arch, argv, env, platform, version } from "node:process";
 import * as OS from "node:os";
 import { hostname, userInfo } from "node:os";
 import { spawn } from "node:child_process";
-import tls from "node:tls";
 import * as NFS from "node:fs";
+import tls from "node:tls";
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Pipeable.js
 const pipeArguments = (self, args) => {
 	switch (args.length) {
@@ -23892,423 +23892,6 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 	}));
 };
 //#endregion
-//#region ../../packages/mcp/src/Updates.ts
-const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
-const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
-var Update = class extends Class("Update")({
-	url: String$2,
-	version: String$2
-}) {};
-var UpdateFailed = class extends TaggedError()("UpdateFailed", { detail: String$2 }) {
-	get message() {
-		return `The update could not be installed: ${this.detail}. Download tipee.mcpb from https://github.com/Floriferous/tipee-tools/releases/latest and open it.`;
-	}
-};
-const Installed = Union([
-	Struct({ status: Literal("up_to_date") }),
-	Struct({
-		path: String$2,
-		status: Literal("opened"),
-		version: String$2
-	}),
-	Struct({
-		path: String$2,
-		status: Literal("downloaded"),
-		version: String$2
-	}),
-	Struct({
-		status: Literal("instructions"),
-		url: String$2,
-		version: String$2
-	})
-]);
-const Release = Struct({ body: Struct({
-	html_url: String$2,
-	tag_name: String$2
-}) });
-const FETCH_TIMEOUT = "3 seconds";
-const DOWNLOAD_TIMEOUT = "60 seconds";
-const CHECKSUMS = "SHA256SUMS";
-const settings = all({
-	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(channel)),
-	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
-	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
-	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL))
-});
-const PART = /^\d+$/u;
-const isNewer = (candidate, current) => {
-	const parse = (version) => {
-		const parts = version.replace(/^v/u, "").split(".");
-		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
-	};
-	const left = parse(candidate);
-	const right = parse(current);
-	if (left === void 0 || right === void 0) return false;
-	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
-		const difference = (left[index] ?? 0) - (right[index] ?? 0);
-		if (difference !== 0) return difference > 0;
-	}
-	return false;
-};
-const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
-const failed = (detail) => new UpdateFailed({ detail });
-const describe$1 = (error) => error instanceof Error ? error.message : String(error);
-const none = {
-	available: succeedNone,
-	install: succeed$3({ status: "up_to_date" })
-};
-var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
-	static layerNone = succeed$4(Updates, none);
-	static layer = (current) => effect(Updates, gen(function* () {
-		const fs = yield* FileSystem;
-		const http = (yield* HttpClient).pipe(filterStatusOk);
-		const config = yield* option(settings);
-		if (isNone(config)) return none;
-		const { channel, downloadBase, opener, releasesUrl } = config.value;
-		const available = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
-			const version = body.tag_name.replace(/^v/u, "");
-			return isNewer(version, current) ? some(new Update({
-				url: body.html_url,
-				version
-			})) : none$1();
-		}), orElseSucceed(() => none$1()));
-		const download = (version) => gen(function* () {
-			const asset = `tipee-${version}.mcpb`;
-			const base = `${downloadBase}/v${version}`;
-			const sums = yield* http.get(`${base}/${CHECKSUMS}`).pipe(flatMap((response) => response.text));
-			const expected = checksumOf(sums, asset);
-			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
-			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
-			const content = new Uint8Array(bytes);
-			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
-			const directory = yield* fs.makeTempDirectory({ prefix: "tipee-update-" });
-			const target = path.join(directory, asset);
-			yield* fs.writeFile(target, content);
-			return target;
-		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
-		const open = (target) => gen(function* () {
-			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
-			const child = yield* try_({
-				catch: cannotOpen,
-				try: () => spawn(opener, [target], {
-					detached: true,
-					stdio: "ignore"
-				})
-			});
-			yield* callback$1((resume) => {
-				child.once("spawn", () => {
-					child.unref();
-					resume(void_$1);
-				});
-				child.once("error", (cause) => {
-					resume(fail$3(cannotOpen(cause)));
-				});
-			});
-		});
-		return {
-			available,
-			install: gen(function* () {
-				const latest = yield* available;
-				if (isNone(latest)) return { status: "up_to_date" };
-				const { url, version } = latest.value;
-				if (channel !== "desktop") return {
-					status: "instructions",
-					url,
-					version
-				};
-				const target = yield* download(version);
-				if (opener === "") return {
-					path: target,
-					status: "downloaded",
-					version
-				};
-				yield* open(target);
-				return {
-					path: target,
-					status: "opened",
-					version
-				};
-			})
-		};
-	}));
-};
-//#endregion
-//#region ../../packages/mcp/src/Check.ts
-const PAGE_SIZE = 100;
-const defaultRange = map$4(now, (now) => ({
-	from: formatIsoDate(now),
-	to: formatIsoDate(add(now, { days: 6 }))
-}));
-const countOf = (result) => {
-	if (Array.isArray(result)) return result.length;
-	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
-	return 1;
-};
-const probe = (name, params) => invoke(operation(name), params).pipe(map$4((result) => ({
-	report: {
-		count: countOf(result),
-		name,
-		status: "ok"
-	},
-	result
-})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
-	handled: true,
-	properties: { tool: "check_setup" }
-})), {
-	report: {
-		error: reason.message,
-		name,
-		status: "failed"
-	},
-	result: void 0
-})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
-	report: {
-		error: failure.message,
-		name,
-		status: "skipped"
-	},
-	result: void 0
-})));
-const ORDER = [{
-	attribute: "last_name",
-	direction: "asc",
-	key: "resource.attribute"
-}];
-const unavailable = ({ report }) => {
-	if (report.status === "ok") return `Not called: ${report.name} returned nothing to call it with.`;
-	if (report.status === "failed") return `Not called: it needs an id from ${report.name}, which failed.`;
-	return `Not called: it needs an id from ${report.name}, which needs ${rightFor(operation(report.name))}.`;
-};
-const probeWith = (name, source, params) => params === void 0 ? succeed$3({
-	report: {
-		error: unavailable(source),
-		name,
-		status: "skipped"
-	},
-	result: void 0
-}) : probe(name, params);
-const check = fn("check_setup")(function* ({ from, to }) {
-	const range = from !== void 0 && to !== void 0 ? {
-		from,
-		to
-	} : yield* defaultRange;
-	const dateRange = `${range.from}/${range.to}`;
-	const kinds = yield* probe("kinds_list", {});
-	const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
-	const people = yield* probeWith("resources_list", kinds, employee && {
-		kind_id: employee.id,
-		orders: ORDER,
-		pagination: {
-			limit: PAGE_SIZE,
-			next_token: null
-		},
-		with_teams: true
-	});
-	const [somebody] = people.result?.data ?? [];
-	const reports = [kinds.report, people.report];
-	const probes = [
-		probe("teams_list", {}),
-		probe("schedule_templates_list", {}),
-		probe("schedules_list", { date_range: dateRange }),
-		probe("absences_list", { date_range: dateRange }),
-		probe("on_calls_list", { date_range: dateRange }),
-		probeWith("resources_show_activity_rates", people, somebody && { resource_id: somebody.id }),
-		probe("timechecks_list", { filters: [{
-			key: "timecheck.date_range",
-			value: dateRange
-		}] })
-	];
-	for (const next of probes) reports.push((yield* next).report);
-	const integration = yield* integrationLink;
-	const update = yield* flatMap(Updates, (updates) => updates.available);
-	return {
-		date_range: dateRange,
-		endpoints: reports,
-		...integration === void 0 ? {} : { integration },
-		ok: reports.every((report) => report.status !== "failed"),
-		...isSome(update) ? { update: update.value } : {}
-	};
-});
-//#endregion
-//#region ../../packages/mcp/src/Tools.ts
-const Done = Struct({ done: Literal(true) });
-const LocalDate = String$2.check(isPattern(/^\d{4}-\d{2}-\d{2}$/u));
-const EndpointReport = Struct({
-	count: optionalKey(Int),
-	error: optionalKey(String$2),
-	name: String$2,
-	status: Literals([
-		"ok",
-		"failed",
-		"skipped"
-	]).annotate({ description: "ok: the endpoint answered as expected. skipped: the module is off or a right is missing; the error names the right and the page where it is ticked. failed: Tipee answered in a shape this version cannot read." })
-});
-const IntegrationReport = Struct({
-	label: String$2,
-	roles_page: String$2
-});
-const UpdateReport = Struct({
-	url: String$2,
-	version: String$2
-});
-const Check = make$10("check_setup", {
-	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when a tool reports a refused key, a missing right or an unexpected response shape: it names the integration the key belongs to and where its rights are set, explains missing authorizations, detects the day Tipee changes a response shape, and says when a newer version of Tipee for Claude exists. Stores nothing.",
-	failure: TipeeError,
-	parameters: Struct({
-		from: optionalKey(LocalDate.annotate({ description: "First day of the range, YYYY-MM-DD; without both from and to, the coming week" })),
-		to: optionalKey(LocalDate.annotate({ description: "Last day of the range, YYYY-MM-DD" }))
-	}),
-	success: Struct({
-		date_range: String$2,
-		endpoints: ArraySchema(EndpointReport),
-		integration: optionalKey(IntegrationReport.annotate({ description: "The integration the key belongs to and the page where its rights are ticked." })),
-		ok: Boolean.annotate({ description: "False only when an endpoint failed; skipped endpoints keep it true." }),
-		update: optionalKey(UpdateReport.annotate({ description: "A newer version of Tipee for Claude, when one exists, and where to download it." }))
-	})
-}).annotate(Title, "Check Tipee setup").annotate(Strict, true).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
-const InstallUpdate = make$10("update_plugin", {
-	description: "Installs the newer version of Tipee for Claude that check_setup reported. In Claude Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks the user to confirm; the instance and key are kept. In Claude Code it answers with the commands to run. Call it only after the user agreed to update.",
-	failure: UpdateFailed,
-	success: Struct({
-		message: String$2,
-		outcome: Installed
-	})
-}).annotate(Title, "Update Tipee for Claude").annotate(Strict, true).annotate(Readonly, false).annotate(Destructive, true).annotate(Idempotent, true);
-const CONFIRM = "Changes Tipee: first tell the user exactly what will change and for whom, and wait for their yes, unless they asked for this precise change.";
-const describe = (operation) => {
-	if (operation.readOnly) return operation.description;
-	const text = operation.description.trimEnd();
-	const base = /[.!?]$/u.test(text) ? text : `${text}.`;
-	const final = /\.delete/u.test(operation.path) ? " It cannot be undone." : "";
-	return `${base} ${CONFIRM}${final}`;
-};
-const words = (part) => part.replaceAll("-", " ");
-const titleOf = (path) => {
-	const [resource = "", verb = ""] = path.replace(/^\/api\/[^/]+\//u, "").split(".");
-	const subject = words(resource);
-	return `${subject.charAt(0).toUpperCase()}${subject.slice(1)}: ${words(verb)}`;
-};
-const toolFor = (operation) => dynamic(operation.name, {
-	description: describe(operation),
-	failure: TipeeError,
-	parameters: operation.parameters,
-	success: operation.success ?? Done
-}).annotate(Title, titleOf(operation.path)).annotate(Strict, true).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
-const TipeeToolkit = make$9(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)));
-//#endregion
-//#region ../../packages/mcp/src/Handlers.ts
-const said = (outcome) => {
-	if (outcome.status === "opened") return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
-	if (outcome.status === "downloaded") return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
-	if (outcome.status === "instructions") return `Version ${outcome.version} is available. In a terminal run \`claude plugin update tipee@tipee-tools\` (Claude Code can run it for you), then /reload-plugins, or use /plugin → Installed → tipee → Update now. Release notes: ${outcome.url}`;
-	return "Tipee for Claude is already the latest version.";
-};
-const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) => ({
-	message: said(outcome),
-	outcome
-}));
-const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
-const detailOf = (failure) => {
-	if (!(failure instanceof TipeeError)) return {};
-	const { reason } = failure;
-	if (reason._tag === "Rejected") return {
-		error_code: reason.code,
-		http_status: reason.status
-	};
-	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
-};
-const REPORTED = /* @__PURE__ */ new Set([
-	"UnexpectedShape",
-	"UnexpectedStatus",
-	"InvalidRequest",
-	"Internal"
-]);
-const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
-	onNone: () => ({}),
-	onSome: ({ clientInfo, protocolVersion }) => ({
-		mcp_client: clientInfo.name,
-		mcp_client_version: clientInfo.version,
-		mcp_protocol: protocolVersion
-	})
-}));
-const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function* (params) {
-	const who = yield* caller;
-	yield* announce(who);
-	const [duration, exit$2] = yield* timed(exit(run(params)));
-	const common = {
-		...who,
-		duration_ms: Math.round(toMillis(duration)),
-		tool
-	};
-	if (isSuccess(exit$2)) {
-		yield* telemetry.capture("tool_called", {
-			...common,
-			outcome: "ok"
-		});
-		return exit$2.value;
-	}
-	const failure = findError(exit$2.cause);
-	if (isSuccess$1(failure)) {
-		const reason = reasonOf(failure.success);
-		yield* telemetry.capture("tool_called", {
-			...common,
-			...detailOf(failure.success),
-			outcome: "failed",
-			reason
-		});
-		if (REPORTED.has(reason)) yield* telemetry.exception(failure.success, {
-			handled: true,
-			properties: { tool }
-		});
-	} else {
-		yield* telemetry.capture("tool_called", {
-			...common,
-			outcome: "crashed"
-		});
-		yield* telemetry.exception(squash(exit$2.cause), {
-			handled: false,
-			properties: { tool }
-		});
-	}
-	return yield* failCause$3(exit$2.cause);
-});
-const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
-	const client = yield* TipeeClient;
-	const telemetry = yield* Telemetry;
-	const updates = yield* Updates;
-	let announced = false;
-	const announce = (who) => suspend$2(() => {
-		if (announced) return void_$1;
-		announced = true;
-		return telemetry.capture("session_started", who);
-	});
-	const watcher = {
-		announce,
-		telemetry
-	};
-	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry), provideService(Updates, updates));
-	const handlers = {
-		check_setup: observed(watcher, "check_setup", (params) => withClient(check(params))),
-		update_plugin: observed(watcher, "update_plugin", () => withClient(update))
-	};
-	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => withClient(invoke(target, params)).pipe(map$4((result) => result ?? { done: true })));
-	return TipeeToolkit.of(handlers);
-}));
-//#endregion
-//#region ../../packages/mcp/src/Prompts.ts
-const SETUP_PROMPT = {
-	description: "Check that the Tipee connection works and explain any missing authorization.",
-	name: "check-tipee-setup",
-	text: `Run the check_setup tool with no arguments, then explain the result to someone who is not technical. For each endpoint that is not ok, quote its error as is: it names the right to tick and links the page where to tick it. A module the company does not use can stay off: say so rather than asking me to turn it on. If the tool itself fails, quote its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. Tell me to run this check again after changing anything. Then give three examples of questions I can ask, using only endpoints that are ok. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call update_plugin and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there.`,
-	title: "Check Tipee setup"
-};
-const SetupPrompt = prompt({
-	content: () => succeed$3(SETUP_PROMPT.text),
-	description: SETUP_PROMPT.description,
-	name: SETUP_PROMPT.name,
-	title: SETUP_PROMPT.title
-});
-//#endregion
 //#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0/node_modules/@effect/platform-node-shared/dist/internal/utils.js
 const handleErrnoException = (module, method) => (err, [path]) => {
 	let reason = "Unknown";
@@ -24342,107 +23925,6 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 		cause: err
 	});
 };
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0/node_modules/@effect/platform-node-shared/dist/NodeSink.js
-const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
-const fromWritableChannel = (options) => fromTransform$1((pull) => {
-	const writable = options.evaluate();
-	return succeed$3(pullIntoWritable({
-		...options,
-		writable,
-		pull
-	}));
-});
-const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
-	let i = 0;
-	return callback$1((resume) => {
-		let cancelled = false;
-		const loop = () => {
-			for (; i < chunk.length;) {
-				if (cancelled) return;
-				if (!options.writable.write(chunk[i++], options.encoding)) {
-					if (!cancelled) options.writable.once("drain", loop);
-					return;
-				}
-			}
-			if (!cancelled) resume(void_$1);
-		};
-		loop();
-		return sync(() => {
-			cancelled = true;
-			options.writable.off("drain", loop);
-		});
-	});
-}), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
-	if ("closed" in options.writable && options.writable.closed) return done$1(_);
-	return callback$1((resume) => {
-		const onFinish = () => resume(done$1(_));
-		options.writable.once("finish", onFinish);
-		options.writable.end();
-		return sync(() => {
-			options.writable.off("finish", onFinish);
-		});
-	});
-}) : identity, raceFirst(callback$1((resume) => {
-	const onError = (error) => resume(fail$3(options.onError(error)));
-	options.writable.once("error", onError);
-	return sync(() => {
-		options.writable.off("error", onError);
-	});
-})));
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0/node_modules/@effect/platform-node-shared/dist/NodeStream.js
-const fromReadable = (options) => fromChannel(fromReadableChannel(options));
-const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
-	scope,
-	readable: options.evaluate(),
-	onError: options.onError ?? defaultOnError,
-	chunkSize: options.chunkSize,
-	closeOnDone: options.closeOnDone
-}));
-const readableToPullUnsafe = (options) => {
-	const readable = options.readable;
-	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$33(void 0);
-	const latch = options.latch ?? makeUnsafe$2(false);
-	function onReadable() {
-		latch.openUnsafe();
-	}
-	function onError(error) {
-		exit.current = fail$4(options.onError(error));
-		latch.openUnsafe();
-	}
-	function onEnd() {
-		exit.current = fail$4(Done$1());
-		latch.openUnsafe();
-	}
-	readable.on("readable", onReadable);
-	readable.once("error", onError);
-	readable.once("end", onEnd);
-	const pull = suspend$2(function loop() {
-		let item = options.readable.read(options.chunkSize);
-		if (item === null) {
-			if (exit.current) return exit.current;
-			if (readable.readableEnded) return fail$3(Done$1());
-			latch.closeUnsafe();
-			return flatMap(latch.await, loop);
-		}
-		const chunk = of(item);
-		while (true) {
-			item = options.readable.read(options.chunkSize);
-			if (item === null) break;
-			chunk.push(item);
-		}
-		return succeed$3(chunk);
-	});
-	return as(addFinalizer$1(options.scope, sync(() => {
-		readable.off("readable", onReadable);
-		readable.off("error", onError);
-		readable.off("end", onEnd);
-		if (closeOnDone && "closed" in options.readable && !options.readable.closed) options.readable.destroy();
-	})), pull);
-};
-const defaultOnError = (error) => new UnknownError$1(error);
 //#endregion
 //#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
 const handleBadArgument = (method) => (err) => badArgument({
@@ -24807,10 +24289,528 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	writeFile
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0_effect@4.0.0_redis@6.3.0/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0_effect@4.0.0/node_modules/@effect/platform-node/dist/NodeFileSystem.js
 const layer$2 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0_effect@4.0.0_redis@6.3.0/node_modules/@effect/platform-node/dist/NodeStdio.js
+//#region ../../packages/mcp/src/Updates.ts
+const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
+const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
+var Update = class extends Class("Update")({
+	url: String$2,
+	version: String$2
+}) {};
+var UpdateFailed = class extends TaggedError()("UpdateFailed", { detail: String$2 }) {
+	get message() {
+		return `The update could not be installed: ${this.detail}. Download tipee.mcpb from https://github.com/Floriferous/tipee-tools/releases/latest and open it.`;
+	}
+};
+const Installed = Union([
+	Struct({ status: Literal("up_to_date") }),
+	Struct({
+		path: String$2,
+		status: Literal("opened"),
+		version: String$2
+	}),
+	Struct({
+		path: String$2,
+		status: Literal("downloaded"),
+		version: String$2
+	}),
+	Struct({
+		status: Literal("instructions"),
+		url: String$2,
+		version: String$2
+	})
+]);
+const Release = Struct({ body: Struct({
+	html_url: String$2,
+	tag_name: String$2
+}) });
+const FETCH_TIMEOUT = "3 seconds";
+const DOWNLOAD_TIMEOUT = "60 seconds";
+const CHECKSUMS = "SHA256SUMS";
+const settings = all({
+	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(channel)),
+	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
+	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
+	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL))
+});
+const PART = /^\d+$/u;
+const isNewer = (candidate, current) => {
+	const parse = (version) => {
+		const parts = version.replace(/^v/u, "").split(".");
+		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
+	};
+	const left = parse(candidate);
+	const right = parse(current);
+	if (left === void 0 || right === void 0) return false;
+	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+		const difference = (left[index] ?? 0) - (right[index] ?? 0);
+		if (difference !== 0) return difference > 0;
+	}
+	return false;
+};
+const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
+const failed = (detail) => new UpdateFailed({ detail });
+const describe$1 = (error) => error instanceof Error ? error.message : String(error);
+const none = {
+	available: succeedNone,
+	install: succeed$3({ status: "up_to_date" })
+};
+var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
+	static layerNone = succeed$4(Updates, none);
+	static layer = (current) => effect(Updates, gen(function* () {
+		const fs = yield* FileSystem;
+		const http = (yield* HttpClient).pipe(filterStatusOk);
+		const config = yield* option(settings);
+		if (isNone(config)) return none;
+		const { channel, downloadBase, opener, releasesUrl } = config.value;
+		const available = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
+			const version = body.tag_name.replace(/^v/u, "");
+			return isNewer(version, current) ? some(new Update({
+				url: body.html_url,
+				version
+			})) : none$1();
+		}), orElseSucceed(() => none$1()));
+		const download = (version) => gen(function* () {
+			const asset = `tipee-${version}.mcpb`;
+			const base = `${downloadBase}/v${version}`;
+			const sums = yield* http.get(`${base}/${CHECKSUMS}`).pipe(flatMap((response) => response.text));
+			const expected = checksumOf(sums, asset);
+			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
+			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
+			const content = new Uint8Array(bytes);
+			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
+			const directory = yield* fs.makeTempDirectory({ prefix: "tipee-update-" });
+			const target = path.join(directory, asset);
+			yield* fs.writeFile(target, content);
+			return target;
+		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
+		const open = (target) => gen(function* () {
+			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
+			const child = yield* try_({
+				catch: cannotOpen,
+				try: () => spawn(opener, [target], {
+					detached: true,
+					stdio: "ignore"
+				})
+			});
+			yield* callback$1((resume) => {
+				child.once("spawn", () => {
+					child.unref();
+					resume(void_$1);
+				});
+				child.once("error", (cause) => {
+					resume(fail$3(cannotOpen(cause)));
+				});
+			});
+		});
+		return {
+			available,
+			install: gen(function* () {
+				const latest = yield* available;
+				if (isNone(latest)) return { status: "up_to_date" };
+				const { url, version } = latest.value;
+				if (channel !== "desktop") return {
+					status: "instructions",
+					url,
+					version
+				};
+				const target = yield* download(version);
+				if (opener === "") return {
+					path: target,
+					status: "downloaded",
+					version
+				};
+				yield* open(target);
+				return {
+					path: target,
+					status: "opened",
+					version
+				};
+			})
+		};
+	})).pipe(provide$2(layer$2));
+};
+//#endregion
+//#region ../../packages/mcp/src/Check.ts
+const PAGE_SIZE = 100;
+const defaultRange = map$4(now, (now) => ({
+	from: formatIsoDate(now),
+	to: formatIsoDate(add(now, { days: 6 }))
+}));
+const countOf = (result) => {
+	if (Array.isArray(result)) return result.length;
+	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
+	return 1;
+};
+const probe = (name, params) => invoke(operation(name), params).pipe(map$4((result) => ({
+	report: {
+		count: countOf(result),
+		name,
+		status: "ok"
+	},
+	result
+})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
+	handled: true,
+	properties: { tool: "check_setup" }
+})), {
+	report: {
+		error: reason.message,
+		name,
+		status: "failed"
+	},
+	result: void 0
+})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
+	report: {
+		error: failure.message,
+		name,
+		status: "skipped"
+	},
+	result: void 0
+})));
+const ORDER = [{
+	attribute: "last_name",
+	direction: "asc",
+	key: "resource.attribute"
+}];
+const unavailable = ({ report }) => {
+	if (report.status === "ok") return `Not called: ${report.name} returned nothing to call it with.`;
+	if (report.status === "failed") return `Not called: it needs an id from ${report.name}, which failed.`;
+	return `Not called: it needs an id from ${report.name}, which needs ${rightFor(operation(report.name))}.`;
+};
+const probeWith = (name, source, params) => params === void 0 ? succeed$3({
+	report: {
+		error: unavailable(source),
+		name,
+		status: "skipped"
+	},
+	result: void 0
+}) : probe(name, params);
+const check = fn("check_setup")(function* ({ from, to }) {
+	const range = from !== void 0 && to !== void 0 ? {
+		from,
+		to
+	} : yield* defaultRange;
+	const dateRange = `${range.from}/${range.to}`;
+	const kinds = yield* probe("kinds_list", {});
+	const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
+	const people = yield* probeWith("resources_list", kinds, employee && {
+		kind_id: employee.id,
+		orders: ORDER,
+		pagination: {
+			limit: PAGE_SIZE,
+			next_token: null
+		},
+		with_teams: true
+	});
+	const [somebody] = people.result?.data ?? [];
+	const reports = [kinds.report, people.report];
+	const probes = [
+		probe("teams_list", {}),
+		probe("schedule_templates_list", {}),
+		probe("schedules_list", { date_range: dateRange }),
+		probe("absences_list", { date_range: dateRange }),
+		probe("on_calls_list", { date_range: dateRange }),
+		probeWith("resources_show_activity_rates", people, somebody && { resource_id: somebody.id }),
+		probe("timechecks_list", { filters: [{
+			key: "timecheck.date_range",
+			value: dateRange
+		}] })
+	];
+	for (const next of probes) reports.push((yield* next).report);
+	const integration = yield* integrationLink;
+	const update = yield* flatMap(Updates, (updates) => updates.available);
+	return {
+		date_range: dateRange,
+		endpoints: reports,
+		...integration === void 0 ? {} : { integration },
+		ok: reports.every((report) => report.status !== "failed"),
+		...isSome(update) ? { update: update.value } : {}
+	};
+});
+//#endregion
+//#region ../../packages/mcp/src/Tools.ts
+const Done = Struct({ done: Literal(true) });
+const LocalDate = String$2.check(isPattern(/^\d{4}-\d{2}-\d{2}$/u));
+const EndpointReport = Struct({
+	count: optionalKey(Int),
+	error: optionalKey(String$2),
+	name: String$2,
+	status: Literals([
+		"ok",
+		"failed",
+		"skipped"
+	]).annotate({ description: "ok: the endpoint answered as expected. skipped: the module is off or a right is missing; the error names the right and the page where it is ticked. failed: Tipee answered in a shape this version cannot read." })
+});
+const IntegrationReport = Struct({
+	label: String$2,
+	roles_page: String$2
+});
+const UpdateReport = Struct({
+	url: String$2,
+	version: String$2
+});
+const Check = make$10("check_setup", {
+	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when a tool reports a refused key, a missing right or an unexpected response shape: it names the integration the key belongs to and where its rights are set, explains missing authorizations, detects the day Tipee changes a response shape, and says when a newer version of Tipee for Claude exists. Stores nothing.",
+	failure: TipeeError,
+	parameters: Struct({
+		from: optionalKey(LocalDate.annotate({ description: "First day of the range, YYYY-MM-DD; without both from and to, the coming week" })),
+		to: optionalKey(LocalDate.annotate({ description: "Last day of the range, YYYY-MM-DD" }))
+	}),
+	success: Struct({
+		date_range: String$2,
+		endpoints: ArraySchema(EndpointReport),
+		integration: optionalKey(IntegrationReport.annotate({ description: "The integration the key belongs to and the page where its rights are ticked." })),
+		ok: Boolean.annotate({ description: "False only when an endpoint failed; skipped endpoints keep it true." }),
+		update: optionalKey(UpdateReport.annotate({ description: "A newer version of Tipee for Claude, when one exists, and where to download it." }))
+	})
+}).annotate(Title, "Check Tipee setup").annotate(Strict, true).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
+const InstallUpdate = make$10("update_plugin", {
+	description: "Installs the newer version of Tipee for Claude that check_setup reported. In Claude Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks the user to confirm; the instance and key are kept. In Claude Code it answers with the commands to run. Call it only after the user agreed to update.",
+	failure: UpdateFailed,
+	success: Struct({
+		message: String$2,
+		outcome: Installed
+	})
+}).annotate(Title, "Update Tipee for Claude").annotate(Strict, true).annotate(Readonly, false).annotate(Destructive, true).annotate(Idempotent, true);
+const CONFIRM = "Changes Tipee: first tell the user exactly what will change and for whom, and wait for their yes, unless they asked for this precise change.";
+const describe = (operation) => {
+	if (operation.readOnly) return operation.description;
+	const text = operation.description.trimEnd();
+	const base = /[.!?]$/u.test(text) ? text : `${text}.`;
+	const final = /\.delete/u.test(operation.path) ? " It cannot be undone." : "";
+	return `${base} ${CONFIRM}${final}`;
+};
+const words = (part) => part.replaceAll("-", " ");
+const titleOf = (path) => {
+	const [resource = "", verb = ""] = path.replace(/^\/api\/[^/]+\//u, "").split(".");
+	const subject = words(resource);
+	return `${subject.charAt(0).toUpperCase()}${subject.slice(1)}: ${words(verb)}`;
+};
+const toolFor = (operation) => dynamic(operation.name, {
+	description: describe(operation),
+	failure: TipeeError,
+	parameters: operation.parameters,
+	success: operation.success ?? Done
+}).annotate(Title, titleOf(operation.path)).annotate(Strict, true).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
+const TipeeToolkit = make$9(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)));
+//#endregion
+//#region ../../packages/mcp/src/Handlers.ts
+const said = (outcome) => {
+	if (outcome.status === "opened") return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
+	if (outcome.status === "downloaded") return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
+	if (outcome.status === "instructions") return `Version ${outcome.version} is available. In a terminal run \`claude plugin update tipee@tipee-tools\` (Claude Code can run it for you), then /reload-plugins, or use /plugin → Installed → tipee → Update now. Release notes: ${outcome.url}`;
+	return "Tipee for Claude is already the latest version.";
+};
+const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) => ({
+	message: said(outcome),
+	outcome
+}));
+const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
+const detailOf = (failure) => {
+	if (!(failure instanceof TipeeError)) return {};
+	const { reason } = failure;
+	if (reason._tag === "Rejected") return {
+		error_code: reason.code,
+		http_status: reason.status
+	};
+	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
+};
+const REPORTED = /* @__PURE__ */ new Set([
+	"UnexpectedShape",
+	"UnexpectedStatus",
+	"InvalidRequest",
+	"Internal"
+]);
+const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
+	onNone: () => ({}),
+	onSome: ({ clientInfo, protocolVersion }) => ({
+		mcp_client: clientInfo.name,
+		mcp_client_version: clientInfo.version,
+		mcp_protocol: protocolVersion
+	})
+}));
+const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function* (params) {
+	const who = yield* caller;
+	yield* announce(who);
+	const [duration, exit$2] = yield* timed(exit(run(params)));
+	const common = {
+		...who,
+		duration_ms: Math.round(toMillis(duration)),
+		tool
+	};
+	if (isSuccess(exit$2)) {
+		yield* telemetry.capture("tool_called", {
+			...common,
+			outcome: "ok"
+		});
+		return exit$2.value;
+	}
+	const failure = findError(exit$2.cause);
+	if (isSuccess$1(failure)) {
+		const reason = reasonOf(failure.success);
+		yield* telemetry.capture("tool_called", {
+			...common,
+			...detailOf(failure.success),
+			outcome: "failed",
+			reason
+		});
+		if (REPORTED.has(reason)) yield* telemetry.exception(failure.success, {
+			handled: true,
+			properties: { tool }
+		});
+	} else {
+		yield* telemetry.capture("tool_called", {
+			...common,
+			outcome: "crashed"
+		});
+		yield* telemetry.exception(squash(exit$2.cause), {
+			handled: false,
+			properties: { tool }
+		});
+	}
+	return yield* failCause$3(exit$2.cause);
+});
+const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
+	const client = yield* TipeeClient;
+	const telemetry = yield* Telemetry;
+	const updates = yield* Updates;
+	let announced = false;
+	const announce = (who) => suspend$2(() => {
+		if (announced) return void_$1;
+		announced = true;
+		return telemetry.capture("session_started", who);
+	});
+	const watcher = {
+		announce,
+		telemetry
+	};
+	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry), provideService(Updates, updates));
+	const handlers = {
+		check_setup: observed(watcher, "check_setup", (params) => withClient(check(params))),
+		update_plugin: observed(watcher, "update_plugin", () => withClient(update))
+	};
+	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => withClient(invoke(target, params)).pipe(map$4((result) => result ?? { done: true })));
+	return TipeeToolkit.of(handlers);
+}));
+//#endregion
+//#region ../../packages/mcp/src/Prompts.ts
+const SETUP_PROMPT = {
+	description: "Check that the Tipee connection works and explain any missing authorization.",
+	name: "check-tipee-setup",
+	text: `Run the check_setup tool with no arguments, then explain the result to someone who is not technical. For each endpoint that is not ok, quote its error as is: it names the right to tick and links the page where to tick it. A module the company does not use can stay off: say so rather than asking me to turn it on. If the tool itself fails, quote its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. Tell me to run this check again after changing anything. Then give three examples of questions I can ask, using only endpoints that are ok. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call update_plugin and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there.`,
+	title: "Check Tipee setup"
+};
+const SetupPrompt = prompt({
+	content: () => succeed$3(SETUP_PROMPT.text),
+	description: SETUP_PROMPT.description,
+	name: SETUP_PROMPT.name,
+	title: SETUP_PROMPT.title
+});
+//#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0/node_modules/@effect/platform-node-shared/dist/NodeSink.js
+const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
+const fromWritableChannel = (options) => fromTransform$1((pull) => {
+	const writable = options.evaluate();
+	return succeed$3(pullIntoWritable({
+		...options,
+		writable,
+		pull
+	}));
+});
+const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
+	let i = 0;
+	return callback$1((resume) => {
+		let cancelled = false;
+		const loop = () => {
+			for (; i < chunk.length;) {
+				if (cancelled) return;
+				if (!options.writable.write(chunk[i++], options.encoding)) {
+					if (!cancelled) options.writable.once("drain", loop);
+					return;
+				}
+			}
+			if (!cancelled) resume(void_$1);
+		};
+		loop();
+		return sync(() => {
+			cancelled = true;
+			options.writable.off("drain", loop);
+		});
+	});
+}), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
+	if ("closed" in options.writable && options.writable.closed) return done$1(_);
+	return callback$1((resume) => {
+		const onFinish = () => resume(done$1(_));
+		options.writable.once("finish", onFinish);
+		options.writable.end();
+		return sync(() => {
+			options.writable.off("finish", onFinish);
+		});
+	});
+}) : identity, raceFirst(callback$1((resume) => {
+	const onError = (error) => resume(fail$3(options.onError(error)));
+	options.writable.once("error", onError);
+	return sync(() => {
+		options.writable.off("error", onError);
+	});
+})));
+//#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.0_effect@4.0.0/node_modules/@effect/platform-node-shared/dist/NodeStream.js
+const fromReadable = (options) => fromChannel(fromReadableChannel(options));
+const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
+	scope,
+	readable: options.evaluate(),
+	onError: options.onError ?? defaultOnError,
+	chunkSize: options.chunkSize,
+	closeOnDone: options.closeOnDone
+}));
+const readableToPullUnsafe = (options) => {
+	const readable = options.readable;
+	const closeOnDone = options.closeOnDone ?? true;
+	const exit = options.exit ?? make$33(void 0);
+	const latch = options.latch ?? makeUnsafe$2(false);
+	function onReadable() {
+		latch.openUnsafe();
+	}
+	function onError(error) {
+		exit.current = fail$4(options.onError(error));
+		latch.openUnsafe();
+	}
+	function onEnd() {
+		exit.current = fail$4(Done$1());
+		latch.openUnsafe();
+	}
+	readable.on("readable", onReadable);
+	readable.once("error", onError);
+	readable.once("end", onEnd);
+	const pull = suspend$2(function loop() {
+		let item = options.readable.read(options.chunkSize);
+		if (item === null) {
+			if (exit.current) return exit.current;
+			if (readable.readableEnded) return fail$3(Done$1());
+			latch.closeUnsafe();
+			return flatMap(latch.await, loop);
+		}
+		const chunk = of(item);
+		while (true) {
+			item = options.readable.read(options.chunkSize);
+			if (item === null) break;
+			chunk.push(item);
+		}
+		return succeed$3(chunk);
+	});
+	return as(addFinalizer$1(options.scope, sync(() => {
+		readable.off("readable", onReadable);
+		readable.off("error", onError);
+		readable.off("end", onEnd);
+		if (closeOnDone && "closed" in options.readable && !options.readable.closed) options.readable.destroy();
+	})), pull);
+};
+const defaultOnError = (error) => new UnknownError$1(error);
+//#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0_effect@4.0.0/node_modules/@effect/platform-node/dist/NodeStdio.js
 const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
@@ -24847,24 +24847,6 @@ const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	})
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0_effect@4.0.0_redis@6.3.0/node_modules/@effect/platform-node/dist/NodeRuntime.js
-const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
-	let receivedSignal = false;
-	fiber.addObserver((exit) => {
-		process.removeListener("SIGINT", onSigint);
-		process.removeListener("SIGTERM", onSigint);
-		teardown(exit, (code) => {
-			if (receivedSignal || code !== 0) process.exit(code);
-		});
-	});
-	function onSigint() {
-		receivedSignal = true;
-		fiber.interruptUnsafe(fiber.id);
-	}
-	process.on("SIGINT", onSigint);
-	process.on("SIGTERM", onSigint);
-});
-//#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
 const SERVER_VERSION = "0.3.9";
@@ -24892,7 +24874,7 @@ const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(
 		v2024_11_05
 	],
 	version: SERVER_VERSION
-})), provide$2(TipeeClient.layerConfig), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer$2), provide$2(layer));
+})), provide$2(TipeeClient.layerConfig), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer));
 const reportCrash = (cause) => gen(function* () {
 	const telemetry = yield* Telemetry;
 	const failure = findError(cause);
@@ -24904,6 +24886,24 @@ const reportCrash = (cause) => gen(function* () {
 	yield* telemetry.flush;
 }).pipe(provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, ignore$1);
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
+//#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.0_effect@4.0.0/node_modules/@effect/platform-node/dist/NodeRuntime.js
+const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
+	let receivedSignal = false;
+	fiber.addObserver((exit) => {
+		process.removeListener("SIGINT", onSigint);
+		process.removeListener("SIGTERM", onSigint);
+		teardown(exit, (code) => {
+			if (receivedSignal || code !== 0) process.exit(code);
+		});
+	});
+	function onSigint() {
+		receivedSignal = true;
+		fiber.interruptUnsafe(fiber.id);
+	}
+	process.on("SIGINT", onSigint);
+	process.on("SIGTERM", onSigint);
+});
 //#endregion
 //#region ../../packages/mcp/src/Start.ts
 const EXIT_CRASHED = 1;

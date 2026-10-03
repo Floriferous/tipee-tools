@@ -15,6 +15,15 @@ trustPolicyExclude:
 # Transitive dependencies only from the registry, never git or tarball URLs.
 blockExoticSubdeps: true
 
+# @effect/platform-node declares redis as a required peer for its NodeRedis
+# module, which nothing here loads: the sources import its modules by subpath,
+# never through the barrel. Optional, it stays out of the install.
+packageExtensions:
+  '@effect/platform-node@4':
+    peerDependenciesMeta:
+      redis:
+        optional: true
+
 # pnpm 12 refuses to run a dependency's install scripts unless it is listed here.
 allowBuilds:
   lefthook: true
