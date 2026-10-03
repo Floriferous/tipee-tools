@@ -38,10 +38,12 @@ jobs:
             exit 1
           fi
 
+      # No credentials in .git/config while the install and the refresh run
+      # third-party code: git gets the token only to push, in the last step.
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          token: ${{ secrets.SPEC_REFRESH_TOKEN }}
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -81,7 +83,7 @@ jobs:
           git switch --force-create "$branch"
           git add --all
           git commit --message "$title" --message "Opened by the spec-refresh workflow: pnpm spec:refresh --bump."
-          git push --force origin "$branch"
+          git push --force "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "$branch"
           number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
           if [ -z "$number" ]; then
             gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md"

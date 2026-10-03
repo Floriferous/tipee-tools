@@ -154,13 +154,14 @@ strict, titled `Tool.dynamic`. Failure messages end with their next step
   `effect-tsgo patch`, after which `tsc` and the type-aware lint report
   Effect diagnostics (for example preferTypedSchemaDecoder). Fix them rather
   than silencing them; severities live in each package's `tsconfig.json`.
-- Dependencies: Renovate (`renovate.json`) opens grouped weekly npm PRs and
-  Dependabot covers GitHub Actions, both with a one-week cooldown;
+- Dependencies: Renovate (`renovate.json`) opens grouped weekly PRs for npm
+  and GitHub Actions (pinned to digests), with a one-week cooldown;
   `pnpm-workspace.yaml` enforces minimumReleaseAge, no trust downgrades and
   no exotic sub-dependencies. Renovate moves `effect` and the `@effect/*`
   packages (except `@effect/tsgo`) together as one group; check that PR
-  against the `effect-v4` skill.
-  Dependabot's npm updater cannot run pnpm 12, so don't re-add npm there.
+  against the `effect-v4` skill. `@effect/tsgo`, oxlint, oxlint-tsgolint and
+  TypeScript move together as the TypeScript toolchain. No Dependabot: its
+  updater cannot run pnpm 12.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the
   server into `plugins/tipee/server/` (the plugin is the workspace package
