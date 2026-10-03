@@ -16,16 +16,12 @@ tipee-tools/
 │   └── mcp/                       # toolkit, handlers, check, updates, telemetry, stdio server
 ├── plugins/
 │   └── tipee/                     # the plugin, also workspace package @tipee-tools/plugin
-│       ├── .claude-plugin/plugin.json   # name, version, userConfig (instance, api_key)
-│       ├── .mcp.json                    # node ${CLAUDE_PLUGIN_ROOT}/server/tipee-mcp.mjs
-│       ├── src/main.ts + tsdown.config  # bundles @tipee-tools/mcp into server/
-│       ├── scripts/pack-mcpb.ts         # Claude Desktop manifest and .mcpb
-│       ├── server/tipee-mcp.mjs         # the bundled server (pnpm build), committed
-│       └── skills/tipee/                # user-facing skill and the rights table
+│       ├── .claude-plugin/plugin.json, .mcp.json, skills/tipee/
+│       ├── src/main.ts, tsdown.config.ts  # bundled into server/tipee-mcp.mjs, committed
+│       └── scripts/pack-mcpb.ts         # Claude Desktop manifest and .mcpb
 ├── .claude-plugin/marketplace.json      # lists ./plugins/tipee: the repo is the marketplace
 ├── .claude/skills/                      # contributor skills: tipee, effect-v4
-├── .github/workflows/                   # verify.yml (checks, then releases), spec-refresh.yml
-└── turbo.json                           # task graph: transit nodes, root lint/format, bundle outputs
+└── .github/workflows/                   # verify.yml, release.yml, spec-refresh.yml
 ```
 
 ## Why Effect 4
@@ -51,8 +47,8 @@ out of Bash commands, so a CLI would need key storage of its own for no gain.
 `@effect/openapi-generator` turns the vendored document into
 `packages/core/src/generated/TipeeApi.ts`, committed and never edited.
 `HttpApi.reflect` yields the operation catalogue, and each operation becomes a
-strict `Tool.dynamic` (69, plus `check_setup` and `update_plugin`), read-only
-or destructive by its verb. Wherever the document disagrees with Tipee or with
+strict `Tool.dynamic`, plus `check_setup` and `update_plugin`, read-only or
+destructive by its verb. Wherever the document disagrees with Tipee or with
 what Claude needs, the fix is a JSON Patch in `packages/core/scripts/generate.ts`,
 nowhere else; granting and revoking roles are left out. Every Monday a
 workflow runs `pnpm spec:refresh --bump`, which fetches Tipee's newest stable
@@ -113,37 +109,30 @@ is untested. Claude Code needs `node` 22.19 or newer on its PATH, the first
 system's certificates where a network inspects HTTPS. Contributors use Node
 24, which runs the TypeScript sources directly.
 
-## Two skills
-
-`.claude/skills/tipee` and `.claude/skills/effect-v4` brief whoever develops
-this repository. `plugins/tipee/skills/tipee` explains the _product_ to its
-users in Claude Code (the tools, confirming before every write, the
-token-rights trap, redacted values) and never mentions the repository.
-
 ## Development
 
 - `pnpm mcp` runs the server from source; `claude --plugin-dir ./plugins/tipee`
   loads the plugin after `pnpm build`.
 - Turborepo runs `check`, `test`, `build` and `pack` per package, cached;
   transit nodes carry a dependency's change to its dependents.
-- `pnpm fix` applies the fixers and regenerates; `pnpm verify` only checks
-  (generate, lint, format, types, tests, bundle, pack, freshness of committed
-  files) and is what CI runs. The pre-commit hook runs `pnpm fix`, then
-  `check` and `test`.
+- The pre-commit hook runs `pnpm fix` (fixers, regeneration), then `check` and
+  `test`; `pnpm verify`, what CI runs, only checks (generate, lint, format,
+  types, tests, bundle, pack, freshness of committed files).
+- `.claude/skills/tipee` and `.claude/skills/effect-v4` brief contributors;
+  `plugins/tipee/skills/tipee` explains the _product_ to Claude Code users.
 - Every package is tested against the MSW fake of Tipee in
   `@tipee-tools/core/testing`, which enforces Tipee's real rules.
-- `@effect/tsgo` makes `tsc`, oxlint and the editor report Effect diagnostics.
-- Renovate proposes weekly updates behind a cooldown; pnpm refuses versions
-  younger than a day, trust downgrades and exotic transitive sources.
+- `@effect/tsgo` adds Effect diagnostics to `tsc`, oxlint and the editor;
+  Renovate proposes weekly updates, and pnpm refuses versions younger than a
+  day, trust downgrades and exotic transitive sources.
 
 ## Releases
 
 `main` is the Claude Code channel, and Claude Code installs a new plugin only
-when its version changes. So a PR that changes what ships (the bundle, the
-skill, `.mcp.json`, the manifest) bumps `plugin.json` and `SERVER_VERSION`,
-Renovate and spec-refresh PRs included, and CI refuses shipped changes under a
-released version. Merging a bump publishes the release: a job in `verify.yml`
-tags `v<version>` and publishes the `.mcpb` verify built, as
+when its version changes. So a change to what ships (the bundle, the skill,
+`.mcp.json`, the manifest) bumps `plugin.json` and `SERVER_VERSION` together.
+Pushing the tag `v<version>` runs `release.yml`, which refuses a tag that
+differs from both, builds the `.mcpb` and publishes it as
 `tipee-<version>.mcpb` and `tipee.mcpb` with `SHA256SUMS`, names every
 installed update tool relies on. A broken release is fixed by a new patch.
 
