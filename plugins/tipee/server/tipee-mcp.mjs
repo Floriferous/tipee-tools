@@ -24849,7 +24849,7 @@ const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.9";
+const SERVER_VERSION = "1.0.0";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company Tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In Tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
