@@ -32,6 +32,13 @@ export default defineConfig({
       },
     },
     {
+      // Scripts are entry points run with `node`, never loaded with require(esm).
+      files: ['packages/*/scripts/**/*.ts', 'plugins/*/scripts/**/*.ts'],
+      rules: {
+        'node/no-top-level-await': 'off',
+      },
+    },
+    {
       // The MCPB manifest carries literal `${__dirname}` / `${user_config.x}`
       // placeholders that Claude Desktop substitutes at install time, and
       // the configuration tests check what an unsubstituted one does.

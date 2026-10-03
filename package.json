@@ -16,7 +16,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "generate": "turbo run generate",
-    "lint": "oxlint --type-aware --deny-warnings --fix --fix-suggestions --fix-dangerously -c oxlint.config.ts packages plugins oxlint.config.ts",
+    "lint": "oxlint --type-aware --deny-warnings --fix -c oxlint.config.ts packages plugins oxlint.config.ts",
     "lint:check": "oxlint --type-aware --deny-warnings -c oxlint.config.ts packages plugins oxlint.config.ts",
     "mcp": "pnpm --filter @tipee-tools/mcp start",
     "pack": "turbo run pack",

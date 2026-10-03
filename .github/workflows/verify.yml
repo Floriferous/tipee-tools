@@ -16,9 +16,6 @@ concurrency:
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
-  # Optional Vercel Remote Cache; without these, the .turbo cache below applies.
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
   verify:
@@ -28,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # No version pinned here on purpose: the action reads the `packageManager`
       # field in package.json, so the version only has to be bumped in one place.
@@ -40,16 +39,6 @@ jobs:
           cache: pnpm
           node-version-file: .node-version
 
-      # Turborepo's local cache, keyed by commit and restored from the most
-      # recent run, so unchanged packages skip their tasks.
-      - name: Restore Turborepo cache
-        uses: actions/cache@v6
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -60,6 +49,16 @@ jobs:
       # `turbo run check test`.
       - name: Verify
         run: pnpm verify
+
+      # The committed bundle, run as users run it: on the oldest Node the
+      # extension declares (see plugins/tipee/scripts/pack-mcpb.ts).
+      - name: Setup the oldest supported Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.19.0'
+
+      - name: Smoke-test the bundle
+        run: node plugins/tipee/scripts/smoke.ts
 
       # The Claude Desktop extension built by `pnpm verify`, downloadable from
       # the run to try a branch before it is released.
