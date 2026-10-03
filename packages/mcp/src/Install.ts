@@ -6,7 +6,7 @@
 
 import { createHash } from 'node:crypto';
 import { hostname, userInfo } from 'node:os';
-import { argv } from 'node:process';
+import { argv, env } from 'node:process';
 
 /** How the plugin was installed, which decides how it updates. */
 export type Channel = 'desktop' | 'plugin' | 'dev';
@@ -37,10 +37,18 @@ const shaped = (hex: string): string => {
   }).join('-');
 };
 
+// The account name. `userInfo` throws in a container run under a uid that
+// Has no passwd entry, and telemetry must never stop the server.
+const username = (): string => {
+  try {
+    return userInfo().username;
+  } catch {
+    return env.USER ?? env.USERNAME ?? '';
+  }
+};
+
 // The same id for every copy of the plugin on one account, so Claude's
 // Surfaces count as one installation. One way: the machine and account names
 // Cannot be read back out, and are never sent.
 export const installationId = (): string =>
-  shaped(
-    createHash('sha256').update(`tipee-tools:${hostname()}:${userInfo().username}`).digest('hex'),
-  );
+  shaped(createHash('sha256').update(`tipee-tools:${hostname()}:${username()}`).digest('hex'));

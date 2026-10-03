@@ -1,8 +1,9 @@
 // End to end over stdio: the server's entry point, which the plugin's bundle
 // Shares (both call `start`), must complete the MCP handshake, carry the
-// Instructions, and list its tools.
+// Instructions, and list its tools, and a start that cannot succeed must say
+// Why on stderr.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +13,11 @@ const ENTRY = fileURLToPath(new URL('../src/main.ts', import.meta.url));
 const TIMEOUT_MS = 15_000;
 // Some clients cut the server's instructions past this length.
 const INSTRUCTIONS_LIMIT = 2048;
+// Nowhere to send telemetry or ask for releases: the connection is refused and ignored.
+const OFFLINE = {
+  TIPEE_POSTHOG_HOST: 'http://127.0.0.1:1',
+  TIPEE_RELEASES_URL: 'http://127.0.0.1:1/releases',
+};
 
 interface JsonRpcResponse {
   readonly id?: number;
@@ -26,11 +32,9 @@ describe('stdio transport', () => {
       const child = spawn(process.execPath, [ENTRY], {
         env: {
           ...process.env,
+          ...OFFLINE,
           TIPEE_API_KEY: 'unused-in-this-test',
           TIPEE_INSTANCE: 'acme',
-          // Nowhere to send telemetry: the connection is refused and ignored.
-          TIPEE_POSTHOG_HOST: 'http://127.0.0.1:1',
-          TIPEE_RELEASES_URL: 'http://127.0.0.1:1/releases',
         },
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -97,6 +101,24 @@ describe('stdio transport', () => {
       } finally {
         child.kill();
       }
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'explains on stderr, not on the MCP channel, that Tipee is not set up',
+    () => {
+      const { TIPEE_API_KEY: _key, TIPEE_INSTANCE: _instance, ...env } = process.env;
+      const run = spawnSync(process.execPath, [ENTRY], {
+        encoding: 'utf8',
+        env: { ...env, ...OFFLINE },
+        input: '',
+        timeout: TIMEOUT_MS,
+      });
+
+      expect(run.status).not.toBe(0);
+      expect(run.stdout).toBe('');
+      expect(run.stderr).toMatch(/not set up/u);
     },
     TIMEOUT_MS,
   );

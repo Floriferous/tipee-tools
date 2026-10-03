@@ -4,6 +4,7 @@
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/server/tipee-mcp.mjs"],
       "env": {
+        "NODE_USE_ENV_PROXY": "1",
         "TIPEE_INSTANCE": "${user_config.instance}",
         "TIPEE_API_KEY": "${user_config.api_key}"
       }

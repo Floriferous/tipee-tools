@@ -2,10 +2,11 @@ import * as Crypto from "node:crypto";
 import { createHash, randomUUID } from "node:crypto";
 import * as Path from "node:path";
 import path from "node:path";
-import { arch, argv, platform, version } from "node:process";
+import { arch, argv, env, platform, version } from "node:process";
 import * as OS from "node:os";
 import { homedir, hostname, userInfo } from "node:os";
 import { spawn } from "node:child_process";
+import tls from "node:tls";
 import * as NFS from "node:fs";
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Pipeable.js
 /**
@@ -50978,7 +50979,14 @@ const shaped = (hex) => {
 		return part;
 	}).join("-");
 };
-const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${userInfo().username}`).digest("hex"));
+const username = () => {
+	try {
+		return userInfo().username;
+	} catch {
+		return env.USER ?? env.USERNAME ?? "";
+	}
+};
+const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${username()}`).digest("hex"));
 //#endregion
 //#region ../../packages/mcp/src/Telemetry.ts
 /** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
@@ -52266,6 +52274,10 @@ const INSTRUCTIONS = [
 	"{\"redacted\": …} in place of a value means Tipee withheld it from this integration: say so, never guess it.",
 	"A failing tool's message names the cause and the fix: follow it, and give the user any link as is."
 ].join("\n\n");
+const TelemetryLive = Telemetry.layer({
+	$lib_version: SERVER_VERSION,
+	server_version: SERVER_VERSION
+});
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	instructions: INSTRUCTIONS,
@@ -52277,10 +52289,7 @@ const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(
 		v2024_11_05
 	],
 	version: SERVER_VERSION
-})), provide$2(TipeeClient.layerConfig), provide$2(Telemetry.layer({
-	$lib_version: SERVER_VERSION,
-	server_version: SERVER_VERSION
-})), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer$2), provide$2(layer), provide$2(succeed$4(LogToStderr, true)));
+})), provide$2(TipeeClient.layerConfig), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer$2), provide$2(layer));
 const reportCrash = (cause) => gen(function* () {
 	const telemetry = yield* Telemetry;
 	const failure = findError(cause);
@@ -52290,18 +52299,16 @@ const reportCrash = (cause) => gen(function* () {
 		yield* telemetry.capture("server_failed", { reason });
 	} else if (hasDies(cause)) yield* telemetry.exception(squash(cause), { handled: false });
 	yield* telemetry.flush;
-}).pipe(provide(Telemetry.layer({
-	$lib_version: SERVER_VERSION,
-	server_version: SERVER_VERSION
-}).pipe(provide$2(layer$5))), scoped, ignore$1);
+}).pipe(provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, ignore$1);
 /** The whole server as one effect that runs until the client disconnects. */
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
+//#endregion
+//#region ../../packages/mcp/src/Start.ts
 const EXIT_CRASHED = 1;
-/**
-* Runs the server until the client disconnects: the one entry point of both
-* The source (`src/main.ts`) and the plugin's bundle. A crash outside the
-* Effect runtime is reported before the process dies, the way one inside it is.
-*/
+const trustSystemCertificates = () => {
+	tls.setDefaultCACertificates?.([...tls.getCACertificates("default"), ...tls.getCACertificates("system")]);
+};
+/** Runs the server until the client disconnects. */
 const start = () => {
 	const leave = sync(() => {
 		process.exit(EXIT_CRASHED);
@@ -52311,7 +52318,8 @@ const start = () => {
 	};
 	process.on("uncaughtException", crashed);
 	process.on("unhandledRejection", crashed);
-	runMain(main);
+	trustSystemCertificates();
+	runMain(main.pipe(tapCause((cause) => hasInterruptsOnly(cause) ? void_$1 : logError(cause)), provideService(LogToStderr, true)), { disableErrorReporting: true });
 };
 //#endregion
 //#region src/main.ts

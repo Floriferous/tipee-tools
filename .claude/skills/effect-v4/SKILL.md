@@ -40,9 +40,12 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
 - MCP (`effect/ai`): `Tool.make(name, { description, parameters, success, failure })`
   `.annotate(Tool.Readonly, true)`, `Toolkit.make(...)`, handlers with
   `toolkit.toLayer(Effect.gen(…))`, server with `McpServer.toolkit(toolkit)`
-  provided `McpServer.layerStdio({ name, version, protocols: [McpProtocol.v2025_11_25, …] })`,
-  `NodeStdio.layer`, and `Layer.succeed(Logger.LogToStderr, true)` (stdout is
-  the protocol channel). Entry point: `NodeRuntime.runMain(Layer.launch(layer))`.
+  provided `McpServer.layerStdio({ name, version, protocols: [McpProtocol.v2025_11_25, …] })`
+  and `NodeStdio.layer`. Entry point: `NodeRuntime.runMain(Layer.launch(layer))`,
+  the effect wrapped in `Effect.provideService(Logger.LogToStderr, true)` and
+  logging its own failure, with `{ disableErrorReporting: true }`: stdout is
+  the protocol channel, and a failed start must not land there (see `start`
+  in `packages/mcp/src/Server.ts`).
   A declared `failure` schema makes the MCP result carry `error.message`.
 - Tests: `import { it, layer } from "@effect/vitest"`; `layer(L)("suite", (it) => …)`
   shares a layer; `it.effect` runs on the `TestClock` (fork with
