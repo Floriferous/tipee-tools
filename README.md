@@ -4,7 +4,8 @@ Give Claude access to your company's [Tipee](https://tipee.ch): employees,
 teams, shifts, absences, on-call duties, activities and time clock. Claude
 can look things up and, when you ask, change them.
 
-Everything Tipee's API offers is available as a tool. Which tools Claude may
+Every operation of Tipee's API is available as a tool, except granting and
+revoking roles, which stays with an admin in Tipee. Which tools Claude may
 use, and which need your approval, is up to you in Claude's own settings.
 An independent project, not made or endorsed by Tipee.
 
@@ -41,8 +42,9 @@ Keep the key somewhere safe; you will paste it once during installation.
 3. Click **Configure** and enter your Tipee instance (the part before
    `.tipee.net` in the address you sign in at) and the API key.
 4. Start a new chat, open the **+** menu, pick **check-tipee-setup** (Check
-   Tipee setup), and send it. Claude checks every part of the setup and tells you, in plain
-   words, whether it is complete or what is still missing.
+   Tipee setup), and send it. Claude checks every part of the setup and
+   tells you, in plain words, whether it is complete or what is still
+   missing, a mistyped instance or key included.
 
 To change the instance or the key later: **Settings → Extensions → Tipee for
 Claude → Configure**. On Team and Enterprise plans, an owner can upload
@@ -60,9 +62,10 @@ Claude Code needs Node.js 22.19 or newer on its PATH (check with
 ```
 
 It asks for the same two values, and comes with a skill that teaches Claude
-how to work with Tipee. Then run **Check Tipee setup** (`check-tipee-setup`
-in the `/` menu), or ask Claude to run `check_setup`. To change the instance
-or the key later: `/plugin` → Installed → tipee.
+how to work with Tipee. Then run **Check Tipee setup**: type
+`check-tipee-setup` after `/` and pick the Tipee entry, or ask Claude to run
+`check_setup`. To change the instance or the key later: `/plugin` →
+Installed → tipee.
 
 ## 3. Ask away
 
@@ -76,9 +79,9 @@ Some things people ask:
 - How many hours went into project X this month?
 
 Claude looks things up freely. Every tool that changes Tipee instructs Claude
-to tell you exactly what will change and to wait for your yes first. Claude
-Desktop also asks your permission for each tool: choose **Allow once** to
-approve every change yourself.
+to tell you exactly what will change and to wait for your yes first, unless
+you asked for that exact change. Claude Desktop also asks your permission for
+each tool: choose **Allow once** to approve every change yourself.
 
 ## Updating
 
@@ -119,9 +122,9 @@ exists and offers to install it. Say yes, then:
 ## Help
 
 Run **Check Tipee setup** first: its answer names most problems and how to
-fix them. If that does not help,
+fix them, and the version you run. If that does not help,
 [open an issue](https://github.com/Floriferous/tipee-tools/issues) with its
-output and the version you run. Never paste your API key. Report a security
+output, the version included. Never paste your API key. Report a security
 problem privately instead, as [SECURITY.md](SECURITY.md) explains.
 
 ## Privacy and telemetry
@@ -148,7 +151,9 @@ it.
 On a company network, the plugin needs `<instance>.tipee.net`, plus
 `api.github.com`, `github.com` and `*.githubusercontent.com` for updates. It
 trusts the certificates installed on the computer, so networks that inspect
-HTTPS work. `eu.i.posthog.com` can be blocked without harm.
+HTTPS work, and it goes through the proxy set in the `HTTPS_PROXY`
+environment variable where Node.js supports it. `eu.i.posthog.com` can be
+blocked without harm.
 
 ## Development
 
@@ -166,7 +171,6 @@ published version, so a workflow runs `pnpm spec:refresh` every Monday: it
 downloads the newest stable document, regenerates the tools and, when
 anything changed, opens a PR listing the operations and schemas that moved,
 with the version bumped. Review it and merge it: merging a version bump
-publishes the release. Run
-`pnpm spec:refresh` yourself to do the same locally. [ARCHITECTURE.md](ARCHITECTURE.md)
-explains the design, and the skills in `.claude/skills` brief agents working
-in this repository.
+publishes the release. Run `pnpm spec:refresh` yourself to do the same
+locally. [ARCHITECTURE.md](ARCHITECTURE.md) explains the design, and the
+skills in `.claude/skills` brief agents working in this repository.

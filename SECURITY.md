@@ -4,8 +4,9 @@
 
 Report it privately, through **Security → Report a vulnerability** on
 [this repository](https://github.com/Floriferous/tipee-tools/security/advisories/new),
-never in a public issue. Include the version you run and how to reproduce
-it, and never your API key or anything from your company's Tipee.
+never in a public issue. Include the version Check Tipee setup reports and
+how to reproduce it, and never your API key or anything from your company's
+Tipee.
 
 ## Supported versions
 

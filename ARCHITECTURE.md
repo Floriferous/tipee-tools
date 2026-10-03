@@ -75,17 +75,19 @@ Desktop; both keep the key as a secret. The server reads `TIPEE_INSTANCE` and
 `TIPEE_API_KEY` with `Config`. The instance is normalized (`ACME` and
 `https://acme.tipee.net/` give `acme`) and refused unless it is one DNS label,
 so no value sends the key to another host; the key is trimmed and `Redacted`.
-A missing or invalid setting stops the server before it answers: it writes
-why on stderr, which Claude keeps in its MCP logs, and records `server_failed`.
-An unknown instance or a refused key is a tool error naming the setting to
-fix. `TIPEE_POSTHOG_HOST`, `TIPEE_POSTHOG_KEY`, `TIPEE_RELEASES_URL`,
+A missing, blank or invalid setting does not stop the server, since Claude
+keeps stderr in logs users never open: every Tipee call, `check_setup`'s
+included, fails with what to fix, nothing is sent, and the start writes it on
+stderr and records `server_failed`. An unknown instance or a refused key is a
+tool error naming the setting to fix. `TIPEE_POSTHOG_HOST`, `TIPEE_POSTHOG_KEY`, `TIPEE_RELEASES_URL`,
 `TIPEE_DOWNLOAD_BASE`, `TIPEE_UPDATE_CHANNEL` and `TIPEE_OPENER` exist for
 tests and forks, not users.
 
 ## Updates and telemetry
 
 **Updates.** `check_setup` looks up GitHub's latest release each time, keeping
-nothing on disk; a failed lookup means nothing to report. `update_plugin` acts
+nothing on disk, and offers it on a failed check too; a failed lookup means
+nothing to report there, but fails `update_plugin`. `update_plugin` acts
 by the channel the server's path reveals. In Claude Desktop it downloads
 `tipee-<version>.mcpb` to a temporary directory and checks it against the
 release's `SHA256SUMS`; on macOS it opens the file, so Claude Desktop asks to
