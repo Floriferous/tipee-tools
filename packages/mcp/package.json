@@ -14,14 +14,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.0-rc.118",
+    "@effect/platform-node": "4.0.0",
     "@tipee-tools/core": "workspace:*",
-    "effect": "4.0.0-rc.118"
+    "effect": "4.0.0"
   },
   "devDependencies": {
-    "@effect/vitest": "4.0.0-rc.118",
-    "@types/node": "24.13.4",
+    "@effect/vitest": "4.0.0",
+    "@types/node": "24.19.1",
     "msw": "2.15.0",
-    "vitest": "5.0.0"
+    "vitest": "5.0.3"
   }
 }

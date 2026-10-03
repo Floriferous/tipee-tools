@@ -7,7 +7,7 @@ the present and this file is right about the direction; update both as
 phases land.
 
 Two decisions taken after the first draft reshaped it: **everything is
-written on Effect 4** (release candidate, pinned), and **the MCP server is
+written on Effect 4** (pinned exactly), and **the MCP server is
 the v1 product**, with the CLI dropped rather than ported. The reasoning is
 in the sections below; the original CLI-first plan survives as phase 2.
 
@@ -98,7 +98,7 @@ MCP server becomes a composition of layers rather than a program:
 | MCP server, tool annotations, stdio transport                       | `McpServer`, `Tool`, `Toolkit` (`effect/ai`) | the MCP SDK                           |
 | Tests on a controllable clock                                       | `@effect/vitest`, `TestClock`                | fake timers                           |
 
-The cost: v4 is a release candidate ([announcement][effect-rc]), and the
+The cost: Effect 4 is new (stable since 4.0.0, [RC announcement][effect-rc]), and the
 modules we depend on that Effect marks `@stability unstable` (`http`,
 `http-api`, `ai`) may still change in a minor release. The
 version is pinned exactly, the touchpoints are few, and
