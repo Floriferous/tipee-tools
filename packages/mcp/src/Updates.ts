@@ -1,12 +1,12 @@
 // Whether a newer release exists, and installing it. The plugin has no
-// Channel to update itself through, so `check_setup` reports a newer release
-// And the `update_plugin` tool installs it: in Claude Desktop it downloads the bundle
-// From this repository's releases, verifies its checksum, and opens it, which
-// Makes Claude Desktop ask the user to confirm the update; the instance and
-// Key are kept. GitHub's latest release is looked up afresh each time, since
-// Only a check or an update the user asked for looks; a failed lookup means
+// channel to update itself through, so `check_setup` reports a newer release
+// and the `update_plugin` tool installs it: in Claude Desktop it downloads the bundle
+// from this repository's releases, verifies its checksum, and opens it, which
+// makes Claude Desktop ask the user to confirm the update; the instance and
+// key are kept. GitHub's latest release is looked up afresh each time, since
+// only a check or an update the user asked for looks; a failed lookup means
 // "nothing to report". Nothing is kept on disk but the downloaded bundle, in
-// A temporary directory.
+// a temporary directory.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -72,7 +72,7 @@ const DOWNLOAD_TIMEOUT = '60 seconds';
 const CHECKSUMS = 'SHA256SUMS';
 
 // Overridable so tests and forks can point elsewhere; the opener is what
-// Hands the downloaded bundle to Claude Desktop (macOS only for now).
+// hands the downloaded bundle to Claude Desktop (macOS only for now).
 const settings = Config.all({
   channel: Config.String('TIPEE_UPDATE_CHANNEL').pipe(Config.withDefault(detectedChannel)),
   downloadBase: Config.String('TIPEE_DOWNLOAD_BASE').pipe(Config.withDefault(DOWNLOAD_BASE)),
@@ -180,7 +180,7 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
               return yield* failed(`the checksum of ${asset} does not match the published one`);
             }
             // Not scoped: the file must outlive this call until Claude Desktop
-            // Has read it.
+            // has read it.
             const directory = yield* fs.makeTempDirectory({ prefix: 'tipee-update-' });
             const target = path.join(directory, asset);
             yield* fs.writeFile(target, content);
@@ -193,9 +193,9 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
           );
 
         // Hands the file to Claude Desktop and returns once the opener has
-        // Started: the process may be replaced as soon as the user confirms.
+        // started: the process may be replaced as soon as the user confirms.
         // An opener that cannot start reports it as an event (ENOENT, EACCES…)
-        // Or throws (ENOTDIR…), depending on the error.
+        // or throws (ENOTDIR…), depending on the error.
         const open = (target: string): Effect.Effect<void, UpdateFailed> =>
           Effect.gen(function* () {
             const cannotOpen = (cause: unknown): UpdateFailed =>

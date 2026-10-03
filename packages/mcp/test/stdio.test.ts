@@ -1,7 +1,7 @@
 // End to end over stdio: the server's entry point, which the plugin's bundle
-// Shares (both call `start`), must complete the MCP handshake, carry the
-// Instructions, and list its tools, and a start that cannot succeed must say
-// Why on stderr.
+// shares (both call `start`), must complete the MCP handshake, carry the
+// instructions, and list its tools, and a start that cannot succeed must say
+// why on stderr.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';

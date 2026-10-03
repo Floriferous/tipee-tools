@@ -1,5 +1,5 @@
 // The configuration as users paste it: the instance in any form a browser or
-// A colleague gives it, the key with stray whitespace, or nothing at all.
+// a colleague gives it, the key with stray whitespace, or nothing at all.
 
 import { describe, expect, it } from '@effect/vitest';
 import { ConfigProvider, Effect, Layer, Option } from 'effect';

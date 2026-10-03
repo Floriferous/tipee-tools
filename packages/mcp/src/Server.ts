@@ -1,6 +1,6 @@
 // The MCP server as one Layer: the toolkit registered on a stdio McpServer,
-// The handlers backed by a TipeeClient configured from the environment, and
-// The report of why it stopped. `start` (Start.ts) runs it.
+// the handlers backed by a TipeeClient configured from the environment, and
+// the report of why it stopped. `start` (Start.ts) runs it.
 
 import { NodeFileSystem, NodeStdio } from '@effect/platform-node';
 import { TipeeClient } from '@tipee-tools/core';
@@ -20,7 +20,7 @@ export const SERVER_VERSION = '0.3.9';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
-// The plugin's skill. Clients may cut them past 2,048 characters.
+// the plugin's skill. Clients may cut them past 2,048 characters.
 export const INSTRUCTIONS = [
   "These tools read and change the user's company Tipee, a Swiss HR software, one tool per " +
     'API operation (<resource>_<verb>). In Tipee, people are resources, shifts are schedules, ' +
@@ -45,7 +45,7 @@ const TelemetryLive = Telemetry.layer({
 });
 
 // Nothing is recorded on a start: Claude launches the server many times over
-// On its own. The first tool call of a launch reports the session instead.
+// on its own. The first tool call of a launch reports the session instead.
 export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), SetupPrompt).pipe(
   Layer.provide(TipeeToolkitLayer),
   Layer.provide(
@@ -72,9 +72,9 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
 );
 
 // Reports why the server stopped, from a telemetry of its own: the server's
-// May never have been built. An expected failure (missing configuration) is
-// A `server_failed` event with its reason; anything else is an unhandled
-// Exception. Never fails, never takes more than the flush timeout.
+// may never have been built. An expected failure (missing configuration) is
+// a `server_failed` event with its reason; anything else is an unhandled
+// exception. Never fails, never takes more than the flush timeout.
 export const reportCrash = (cause: Cause.Cause<unknown>): Effect.Effect<void> =>
   Effect.gen(function* () {
     const telemetry = yield* Telemetry;

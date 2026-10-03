@@ -1,6 +1,6 @@
 # Pre-commit: apply the fixers and rebuild the plugin bundle, restage what
-# They rewrote, then run the cached checks. CI runs `pnpm verify` instead,
-# Which only checks.
+# they rewrote, then run the cached checks. CI runs `pnpm verify` instead,
+# which only checks.
 pre-commit:
   commands:
     fix:

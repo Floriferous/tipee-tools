@@ -1,6 +1,6 @@
 // Why a call to Tipee failed, one class per reason. Each message leads with
-// What happened and the HTTP status, then quotes Tipee, so the agent reads
-// Exactly what Tipee answered.
+// what happened and the HTTP status, then quotes Tipee, so the agent reads
+// exactly what Tipee answered.
 
 import { Schema } from 'effect';
 
