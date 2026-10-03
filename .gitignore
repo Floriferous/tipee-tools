@@ -8,7 +8,6 @@ dist/
 
 # Tipee API keys live here — local only, never committed
 .env
-packages/*/.env
 
 # logs
 *.log

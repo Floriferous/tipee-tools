@@ -53,14 +53,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Same command as the pre-commit hook's check step and as local `pnpm
-      # Verify`: lint, format, type-check, tests, bundle, then the bundle
-      # Freshness check (the committed plugin server must match the sources).
+      # Same command as a local `pnpm verify`: generate, lint, format,
+      # Type-check, tests, bundle, pack, then the freshness check (the
+      # Committed generated API and plugin server must match the sources).
+      # The pre-commit hook differs: it runs `pnpm fix`, then only
+      # `turbo run check test`.
       - name: Verify
         run: pnpm verify
 
       # The Claude Desktop extension built by `pnpm verify`, downloadable from
-      # The run for manual installs until releases are automated.
+      # The run to try a branch before it is released.
       - name: Upload the Claude Desktop extension
         uses: actions/upload-artifact@v7
         with:

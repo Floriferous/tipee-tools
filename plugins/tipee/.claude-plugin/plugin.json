@@ -1,6 +1,6 @@
 {
   "name": "tipee",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.",
   "author": {
     "name": "Florian Bienefelt"

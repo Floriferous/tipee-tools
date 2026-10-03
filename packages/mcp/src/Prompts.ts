@@ -16,8 +16,8 @@ export const SETUP_PROMPT = {
     'access to the modules concerned, such as Planning → "Accéder au module Planning" and ' +
     '"Voir les plannings", or Cœur RH → "Accéder au module Cœur RH" and "Voir les ' +
     'collaborateurs"), and tell me to run this check again afterwards. If the message says ' +
-    'the key was rejected, tell me to re-enter the instance and the key in the extension ' +
-    'settings. If the result mentions an update, tell me the new version in one sentence and ' +
+    'Tipee refused the API key, tell me to re-enter the instance and the key in the Tipee ' +
+    'settings in Claude. If the result mentions an update, tell me the new version in one sentence and ' +
     'ask whether I want to install it now. If I say yes, call the update tool and relay its ' +
     'message: when Claude Desktop asks for confirmation, tell me to click Update there.',
 };

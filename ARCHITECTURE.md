@@ -9,7 +9,7 @@ phases land.
 Two decisions taken after the first draft reshaped it: **everything is
 written on Effect 4** (pinned exactly), and **the MCP server is
 the v1 product**, with the CLI dropped rather than ported. The reasoning is
-in the sections below; the original CLI-first plan survives as phase 2.
+in the sections below; the original CLI-first plan survives as phase 3.
 
 ## Goals
 
@@ -28,9 +28,8 @@ in the sections below; the original CLI-first plan survives as phase 2.
 - **Secrets never leave the machine.** API keys live in per-user storage,
   never in the repository, in chat, or in CI.
 
-Non-goals for now: a terminal CLI, Windows support, Claude Desktop
-packaging, and write access to Tipee. Each has a place in the phases below,
-none blocks v1.
+Non-goals for now: a terminal CLI and Windows support. Each has a place in
+the phases below, neither blocks v1.
 
 ## Constraints that shaped the design
 
@@ -73,7 +72,7 @@ Each of these was checked against primary sources in September 2026.
 7. **MCPB bundles are for Claude Desktop.** The `.mcpb` format gives
    one-click installation of a local MCP server with a user-config dialog,
    in Claude for macOS and Windows ([MCP Bundles][mcpb],
-   [Desktop Extensions][dxt]). It is a later channel, not a v1 one.
+   [Desktop Extensions][dxt]).
 8. **Single binaries are cheap.** `bun build --compile` cross-compiles to
    macOS, Linux and Windows from one runner and can embed assets
    ([Bun executables][bun-compile]); Node's own SEA is stable and gained a
@@ -116,8 +115,8 @@ freely by the model, and Claude Code deliberately does not export plugin
 secrets into them ([Plugins reference][plugins-ref]). A CLI in the plugin
 would have needed a hook bridging the key into a file. For the first users,
 all on Claude Code, the CLI added setup and a weaker credential posture for
-no benefit, so it was removed. A terminal CLI returns in phase 2, on
-`effect/unstable/cli`, when the first user outside Claude Code appears.
+no benefit, so it was removed. A terminal CLI returns in phase 3, on
+`effect/cli`, when the first user outside Claude Code appears.
 
 ## Shape
 
@@ -125,18 +124,24 @@ no benefit, so it was removed. A terminal CLI returns in phase 2, on
 tipee-tools/
 ├── packages/
 │   ├── core/                      # TipeeClient service, schemas, errors, test kit
+│   │   ├── spec/                  # Tipee's OpenAPI document
+│   │   └── scripts/generate.ts    # patches the document, generates the HttpApi
 │   └── mcp/                       # toolkit, handlers, stdio server, entry point
 ├── plugins/
 │   └── tipee/                     # the Claude Code plugin, also workspace package @tipee-tools/plugin
 │       ├── .claude-plugin/plugin.json   # name, version, userConfig (instance, api_key)
 │       ├── .mcp.json                    # node ${CLAUDE_PLUGIN_ROOT}/server/tipee-mcp.mjs
 │       ├── src/main.ts + tsdown.config  # bundles @tipee-tools/mcp into server/
+│       ├── scripts/pack-mcpb.ts         # Claude Desktop manifest and .mcpb
 │       ├── server/tipee-mcp.mjs         # the bundled server (pnpm build), committed
 │       ├── skills/tipee/SKILL.md        # user-facing: tools, guardrails, quirks
+│       ├── skills/tipee/errors.md       # each error message and its fix
+│       ├── skills/tipee/roles.md        # the rights each tool needs
 │       └── README.md                    # install, integration setup
 ├── .claude-plugin/marketplace.json      # lists ./plugins/tipee: the repo is the marketplace
 ├── .claude/skills/tipee/SKILL.md        # contributor-facing: how to work on this repo
-├── .claude/skills/effect-v4/SKILL.md    # Effect 4 idioms and RC gotchas
+├── .claude/skills/effect-v4/SKILL.md    # Effect 4 idioms and v4 gotchas
+├── .github/workflows/                   # verify.yml on every push, release.yml on a v* tag
 ├── turbo.json                           # task graph: transit nodes, root lint/format, bundle outputs
 └── ARCHITECTURE.md                      # this file
 ```
@@ -165,7 +170,7 @@ manifest's long description. Signing is deferred.
 
 **Two skills, on purpose.** `.claude/skills/tipee` explains this repository
 to whoever develops it. `plugins/tipee/skills/tipee` explains the _product_
-to whoever uses it: the tools, the read-only guardrails, the token-rights
+to whoever uses it: the tools, confirming before every write, the token-rights
 trap, and how to read redacted values and intervals. The user-facing skill
 never mentions this repo's internals.
 
@@ -174,17 +179,23 @@ never mentions this repo's internals.
 | Persona                               | Gets                                              | How                                                                                                                 |
 | :------------------------------------ | :------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------ |
 | Claude Code user (v1)                 | MCP server, skill, credential prompt              | `/plugin marketplace add Floriferous/tipee-tools`, then `/plugin install tipee@tipee-tools`; Node 24 on the machine |
-| Codex, Cursor, other agents (phase 2) | Skill, plus the server via `.mcp.json` or the CLI | `npx skills add <direct path to plugins/tipee/skills/tipee>`, plus `npm i -g @tipee-tools/cli`                      |
-| Human at a terminal (phase 2)         | CLI                                               | `npm i -g @tipee-tools/cli`, later a Homebrew tap                                                                   |
-| Claude Desktop user (v1)              | MCP server with a config dialog, no Node install  | `tipee-<version>.mcpb` from the CI artifact, later from GitHub Releases                                             |
+| Codex, Cursor, other agents (phase 3) | Skill, plus the server via `.mcp.json` or the CLI | `npx skills add <direct path to plugins/tipee/skills/tipee>`, plus `npm i -g @tipee-tools/cli`                      |
+| Human at a terminal (phase 3)         | CLI                                               | `npm i -g @tipee-tools/cli`, later a Homebrew tap                                                                   |
+| Claude Desktop user (v1)              | MCP server with a config dialog, no Node install  | `tipee.mcpb` from the latest GitHub Release                                                                         |
 
 Updates: Claude Code users receive a new plugin when its `version` is bumped;
-the marketplace refreshes in the background once per session.
+the marketplace refreshes in the background once per session. `check` also
+reports a newer GitHub Release, and the `update` tool acts on it: in Claude
+Desktop it downloads the bundle, verifies it against the release's
+`SHA256SUMS` and opens it, so Claude Desktop asks the user to confirm and
+keeps the instance and key; in Claude Code it gives the `/plugin` commands
+to run.
 
 ## Credentials and multi-company configuration
 
-In v1 the plugin's `userConfig` is the only credential source. Claude Code
-prompts for the instance and the key when the plugin is enabled, keeps the
+In v1 the credentials come from the client's own settings: the plugin's
+`userConfig` in Claude Code, the extension manifest's `user_config` in Claude
+Desktop (described above). Claude Code prompts for the instance and the key when the plugin is enabled, keeps the
 key in the macOS Keychain, and substitutes `${user_config.instance}` and
 `${user_config.api_key}` into the server's environment through
 `.mcp.json`. The server reads them with `Config.String("TIPEE_INSTANCE")`
@@ -193,7 +204,7 @@ cannot be logged by accident. Nothing is written to disk by us. Re-enabling
 the plugin re-prompts.
 
 One instance per plugin installation. Someone working with several companies
-is the phase 2 trigger for a profile store in the CLI and a per-call profile
+is the phase 3 trigger for a profile store in the CLI and a per-call profile
 parameter on the tools; both plug into the same `Config` seam.
 
 ## Development experience
@@ -210,10 +221,12 @@ parameter on the tools; both plug into the same `Config` seam.
   TypeScript source, transit nodes (`transit` depends on `^transit`) make a
   dependency's source change invalidate its dependents without serialising
   the graph. Lint and format are root tasks over the whole repo.
-- **Validation.** `pnpm verify` (lint, format, tsc, tests, bundle freshness)
-  is the single command run locally, by the pre-commit hook's check step, and
-  by CI, which restores the `.turbo` cache between runs and can switch to
-  Vercel's remote cache through two variables; `pnpm plugin:validate` runs
+- **Validation.** `pnpm verify` (generate, lint, format, tsc, tests, bundle,
+  pack, then freshness of the generated and bundled files) is the command run
+  locally and by CI. The pre-commit hook first runs `pnpm fix` and restages
+  what it rewrote, then runs `turbo run check test`. CI restores the
+  `.turbo` cache between runs and can switch to Vercel's remote cache
+  through two variables; `pnpm plugin:validate` runs
   `claude plugin validate --strict` on the plugin and the marketplace.
 - **Fake Tipee everywhere.** The MSW test kit in `@tipee-tools/core/testing`
   is how every package is tested, the MCP tools included; a stdio test
@@ -221,7 +234,7 @@ parameter on the tools; both plug into the same `Config` seam.
   talks to a real instance.
 - **Effect's sources at hand.** `pnpm docs:effect` mirrors the Effect
   repository into `opensrc/` (git-ignored) for its agent docs and migration
-  notes; the exact RC sources are in `node_modules/effect/src`.
+  notes; the exact sources of the pinned version are in `node_modules/effect/src`.
 - **Effect diagnostics everywhere.** TypeScript 7 is the native compiler;
   `@effect/tsgo` patches it and the type-aware lint at install time
   (`prepare`), so `tsc`, oxlint and the editor all report Effect-specific
@@ -235,11 +248,17 @@ parameter on the tools; both plug into the same `Config` seam.
 
 ## Release pipeline
 
-v1 has none beyond git: bump `version` in `plugins/tipee/.claude-plugin/plugin.json`
-and `SERVER_VERSION` in `packages/mcp/src/Server.ts`, run `pnpm fix`, commit,
-push. Claude Code users pick the new version up in the background.
+Bump the version in `plugins/tipee/.claude-plugin/plugin.json`, the
+`package.json` of `packages/core`, `packages/mcp` and `plugins/tipee`, and
+`SERVER_VERSION` in `packages/mcp/src/Server.ts`; merge; push a
+`v<version>` tag. Claude Code users pick the new plugin up from the
+marketplace in the background. The tag runs `.github/workflows/release.yml`,
+which fails unless the tag equals `SERVER_VERSION` and the `plugin.json`
+version, then packs the extension and publishes a GitHub Release carrying
+`tipee-<version>.mcpb`, a copy named `tipee.mcpb` for the README's latest
+link, and their `SHA256SUMS`.
 
-Phase 2 adds npm: changesets for versions, GitHub Actions with
+Phase 3 adds npm: changesets for versions, GitHub Actions with
 `id-token: write` and npm trusted publishing (no `NPM_TOKEN`, provenance
 attached automatically), and a GitHub Release carrying the plugin as a
 `.zip` loadable with `--plugin-url`.
@@ -259,15 +278,15 @@ only, and asks for Node 24 on the machine.
 2. **Done: the whole API, generated.** `@effect/openapi-generator` turns
    Tipee's OpenAPI document into an `HttpApi`; `HttpApiClient` derives the
    client; `HttpApi.reflect` yields the operation catalogue; one
-   `Tool.dynamic` per operation gives 68 tools plus `check`, with read-only
-   and destructive annotations from the verb. No hand-written schemas,
+   `Tool.dynamic` per operation gives 68 tools plus `check` and `update`,
+   with read-only and destructive annotations from the verb. No hand-written schemas,
    no deny list, no server-side gate: which tools a user has, and which need
    approval, is configured in the Claude client.
 3. **Beyond Claude Code.** Triggered by the first user on another agent or
    in a terminal: tsdown builds for npm, OIDC publishing, a CLI on
-   `effect/unstable/cli` sharing the core, profile store, `npx skills add`
+   `effect/cli` sharing the core, profile store, `npx skills add`
    instructions.
-4. **Distribution polish.** GitHub Releases carrying the `.mcpb` and a
+4. **Distribution polish.** GitHub Releases carrying the `.mcpb` (done), a
    signed extension, Bun binary and Homebrew tap for the CLI, Keychain
    storage in the CLI, and a hosted connector (remote MCP with OAuth, one
    Tipee key per organisation) if a company wants a zero-install rollout.
@@ -285,8 +304,6 @@ only, and asks for Node 24 on the machine.
 - **Node as a prerequisite.** Claude Code's native installer no longer needs
   Node, so a friend may lack it and the server would fail to start. v1
   documents `brew install node`; phase 3 removes the requirement.
-- **Effect RC.** Whether to move to 4.0 stable as soon as it ships or wait a
-  minor; either way the bump is one number in three manifests.
 
 ## Sources
 

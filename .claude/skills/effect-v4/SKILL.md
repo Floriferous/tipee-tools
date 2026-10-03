@@ -51,7 +51,7 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
   loop instead, as `settled` in `packages/core/test/answers.ts` does);
   `Effect.flip` to get the error.
 
-## RC renames and gotchas met in this repo
+## v4 renames and gotchas met in this repo
 
 | Looking for (v3 / memory) | In v4 |
 | :-- | :-- |
@@ -70,8 +70,10 @@ Since 4.0.0-rc.118 the former `effect/unstable/*` modules live at the top level
 (`effect/http`, `effect/http-api`, `effect/ai`, `effect/cli`, …) but are still
 marked `@stability unstable` and may break in a minor release; `Schema`,
 `Config`, `Layer`, `Effect` are stable. The tsconfigs turn off the
-`unstableApiUsage` diagnostic because depending on them is deliberate. Bump
-the pin deliberately and rerun `pnpm verify`.
+`unstableApiUsage` diagnostic because depending on them is deliberate.
+Renovate moves `effect` and the `@effect/*` packages (except `@effect/tsgo`)
+together as one group; read that PR's diff and rerun `pnpm verify` before
+merging.
 
 ## Type-checking and diagnostics
 
@@ -80,7 +82,9 @@ and patched into `typescript` and `oxlint-tsgolint` by the `prepare` script,
 so `pnpm check`, `pnpm lint` and the editor (VS Code with the TypeScript 7
 extension, see `.vscode/settings.json`) all surface Effect diagnostics.
 `pnpm exec effect-tsgo diagnostics --project <tsconfig> --strict` prints them
-on their own. Do not add `@effect/language-service`: it is the pre-7 plugin.
+on their own. Do not add `@effect/language-service`: it is the pre-7 plugin
+(the `plugins` entries in the tsconfigs carry that name only because it is
+the name `@effect/tsgo` reads).
 
 ## Lint
 

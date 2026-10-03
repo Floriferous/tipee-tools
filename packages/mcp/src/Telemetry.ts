@@ -13,7 +13,7 @@ import path from 'node:path';
 import { arch, platform, version as nodeVersion } from 'node:process';
 
 import { TipeeError } from '@tipee-tools/core';
-import type { FileSystem } from 'effect';
+import type { TipeeErrorReason } from '@tipee-tools/core';
 import { Config, Context, Effect, Layer, Option, Queue, Schedule } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/http';
 
@@ -121,13 +121,27 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
     })
     .slice(0, FRAME_LIMIT);
 
+// A Tipee failure told without anything Tipee answered or anyone wrote: its
+// Reason, the HTTP status, and where a schema mismatch is (field paths such
+// As [0]["id"], never the values found there).
+const withheld = (reason: TipeeErrorReason): string => {
+  if (reason._tag === 'UnexpectedShape' || reason._tag === 'InvalidRequest') {
+    const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
+    return paths.size === 0 ? reason._tag : `${reason._tag} at ${[...paths].join(', ')}`;
+  }
+  if (reason._tag === 'Internal') {
+    return reason.message;
+  }
+  return 'status' in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
+};
+
 // What PostHog's error tracking groups on: a type and a message, plus frames
 // When the error carries a stack worth reading (a TipeeError's does not).
 const describe = (
   error: unknown,
 ): { readonly type: string; readonly value: string; readonly frames: ReadonlyArray<Frame> } => {
   if (error instanceof TipeeError) {
-    return { frames: [], type: `Tipee${error.reason._tag}`, value: error.reason.message };
+    return { frames: [], type: `Tipee${error.reason._tag}`, value: withheld(error.reason) };
   }
   if (error instanceof Error) {
     return { frames: framesOf(error.stack), type: error.name, value: error.message };
@@ -143,7 +157,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
   // Ties one process's events together.
   public static readonly layer = (
     base: Properties,
-  ): Layer.Layer<Telemetry, never, HttpClient.HttpClient | FileSystem.FileSystem> =>
+  ): Layer.Layer<Telemetry, never, HttpClient.HttpClient> =>
     Layer.effect(
       Telemetry,
       Effect.gen(function* () {

@@ -1,5 +1,6 @@
 // Public surface of @tipee-tools/mcp: the toolkit (tool definitions), its
-// Handlers layer, the setup prompt, and the stdio server layer.
+// Handlers layer, the setup prompt, the stdio server and its entry point,
+// Telemetry, updates, and the install channel.
 
 export * from './Handlers.ts';
 export * from './Install.ts';

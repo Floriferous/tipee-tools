@@ -6,8 +6,8 @@ import { mkdtempSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { NodeFileSystem } from '@effect/platform-node';
 import { describe, expect, it } from '@effect/vitest';
+import { Rejected, TipeeError, UnexpectedShape, UnexpectedStatus } from '@tipee-tools/core';
 import { server } from '@tipee-tools/core/testing';
 import { Cause, ConfigProvider, Effect, Layer } from 'effect';
 import { FetchHttpClient } from 'effect/http';
@@ -40,7 +40,6 @@ const telemetryWith = (env: Record<string, string>) =>
     Layer.provide(
       Layer.mergeAll(
         FetchHttpClient.layer,
-        NodeFileSystem.layer,
         ConfigProvider.layer(
           ConfigProvider.fromUnknown({
             TIPEE_API_KEY: API_KEY,
@@ -58,7 +57,7 @@ const telemetryWith = (env: Record<string, string>) =>
 const record = (env: Record<string, string> = {}) =>
   Effect.gen(function* () {
     const telemetry = yield* Telemetry;
-    yield* telemetry.capture('server_started');
+    yield* telemetry.capture('session_started');
     yield* telemetry.capture('tool_called', { outcome: 'ok', tool: 'teams_list' });
     yield* telemetry.exception(new RangeError('synthetic'), {
       handled: false,
@@ -78,7 +77,7 @@ describe('telemetry', () => {
       const [batch] = received;
       expect(batch?.api_key).toBe(KEY);
       expect(batch?.batch.map((event) => event.event)).toEqual([
-        'server_started',
+        'session_started',
         'tool_called',
         '$exception',
       ]);
@@ -109,6 +108,35 @@ describe('telemetry', () => {
       expect(JSON.stringify(listed)).not.toContain(homedir());
       const wire = JSON.stringify(received);
       expect(wire).not.toContain(API_KEY);
+    }),
+  );
+
+  it.effect('reports a Tipee failure by reason, status and paths, never by what Tipee said', () =>
+    Effect.gen(function* () {
+      received.length = 0;
+      server.use(fakePostHog);
+      const failures = [
+        new UnexpectedStatus({ body: 'Alice Martin is on leave', status: 502 }),
+        new UnexpectedShape({ details: 'Expected string, got "Alice Martin"\n  at [0]["label"]' }),
+        new Rejected({ body: 'Alice Martin overlaps', code: 'OVERLAPPING', status: 409 }),
+      ];
+      yield* Effect.gen(function* () {
+        const telemetry = yield* Telemetry;
+        for (const reason of failures) {
+          yield* telemetry.exception(new TipeeError({ reason }), { handled: true });
+        }
+        yield* telemetry.flush;
+      }).pipe(Effect.provide(telemetryWith({})), Effect.scoped);
+
+      const values = received
+        .flatMap((batch) => batch.batch)
+        .map((event) => (event.properties.$exception_list as Array<{ value: string }>)[0]?.value);
+      expect(values).toEqual([
+        'UnexpectedStatus (HTTP 502)',
+        'UnexpectedShape at [0]["label"]',
+        'Rejected (HTTP 409)',
+      ]);
+      expect(JSON.stringify(received)).not.toContain('Alice');
     }),
   );
 

@@ -1,12 +1,11 @@
 {
   "name": "@tipee-tools/mcp",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "MCP server giving Claude the whole Tipee API",
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./main": "./src/main.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",

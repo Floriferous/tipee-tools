@@ -215,13 +215,13 @@ const explain = (
       return new TipeeError({
         fix:
           `Check the instance name, then the integration and its key at ${pages(instance).integrations}, ` +
-          'and re-enter them in the extension settings.',
+          'and re-enter them in the Tipee settings in Claude.',
         reason,
       });
     }
     if (reason._tag === 'Unreachable' && /ENOTFOUND/u.test(reason.description)) {
       return new TipeeError({
-        fix: `${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in the extension settings.`,
+        fix: `${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in the Tipee settings in Claude.`,
         reason,
       });
     }

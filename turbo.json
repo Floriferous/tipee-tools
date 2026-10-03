@@ -6,7 +6,7 @@
         ".oxfmtrc.jsonc",
         "*.{json,jsonc,md,ts,yml,yaml}",
         ".github/**",
-        ".claude/**",
+        ".vscode/**",
         ".claude-plugin/**",
         "packages/**",
         "plugins/**",
@@ -17,11 +17,11 @@
     "//#lint:check": {
       "inputs": [
         "oxlint.config.ts",
+        "pnpm-lock.yaml",
         "packages/**",
         "plugins/**",
         "!plugins/*/server/**",
         "!**/*.md",
-        "!**/*.json",
         "!packages/*/src/generated/**"
       ]
     },

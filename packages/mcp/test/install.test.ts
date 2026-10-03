@@ -19,6 +19,9 @@ describe('install', () => {
     expect(channelOf(repo)).toBe('dev');
     expect(channelOf(built)).toBe('dev');
     expect(channelOf('')).toBe('dev');
+    expect(channelOf(String.raw`C:\Users\a\.claude\plugins\cache\tipee\server\tipee-mcp.mjs`)).toBe(
+      'plugin',
+    );
   });
 
   it('gives one stable id per machine and account, shaped like a uuid', () => {

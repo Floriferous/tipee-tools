@@ -45,7 +45,7 @@ Keep the key somewhere safe; you will paste it once during installation.
 To change the instance or the key later: **Settings → Extensions → Tipee →
 Configure**.
 
-### Or ask your agent to set it up
+### Or install in Claude Code
 
 If you use Claude Code, ask it to install the `tipee` plugin from the
 `Floriferous/tipee-tools` marketplace, or run:
@@ -56,16 +56,8 @@ If you use Claude Code, ask it to install the `tipee` plugin from the
 ```
 
 It asks for the same two values, and comes with a skill that teaches Claude
-how to work with Tipee. Then ask it to run `check`.
-
-## Updating
-
-Claude tells you when a newer version exists, whenever you run the setup
-check, and offers to install it. Say yes: in Claude Desktop it downloads the
-release and Claude Desktop asks you to confirm the update, keeping your
-instance and key. In Claude Code, run `/plugin marketplace update tipee-tools`
-then `/plugin update tipee`, or turn on auto-update for the marketplace once
-under `/plugin`.
+how to work with Tipee. Then send the **check-tipee-setup** prompt from the
+`/` menu, or ask Claude to run `check`.
 
 ## 3. Ask away
 
@@ -82,14 +74,24 @@ Claude looks things up freely. Before it changes anything it tells you
 exactly what will change and waits for your yes, and Claude Desktop asks for
 your permission on each tool the first time it is used.
 
+## Updating
+
+Claude tells you when a newer version exists, whenever you run the setup
+check, and offers to install it. Say yes: in Claude Desktop it downloads the
+release and Claude Desktop asks you to confirm the update, keeping your
+instance and key. In Claude Code, run `/plugin marketplace update tipee-tools`
+then `/plugin update tipee`, or turn on auto-update for the marketplace once
+under `/plugin`.
+
 ## Telemetry
 
 The plugin collects usage data to help improve it: which tools were called,
-how long they took, the errors they hit, and the name of your Tipee instance
-so companies can be told apart. It never sends your key, anything Tipee
-answered, or anything about the people in Tipee. Installations are counted
-by a one-way hash of your computer and account names, which are themselves
-never sent.
+how long they took, the errors they hit (their reason, the HTTP status and,
+for a response that changed shape, the paths of the fields concerned), and
+the name of your Tipee instance so companies can be told apart. It never
+sends your key, anything Tipee answered, or anything about the people in
+Tipee. Installations are counted by a one-way hash of your computer and
+account names, which are themselves never sent.
 
 ## Development
 

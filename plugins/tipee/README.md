@@ -15,8 +15,9 @@ Setup takes three steps, described in the
 2. **Install**: in Claude Desktop, from the downloaded extension file; in
    Claude Code, with `/plugin install tipee@tipee-tools`. Enter your instance
    and the key when asked; the key is stored in your keychain.
-3. **Check**: send the **check-tipee-setup** prompt (Claude Desktop) or ask
-   Claude to run `check` (Claude Code). It reports whether the setup is
+3. **Check**: send the **check-tipee-setup** prompt (the **+** menu in
+   Claude Desktop, the `/` menu in Claude Code) or ask Claude to run
+   `check`. It reports whether the setup is
    complete or what is still missing.
 
 Claude asks before changing anything, and Claude itself asks your permission

@@ -35,6 +35,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The update tool downloads v<version>/tipee-<version>.mcpb, named from
+      # SERVER_VERSION: a tag that differs would publish a release it cannot find.
+      - name: Check the tag against the version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          server=$(sed -nE "s/^export const SERVER_VERSION = '([^']+)';/\1/p" packages/mcp/src/Server.ts)
+          plugin=$(node -p "require('./plugins/tipee/.claude-plugin/plugin.json').version")
+          if [ "$tag" != "$server" ] || [ "$tag" != "$plugin" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match SERVER_VERSION ($server) and plugin.json ($plugin)"
+            exit 1
+          fi
+
       - name: Build the extension
         run: pnpm exec turbo run pack
 

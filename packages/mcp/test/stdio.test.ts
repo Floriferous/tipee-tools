@@ -1,5 +1,5 @@
-// End to end over stdio: the bundled entry point (or the source when the
-// Bundle is absent) must complete the MCP handshake and list its tools.
+// End to end over stdio: the server's entry point, which the plugin's bundle
+// Shares (both call `start`), must complete the MCP handshake and list its tools.
 
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';

@@ -30,9 +30,12 @@ each error message to the fix.
 
 ## What the schema cannot say
 
-- **Setup**: `check` first when the tools are new to this machine. `ok`
-  means the setup is complete; a `skipped` endpoint is a module this
-  instance does not have. The report names the integration the key belongs
+- **Setup**: `check` first when the tools are new to this machine. A
+  `skipped` endpoint was refused: either the module is not enabled on this
+  instance, or the integration lacks the right, and then its error names the
+  right and links the Roles tab. `ok` stays true with skipped endpoints and
+  is false only when an endpoint failed (Tipee answered in a shape this
+  plugin cannot read). The report names the integration the key belongs
   to and links its Roles tab. When it reports an `update`, tell the user the
   version once and ask whether to install it; on a yes, call `update` and
   relay its message (Claude Desktop asks the user to confirm in its own
