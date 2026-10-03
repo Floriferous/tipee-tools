@@ -135,7 +135,6 @@ tipee-tools/
 │       ├── scripts/pack-mcpb.ts         # Claude Desktop manifest and .mcpb
 │       ├── server/tipee-mcp.mjs         # the bundled server (pnpm build), committed
 │       ├── skills/tipee/SKILL.md        # user-facing: tools, guardrails, quirks
-│       ├── skills/tipee/errors.md       # each error message and its fix
 │       ├── skills/tipee/roles.md        # the rights each tool needs
 │       └── README.md                    # install, integration setup
 ├── .claude-plugin/marketplace.json      # lists ./plugins/tipee: the repo is the marketplace
@@ -165,8 +164,9 @@ through its own dialog, stores the key in the system keychain, and runs the
 server with its bundled Node ([MCPB][mcpb]). This is the channel for
 non-technical users; on Team and Enterprise plans an owner can upload the
 extension once and allowlist it for the organisation. Skills are not read by
-Claude Desktop, so the guidance lives in the tool descriptions and the
-manifest's long description. Signing is deferred.
+Claude Desktop, so the guidance lives in the server's instructions, the tool
+descriptions (every write asks Claude to confirm first) and the error
+messages, each of which names its fix. Signing is deferred.
 
 **Two skills, on purpose.** `.claude/skills/tipee` explains this repository
 to whoever develops it. `plugins/tipee/skills/tipee` explains the _product_
@@ -184,12 +184,11 @@ never mentions this repo's internals.
 | Claude Desktop user (v1)              | MCP server with a config dialog, no Node install  | `tipee.mcpb` from the latest GitHub Release                                                                         |
 
 Updates: Claude Code users receive a new plugin when its `version` is bumped;
-the marketplace refreshes in the background once per session. `check` also
-reports a newer GitHub Release, and the `update` tool acts on it: in Claude
+the marketplace refreshes in the background once per session. `check_setup`
+also reports a newer GitHub Release, and the `update_plugin` tool acts on it: in Claude
 Desktop it downloads the bundle, verifies it against the release's
 `SHA256SUMS` and opens it, so Claude Desktop asks the user to confirm and
-keeps the instance and key; in Claude Code it gives the `/plugin` commands
-to run.
+keeps the instance and key; in Claude Code it gives the commands to run.
 
 ## Credentials and multi-company configuration
 
@@ -278,8 +277,9 @@ only, and asks for Node 24 on the machine.
 2. **Done: the whole API, generated.** `@effect/openapi-generator` turns
    Tipee's OpenAPI document into an `HttpApi`; `HttpApiClient` derives the
    client; `HttpApi.reflect` yields the operation catalogue; one
-   `Tool.dynamic` per operation gives 69 tools plus `check` and `update`,
-   with read-only and destructive annotations from the verb. No hand-written schemas,
+   `Tool.dynamic` per operation gives 69 tools plus `check_setup` and
+   `update_plugin`, each strict and titled, with read-only and destructive
+   annotations from the verb (every write but a create is destructive). No hand-written schemas,
    no deny list, no server-side gate: which tools a user has, and which need
    approval, is configured in the Claude client. The one exception is left
    out at generation: granting and revoking roles, which an admin does in

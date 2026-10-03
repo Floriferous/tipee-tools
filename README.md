@@ -57,7 +57,8 @@ If you use Claude Code, ask it to install the `tipee` plugin from the
 
 It asks for the same two values, and comes with a skill that teaches Claude
 how to work with Tipee. Then send the **check-tipee-setup** prompt from the
-`/` menu, or ask Claude to run `check`.
+`/` menu, or ask Claude to run `check_setup`. To change the instance or the
+key later: `/plugin` → Installed → tipee.
 
 ## 3. Ask away
 
@@ -70,18 +71,20 @@ Some things people ask:
 - Record Chloé's vacation from the 3rd to the 7th.
 - How many hours went into project X this month?
 
-Claude looks things up freely. Before it changes anything it tells you
-exactly what will change and waits for your yes, and Claude Desktop asks for
-your permission on each tool the first time it is used.
+Claude looks things up freely. Every tool that changes Tipee instructs Claude
+to tell you exactly what will change and to wait for your yes first. Claude
+Desktop also asks your permission for each tool: choose **Allow once** to
+approve every change yourself.
 
 ## Updating
 
 Claude tells you when a newer version exists, whenever you run the setup
 check, and offers to install it. Say yes: in Claude Desktop it downloads the
 release and Claude Desktop asks you to confirm the update, keeping your
-instance and key. In Claude Code, run `/plugin marketplace update tipee-tools`
-then `/plugin update tipee`, or turn on auto-update for the marketplace once
-under `/plugin`.
+instance and key. In Claude Code, run
+`claude plugin update tipee@tipee-tools` in a terminal (Claude Code can run
+it for you), then `/reload-plugins`; or use `/plugin` → Installed → tipee →
+Update now, or turn on auto-update for the marketplace once under `/plugin`.
 
 ## Telemetry
 
