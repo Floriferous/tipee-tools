@@ -2,11 +2,9 @@
 // Never the key. The fake PostHog records the batches it receives; the
 // Assertions read them, never the requests.
 
-import { mkdtempSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
-import path from 'node:path';
+import { homedir } from 'node:os';
 
-import { describe, expect, it } from '@effect/vitest';
+import { beforeEach, describe, expect, it } from '@effect/vitest';
 import {
   Rejected,
   TIPEE_API_VERSION,
@@ -52,7 +50,6 @@ const telemetryWith = (env: Record<string, string>) =>
             TIPEE_INSTANCE: INSTANCE,
             TIPEE_POSTHOG_HOST: POSTHOG,
             TIPEE_POSTHOG_KEY: KEY,
-            TIPEE_STATE_DIR: mkdtempSync(path.join(tmpdir(), 'tipee-telemetry-')),
             ...env,
           }),
         ),
@@ -73,11 +70,15 @@ const record = (env: Record<string, string> = {}) =>
   }).pipe(Effect.provide(telemetryWith(env)), Effect.scoped);
 
 describe('telemetry', () => {
+  beforeEach(() => {
+    received.length = 0;
+    server.use(fakePostHog);
+  });
+
   it.effect('batches anonymous events to PostHog', () =>
     Effect.gen(function* () {
-      received.length = 0;
-      server.use(fakePostHog);
-      yield* record();
+      // Grouped under the instance however it was typed.
+      yield* record({ TIPEE_INSTANCE: ' https://Acme.tipee.net/ ' });
 
       expect(received).toHaveLength(1);
       const [batch] = received;
@@ -122,8 +123,6 @@ describe('telemetry', () => {
 
   it.effect('reports a Tipee failure by reason, status and paths, never by what Tipee said', () =>
     Effect.gen(function* () {
-      received.length = 0;
-      server.use(fakePostHog);
       const failures = [
         new UnexpectedStatus({ body: 'Alice Martin is on leave', status: 502 }),
         new UnexpectedShape({ details: 'Expected string, got "Alice Martin"\n  at [0]["label"]' }),
@@ -151,8 +150,6 @@ describe('telemetry', () => {
 
   it.effect('keeps the same installation id from one start to the next', () =>
     Effect.gen(function* () {
-      received.length = 0;
-      server.use(fakePostHog, fakePostHog);
       // Different state directories: the id comes from the machine, not a file.
       yield* record();
       yield* record();
@@ -203,8 +200,6 @@ describe('telemetry', () => {
 
   it.effect('reports why the server stopped, from a telemetry of its own', () =>
     Effect.gen(function* () {
-      received.length = 0;
-      server.use(fakePostHog, fakePostHog);
       yield* reportCrash(Cause.fail({ _tag: 'ConfigurationMissing' }));
       yield* reportCrash(Cause.die(new TypeError('transport')));
 
@@ -224,7 +219,6 @@ describe('telemetry', () => {
           ConfigProvider.fromUnknown({
             TIPEE_POSTHOG_HOST: POSTHOG,
             TIPEE_POSTHOG_KEY: KEY,
-            TIPEE_STATE_DIR: mkdtempSync(path.join(tmpdir(), 'tipee-telemetry-')),
           }),
         ),
       ),
