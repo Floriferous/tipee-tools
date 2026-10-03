@@ -1,12 +1,13 @@
 // Whether a newer release exists, and installing it. The plugin has no
 // channel to update itself through, so `check_setup` reports a newer release
-// and the `update_plugin` tool installs it: in Claude Desktop it downloads the bundle
-// from this repository's releases, verifies its checksum, and opens it, which
-// makes Claude Desktop ask the user to confirm the update; the instance and
-// key are kept. GitHub's latest release is looked up afresh each time, since
-// only a check or an update the user asked for looks; a failed lookup means
-// "nothing to report". Nothing is kept on disk but the downloaded bundle, in
-// a temporary directory.
+// and the `update_plugin` tool installs it: in Claude Desktop it downloads
+// the bundle from this repository's releases, verifies its checksum, and
+// opens it, which makes Claude Desktop ask the user to confirm the update;
+// the instance and key are kept. GitHub's latest release is looked up afresh
+// each time, since only a check or an update the user asked for looks; a
+// failed lookup is "nothing to report" for the check and a failure for the
+// update. Nothing is kept on disk but the downloaded bundle, in a temporary
+// directory.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -118,20 +119,22 @@ const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 interface Service {
+  /** The version running. */
+  readonly current: string;
   /** The newer release, if one is known. Never fails. */
   readonly available: Effect.Effect<Option.Option<Update>>;
   /** Installs the newer release, if one is known. */
   readonly install: Effect.Effect<Installed, UpdateFailed>;
 }
 
-const none: Service = {
-  available: Effect.succeedNone,
-  install: Effect.succeed({ status: 'up_to_date' }),
-};
-
 export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/mcp/Updates') {
   // Never reports an update: for tests.
-  public static readonly layerNone: Layer.Layer<Updates> = Layer.succeed(Updates, none);
+  public static readonly layerNone = (current: string): Layer.Layer<Updates> =>
+    Layer.succeed(Updates, {
+      available: Effect.succeedNone,
+      current,
+      install: Effect.succeed({ status: 'up_to_date' as const }),
+    });
 
   // Compares GitHub's latest release with `current`; downloads go to the
   // machine's temporary directory.
@@ -143,13 +146,10 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
-        const config = yield* Effect.option(settings);
-        if (Option.isNone(config)) {
-          return none;
-        }
-        const { channel, downloadBase, opener, releasesUrl } = config.value;
+        // Every setting has a default, so reading them cannot fail.
+        const { channel, downloadBase, opener, releasesUrl } = yield* Effect.orDie(settings);
 
-        const available = http.get(releasesUrl).pipe(
+        const latest = http.get(releasesUrl).pipe(
           Effect.flatMap(HttpClientResponse.schemaJson(Release)),
           Effect.timeout(FETCH_TIMEOUT),
           Effect.map(({ body }) => {
@@ -158,8 +158,8 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
               ? Option.some(new Update({ url: body.html_url, version }))
               : Option.none<Update>();
           }),
-          Effect.orElseSucceed(() => Option.none<Update>()),
         );
+        const available = latest.pipe(Effect.orElseSucceed(() => Option.none<Update>()));
 
         // The bundle, verified against the checksums published with it.
         const download = (version: string): Effect.Effect<string, UpdateFailed> =>
@@ -219,11 +219,17 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
           });
 
         const install: Effect.Effect<Installed, UpdateFailed> = Effect.gen(function* () {
-          const latest = yield* available;
-          if (Option.isNone(latest)) {
+          // The user asked for an update check_setup reported: a failed
+          // lookup must not pass for "already the latest".
+          const found = yield* latest.pipe(
+            Effect.mapError((cause) =>
+              failed(`could not look up the latest release on GitHub (${describe(cause)})`),
+            ),
+          );
+          if (Option.isNone(found)) {
             return { status: 'up_to_date' as const };
           }
-          const { url, version } = latest.value;
+          const { url, version } = found.value;
           if (channel !== 'desktop') {
             return { status: 'instructions' as const, url, version };
           }
@@ -235,7 +241,7 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
           return { path: target, status: 'opened' as const, version };
         });
 
-        return { available, install };
+        return { available, current, install };
       }),
     ).pipe(Layer.provide(fileSystemLayer));
 }

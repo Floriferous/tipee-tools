@@ -1036,7 +1036,7 @@ const NoneProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Common
 const isOption$1 = (input) => hasProperty(input, TypeId$49);
 const isNone$1 = (fa) => fa._tag === "None";
 const isSome$1 = (fa) => fa._tag === "Some";
-const none$2 = /*#__PURE__*/ Object.create(NoneProto);
+const none$1 = /*#__PURE__*/ Object.create(NoneProto);
 const SomeImpl = function(value) {
 	this.value = value;
 };
@@ -1128,26 +1128,26 @@ const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1
 const isGreaterThanOrEqualTo$2 = (O) => dual(2, (self, that) => O(self, that) !== -1);
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Option.js
-const none$1 = () => none$2;
+const none = () => none$1;
 const some = some$1;
 const isOption = isOption$1;
 const isNone = isNone$1;
 const isSome = isSome$1;
 const match$3 = /*#__PURE__*/ dual(2, (self, { onNone, onSome }) => isNone(self) ? onNone() : onSome(self.value));
 const getOrElse = /*#__PURE__*/ dual(2, (self, onNone) => isNone(self) ? onNone() : self.value);
-const fromNullishOr = (a) => a == null ? none$1() : some(a);
-const fromUndefinedOr = (a) => a === void 0 ? none$1() : some(a);
+const fromNullishOr = (a) => a == null ? none() : some(a);
+const fromUndefinedOr = (a) => a === void 0 ? none() : some(a);
 const getOrUndefined$1 = /*#__PURE__*/ getOrElse(constUndefined);
 const liftThrowable = (f) => (...a) => {
 	try {
 		return some(f(...a));
 	} catch {
-		return none$1();
+		return none();
 	}
 };
-const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none$1() : some(f(self.value)));
-const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none$1() : f(self.value));
-const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none$1() : predicate(self.value) ? some(self.value) : none$1());
+const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
+const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
+const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Context.js
 const ServiceTypeId = "~effect/Context/Service";
@@ -1319,7 +1319,7 @@ const serviceNotFoundError = (service) => {
 const getOption = /*#__PURE__*/ dual(2, (self, service) => {
 	const value = lookup(self, service.key);
 	if (value !== notFound) return some(value);
-	return isReference(service) ? some(getDefaultValue(service)) : none$1();
+	return isReference(service) ? some(getDefaultValue(service)) : none();
 });
 const merge$1 = /*#__PURE__*/ dual(2, (self, that) => {
 	if (self.mapUnsafe.size === 0) return that;
@@ -1483,7 +1483,7 @@ const fromInputUnsafe$1 = (input) => {
 			if (input === null) break;
 			if (TypeId$46 in input) return input;
 			if (Array.isArray(input)) {
-				if (input.length !== 2 || !input.every(isNumber)) return invalid$2(input);
+				if (input.length !== 2 || !input.every(isNumber)) return invalid$3(input);
 				if (Number.isNaN(input[0]) || Number.isNaN(input[1])) return zero$1;
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
@@ -1501,9 +1501,9 @@ const fromInputUnsafe$1 = (input) => {
 			return make$47(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
 		}
 	}
-	return invalid$2(input);
+	return invalid$3(input);
 };
-const invalid$2 = (input) => {
+const invalid$3 = (input) => {
 	throw new Error(`Invalid Input: ${input}`);
 };
 const zeroDurationValue = {
@@ -2524,7 +2524,7 @@ const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 	}
 }))(0);
 const succeedSome$1 = (a) => succeed$7(some(a));
-const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none$1());
+const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none());
 const failCauseSync$1 = (evaluate) => suspend$3(() => failCause$6(evaluate()));
 const die$3 = (defect) => exitDie(defect);
 const failSync = (error) => suspend$3(() => fail$6(error()));
@@ -2856,6 +2856,7 @@ const exitAsVoidAll = (exits) => {
 	for (const exit of exits) if (exit._tag === "Failure") failures.push(...exit.cause.reasons);
 	return failures.length === 0 ? exitVoid : exitFailCause(causeFromReasons(failures));
 };
+const service$1 = (service) => service;
 const serviceOption$1 = (service) => withFiber$1((fiber) => succeed$7(getOption(fiber.context, service)));
 const updateContext$1 = /*#__PURE__*/ dual(2, (self, f) => withFiber$1((fiber) => {
 	const prevContext = fiber.context;
@@ -2927,7 +2928,7 @@ const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, fil
 	if (isFailure$1(result)) return orElse ? orElse(result.failure) : failCause$6(cause);
 	return f(result.success);
 }));
-const catchTag$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
+const catchTag$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
 	const pred = Array.isArray(k) ? (e) => hasProperty(e, "_tag") && k.includes(e._tag) : isTagged(k);
 	return catchIf(self, pred, f, orElse);
 });
@@ -2976,7 +2977,7 @@ const ignoreCause$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, o
 	});
 });
 const option$1 = (self) => match(self, {
-	onFailure: none$1,
+	onFailure: none,
 	onSuccess: some
 });
 const result$2 = (self) => matchEager(self, {
@@ -3058,7 +3059,7 @@ const timeout$1 = /*#__PURE__*/ dual(2, (self, duration) => {
 		orElse: () => fail$6(timeoutErrorFromDuration(decoded))
 	});
 });
-const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep$1(duration), none$1())));
+const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep$1(duration), none())));
 const timed$1 = (self) => clockWith((clock) => {
 	const start = clock.monotonicTimeNanosUnsafe();
 	return map$6(self, (a) => [nanos(clock.monotonicTimeNanosUnsafe() - start), a]);
@@ -3658,12 +3659,12 @@ const NoopSpanProto = {
 };
 const noopSpan = (options) => Object.assign(Object.create(NoopSpanProto), options);
 const filterDisablePropagation = (span) => {
-	if (!span) return none$1();
-	return get$2(span.annotations, DisablePropagation) ? span._tag === "Span" ? filterDisablePropagation(getOrUndefined$1(span.parent)) : none$1() : some(span);
+	if (!span) return none();
+	return get$2(span.annotations, DisablePropagation) ? span._tag === "Span" ? filterDisablePropagation(getOrUndefined$1(span.parent)) : none() : some(span);
 };
 const makeSpanUnsafe = (fiber, name, options) => {
 	const disablePropagation = !fiber.cache.tracerEnabled || options?.annotations && get$2(options.annotations, DisablePropagation);
-	const parent = options?.parent !== void 0 ? some(options.parent) : options?.root ? none$1() : filterDisablePropagation(fiber.cache.span);
+	const parent = options?.parent !== void 0 ? some(options.parent) : options?.root ? none() : filterDisablePropagation(fiber.cache.span);
 	let span;
 	if (disablePropagation) span = noopSpan({
 		name,
@@ -4188,6 +4189,7 @@ const provideWith = (self, that, f) => fromBuild((memoMap, scope) => flatMap$2(A
 const provide$2 = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, identity));
 const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, (self, that) => merge$1(that, self)));
 const flatMap$1 = /*#__PURE__*/ dual(2, (self, f) => fromBuild((memoMap, scope) => flatMap$2(self.build(memoMap, scope), (context) => f(context).build(memoMap, scope))));
+const catchTag$1 = /*#__PURE__*/ dual(3, (self, k, f) => fromBuildUnsafe((memoMap, scope) => catchTag$2(self.build(memoMap, scope), k, (error) => f(error).build(memoMap, scope))));
 const launch = (self) => scoped$1(andThen$1(build(self), never$2));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Clock.js
@@ -4553,7 +4555,7 @@ const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2
 	let meta = CurrentMetadata.defaultValue();
 	return catch_$3(forever$2(tap$1(flatMap$2(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), step), (meta_) => sync$1(() => {
 		meta = meta_;
-	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$7(error.value) : orElse(error, meta.attempt === 0 ? none$1() : some(meta)));
+	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$7(error.value) : orElse(error, meta.attempt === 0 ? none() : some(meta)));
 }));
 const retryOrElse = /*#__PURE__*/ dual(3, (self, policy, orElse) => flatMap$2(toStepWithMetadata(policy), (step) => {
 	let meta = CurrentMetadata.defaultValue();
@@ -4625,7 +4627,7 @@ const map$4 = map$6;
 const as = as$1;
 const asVoid = asVoid$1;
 const catch_$2 = catch_$3;
-const catchTag = catchTag$1;
+const catchTag = catchTag$2;
 const catchTags = catchTags$1;
 const catchReason = catchReason$1;
 const catchCause$1 = catchCause$2;
@@ -4650,6 +4652,7 @@ const context = context$1;
 const contextWith = contextWith$1;
 const provide = provide$1;
 const provideContext$2 = provideContext$3;
+const service = service$1;
 const serviceOption = serviceOption$1;
 const updateContext = updateContext$1;
 const provideService = provideService$1;
@@ -4819,7 +4822,7 @@ const isZero = (n) => n.value === bigint0$1;
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/BigInt.js
 const BigInt$4 = globalThis.BigInt;
 const toNumber = (b) => {
-	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none$1();
+	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none();
 	return some(Number(b));
 };
 //#endregion
@@ -5007,33 +5010,33 @@ const binaryUnits = [
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
 const make$41 = (value) => value;
-const invalid$1 = (message) => {
+const invalid$2 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
-	if (!Number.isSafeInteger(input) || input < 0) return invalid$1(`expected a non-negative safe integer, received ${input}`);
+	if (!Number.isSafeInteger(input) || input < 0) return invalid$2(`expected a non-negative safe integer, received ${input}`);
 	return make$41(BigInt(input));
 };
 const fromStringUnsafe = (input) => {
 	const match = /^\s*(\d+)(?:\.(\d+))?\s*([A-Za-z]+)\s*$/.exec(input);
-	if (match === null) return invalid$1(`unsupported syntax ${JSON.stringify(input)}`);
+	if (match === null) return invalid$2(`unsupported syntax ${JSON.stringify(input)}`);
 	const unit = unitsByName.get(match[3]);
-	if (unit === void 0) return invalid$1(`unsupported unit ${JSON.stringify(match[3])}`);
+	if (unit === void 0) return invalid$2(`unsupported unit ${JSON.stringify(match[3])}`);
 	const fraction = match[2] ?? "";
 	const scale = BigInt(10) ** BigInt(fraction.length);
 	const numerator = BigInt(match[1] + fraction) * unit.factor;
-	if (numerator % scale !== bigint0) return invalid$1(`${JSON.stringify(input)} does not represent an integral number of bytes`);
+	if (numerator % scale !== bigint0) return invalid$2(`${JSON.stringify(input)} does not represent an integral number of bytes`);
 	return make$41(numerator / scale);
 };
 const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
-			if (input < bigint0) return invalid$1(`expected a non-negative bigint, received ${input}`);
+			if (input < bigint0) return invalid$2(`expected a non-negative bigint, received ${input}`);
 			return make$41(input);
 		case "number": return fromNumber(input);
 		case "string": return fromStringUnsafe(input);
 	}
-	return invalid$1(`unsupported input ${input}`);
+	return invalid$2(`unsupported input ${input}`);
 };
 const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fromNumber(value);
 //#endregion
@@ -5507,7 +5510,7 @@ const missing = /*#__PURE__*/ Symbol();
 const succeed$2 = succeed$6;
 const missingExit = /*#__PURE__*/ succeed$2(missing);
 const sameExit = /*#__PURE__*/ succeed$2(missing);
-const toOption = (value) => value === missing ? none$1() : some(value);
+const toOption = (value) => value === missing ? none() : some(value);
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed$2(option.value);
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/SchemaIssue.js
@@ -5779,7 +5782,7 @@ function transformOptionalEffect(f) {
 	});
 }
 function omit$1() {
-	return transformOptional(() => none$1());
+	return transformOptional(() => none());
 }
 function withDefault$2(defaultValue) {
 	return transformOptionalEffect((o) => {
@@ -7685,7 +7688,7 @@ function compile(ast, compile, compileField, base, specialize) {
 }
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/internal/schema/compilerRegistry.js
-const invalid = /*#__PURE__*/ Symbol();
+const invalid$1 = /*#__PURE__*/ Symbol();
 const cache = /*#__PURE__*/ new WeakMap();
 const decodeChild = (ast) => resolve(ast).parser;
 const makeChild = (ast) => resolve(ast).makeEffect;
@@ -7730,7 +7733,7 @@ function makeOption(schema) {
 		const exit = runSyncExit(parser(input, options));
 		if (isSuccess(exit)) return some(exit.value);
 		getSchemaIssueOrThrow(exit.cause, "Option adapter can only return none for schema issues");
-		return none$1();
+		return none();
 	};
 }
 function make$36(schema) {
@@ -7809,7 +7812,7 @@ function asOption(parser) {
 		const exit = parserExit(input, options);
 		if (isSuccess(exit)) return some(exit.value);
 		getSchemaIssueOrThrow(exit.cause, "Option adapter can only return none for schema issues");
-		return none$1();
+		return none();
 	};
 }
 function asResult(parser) {
@@ -7844,7 +7847,7 @@ function makeConstructorSync(ast) {
 				getSchemaIssueOrThrow(die$2(error), "Constructor adapter can only throw schema issues");
 				throw error;
 			}
-			if (output !== invalid && output !== missing) return output;
+			if (output !== invalid$1 && output !== missing) return output;
 		}
 		return runSync(parserResult((parser ??= entry.makeEffect)(input, parseOptions), input), "Constructor adapter can only throw schema issues");
 	};
@@ -9899,10 +9902,10 @@ const empty$5 = () => {
 };
 const get$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	if (self.backing.has(key)) return some(self.backing.get(key));
-	else if (isSimpleKey(key)) return none$1();
+	else if (isSimpleKey(key)) return none();
 	const hash$2 = hash(key);
 	const bucket = self.buckets.get(hash$2);
-	if (bucket === void 0) return none$1();
+	if (bucket === void 0) return none();
 	return getFromBucket(self, bucket, key);
 });
 const isSimpleKey = (u) => typeof u !== "object" && typeof u !== "function";
@@ -9911,7 +9914,7 @@ const getFromBucket = (self, bucket, key) => {
 		const refKey = bucket[i];
 		return some(self.backing.get(refKey));
 	}
-	return none$1();
+	return none();
 };
 const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
 	if (self.backing.has(key) || isSimpleKey(key)) {
@@ -10099,7 +10102,7 @@ const take$1 = (self) => {
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/PubSub.js
 const TypeId$29 = "~effect/PubSub";
 const SubscriptionTypeId = "~effect/PubSub/Subscription";
-const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$33(false), options.strategy(), make$33(none$1())));
+const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$33(false), options.strategy(), make$33(none())));
 const unbounded$1 = (options) => make$31({
 	atomicPubSub: () => makeAtomicUnbounded(options),
 	strategy: () => new DroppingStrategy()
@@ -11987,7 +11990,7 @@ function makeWith$2(method, url, urlParams, hash, headers, body) {
 	self.body = body;
 	return self;
 }
-const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$6, /*#__PURE__*/ none$1(), empty$7, empty$2);
+const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$6, /*#__PURE__*/ none(), empty$7, empty$2);
 const make$22 = (method) => (url, options) => modify(empty$1, {
 	method,
 	url,
@@ -12041,7 +12044,7 @@ const bodyFormData = /*#__PURE__*/ dual(2, (self, body) => setBody(self, formDat
 function toUrl(self) {
 	const r = make$23(self.url, self.urlParams, getOrUndefined$1(self.hash));
 	if (isSuccess$1(r)) return some(r.success);
-	return none$1();
+	return none();
 }
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/http/HttpIncomingMessage.js
@@ -12124,7 +12127,7 @@ var WebHttpClientResponse = class extends Class$2 {
 		return this.cachedCookies = fromSetCookie(this.source.headers.getSetCookie());
 	}
 	get remoteAddress() {
-		return none$1();
+		return none();
 	}
 	get stream() {
 		return this.source.body ? fromReadableStream({
@@ -13398,7 +13401,12 @@ var InstanceNotFound = class extends TaggedError()("InstanceNotFound", { body: S
 };
 var Unreachable = class extends TaggedError()("Unreachable", { description: String$2 }) {
 	get message() {
-		return `Tipee could not be reached: ${this.description}`;
+		return `Tipee could not be reached (${this.description}).`;
+	}
+};
+var NotConfigured = class extends TaggedError()("NotConfigured", { description: String$2 }) {
+	get message() {
+		return this.description;
 	}
 };
 var Internal = class extends TaggedError()("Internal", { description: String$2 }) {
@@ -13418,6 +13426,7 @@ const TipeeErrorReason = Union([
 	InvalidRequest$1,
 	InstanceNotFound,
 	Unreachable,
+	NotConfigured,
 	Internal
 ]);
 //#endregion
@@ -13469,7 +13478,7 @@ const JsonObject$3 = fromJsonString(Record(String$2, Unknown));
 const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
 const quoted = (body) => decodeOption(JsonObject$3)(body).pipe(flatMap$3((json) => {
 	const key = ["detail", "message"].find((candidate) => typeof json[candidate] === "string");
-	if (key === void 0) return none$1();
+	if (key === void 0) return none();
 	const line = String(json[key]);
 	const complete = Object.keys(json).every((other) => other === key || RESTATED.has(other));
 	return some(complete ? line : `${line}\n${body}`);
@@ -17231,9 +17240,15 @@ const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const normalizeInstance = (raw) => {
 	const [host = ""] = raw.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//u, "").split("/");
 	const subdomain = host.replace(/\.tipee\.net$/u, "");
-	return DNS_LABEL.test(subdomain) ? some(subdomain) : none$1();
+	return DNS_LABEL.test(subdomain) ? some(subdomain) : none();
 };
-const instanceConfig = String$1("TIPEE_INSTANCE").pipe(mapEffect((raw) => mapError$2(fromOption(normalizeInstance(raw)), () => new ConfigError(new SourceError({ message: `"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.` })))));
+const invalid = (message) => new ConfigError(new SourceError({ message }));
+const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
+const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The Tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.`))));
+const apiKeyConfig = Redacted("TIPEE_API_KEY").pipe(withDefault(make$39("")), mapEffect((key) => {
+	const trimmed = value$2(key).trim();
+	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$39(trimmed));
+}));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
 	static layer = (credentials) => effect(TipeeClient, gen(function* () {
 		const client = (yield* HttpClient).pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), transformResponse$1(retried));
@@ -17246,7 +17261,7 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 		};
 	}));
 	static layerConfig = unwrap$3(all({
-		apiKey: Redacted("TIPEE_API_KEY").pipe(map$1((key) => make$39(value$2(key).trim()))),
+		apiKey: apiKeyConfig,
 		instance: instanceConfig
 	}).pipe(map$4((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
 };
@@ -17358,7 +17373,7 @@ const explain = (error, target) => gen(function* () {
 	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to Tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
 	const serverError = reason._tag === "UnexpectedStatus" && reason.status >= HTTP_SERVER_ERROR;
 	if (!target.readOnly && (reason._tag === "Unreachable" || serverError)) return fixed("This write was not retried, and Tipee may have applied it before failing: read it back before trying again.");
-	if (reason._tag === "Unreachable") return fixed("Check the internet connection and try again.");
+	if (reason._tag === "Unreachable") return fixed(`Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`);
 	if (serverError) return fixed("Try again in a moment; run check_setup if it persists.");
 	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a Tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`);
 	const fix = FIXES[reason._tag];
@@ -18055,7 +18070,7 @@ function getStreamSchemas(schema) {
 	return isStreamSchema(schema) ? some({
 		success: schema.success,
 		error: schema.error
-	}) : none$1();
+	}) : none();
 }
 const schema = /*#__PURE__*/ declare(isStream);
 function Stream(success, error) {
@@ -23824,9 +23839,7 @@ const describe$2 = (error) => {
 var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
 	static layerOff = succeed$4(Telemetry, silent);
 	static layer = (base) => effect(Telemetry, gen(function* () {
-		const read = yield* option(settings$1);
-		if (isNone(read)) return silent;
-		const config = read.value;
+		const config = yield* orDie(settings$1);
 		const http = (yield* HttpClient).pipe(retryTransient({
 			schedule: exponential("500 millis"),
 			times: SEND_RETRIES
@@ -24077,7 +24090,7 @@ const makeFile = /*#__PURE__*/ (() => {
 						buffer,
 						position
 					}), (bytesRead) => {
-						if (bytesRead === 0) return none$1();
+						if (bytesRead === 0) return none();
 						this.position = position + BigInt(bytesRead);
 						if (bytesRead === size) return some(buffer);
 						const dst = Buffer.allocUnsafeSlow(bytesRead);
@@ -24184,7 +24197,7 @@ const makeFileInfo = (stat) => try_({
 		uid: bigintToNumberOption(stat.uid),
 		gid: bigintToNumberOption(stat.gid),
 		size: bytes(stat.size),
-		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none$1(),
+		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none(),
 		blocks: bigintToNumberOption(stat.blocks)
 	}),
 	catch: handleBadArgument("stat")
@@ -24353,25 +24366,24 @@ const isNewer = (candidate, current) => {
 const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
 const failed = (detail) => new UpdateFailed({ detail });
 const describe$1 = (error) => error instanceof Error ? error.message : String(error);
-const none = {
-	available: succeedNone,
-	install: succeed$3({ status: "up_to_date" })
-};
 var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
-	static layerNone = succeed$4(Updates, none);
+	static layerNone = (current) => succeed$4(Updates, {
+		available: succeedNone,
+		current,
+		install: succeed$3({ status: "up_to_date" })
+	});
 	static layer = (current) => effect(Updates, gen(function* () {
 		const fs = yield* FileSystem;
 		const http = (yield* HttpClient).pipe(filterStatusOk);
-		const config = yield* option(settings);
-		if (isNone(config)) return none;
-		const { channel, downloadBase, opener, releasesUrl } = config.value;
-		const available = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
+		const { channel, downloadBase, opener, releasesUrl } = yield* orDie(settings);
+		const latest = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
 			const version = body.tag_name.replace(/^v/u, "");
 			return isNewer(version, current) ? some(new Update({
 				url: body.html_url,
 				version
-			})) : none$1();
-		}), orElseSucceed(() => none$1()));
+			})) : none();
+		}));
+		const available = latest.pipe(orElseSucceed(() => none()));
 		const download = (version) => gen(function* () {
 			const asset = `tipee-${version}.mcpb`;
 			const base = `${downloadBase}/v${version}`;
@@ -24407,10 +24419,11 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 		});
 		return {
 			available,
+			current,
 			install: gen(function* () {
-				const latest = yield* available;
-				if (isNone(latest)) return { status: "up_to_date" };
-				const { url, version } = latest.value;
+				const found = yield* latest.pipe(mapError$2((cause) => failed(`could not look up the latest release on GitHub (${describe$1(cause)})`)));
+				if (isNone(found)) return { status: "up_to_date" };
+				const { url, version } = found.value;
 				if (channel !== "desktop") return {
 					status: "instructions",
 					url,
@@ -24487,7 +24500,7 @@ const probeWith = (name, source, params) => params === void 0 ? succeed$3({
 	},
 	result: void 0
 }) : probe(name, params);
-const check = fn("check_setup")(function* ({ from, to }) {
+const probes = fn("check_setup.probes")(function* ({ from, to }) {
 	const range = from !== void 0 && to !== void 0 ? {
 		from,
 		to
@@ -24506,7 +24519,7 @@ const check = fn("check_setup")(function* ({ from, to }) {
 	});
 	const [somebody] = people.result?.data ?? [];
 	const reports = [kinds.report, people.report];
-	const probes = [
+	const next = [
 		probe("teams_list", {}),
 		probe("schedule_templates_list", {}),
 		probe("schedules_list", { date_range: dateRange }),
@@ -24518,15 +24531,28 @@ const check = fn("check_setup")(function* ({ from, to }) {
 			value: dateRange
 		}] })
 	];
-	for (const next of probes) reports.push((yield* next).report);
+	for (const one of next) reports.push((yield* one).report);
 	const integration = yield* integrationLink;
-	const update = yield* flatMap(Updates, (updates) => updates.available);
 	return {
 		date_range: dateRange,
 		endpoints: reports,
 		...integration === void 0 ? {} : { integration },
-		ok: reports.every((report) => report.status !== "failed"),
-		...isSome(update) ? { update: update.value } : {}
+		ok: reports.every((report) => report.status !== "failed")
+	};
+});
+const offering = (error, update) => new TipeeError({
+	fix: [error.fix, `Version ${update.version} of Tipee for Claude is available: offer to install it with update_plugin.`].filter((part) => part !== void 0).join(" "),
+	reason: error.reason
+});
+const check = (report) => gen(function* () {
+	const updates = yield* Updates;
+	const lookup = yield* forkChild(updates.available);
+	const found = yield* report.pipe(catchTag("TipeeError", (error) => flatMap(join(lookup), (update) => fail$3(isSome(update) ? offering(error, update.value) : error))));
+	const update = yield* join(lookup);
+	return {
+		...found,
+		...isSome(update) ? { update: update.value } : {},
+		version: updates.current
 	};
 });
 //#endregion
@@ -24563,7 +24589,8 @@ const Check = make$10("check_setup", {
 		endpoints: ArraySchema(EndpointReport),
 		integration: optionalKey(IntegrationReport.annotate({ description: "The integration the key belongs to and the page where its rights are ticked." })),
 		ok: Boolean.annotate({ description: "False only when an endpoint failed; skipped endpoints keep it true." }),
-		update: optionalKey(UpdateReport.annotate({ description: "A newer version of Tipee for Claude, when one exists, and where to download it." }))
+		update: optionalKey(UpdateReport.annotate({ description: "A newer version of Tipee for Claude, when one exists, and where to download it." })),
+		version: String$2.annotate({ description: "The version of Tipee for Claude running, to quote when reporting a problem." })
 	})
 }).annotate(Title, "Check Tipee setup").annotate(Strict, true).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
 const InstallUpdate = make$10("update_plugin", {
@@ -24672,10 +24699,13 @@ const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function
 	}
 	return yield* failCause$3(exit$2.cause);
 });
-const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
-	const client = yield* TipeeClient;
+const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	const telemetry = yield* Telemetry;
 	const updates = yield* Updates;
+	if (isFailure$1(connection)) {
+		yield* logError(connection.failure.message);
+		yield* telemetry.capture("server_failed", { reason: connection.failure._tag });
+	}
 	let announced = false;
 	const announce = (who) => suspend$2(() => {
 		if (announced) return void_$1;
@@ -24686,20 +24716,22 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 		announce,
 		telemetry
 	};
-	const withClient = (effect) => effect.pipe(provideService(TipeeClient, client), provideService(Telemetry, telemetry), provideService(Updates, updates));
+	const provided = (effect) => effect.pipe(provideService(Telemetry, telemetry), provideService(Updates, updates));
+	const connected = (effect) => isSuccess$1(connection) ? provideService(effect, TipeeClient, connection.success) : fail$3(new TipeeError({ reason: new NotConfigured({ description: connection.failure.message }) }));
 	const handlers = {
-		check_setup: observed(watcher, "check_setup", (params) => withClient(check(params))),
-		update_plugin: observed(watcher, "update_plugin", () => withClient(update))
+		check_setup: observed(watcher, "check_setup", (params) => provided(check(connected(probes(params))))),
+		update_plugin: observed(watcher, "update_plugin", () => provided(update))
 	};
-	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => withClient(invoke(target, params)).pipe(map$4((result) => result ?? { done: true })));
+	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => provided(connected(invoke(target, params))).pipe(map$4((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
 }));
+const TipeeToolkitLayerConfig = unwrap$3(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$2(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$7(missing))));
 //#endregion
 //#region ../../packages/mcp/src/Prompts.ts
 const SETUP_PROMPT = {
 	description: "Check that the Tipee connection works and explain any missing authorization.",
 	name: "check-tipee-setup",
-	text: `Run the check_setup tool with no arguments, then explain the result to someone who is not technical. For each endpoint that is not ok, quote its error as is: it names the right to tick and links the page where to tick it. A module the company does not use can stay off: say so rather than asking me to turn it on. If the tool itself fails, quote its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. Tell me to run this check again after changing anything. Then give three examples of questions I can ask, using only endpoints that are ok. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call update_plugin and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there.`,
+	text: `Run the check_setup tool with no arguments, then explain the result to someone who is not technical, and say which version of Tipee for Claude is running. For each endpoint that is not ok, quote its error as is: it names the right to tick and links the page where to tick it. A module the company does not use can stay off: say so rather than asking me to turn it on. If the tool itself fails, quote its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. Tell me to run this check again after changing anything. Then give three examples of questions I can ask, using only endpoints that are ok. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call update_plugin and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there.`,
 	title: "Check Tipee setup"
 };
 const SetupPrompt = prompt({
@@ -24863,7 +24895,7 @@ const TelemetryLive = Telemetry.layer({
 	$lib_version: SERVER_VERSION,
 	server_version: SERVER_VERSION
 });
-const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
+const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayerConfig), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	instructions: INSTRUCTIONS,
 	name: SERVER_NAME,
@@ -24874,7 +24906,7 @@ const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(
 		v2024_11_05
 	],
 	version: SERVER_VERSION
-})), provide$2(TipeeClient.layerConfig), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer));
+})), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer));
 const reportCrash = (cause) => gen(function* () {
 	const telemetry = yield* Telemetry;
 	const failure = findError(cause);

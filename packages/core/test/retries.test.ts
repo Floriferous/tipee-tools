@@ -145,8 +145,8 @@ layer(TestClient)('retries', (it) => {
 
       expect(sent).toBe(1);
       expect(error.message).toBe(
-        'Tipee could not be reached: Tipee did not answer within 20 s ' +
-          'Check the internet connection and try again.',
+        'Tipee could not be reached (Tipee did not answer within 20 s). Check the internet ' +
+          'connection, or ask IT to allow acme.tipee.net, and try again.',
       );
     }),
   );

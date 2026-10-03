@@ -74,6 +74,9 @@ export const Check = Tool.make('check_setup', {
           'A newer version of Tipee for Claude, when one exists, and where to download it.',
       }),
     ),
+    version: Schema.String.annotate({
+      description: 'The version of Tipee for Claude running, to quote when reporting a problem.',
+    }),
   }),
 })
   .annotate(Tool.Title, 'Check Tipee setup')

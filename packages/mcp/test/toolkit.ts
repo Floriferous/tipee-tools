@@ -7,7 +7,13 @@ import { Effect, Layer, Option, Redacted, Stream } from 'effect';
 import { Tool } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
-import { Telemetry, TipeeToolkit, TipeeToolkitLayer, Updates } from '../src/index.ts';
+import {
+  SERVER_VERSION,
+  Telemetry,
+  TipeeToolkit,
+  TipeeToolkitLayer,
+  Updates,
+} from '../src/index.ts';
 
 type Toolkit = Layer.Success<typeof TipeeToolkitLayer>;
 
@@ -15,7 +21,7 @@ export const clientFor = (apiKey: string): Layer.Layer<Toolkit> =>
   TipeeToolkitLayer.pipe(
     Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(apiKey), instance: 'acme' })),
     Layer.provide(Telemetry.layerOff),
-    Layer.provide(Updates.layerNone),
+    Layer.provide(Updates.layerNone(SERVER_VERSION)),
     Layer.provide(FetchHttpClient.layer),
   );
 

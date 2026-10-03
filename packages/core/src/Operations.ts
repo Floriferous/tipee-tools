@@ -28,7 +28,7 @@ export interface Operation {
   readonly readOnly: boolean;
   /**
    * Every write but `*.create`: MCP reads a non-destructive tool as one that
-   * Only adds, and updates, cancellations and deletions all change what is there.
+   * only adds, and updates, cancellations and deletions all change what is there.
    */
   readonly destructive: boolean;
 }
@@ -95,7 +95,10 @@ const collect = (): ReadonlyArray<Operation> => {
   return found;
 };
 
-/** Every operation Tipee's API document declares, in document order. */
+/**
+ * Every operation of the generated API (the document minus the routes
+ * generate.ts excludes), in document order.
+ */
 export const operations: ReadonlyArray<Operation> = collect();
 
 // Looks an operation up by name; throws for a name the document does not have.
