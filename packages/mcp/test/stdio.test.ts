@@ -116,7 +116,8 @@ describe('stdio transport', () => {
         timeout: TIMEOUT_MS,
       });
 
-      expect(run.status).not.toBe(0);
+      expect(run.status).toBe(1);
+      expect(run.signal).toBeNull();
       expect(run.stdout).toBe('');
       expect(run.stderr).toMatch(/not set up/u);
     },

@@ -150,7 +150,7 @@ describe('telemetry', () => {
 
   it.effect('keeps the same installation id from one start to the next', () =>
     Effect.gen(function* () {
-      // Different state directories: the id comes from the machine, not a file.
+      // The id comes from the machine and account, not from a file.
       yield* record();
       yield* record();
 
