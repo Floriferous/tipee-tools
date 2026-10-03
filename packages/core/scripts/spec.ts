@@ -1,5 +1,5 @@
 // What the generator and the refresh share about the vendored OpenAPI
-// Document: where it lives, its shape, and which operations become tools.
+// document: where it lives, its shape, and which operations become tools.
 
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -45,8 +45,8 @@ export const vendored = (): { readonly file: string; readonly document: Document
 };
 
 // Operations left out of the tools on purpose. Granting and revoking roles
-// Would let Claude raise anyone's rights, its own integration's included: an
-// Admin does that in Tipee. Listing roles is a read and stays.
+// would let Claude raise anyone's rights, its own integration's included: an
+// admin does that in Tipee. Listing roles is a read and stays.
 export const EXCLUDED: ReadonlySet<string> = new Set([
   '/api/directory/resources.grant-roles',
   '/api/directory/resources.revoke-roles',
@@ -57,7 +57,7 @@ export const pointer = (segment: string): string =>
   segment.replaceAll('~', '~0').replaceAll('/', '~1');
 
 // Adds to `found` the component schemas a node refers to, directly or
-// Through other schemas.
+// through other schemas.
 export const referenced = (
   document: Document,
   node: unknown,

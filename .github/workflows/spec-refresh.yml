@@ -2,8 +2,8 @@ name: Spec refresh
 
 # Every Monday morning (UTC), brings Tipee's OpenAPI document up to date with
 # `pnpm spec:refresh` and, when anything changed, opens or updates one PR with
-# The summary as its body and the version bumped. That PR is the alert: review
-# The summary and the diff, merge, release. A broken run is reported by
+# the summary as its body and the version bumped. That PR is the alert: review
+# the summary and the diff, merge, release. A broken run is reported by
 # GitHub's failure email.
 on:
   schedule:
@@ -27,8 +27,8 @@ jobs:
     timeout-minutes: 15
     steps:
       # A PR opened with GITHUB_TOKEN triggers no workflow, so Verify would
-      # Never run on it. A fine-grained token (contents and pull requests:
-      # Write, on this repository only) pushes and opens the PR instead.
+      # never run on it. A fine-grained token (contents and pull requests:
+      # write, on this repository only) pushes and opens the PR instead.
       - name: Check the token
         env:
           SPEC_REFRESH_TOKEN: ${{ secrets.SPEC_REFRESH_TOKEN }}
@@ -56,13 +56,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Minor when operations were added, patch otherwise; a removed or
-      # Renamed operation gets the needs-major label for a person to decide.
+      # renamed operation gets the needs-major label for a person to decide.
       - name: Refresh the document
         run: pnpm spec:refresh --bump --report "$RUNNER_TEMP/refresh.json"
 
       # A new stable version gets a PR of its own (spec-move-<version>);
-      # Changes within the pinned version share the spec-refresh branch. Each
-      # Run rebuilds the branch from main, so the PR always holds one commit.
+      # changes within the pinned version share the spec-refresh branch. Each
+      # run rebuilds the branch from main, so the PR always holds one commit.
       - name: Open or update the PR
         env:
           GH_TOKEN: ${{ secrets.SPEC_REFRESH_TOKEN }}

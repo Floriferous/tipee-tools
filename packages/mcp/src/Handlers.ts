@@ -1,7 +1,7 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
 // `invoke`; `check_setup` runs the probes in Check.ts. Each call is timed
-// And its outcome recorded by the telemetry, which never sees the parameters
-// Or the answer.
+// and its outcome recorded by the telemetry, which never sees the parameters
+// or the answer.
 
 import { TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
 import { Cause, Duration, Effect, Exit, Option, Result } from 'effect';
@@ -46,7 +46,7 @@ const reasonOf = (failure: Failure): string =>
   failure instanceof TipeeError ? failure.reason._tag : failure._tag;
 
 // What else a refusal says about its cause: the HTTP status and Tipee's own
-// Constant for it, such as OVERLAPPING. Neither carries anything a user wrote.
+// constant for it, such as OVERLAPPING. Neither carries anything a user wrote.
 const detailOf = (failure: Failure): Properties => {
   if (!(failure instanceof TipeeError)) {
     return {};
@@ -84,7 +84,7 @@ interface Watcher {
 }
 
 // Runs a handler and records one `tool_called` event: name, duration and
-// Outcome, plus the failure's reason tag. Parameters and answers stay out.
+// outcome, plus the failure's reason tag. Parameters and answers stay out.
 const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler): Handler =>
   Effect.fn('observed')(function* (params: unknown) {
     const who = yield* caller;
@@ -127,7 +127,7 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
     const telemetry = yield* Telemetry;
     const updates = yield* Updates;
     // Claude starts the server repeatedly and uses only some of those
-    // Launches, so a session begins at the first tool call, not at startup.
+    // launches, so a session begins at the first tool call, not at startup.
     let announced = false;
     const announce: Announce = (who) =>
       Effect.suspend(() => {

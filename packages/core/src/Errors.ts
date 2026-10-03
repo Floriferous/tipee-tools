@@ -1,6 +1,6 @@
 // Everything that can go wrong talking to Tipee, as one tagged error with a
-// Tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
-// Surfaces show `message`, which explains the cause and the fix.
+// tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
+// surfaces show `message`, which explains the cause and the fix.
 
 import { Cause, Config, Effect, Option, Schema } from 'effect';
 import { HttpClientError } from 'effect/http';
@@ -24,9 +24,9 @@ import { SETTINGS } from './Rights.ts';
 export * from './Reasons.ts';
 
 // Tipee's error bodies are JSON with a `message`, or RFC 9457 problem details
-// With a `detail`. That line leads, and the whole body follows whenever it
-// Says more (field errors, violations, conflicting dates): the agent must see
-// Everything Tipee wrote.
+// with a `detail`. That line leads, and the whole body follows whenever it
+// says more (field errors, violations, conflicting dates): the agent must see
+// everything Tipee wrote.
 const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 // Keys that only restate the line or the status.
 const RESTATED = new Set(['status', 'title']);
@@ -67,7 +67,7 @@ const chain = (error: unknown): string => {
 };
 
 // Tipee names some refusals with a constant (`error` or `warning_type`, such
-// As OVERLAPPING), safe to record because it says nothing about anyone.
+// as OVERLAPPING), safe to record because it says nothing about anyone.
 const ErrorCode = Schema.Struct({
   error: Schema.optionalKey(Schema.String),
   warning_type: Schema.optionalKey(Schema.String),
@@ -79,7 +79,7 @@ const codeOf = (found: Option.Option<typeof ErrorCode.Type>): string | undefined
   );
 
 // Tipee answers 401 (not 403) for a valid key whose integration was never
-// Granted any rights, so the body is the only way to tell the cases apart.
+// granted any rights, so the body is the only way to tell the cases apart.
 const RIGHTS_MISSING_MARKER = 'token_rights_missing';
 const INSTANCE_NOT_FOUND_MARKER = 'instance_not_found';
 const HTTP_OK_MIN = 200;
@@ -133,8 +133,8 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
   }
 
   // Explains whatever the generated client failed with: an HTTP status, a
-  // Transport failure, a response that does not match the API description,
-  // Or an error Tipee documents for the operation (such as a 409).
+  // transport failure, a response that does not match the API description,
+  // or an error Tipee documents for the operation (such as a 409).
   public static readonly fromCause = (cause: unknown): Effect.Effect<TipeeError> =>
     Effect.gen(function* () {
       if (cause instanceof TipeeError) {
@@ -143,7 +143,7 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
       if (cause instanceof HttpClientError.HttpClientError) {
         const { reason } = cause;
         // The derived client reports an undeclared status as a decode failure
-        // On that response; a decode failure on a 2xx is a shape mismatch.
+        // on that response; a decode failure on a 2xx is a shape mismatch.
         if (
           reason instanceof HttpClientError.StatusCodeError ||
           reason instanceof HttpClientError.DecodeError
@@ -174,8 +174,8 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
         return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
       }
       // An error the document declares (every one is a 409) arrives decoded,
-      // As the plain object Tipee answered: quote it whole, since it names
-      // The conflicting dates or locked schedules.
+      // as the plain object Tipee answered: quote it whole, since it names
+      // the conflicting dates or locked schedules.
       if (typeof cause === 'object' && cause !== null && !(cause instanceof Error)) {
         const code = codeOf(Schema.decodeOption(ErrorCode)(cause));
         return new TipeeError({

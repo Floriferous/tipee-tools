@@ -1,7 +1,7 @@
 // The derived client against the fake Tipee, called through `invoke` the way
-// The tools call it. Every test asserts on what comes back, never on the
-// Requests made; the fake enforces Tipee's rules and answers real (anonymised)
-// Responses, so this is also where the generated schemas meet reality.
+// the tools call it. Every test asserts on what comes back, never on the
+// requests made; the fake enforces Tipee's rules and answers real (anonymised)
+// responses, so this is also where the generated schemas meet reality.
 
 import { describe, expect, layer } from '@effect/vitest';
 import { Effect } from 'effect';
@@ -43,7 +43,7 @@ layer(TestClient)('TipeeClient', (it) => {
     );
 
     // Tipee added month-day/plain inside 26.06.25; the regenerated document
-    // Now lists it.
+    // now lists it.
     it.effect('shows a kind whose attributes include a month-day', () =>
       Effect.gen(function* () {
         const kind = (yield* call('kinds_show', { id: EMPLOYEE_KIND_ID })) as {
@@ -57,7 +57,7 @@ layer(TestClient)('TipeeClient', (it) => {
     );
 
     // Tipee adds enum values within a version, so enums only answers carry
-    // Are open: a content type the document does not list must still decode.
+    // are open: a content type the document does not list must still decode.
     it.effect('shows a kind whose attributes include an unknown content type', () =>
       Effect.gen(function* () {
         const kind = readFixture('kind-employee') as {
@@ -83,7 +83,7 @@ layer(TestClient)('TipeeClient', (it) => {
     );
 
     // Enums a request can carry stay closed: a value Tipee would refuse is
-    // Caught before sending.
+    // caught before sending.
     it.effect('refuses a status the document does not list', () =>
       Effect.gen(function* () {
         const error = yield* failure(

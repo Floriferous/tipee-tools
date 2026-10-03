@@ -1,6 +1,6 @@
 // Where a user fixes a refusal: the admin pages of their instance, the
-// Right each group of operations needs, as named in the integration's Roles
-// Tab, and where Claude keeps the instance and the key.
+// right each group of operations needs, as named in the integration's Roles
+// tab, and where Claude keeps the instance and the key.
 
 import type { Operation } from './Operations.ts';
 
@@ -49,7 +49,7 @@ const SPECIAL_RIGHTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^schedule_templates_/u, 'Gérer les modèles horaires'],
   [/^timechecks_delete/u, 'Supprimer un timbrage'],
   // Proposing someone else's time entries is modifying them, which this
-  // Right grants along with validating them.
+  // right grants along with validating them.
   [/^timechecks_(?:validate|propose)/u, "Valider l'ensemble des timbrages des personnes"],
 ];
 

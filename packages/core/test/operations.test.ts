@@ -30,7 +30,7 @@ describe('operations', () => {
     expect(creates.map((candidate) => candidate.name)).toContain('schedules_create');
     expect(creates.every((candidate) => !candidate.destructive)).toBe(true);
     // MCP reads destructiveHint false as "only adds": updates, cancellations
-    // And unassignments all change what is there.
+    // and unassignments all change what is there.
     expect(
       writes.filter((candidate) => !creates.includes(candidate)).every((one) => one.destructive),
     ).toBe(true);
@@ -44,7 +44,7 @@ describe('operations', () => {
   });
 
   // An admin changes rights in Tipee; a refresh of the document must not
-  // Hand Claude the power to raise anyone's, its own integration's included.
+  // hand Claude the power to raise anyone's, its own integration's included.
   it('never offers to grant or revoke roles', () => {
     expect(
       operations.filter((candidate) => /grant_roles|revoke_roles/u.test(candidate.name)),

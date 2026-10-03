@@ -1,5 +1,5 @@
 // The installation id in a container run under a uid with no passwd entry,
-// Where `os.userInfo` throws: the server must still start.
+// where `os.userInfo` throws: the server must still start.
 
 import { afterEach, expect, it } from '@effect/vitest';
 // Vitest hoists `vi.mock` only when `vi` comes from vitest itself.

@@ -1,6 +1,6 @@
 // One version, written in five places: the plugin manifest, the three
-// Packages, and SERVER_VERSION, which names the release the update tool
-// Downloads. They must agree, or a release cannot be found by its own users.
+// packages, and SERVER_VERSION, which names the release the update tool
+// downloads. They must agree, or a release cannot be found by its own users.
 
 import { readFileSync } from 'node:fs';
 
