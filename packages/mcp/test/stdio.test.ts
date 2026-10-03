@@ -1,5 +1,6 @@
 // End to end over stdio: the server's entry point, which the plugin's bundle
-// Shares (both call `start`), must complete the MCP handshake and list its tools.
+// Shares (both call `start`), must complete the MCP handshake, carry the
+// Instructions, and list its tools.
 
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
@@ -9,6 +10,8 @@ import { describe, expect, it } from 'vitest';
 
 const ENTRY = fileURLToPath(new URL('../src/main.ts', import.meta.url));
 const TIMEOUT_MS = 15_000;
+// Some clients cut the server's instructions past this length.
+const INSTRUCTIONS_LIMIT = 2048;
 
 interface JsonRpcResponse {
   readonly id?: number;
@@ -18,7 +21,7 @@ interface JsonRpcResponse {
 
 describe('stdio transport', () => {
   it(
-    'initializes and lists the tools',
+    'initializes with instructions and lists the tools, each with a title',
     async () => {
       const child = spawn(process.execPath, [ENTRY], {
         env: {
@@ -69,13 +72,23 @@ describe('stdio transport', () => {
         expect(initialized.error, stderr.join('')).toBeUndefined();
         const serverInfo = initialized.result?.serverInfo as { name: string } | undefined;
         expect(serverInfo?.name).toBe('tipee');
+        const instructions = initialized.result?.instructions as string | undefined;
+        expect(instructions).toMatch(/check_setup/u);
+        expect(instructions?.length).toBeLessThan(INSTRUCTIONS_LIMIT);
         const tools = listed.result?.tools as Array<{
           name: string;
-          annotations: { readOnlyHint: boolean; destructiveHint: boolean };
+          annotations: { readOnlyHint: boolean; destructiveHint: boolean; title?: string };
         }>;
-        expect(tools.map((tool) => tool.name)).toContain('check');
+        expect(tools.map((tool) => tool.name)).toContain('check_setup');
         expect(tools.map((tool) => tool.name)).toContain('schedules_create');
-        expect(tools.find((tool) => tool.name === 'check')?.annotations.readOnlyHint).toBe(true);
+        expect(tools.filter((tool) => tool.annotations.title === undefined)).toEqual([]);
+        const titled = (name: string) => tools.find((tool) => tool.name === name)?.annotations;
+        expect(titled('absences_list')?.title).toBe('Absences: list');
+        expect(titled('day_tasks_submit_for_contributor')?.title).toBe(
+          'Day tasks: submit for contributor',
+        );
+        expect(titled('check_setup')?.title).toBe('Check Tipee setup');
+        expect(titled('check_setup')?.readOnlyHint).toBe(true);
         expect(
           tools.find((tool) => tool.name === 'schedules_delete')?.annotations.destructiveHint,
         ).toBe(true);

@@ -1,133 +1,18 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
-// `invoke`; `check` probes the main read endpoints and reports shape
-// Mismatches without aborting. Each call is timed and its outcome recorded
-// By the telemetry, which never sees the parameters or the answer.
+// `invoke`; `check_setup` runs the probes in Check.ts. Each call is timed
+// And its outcome recorded by the telemetry, which never sees the parameters
+// Or the answer.
 
-import {
-  TipeeClient,
-  TipeeError,
-  integrationLink,
-  invoke,
-  operation,
-  operations,
-} from '@tipee-tools/core';
-import { Cause, DateTime, Duration, Effect, Exit, Option, Result } from 'effect';
+import { TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
+import { Cause, Duration, Effect, Exit, Option, Result } from 'effect';
 import { McpSchema } from 'effect/ai';
 
+import { check } from './Check.ts';
 import { Telemetry } from './Telemetry.ts';
 import type { Properties, Sink } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
-import type { EndpointReport } from './Tools.ts';
 import { Updates } from './Updates.ts';
 import type { Installed, UpdateFailed } from './Updates.ts';
-
-const DAYS_PER_WEEK = 7;
-const PAGE_SIZE = 100;
-
-interface Range {
-  readonly from: string;
-  readonly to: string;
-}
-
-// Today through six days from now — enough to exercise every endpoint.
-const defaultRange: Effect.Effect<Range> = Effect.map(DateTime.now, (now) => ({
-  from: DateTime.formatIsoDate(now),
-  to: DateTime.formatIsoDate(DateTime.add(now, { days: DAYS_PER_WEEK - 1 })),
-}));
-
-// How many things an answer holds: a list, a page, or one object.
-const countOf = (result: unknown): number => {
-  if (Array.isArray(result)) {
-    return result.length;
-  }
-  if (typeof result === 'object' && result !== null && 'data' in result) {
-    return countOf(result.data);
-  }
-  return 1;
-};
-
-interface Probe {
-  readonly result: unknown;
-  readonly report: typeof EndpointReport.Type;
-}
-
-// One report line per endpoint. Shape mismatches are reported as failures,
-// And to the telemetry, since they mean Tipee changed; a module that is off
-// Or a missing right is skipped; auth and network errors abort the whole
-// Check so the user sees their explanation once.
-const probe = (
-  name: string,
-  params: unknown,
-): Effect.Effect<Probe, TipeeError, TipeeClient | Telemetry> =>
-  invoke(operation(name), params).pipe(
-    Effect.map((result): Probe => ({
-      report: { count: countOf(result), name, status: 'ok' },
-      result,
-    })),
-    Effect.catchIf(
-      (failure) => failure.reason._tag === 'UnexpectedShape',
-      (failure) =>
-        Effect.as(
-          Effect.flatMap(Telemetry, (telemetry) =>
-            telemetry.exception(failure, { handled: true, properties: { tool: 'check' } }),
-          ),
-          {
-            report: { error: failure.reason.message, name, status: 'failed' },
-            result: undefined,
-          } satisfies Probe,
-        ),
-    ),
-    // The whole message, with the right to tick and where.
-    Effect.catchIf(
-      (failure) => failure.reason._tag === 'Forbidden',
-      (failure) =>
-        Effect.succeed<Probe>({
-          report: { error: failure.message, name, status: 'skipped' },
-          result: undefined,
-        }),
-    ),
-  );
-
-const ORDER = [{ attribute: 'last_name', direction: 'asc', key: 'resource.attribute' }];
-
-const check = Effect.fn('check')(function* ({ from, to }: { from?: string; to?: string }) {
-  const range = from !== undefined && to !== undefined ? { from, to } : yield* defaultRange;
-  const dateRange = `${range.from}/${range.to}`;
-  const kinds = yield* probe('kinds_list', {});
-  const employee = (
-    kinds.result as ReadonlyArray<{ id: string; machine_name: string }> | undefined
-  )?.find((kind) => kind.machine_name === 'employee');
-  const people = yield* probe('resources_list', {
-    kind_id: employee?.id,
-    orders: ORDER,
-    pagination: { limit: PAGE_SIZE, next_token: null },
-    with_teams: true,
-  });
-  const [somebody] =
-    (people.result as { data?: ReadonlyArray<{ id: string }> } | undefined)?.data ?? [];
-  const reports = [kinds.report, people.report];
-  const probes: ReadonlyArray<readonly [string, unknown]> = [
-    ['teams_list', {}],
-    ['schedule_templates_list', {}],
-    ['schedules_list', { date_range: dateRange }],
-    ['absences_list', { date_range: dateRange }],
-    ['on_calls_list', { date_range: dateRange }],
-    ['resources_show_activity_rates', { resource_id: somebody?.id ?? '0' }],
-    ['timechecks_list', { filters: [{ key: 'timecheck.date_range', value: dateRange }] }],
-  ];
-  for (const [name, params] of probes) {
-    reports.push((yield* probe(name, params)).report);
-  }
-  const integration = yield* integrationLink;
-  const update = yield* Effect.flatMap(Updates, (updates) => updates.available);
-  return {
-    date_range: dateRange,
-    endpoints: reports,
-    ...(integration === undefined ? {} : { integration }),
-    ok: reports.every((report) => report.status !== 'failed'),
-    ...(Option.isSome(update) ? { update: update.value } : {}),
-  };
-});
 
 // What the user hears after an update attempt.
 const said = (outcome: Installed): string => {
@@ -138,9 +23,13 @@ const said = (outcome: Installed): string => {
     return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
   }
   if (outcome.status === 'instructions') {
-    return `Version ${outcome.version} is available. In Claude Code, run /plugin marketplace update tipee-tools, then /plugin update tipee. Release notes: ${outcome.url}`;
+    return (
+      `Version ${outcome.version} is available. In a terminal run \`claude plugin update tipee@tipee-tools\` ` +
+      '(Claude Code can run it for you), then /reload-plugins, or use /plugin → Installed → tipee → ' +
+      `Update now. Release notes: ${outcome.url}`
+    );
   }
-  return 'This plugin is already the latest version.';
+  return 'Tipee for Claude is already the latest version.';
 };
 
 const update = Effect.map(
@@ -259,10 +148,10 @@ export const TipeeToolkitLayer = TipeeToolkit.toLayer(
       );
 
     const handlers: Record<string, Handler> = {
-      check: observed(watcher, 'check', (params) =>
+      check_setup: observed(watcher, 'check_setup', (params) =>
         withClient(check(params as { from?: string; to?: string })),
       ),
-      update: observed(watcher, 'update', () => withClient(update)),
+      update_plugin: observed(watcher, 'update_plugin', () => withClient(update)),
     };
     for (const target of operations) {
       handlers[target.name] = observed(watcher, target.name, (params) =>

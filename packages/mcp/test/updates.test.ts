@@ -149,6 +149,9 @@ describe('updates', () => {
 
       expect(error._tag).toBe('UpdateFailed');
       expect(error.message).toMatch(/checksum/u);
+      expect(error.message).toContain(
+        'Download tipee.mcpb from https://github.com/Floriferous/tipee-tools/releases/latest',
+      );
     }),
   );
 
