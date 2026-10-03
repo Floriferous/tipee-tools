@@ -3,7 +3,7 @@
 
 import { expect, layer } from '@effect/vitest';
 import { Effect } from 'effect';
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, http } from 'msw/http';
 
 import {
   HTTP_BAD_REQUEST,

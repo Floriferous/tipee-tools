@@ -4,8 +4,8 @@
 // Assert on behaviour instead of inspecting requests.
 
 import { Result, Schema } from 'effect';
-import { HttpResponse, http } from 'msw';
 import type { JsonBodyType } from 'msw';
+import { HttpResponse, http } from 'msw/http';
 
 import { readFixture } from './fixtures.ts';
 import {
