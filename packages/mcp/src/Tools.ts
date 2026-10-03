@@ -1,5 +1,5 @@
 // The MCP tools: one per operation in Tipee's API document, built from the
-// Core's operation catalogue, plus `check`. Names, descriptions, parameter
+// Core's operation catalogue, plus `check` and `update`. Names, descriptions, parameter
 // And result schemas all come from the document; the annotations say whether
 // A tool only reads, so clients can decide what to auto-approve.
 

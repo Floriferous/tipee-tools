@@ -127,7 +127,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
 });
 
 describe('toolkit', () => {
-  it('has one tool per operation of the API document, plus check', () => {
+  it('has one tool per operation of the API document, plus check and update', () => {
     const tools = Object.values(TipeeToolkit.tools);
 
     expect(tools).toHaveLength(operations.length + 2);

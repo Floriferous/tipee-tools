@@ -14,9 +14,9 @@
   },
   "packageRules": [
     {
-      "description": "Effect 4 is pinned to a release candidate on purpose; bump it by hand.",
-      "matchPackageNames": ["effect", "@effect/**"],
-      "enabled": false
+      "description": "Effect's packages must move in lockstep (a mismatch breaks the platform layer), and its http, http-api and ai modules may change in a minor: one PR of their own. @effect/tsgo follows oxlint and TypeScript instead.",
+      "matchPackageNames": ["effect", "@effect/**", "!@effect/tsgo"],
+      "groupName": "Effect"
     },
     {
       "description": "Node types follow the Node 24 runtime pinned in .node-version.",

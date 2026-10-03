@@ -7,8 +7,8 @@ packages:
 minimumReleaseAge: 1440
 # Never accept a dependency whose publishing trust level went down.
 trustPolicy: no-downgrade
-# undici-types 6.21.0 is the version @types/node pins; a later release of it
-# Was published with lower trust metadata, which the policy reads as a
+# undici-types 6.21.0 is the version @types/node 22 pins (pulled in through
+# @anthropic-ai/mcpb's prompts); a later release of it was published with lower trust metadata, which the policy reads as a
 # Downgrade of the older version too.
 trustPolicyExclude:
   - undici-types

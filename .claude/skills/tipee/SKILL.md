@@ -9,9 +9,9 @@ Tipee is a Swiss HR tool (employees, shifts, absences, activities). This
 repo exposes its **whole API** to agents, for any Tipee instance:
 `@tipee-tools/core` (the HttpApi generated from Tipee's OpenAPI document,
 the derived client, the operation catalogue, errors), `@tipee-tools/mcp`
-(one MCP tool per operation, built from the catalogue, plus `check`), and
-the Claude Code plugin in `plugins/tipee` that bundles the server. The user-facing skill lives in
-`plugins/tipee/skills/tipee`; this one is for developing the repo.
+(one MCP tool per operation, built from the catalogue, plus `check` and
+`update`), and the Claude Code plugin in `plugins/tipee` that bundles the
+server. The user-facing skill lives in `plugins/tipee/skills/tipee`; this one is for developing the repo.
 
 ## Guardrails
 
@@ -52,7 +52,7 @@ key doesn't help. A wrong key gives `"Le jeton fourni est invalide."`.
 
 Reads also need: Planning → "Accéder au module Planning" + "Voir les
 plannings"; Cœur RH → "Accéder au module Cœur RH" + "Voir les
-collaborateurs". Writes will need Planning → "Planifier". Pay-related fields
+collaborateurs". Writes need Planning → "Planifier". Pay-related fields
 come back as `{"redacted": "forbidden"}`.
 
 ## API facts that differ from the docs
@@ -76,7 +76,7 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
   cursor can be non-null on the last full page (the next page is empty).
 - Team filter: `{key: "resource.team", value: {teams: [id], recursive: true}}`.
 - Rate limits are generous (500-token bucket, 4/s). Every operation is a
-  POST, so the client retries only reads (`*.list`, `*.show*`) on timeouts,
+  POST, so the client retries only reads (`*.list`, `*.show*`) on HTTP 408,
   5xx and network failures, and anything on a 429 (`resendable` in
   `TipeeClient.ts`): a write that failed may have been applied, so it is
   never sent twice and its error says to read it back.
@@ -89,12 +89,17 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
 
 `packages/core/spec/` holds Tipee's OpenAPI document (one file, the pinned
 version). `pnpm generate` runs `@effect/openapi-generator` on it, through a
-JSON Patch built in `packages/core/scripts/generate.ts` (mark every request
-body required because Tipee wants a JSON body even when empty; drop
+JSON Patch built in `packages/core/scripts/generate.ts`: mark every request
+body required (Tipee wants a JSON body even when empty); add to a few
+operation descriptions what Tipee's document leaves out (pagination, the
+`integration` kind, the timecheck date range, an absence's percentage, a
+schedule create's empty answer); require `kind_id`, `orders` and `pagination` in `ListResourcesQuery`; let
+map-typed response properties also be `[]` (PHP's empty map); drop
 `example(s)`; turn nested `and`/`or` filters into plain objects Tipee
-validates; close request objects with `additionalProperties: false` — the
-last three keep the 69 tool definitions near 90 KB, since Claude Desktop
-loads all of them into every chat), and writes `packages/core/src/generated/TipeeApi.ts` — committed,
+validates; close request objects with `additionalProperties: false`. The
+last three keep the 70 tool definitions small, since Claude Desktop loads
+all of them into every chat. It writes
+`packages/core/src/generated/TipeeApi.ts` — committed,
 never edited, freshness-checked by `pnpm verify`. To update Tipee's version:
 replace the spec file, bump `TIPEE_API_VERSION`, `pnpm fix`, read the diff.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
@@ -106,8 +111,8 @@ derives tool names from paths; the MCP package turns each entry into a
 - `ARCHITECTURE.md` is the target design (Effect 4 core, MCP server first,
   the plugin bundles the server, the repo is its own marketplace). Check it
   before adding a distribution channel or a configuration source.
-- Effect 4 is at its release candidate, pinned exactly; the `effect-v4` skill
-  in `.claude/skills` lists the idioms and RC gotchas. Read Effect's sources
+- Effect 4 is at 4.0.0 stable, pinned exactly; the `effect-v4` skill
+  in `.claude/skills` lists the idioms and v4 gotchas. Read Effect's sources
   in `node_modules/effect/src` (exact version) and its docs in
   `opensrc/effect` (`pnpm docs:effect`) rather than memory.
 - TypeScript 7 (native compiler) with `@effect/tsgo`: `pnpm install` runs
@@ -117,8 +122,9 @@ derives tool names from paths; the MCP package turns each entry into a
 - Dependencies: Renovate (`renovate.json`) opens grouped weekly npm PRs and
   Dependabot covers GitHub Actions, both with a one-week cooldown;
   `pnpm-workspace.yaml` enforces minimumReleaseAge, no trust downgrades and
-  no exotic sub-dependencies. Effect is excluded from Renovate on purpose:
-  bump the RC by hand in the three manifests and rerun `pnpm verify`.
+  no exotic sub-dependencies. Renovate moves `effect` and the `@effect/*`
+  packages (except `@effect/tsgo`) together as one group; check that PR
+  against the `effect-v4` skill.
   Dependabot's npm updater cannot run pnpm 12, so don't re-add npm there.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the

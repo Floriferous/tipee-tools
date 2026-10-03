@@ -19,10 +19,11 @@ const manifest = {
   compatibility: {
     claude_desktop: '>=0.10.0',
     platforms: ['darwin', 'win32', 'linux'],
-    runtimes: { node: '>=20.0.0' },
+    // The bundled undici 8 needs Node 22.19.
+    runtimes: { node: '>=22.19.0' },
   },
   description:
-    'Read your Tipee plannings from Claude: people, teams, shift templates, shifts, absences, on-calls.',
+    'Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.',
   display_name: 'Tipee',
   documentation: 'https://github.com/Floriferous/tipee-tools#readme',
   homepage: 'https://github.com/Floriferous/tipee-tools',

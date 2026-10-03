@@ -16,11 +16,12 @@ if (spec === undefined || specs.length !== 1) {
 const output = path.join(root, 'src', 'generated', 'TipeeApi.ts');
 const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
 
-// The document is patched before generation, for three reasons the tools
-// Would otherwise pay for on every call: Tipee expects a JSON body even when
-// Empty (bodies are marked optional), the 900-odd `examples` only inflate
-// The tool definitions, and the recursive `and`/`or` filters expand several
-// Levels deep in JSON Schema (one level of nesting is kept).
+// The document is patched before generation wherever it disagrees with what
+// Tipee does or what the tools need, each patch commented where it is made:
+// Request bodies required (Tipee expects one even when empty), descriptions
+// Only Claude can learn from, required pagination and orders, empty maps as
+// [], the 900-odd `examples` dropped, recursive filters cut to one level,
+// And request objects closed.
 interface Document {
   readonly paths: Record<
     string,

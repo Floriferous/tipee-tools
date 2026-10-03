@@ -1,6 +1,6 @@
 {
   "name": "@tipee-tools/plugin",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "private": true,
   "description": "The tipee Claude Code plugin: manifest, skill, and the bundled MCP server",
   "license": "MIT",
@@ -11,13 +11,12 @@
     "pack": "node scripts/pack-mcpb.ts"
   },
   "dependencies": {
-    "@effect/platform-node": "4.0.0",
-    "@tipee-tools/mcp": "workspace:*",
-    "effect": "4.0.0"
+    "@tipee-tools/mcp": "workspace:*"
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "2.1.2",
     "@types/node": "24.19.1",
+    "effect": "4.0.0",
     "tsdown": "0.23.0"
   }
 }

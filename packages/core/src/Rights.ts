@@ -41,10 +41,10 @@ const RIGHTS: Record<
 // Writes whose right is not the group's usual manage right.
 const SPECIAL_RIGHTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^schedule_templates_/u, 'Gérer les modèles horaires'],
-  [/^absence_types_/u, "Gérer les types d'absence"],
-  [/^tags_/u, 'Gérer les tags'],
   [/^timechecks_delete/u, 'Supprimer un timbrage'],
-  [/^timechecks_(?:validate|update|create)/u, "Valider l'ensemble des timbrages des personnes"],
+  // Proposing someone else's time entries is modifying them, which this
+  // Right grants along with validating them.
+  [/^timechecks_(?:validate|propose)/u, "Valider l'ensemble des timbrages des personnes"],
 ];
 
 export const rightFor = (target: Operation): string => {

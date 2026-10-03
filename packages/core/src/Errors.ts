@@ -164,7 +164,7 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
       // As the plain object Tipee answered: quote it whole, since it names
       // The conflicting dates or locked schedules.
       if (typeof cause === 'object' && cause !== null && !(cause instanceof Error)) {
-        const code = codeOf(Schema.decodeUnknownOption(ErrorCode)(cause));
+        const code = codeOf(Schema.decodeOption(ErrorCode)(cause));
         return new TipeeError({
           reason: new Rejected({
             body: JSON.stringify(cause),

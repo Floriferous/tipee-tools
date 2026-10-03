@@ -17,10 +17,12 @@ const UUID_PARTS = [8, 4, 4, 4, 12] as const;
 // Keeps plugins under its own directory; this repository also has a
 // `plugins/` folder, so only Claude's own path counts as an install.
 export const channelOf = (entry: string): Channel => {
-  if (entry.includes('Claude Extensions')) {
+  // Windows paths use backslashes.
+  const unixy = entry.replaceAll('\\', '/');
+  if (unixy.includes('Claude Extensions')) {
     return 'desktop';
   }
-  return entry.includes('.claude/plugins/') ? 'plugin' : 'dev';
+  return unixy.includes('.claude/plugins/') ? 'plugin' : 'dev';
 };
 
 export const channel: Channel = channelOf(argv[1] ?? '');

@@ -4,8 +4,8 @@
 // From this repository's releases, verifies its checksum, and opens it, which
 // Makes Claude Desktop ask the user to confirm the update; the instance and
 // Key are kept. GitHub's latest release is asked at most once a day and the
-// Answer kept next to the telemetry id; a failed lookup means "nothing to
-// Report".
+// Answer kept in the state directory (~/.tipee-tools); a failed lookup means
+// "nothing to report".
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
