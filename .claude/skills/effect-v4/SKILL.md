@@ -45,7 +45,7 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
   the effect wrapped in `Effect.provideService(Logger.LogToStderr, true)` and
   logging its own failure, with `{ disableErrorReporting: true }`: stdout is
   the protocol channel, and a failed start must not land there (see `start`
-  in `packages/mcp/src/Server.ts`).
+  in `packages/mcp/src/Start.ts`).
   A declared `failure` schema makes the MCP result carry `error.message`.
 - Tests: `import { it, layer } from "@effect/vitest"`; `layer(L)("suite", (it) => …)`
   shares a layer; `it.effect` runs on the `TestClock` (fork with
