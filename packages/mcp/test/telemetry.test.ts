@@ -1,6 +1,6 @@
 // What leaves the machine: the instance, the channel and an installation id,
-// Never the key. The fake PostHog records the batches it receives; the
-// Assertions read them, never the requests.
+// never the key. The fake PostHog records the batches it receives; the
+// assertions read them, never the requests.
 
 import { homedir } from 'node:os';
 

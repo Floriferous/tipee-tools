@@ -1,7 +1,7 @@
 // Calling an operation: `invoke` sends any operation of the catalogue
-// Through the client and explains failures as TipeeError, each ending with
-// The next step, with a link into the user's Tipee when the fix is a right
-// To tick.
+// through the client and explains failures as TipeeError, each ending with
+// the next step, with a link into the user's Tipee when the fix is a right
+// to tick.
 
 import { Effect, Option, Schema } from 'effect';
 
@@ -22,7 +22,7 @@ const call = (
   Effect.gen(function* () {
     const { api } = yield* TipeeClient;
     // Checked against the document before anything is sent, so a schema
-    // Error afterwards can only be Tipee's answer.
+    // error afterwards can only be Tipee's answer.
     yield* Schema.decodeUnknownEffect(target.parameters as Schema.Codec<unknown>)(params).pipe(
       Effect.mapError(
         (cause) => new TipeeError({ reason: new InvalidRequest({ details: cause.message }) }),
@@ -110,7 +110,7 @@ const FIXES: Partial<Record<TipeeErrorReason['_tag'], string>> = {
 };
 
 // Node's names for a certificate it does not trust, which is what a network
-// That inspects HTTPS presents.
+// that inspects HTTPS presents.
 const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
 
 // Adds the next step to a failure: what to retry, or where to fix it.
@@ -153,7 +153,7 @@ const explain = (
     }
     const serverError = reason._tag === 'UnexpectedStatus' && reason.status >= HTTP_SERVER_ERROR;
     // A write is never sent twice (see TipeeClient), but the one attempt may
-    // Have been applied before the failure: only reading it back tells.
+    // have been applied before the failure: only reading it back tells.
     if (!target.readOnly && (reason._tag === 'Unreachable' || serverError)) {
       return fixed(
         'This write was not retried, and Tipee may have applied it before failing: read it back before trying again.',
@@ -175,7 +175,7 @@ const explain = (
   });
 
 // Calls an operation with a decoded request body and returns the decoded
-// Response; a failure comes back explained, with its next step.
+// response; a failure comes back explained, with its next step.
 export const invoke = (
   target: Operation,
   params: unknown,

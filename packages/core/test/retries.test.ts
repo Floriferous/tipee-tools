@@ -1,5 +1,5 @@
 // What is sent again after a failure, and what the agent is told when
-// Nothing more can be done: reads and rate limits are retried, writes never.
+// nothing more can be done: reads and rate limits are retried, writes never.
 
 import { expect, layer } from '@effect/vitest';
 import { Effect } from 'effect';

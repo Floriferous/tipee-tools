@@ -1,5 +1,5 @@
 // The update check and install against a fake GitHub: newer, same,
-// Unreachable, a bundle that does not match, and each way to hand it over.
+// unreachable, a bundle that does not match, and each way to hand it over.
 
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';

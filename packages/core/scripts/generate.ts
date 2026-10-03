@@ -1,7 +1,7 @@
 // Regenerates src/generated/TipeeApi.ts from the vendored OpenAPI document
-// With @effect/openapi-generator. Everything the toolkit knows about Tipee's
-// Operations and shapes comes from that file; run `pnpm generate` after
-// Dropping a new spec version into spec/ (`pnpm spec:refresh` does both).
+// with @effect/openapi-generator. Everything the toolkit knows about Tipee's
+// operations and shapes comes from that file; run `pnpm generate` after
+// dropping a new spec version into spec/ (`pnpm spec:refresh` does both).
 
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -17,11 +17,11 @@ const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
 
 // The document is patched before generation wherever it disagrees with what
 // Tipee does or what the tools need, each patch commented where it is made:
-// Request bodies required (Tipee expects one even when empty), descriptions
-// Only Claude can learn from, required pagination and orders, empty maps as
+// request bodies required (Tipee expects one even when empty), descriptions
+// only Claude can learn from, required pagination and orders, empty maps as
 // [], the 900-odd `examples` dropped, recursive filters cut to one level,
-// Request objects closed, answer-only enums opened, and the operations the
-// Tools leave out removed.
+// request objects closed, answer-only enums opened, and the operations the
+// tools leave out removed.
 interface Patch {
   readonly op: 'add' | 'remove' | 'replace';
   readonly path: string;
@@ -45,7 +45,7 @@ for (const route of routes) {
 
 // Rewrites one text of the document. A rewrite that changes nothing means
 // Tipee reworded the text it was written for: fail rather than ship the
-// Patch as a silent no-op.
+// patch as a silent no-op.
 const reword = (at: ReadonlyArray<string>, rewrite: (current: string) => string): void => {
   let current: unknown = document;
   for (const key of at) {
@@ -70,8 +70,8 @@ const swap = (text: string, passage: string, replacement: string): string => {
 };
 
 // What Tipee's document does not say and Claude cannot learn otherwise: the
-// Description is the only place a Claude Desktop user's Claude reads. Routes
-// Mentioned in a description become the tool names Claude knows.
+// description is the only place a Claude Desktop user's Claude reads. Routes
+// mentioned in a description become the tool names Claude knows.
 const describe = (route: string, rewrite: (current: string) => string): void => {
   reword(['paths', route, 'post', 'description'], rewrite);
 };
@@ -129,7 +129,7 @@ describe('/api/schedule/schedules.create', (current) =>
 
 // PHP serialises an empty map as [], so every map-typed property in a response
 // (deleted, failed, choices…) must also accept an empty array, or a delete
-// That succeeded would be reported as a response that does not match.
+// that succeeded would be reported as a response that does not match.
 const EMPTY_ARRAY = { maxItems: 0, type: 'array' };
 for (const [name, schema] of Object.entries(document.components.schemas)) {
   const properties = name.endsWith('Command') ? {} : (schema.properties ?? {});
@@ -168,7 +168,7 @@ removeExamples(document.paths, '/paths');
 
 // Composite filters: `and` / `or` take a list of filters of the same shape.
 // In JSON Schema that recursion expands several levels deep in every list
-// Tool; nested filters become a plain object instead, which Tipee validates.
+// tool; nested filters become a plain object instead, which Tipee validates.
 for (const [name, schema] of Object.entries(document.components.schemas)) {
   const self = `#/components/schemas/${name}`;
   for (const [index, alternative] of (schema.oneOf ?? []).entries()) {
@@ -183,8 +183,8 @@ for (const [name, schema] of Object.entries(document.components.schemas)) {
 }
 
 // Closed request objects make the generated request schemas plain structs,
-// Whose JSON Schema is a third shorter. They do not refuse unknown keys on
-// Their own (decoding drops them): the MCP tools are strict, which does.
+// whose JSON Schema is a third shorter. They do not refuse unknown keys on
+// their own (decoding drops them): the MCP tools are strict, which does.
 const visited = new Set<string>();
 const closeObjects = (node: Schema | undefined, at: string): void => {
   if (node === undefined) {
@@ -237,8 +237,8 @@ for (const route of routes) {
 }
 
 // Tipee adds enum values within a version, and one value the schema does not
-// Know fails the whole answer. An enum only answers carry becomes a string
-// That lists the known values; enums a request can carry stay closed.
+// know fails the whole answer. An enum only answers carry becomes a string
+// that lists the known values; enums a request can carry stay closed.
 for (const [name, schema] of Object.entries(document.components.schemas)) {
   if (schema.enum !== undefined && answers.has(name) && !requests.has(name)) {
     patch.push({
@@ -255,7 +255,7 @@ for (const [name, schema] of Object.entries(document.components.schemas)) {
 }
 
 // The excluded operations go last, after the patches above touched them,
-// Along with the schemas no tool refers to any more.
+// along with the schemas no tool refers to any more.
 const kept = new Set([...requests, ...answers]);
 const orphans = new Set<string>();
 for (const route of EXCLUDED) {

@@ -1,8 +1,8 @@
 // The MCP tools: one per operation in Tipee's API document, built from the
-// Core's operation catalogue, plus `check_setup` and `update_plugin`. Names,
-// Descriptions, parameter and result schemas all come from the document; the
-// Annotations say what a tool does to Tipee's data, so clients can decide what
-// To auto-approve. Every tool is strict: an unknown key is refused, not dropped.
+// core's operation catalogue, plus `check_setup` and `update_plugin`. Names,
+// descriptions, parameter and result schemas all come from the document; the
+// annotations say what a tool does to Tipee's data, so clients can decide what
+// to auto-approve. Every tool is strict: an unknown key is refused, not dropped.
 
 import { TipeeError, operations } from '@tipee-tools/core';
 import type { Operation } from '@tipee-tools/core';
@@ -101,7 +101,7 @@ export const InstallUpdate = Tool.make('update_plugin', {
   .annotate(Tool.Idempotent, true);
 
 // Claude Desktop never loads the plugin's skill: what a write must do first
-// Has to travel with the tool itself.
+// has to travel with the tool itself.
 const CONFIRM =
   'Changes Tipee: first tell the user exactly what will change and for whom, and wait for ' +
   'their yes, unless they asked for this precise change.';

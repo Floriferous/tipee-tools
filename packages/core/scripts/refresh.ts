@@ -1,8 +1,8 @@
 // `pnpm spec:refresh`: brings the vendored OpenAPI document up to Tipee's
-// Newest stable version, regenerates the client and the plugin bundle, and
-// Prints what changed. It only rewrites files of this checkout, so it is safe
-// To run locally; review the diff, or throw it away. With --bump it also moves
-// The plugin version (minor when operations were added, patch otherwise), and
+// newest stable version, regenerates the client and the plugin bundle, and
+// prints what changed. It only rewrites files of this checkout, so it is safe
+// to run locally; review the diff, or throw it away. With --bump it also moves
+// the plugin version (minor when operations were added, patch otherwise), and
 // --report <file> writes the summary as JSON for the spec-refresh workflow.
 
 import { spawnSync } from 'node:child_process';
@@ -91,7 +91,7 @@ schemas.removed = Object.keys(before.components.schemas).filter(
 );
 
 // The plugin version a reviewer merges: tool names are the public surface, so
-// A removed or renamed operation needs a major version, which a person decides.
+// a removed or renamed operation needs a major version, which a person decides.
 const bump = (): string => {
   const manifest = path.join(repository, 'plugins', 'tipee', '.claude-plugin', 'plugin.json');
   const current = (JSON.parse(readFileSync(manifest, 'utf8')) as { version: string }).version;
@@ -114,7 +114,7 @@ const bump = (): string => {
 };
 
 // Writes the new document, moves the version when asked, then regenerates
-// The client and rebuilds the bundle; returns the version change, if any.
+// the client and rebuilds the bundle; returns the version change, if any.
 const update = (): string | undefined => {
   writeFileSync(path.join(specDirectory, `tipee-${latest}.json`), downloaded);
   if (moved) {

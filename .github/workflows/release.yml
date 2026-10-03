@@ -2,7 +2,7 @@ name: Release
 
 # Pushing a tag such as v0.2.1 builds the extension and publishes it on a
 # GitHub Release under two names: the versioned file, and tipee.mcpb, which
-# The README's "latest" link resolves to, plus their SHA256SUMS.
+# the README's "latest" link resolves to, plus their SHA256SUMS.
 on:
   push:
     tags:

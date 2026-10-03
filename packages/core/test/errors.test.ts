@@ -1,5 +1,5 @@
 // How failures come back through `invoke`: each one explained, and the ones
-// A user can fix by hand ending with the page to open on their instance.
+// a user can fix by hand ending with the page to open on their instance.
 
 import { expect, layer } from '@effect/vitest';
 import { Effect } from 'effect';

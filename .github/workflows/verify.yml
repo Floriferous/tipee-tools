@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v7
 
       # No version pinned here on purpose: the action reads the `packageManager`
-      # Field in package.json, so the version only has to be bumped in one place.
+      # field in package.json, so the version only has to be bumped in one place.
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
@@ -41,7 +41,7 @@ jobs:
           node-version-file: .node-version
 
       # Turborepo's local cache, keyed by commit and restored from the most
-      # Recent run, so unchanged packages skip their tasks.
+      # recent run, so unchanged packages skip their tasks.
       - name: Restore Turborepo cache
         uses: actions/cache@v6
         with:
@@ -54,15 +54,15 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Same command as a local `pnpm verify`: generate, lint, format,
-      # Type-check, tests, bundle, pack, then the freshness check (the
-      # Committed generated API and plugin server must match the sources).
+      # type-check, tests, bundle, pack, then the freshness check (the
+      # committed generated API and plugin server must match the sources).
       # The pre-commit hook differs: it runs `pnpm fix`, then only
       # `turbo run check test`.
       - name: Verify
         run: pnpm verify
 
       # The Claude Desktop extension built by `pnpm verify`, downloadable from
-      # The run to try a branch before it is released.
+      # the run to try a branch before it is released.
       - name: Upload the Claude Desktop extension
         uses: actions/upload-artifact@v7
         with:

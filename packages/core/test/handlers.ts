@@ -1,7 +1,7 @@
 // The fake Tipee. Happy-path handlers backed by the anonymised fixtures, which
-// Enforce the real API's rules (bearer key, explicit pagination, identical
-// Orders on every page, …) by answering 401/422 the way Tipee does — so tests
-// Assert on behaviour instead of inspecting requests.
+// enforce the real API's rules (bearer key, explicit pagination, identical
+// orders on every page, …) by answering 401/422 the way Tipee does — so tests
+// assert on behaviour instead of inspecting requests.
 
 import { Result, Schema } from 'effect';
 import type { JsonBodyType } from 'msw';
@@ -187,7 +187,7 @@ const byLastName =
   };
 
 // A real cursor is opaque; this one is "<offset>:<signature>" so the fake can
-// Refuse a page requested with different filters or orders, like Tipee does.
+// refuse a page requested with different filters or orders, like Tipee does.
 const cursor = (offset: number, signature: string): string => `${offset}:${signature}`;
 
 const readCursor = (token: string | null, signature: string): number | undefined => {

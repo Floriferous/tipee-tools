@@ -1,5 +1,5 @@
 // The check_setup tool against the fake Tipee: every probed endpoint reported, and
-// What a skipped or failed endpoint tells the user.
+// what a skipped or failed endpoint tells the user.
 
 import { expect, layer } from '@effect/vitest';
 import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
