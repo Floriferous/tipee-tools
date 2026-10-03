@@ -3,13 +3,11 @@
 // the report of why it stopped. `start` (Start.ts) runs it.
 
 import { layer as stdioLayer } from '@effect/platform-node/NodeStdio';
-import { TipeeClient } from '@tipee-tools/core';
-import type { ConfigurationMissing } from '@tipee-tools/core';
 import { Cause, Effect, Layer, Result } from 'effect';
 import { McpProtocol, McpServer } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
-import { TipeeToolkitLayer } from './Handlers.ts';
+import { TipeeToolkitLayerConfig } from './Handlers.ts';
 import { SetupPrompt } from './Prompts.ts';
 import { Telemetry } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
@@ -45,9 +43,10 @@ const TelemetryLive = Telemetry.layer({
 });
 
 // Nothing is recorded on a start: Claude launches the server many times over
-// on its own. The first tool call of a launch reports the session instead.
+// on its own. The first tool call of a launch reports the session instead,
+// and a start without usable settings reports `server_failed`.
 export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), SetupPrompt).pipe(
-  Layer.provide(TipeeToolkitLayer),
+  Layer.provide(TipeeToolkitLayerConfig),
   Layer.provide(
     McpServer.layerStdio({
       description:
@@ -63,7 +62,6 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
       version: SERVER_VERSION,
     }),
   ),
-  Layer.provide(TipeeClient.layerConfig),
   Layer.provide(TelemetryLive),
   Layer.provide(Updates.layer(SERVER_VERSION)),
   Layer.provide(FetchHttpClient.layer),
@@ -71,9 +69,9 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
 );
 
 // Reports why the server stopped, from a telemetry of its own: the server's
-// may never have been built. An expected failure (missing configuration) is
-// a `server_failed` event with its reason; anything else is an unhandled
-// exception. Never fails, never takes more than the flush timeout.
+// may never have been built. An expected failure is a `server_failed` event
+// with its reason; anything else is an unhandled exception. Never fails,
+// never takes more than the flush timeout.
 export const reportCrash = (cause: Cause.Cause<unknown>): Effect.Effect<void> =>
   Effect.gen(function* () {
     const telemetry = yield* Telemetry;
@@ -96,5 +94,6 @@ export const reportCrash = (cause: Cause.Cause<unknown>): Effect.Effect<void> =>
   );
 
 /** The whole server as one effect that runs until the client disconnects. */
-export const main: Effect.Effect<never, ConfigurationMissing | Cause.IllegalArgumentError> =
-  Layer.launch(ServerLayer).pipe(Effect.tapCause((cause) => reportCrash(cause)));
+export const main: Effect.Effect<never, Cause.IllegalArgumentError> = Layer.launch(
+  ServerLayer,
+).pipe(Effect.tapCause((cause) => reportCrash(cause)));

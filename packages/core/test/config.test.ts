@@ -75,6 +75,23 @@ describe('configuration', () => {
     }).pipe(Effect.scoped),
   );
 
+  it.effect.each<readonly [Record<string, string>, string]>([
+    [{ TIPEE_INSTANCE: 'acme' }, 'The API key is empty: paste the key generated'],
+    [{ TIPEE_API_KEY: '   ', TIPEE_INSTANCE: 'acme' }, 'The API key is empty'],
+    [{ TIPEE_API_KEY: API_KEY }, 'The Tipee instance is empty'],
+    [{ TIPEE_API_KEY: API_KEY, TIPEE_INSTANCE: ' ' }, 'The Tipee instance is empty'],
+    // What Claude passes when a setting was never filled in.
+    [{ TIPEE_API_KEY: API_KEY, TIPEE_INSTANCE: '${user_config.instance}' }, 'The Tipee instance'],
+    [{ TIPEE_API_KEY: '${user_config.api_key}', TIPEE_INSTANCE: 'acme' }, 'The API key is empty'],
+  ])('names the setting that is missing or blank in %j', ([values, detail]) =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(Layer.build(withProvider(values)));
+
+      expect(error._tag).toBe('ConfigurationMissing');
+      expect(error.message).toContain(`\n${detail}`);
+    }).pipe(Effect.scoped),
+  );
+
   it.effect('refuses an instance that is not one, quoting it', () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(

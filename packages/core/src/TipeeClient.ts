@@ -87,18 +87,37 @@ export const normalizeInstance = (raw: string): Option.Option<string> => {
   return DNS_LABEL.test(subdomain) ? Option.some(subdomain) : Option.none();
 };
 
+// A setting that cannot be used, in words the user can act on.
+const invalid = (message: string): Config.ConfigError =>
+  new Config.ConfigError(new ConfigProvider.SourceError({ message }));
+
+// A setting never filled in: absent, blank, or the placeholder Claude passes
+// as is, such as `${user_config.instance}`.
+const unset = (raw: string): boolean => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
+
 const instanceConfig = Config.String('TIPEE_INSTANCE').pipe(
+  Config.withDefault(''),
   Config.mapEffect((raw) =>
-    Effect.mapError(
-      Effect.fromOption(normalizeInstance(raw)),
-      () =>
-        new Config.ConfigError(
-          new ConfigProvider.SourceError({
-            message: `"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.`,
-          }),
+    unset(raw)
+      ? Effect.fail(invalid('The Tipee instance is empty: enter the part before .tipee.net.'))
+      : Effect.mapError(Effect.fromOption(normalizeInstance(raw)), () =>
+          invalid(
+            `"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.`,
+          ),
         ),
-    ),
   ),
+);
+
+// Trimmed, and refused when unset: an empty bearer token would only fail
+// later, as a refused key.
+const apiKeyConfig = Config.Redacted('TIPEE_API_KEY').pipe(
+  Config.withDefault(Redacted.make('')),
+  Config.mapEffect((key) => {
+    const trimmed = Redacted.value(key).trim();
+    return unset(trimmed)
+      ? Effect.fail(invalid('The API key is empty: paste the key generated for the integration.'))
+      : Effect.succeed(Redacted.make(trimmed));
+  }),
 );
 
 export interface TipeeCredentials {
@@ -151,12 +170,7 @@ export class TipeeClient extends Context.Service<
   // A client configured from `TIPEE_INSTANCE` and `TIPEE_API_KEY`, both as
   // pasted: the instance is normalized, the key trimmed.
   public static readonly layerConfig = Layer.unwrap(
-    Config.all({
-      apiKey: Config.Redacted('TIPEE_API_KEY').pipe(
-        Config.map((key) => Redacted.make(Redacted.value(key).trim())),
-      ),
-      instance: instanceConfig,
-    }).pipe(
+    Config.all({ apiKey: apiKeyConfig, instance: instanceConfig }).pipe(
       Effect.map((credentials) => TipeeClient.layer(credentials)),
       Effect.mapError((cause) => new ConfigurationMissing({ cause })),
     ),

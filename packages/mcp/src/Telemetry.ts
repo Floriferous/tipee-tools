@@ -165,11 +165,8 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
     Layer.effect(
       Telemetry,
       Effect.gen(function* () {
-        const read = yield* Effect.option(settings);
-        if (Option.isNone(read)) {
-          return silent;
-        }
-        const config = read.value;
+        // Every setting has a default, so reading them cannot fail.
+        const config = yield* Effect.orDie(settings);
         const http = (yield* HttpClient.HttpClient).pipe(
           HttpClient.retryTransient({
             schedule: Schedule.exponential('500 millis'),

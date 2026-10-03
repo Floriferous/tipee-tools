@@ -79,7 +79,7 @@ export interface IntegrationLink {
 
 /**
  * The integration the key belongs to, when the API lets us list integrations
- * And there is exactly one: any failure or ambiguity is undefined, never an error.
+ * and there is exactly one: any failure or ambiguity is undefined, never an error.
  */
 export const integrationLink: Effect.Effect<IntegrationLink | undefined, never, TipeeClient> =
   Effect.gen(function* () {
@@ -160,7 +160,9 @@ const explain = (
       );
     }
     if (reason._tag === 'Unreachable') {
-      return fixed('Check the internet connection and try again.');
+      return fixed(
+        `Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`,
+      );
     }
     if (serverError) {
       return fixed('Try again in a moment; run check_setup if it persists.');

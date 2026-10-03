@@ -1,11 +1,14 @@
 // The check_setup tool against the fake Tipee: every probed endpoint reported, and
 // what a skipped or failed endpoint tells the user.
 
-import { expect, layer } from '@effect/vitest';
+import { describe, expect, it, layer } from '@effect/vitest';
+import { TipeeClient } from '@tipee-tools/core';
 import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
-import { Effect } from 'effect';
+import { Effect, Layer, Redacted } from 'effect';
+import { FetchHttpClient } from 'effect/http';
 import { HttpResponse, http } from 'msw/http';
 
+import { SERVER_VERSION, Telemetry, TipeeToolkitLayer, Update, Updates } from '../src/index.ts';
 import { call, clientFor } from './toolkit.ts';
 
 const HTTP_FORBIDDEN = 403;
@@ -18,9 +21,11 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
         date_range: string;
         endpoints: Array<{ name: string; status: string }>;
         integration?: { label: string; roles_page: string };
+        version: string;
       };
 
       expect(report.ok).toBe(true);
+      expect(report.version).toBe(SERVER_VERSION);
       // The test clock starts at the epoch.
       expect(report.date_range).toBe('1970-01-01/1970-01-07');
       expect(report.endpoints.map((endpoint) => endpoint.name)).toEqual([
@@ -145,5 +150,44 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
 
       expect(report.date_range).toBe('1970-01-01/1970-01-07');
     }),
+  );
+});
+
+// A newer release on offer, for a key that is right or wrong.
+const offered = (apiKey: string) =>
+  TipeeToolkitLayer.pipe(
+    Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(apiKey), instance: 'acme' })),
+    Layer.provide(Telemetry.layerOff),
+    Layer.provide(
+      Layer.succeed(Updates, {
+        available: Effect.succeedSome(
+          new Update({ url: 'https://github.test/tag/v9.9.9', version: '9.9.9' }),
+        ),
+        current: SERVER_VERSION,
+        install: Effect.succeed({ status: 'up_to_date' as const }),
+      }),
+    ),
+    Layer.provide(FetchHttpClient.layer),
+  );
+
+describe('check_setup with a newer release', () => {
+  it.effect('reports it alongside the endpoints', () =>
+    Effect.gen(function* () {
+      const report = (yield* call('check_setup', {})) as { update?: { version: string } };
+
+      expect(report.update?.version).toBe('9.9.9');
+    }).pipe(Effect.provide(offered(API_KEY))),
+  );
+
+  // A release may fix what makes every call fail.
+  it.effect('offers it when the check aborts', () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(call('check_setup', {}));
+
+      expect(String(error)).toMatch(/refused the API key/u);
+      expect(String(error)).toMatch(
+        /Version 9\.9\.9 of Tipee for Claude is available: offer to install it with update_plugin\.$/u,
+      );
+    }).pipe(Effect.provide(offered('wrong'))),
   );
 });

@@ -49,7 +49,9 @@ layer(TestClient)('next steps', (it) => {
       const error = yield* settled(failure(call('kinds_list', {})));
 
       expect(error.reason._tag).toBe('Unreachable');
-      expect(error.message).toMatch(/Check the internet connection and try again\.$/u);
+      expect(error.message).toMatch(
+        /Check the internet connection, or ask IT to allow acme\.tipee\.net, and try again\.$/u,
+      );
     }),
   );
 

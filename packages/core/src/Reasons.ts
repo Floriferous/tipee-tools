@@ -23,8 +23,8 @@ export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKey
 
 /**
  * The key works, but its integration was never granted the authorization that
- * Unlocks the API. Tipee answers 401 here (not 403), so only the body tells
- * This apart from a bad key.
+ * unlocks the API. Tipee answers 401 here (not 403), so only the body tells
+ * this apart from a bad key.
  */
 export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMissing', {
   body: Schema.String,
@@ -97,8 +97,8 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
 
 /**
  * The response did not match the schema generated from Tipee's OpenAPI
- * Document. Tipee did accept the request, so a write may well have gone
- * Through: the message says so.
+ * document. Tipee did accept the request, so a write may well have gone
+ * through: the message says so.
  */
 export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
   details: Schema.String,
@@ -122,7 +122,7 @@ export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('Invali
 
 /**
  * No Tipee instance has this name. `*.tipee.net` resolves for any name, so a
- * Typo is not a DNS failure: Tipee answers 410 `instance_not_found`.
+ * typo is not a DNS failure: Tipee answers 410 `instance_not_found`.
  */
 export class InstanceNotFound extends Schema.TaggedError<InstanceNotFound>()('InstanceNotFound', {
   body: Schema.String,
@@ -141,7 +141,19 @@ export class Unreachable extends Schema.TaggedError<Unreachable>()('Unreachable'
   description: Schema.String,
 }) {
   public override get message(): string {
-    return `Tipee could not be reached: ${this.description}`;
+    return `Tipee could not be reached (${this.description}).`;
+  }
+}
+
+/**
+ * TIPEE_INSTANCE or TIPEE_API_KEY cannot be used, so nothing was sent. The
+ * description is ConfigurationMissing's message, which names the setting.
+ */
+export class NotConfigured extends Schema.TaggedError<NotConfigured>()('NotConfigured', {
+  description: Schema.String,
+}) {
+  public override get message(): string {
+    return this.description;
   }
 }
 
@@ -166,6 +178,7 @@ export const TipeeErrorReason = Schema.Union([
   InvalidRequest,
   InstanceNotFound,
   Unreachable,
+  NotConfigured,
   Internal,
 ]);
 export type TipeeErrorReason = typeof TipeeErrorReason.Type;

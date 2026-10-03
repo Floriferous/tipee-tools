@@ -10,7 +10,7 @@ export const SETUP_PROMPT = {
   name: 'check-tipee-setup',
   text:
     'Run the check_setup tool with no arguments, then explain the result to someone who is ' +
-    'not technical. For each endpoint that is not ok, quote its error as is: it names the ' +
+    'not technical, and say which version of Tipee for Claude is running. For each endpoint that is not ok, quote its error as is: it names the ' +
     'right to tick and links the page where to tick it. A module the company does not use can ' +
     'stay off: say so rather than asking me to turn it on. If the tool itself fails, quote ' +
     `its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. ` +

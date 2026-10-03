@@ -1,13 +1,15 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
 // `invoke`; `check_setup` runs the probes in Check.ts. Each call is timed
 // and its outcome recorded by the telemetry, which never sees the parameters
-// or the answer.
+// or the answer. Without a usable setting every Tipee call fails with what
+// to fix.
 
-import { TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
-import { Cause, Duration, Effect, Exit, Option, Result } from 'effect';
+import { NotConfigured, TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
+import type { ConfigurationMissing } from '@tipee-tools/core';
+import { Cause, Duration, Effect, Exit, Layer, Option, Result } from 'effect';
 import { McpSchema } from 'effect/ai';
 
-import { check } from './Check.ts';
+import { check, probes } from './Check.ts';
 import { Telemetry } from './Telemetry.ts';
 import type { Properties, Sink } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
@@ -121,43 +123,76 @@ const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler):
     return yield* Effect.failCause(exit.cause);
   });
 
-export const TipeeToolkitLayer = TipeeToolkit.toLayer(
-  Effect.gen(function* () {
-    const client = yield* TipeeClient;
-    const telemetry = yield* Telemetry;
-    const updates = yield* Updates;
-    // Claude starts the server repeatedly and uses only some of those
-    // launches, so a session begins at the first tool call, not at startup.
-    let announced = false;
-    const announce: Announce = (who) =>
-      Effect.suspend(() => {
-        if (announced) {
-          return Effect.void;
-        }
-        announced = true;
-        return telemetry.capture('session_started', who);
-      });
-    const watcher: Watcher = { announce, telemetry };
-    const withClient = <A, E>(
-      effect: Effect.Effect<A, E, TipeeClient | Telemetry | Updates>,
-    ): Effect.Effect<A, E> =>
-      effect.pipe(
-        Effect.provideService(TipeeClient, client),
-        Effect.provideService(Telemetry, telemetry),
-        Effect.provideService(Updates, updates),
-      );
+// The handlers, given the Tipee client or why the settings give none.
+const handlersFor = (connection: Result.Result<TipeeClient['Service'], ConfigurationMissing>) =>
+  TipeeToolkit.toLayer(
+    Effect.gen(function* () {
+      const telemetry = yield* Telemetry;
+      const updates = yield* Updates;
+      if (Result.isFailure(connection)) {
+        yield* Effect.logError(connection.failure.message);
+        yield* telemetry.capture('server_failed', { reason: connection.failure._tag });
+      }
+      // Claude starts the server repeatedly and uses only some of those
+      // launches, so a session begins at the first tool call, not at startup.
+      let announced = false;
+      const announce: Announce = (who) =>
+        Effect.suspend(() => {
+          if (announced) {
+            return Effect.void;
+          }
+          announced = true;
+          return telemetry.capture('session_started', who);
+        });
+      const watcher: Watcher = { announce, telemetry };
+      const provided = <A, E>(
+        effect: Effect.Effect<A, E, Telemetry | Updates>,
+      ): Effect.Effect<A, E> =>
+        effect.pipe(
+          Effect.provideService(Telemetry, telemetry),
+          Effect.provideService(Updates, updates),
+        );
+      // Without a client, nothing is sent and the failure names the setting.
+      const connected = <A, E, R>(
+        effect: Effect.Effect<A, E, R>,
+      ): Effect.Effect<A, E | TipeeError, Exclude<R, TipeeClient>> =>
+        Result.isSuccess(connection)
+          ? Effect.provideService(effect, TipeeClient, connection.success)
+          : Effect.fail(
+              new TipeeError({
+                reason: new NotConfigured({ description: connection.failure.message }),
+              }),
+            );
 
-    const handlers: Record<string, Handler> = {
-      check_setup: observed(watcher, 'check_setup', (params) =>
-        withClient(check(params as { from?: string; to?: string })),
-      ),
-      update_plugin: observed(watcher, 'update_plugin', () => withClient(update)),
-    };
-    for (const target of operations) {
-      handlers[target.name] = observed(watcher, target.name, (params) =>
-        withClient(invoke(target, params)).pipe(Effect.map((result) => result ?? { done: true })),
-      );
-    }
-    return TipeeToolkit.of(handlers as unknown as Handlers);
-  }),
+      const handlers: Record<string, Handler> = {
+        check_setup: observed(watcher, 'check_setup', (params) =>
+          provided(check(connected(probes(params as { from?: string; to?: string })))),
+        ),
+        update_plugin: observed(watcher, 'update_plugin', () => provided(update)),
+      };
+      for (const target of operations) {
+        handlers[target.name] = observed(watcher, target.name, (params) =>
+          provided(connected(invoke(target, params))).pipe(
+            Effect.map((result) => result ?? { done: true }),
+          ),
+        );
+      }
+      return TipeeToolkit.of(handlers as unknown as Handlers);
+    }),
+  );
+
+/** The handlers over the TipeeClient in context. */
+export const TipeeToolkitLayer = Layer.unwrap(
+  Effect.map(Effect.service(TipeeClient), (client) => handlersFor(Result.succeed(client))),
+);
+
+/**
+ * The handlers over a client configured from the environment. A missing or
+ * invalid setting does not stop the server: every tool that calls Tipee,
+ * check_setup first, then answers with what to fix, where the user sees it
+ * rather than in a log.
+ */
+export const TipeeToolkitLayerConfig = TipeeToolkitLayer.pipe(
+  Layer.provide(TipeeClient.layerConfig),
+  Layer.catchTag('ConfigurationMissing', (missing) => handlersFor(Result.fail(missing))),
 );

@@ -39,16 +39,20 @@ const manifest = {
   long_description:
     'Give Claude access to your Tipee: people, teams, shifts, absences, on-calls, ' +
     'activities and time clock, reading and changing. Every tool that changes Tipee ' +
-    'instructs Claude to say exactly what will change and wait for your yes, and Claude ' +
-    'Desktop asks your permission per tool: choose "Allow once" to approve every change.\n\n' +
+    'instructs Claude to say exactly what will change and wait for your yes, unless you ' +
+    'asked for that exact change, and Claude Desktop asks your permission per tool: choose ' +
+    '"Allow once" to approve every change yourself.\n\n' +
     'The API key belongs to an integration created in the Tipee admin panel. It needs the ' +
     'authorization "Se connecter avec des applications externes" plus the module rights ' +
     'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
     'run check_setup: it names the integration, links where its rights are set, and explains ' +
     'anything missing in plain words.\n\n' +
     'The extension sends usage data to PostHog to help improve it: which tools ran, how they ' +
-    'failed, your instance name and your setup (system, Node and Claude versions); never your ' +
-    'key, anything Tipee answered, or anything about your people. See the privacy policy.\n\n' +
+    "failed (by reason, HTTP status, Tipee's error code and field paths), crash messages and " +
+    'stack traces, your instance name, your setup (system, Node and Claude versions), and a ' +
+    'pseudonymous installation ID computed from your computer and account names (the names ' +
+    'are never sent); never your key, anything Tipee answered, or anything about your ' +
+    'people. See the privacy policy.\n\n' +
     'An independent project, not made or endorsed by Tipee.',
   manifest_version: '0.3',
   // See `author`.
@@ -66,6 +70,9 @@ const manifest = {
       args: ['${__dirname}/server/tipee-mcp.mjs'],
       command: 'node',
       env: {
+        // Use the HTTPS_PROXY a company network sets, as the plugin's
+        // .mcp.json does; Node versions without proxy support ignore it.
+        NODE_USE_ENV_PROXY: '1',
         TIPEE_API_KEY: '${user_config.api_key}',
         TIPEE_INSTANCE: '${user_config.instance}',
       },
@@ -78,10 +85,11 @@ const manifest = {
     name: tool.name,
   })),
   tools_generated: false,
-  // An array, not an object: Claude Desktop shows the fields in this order,
-  // and the easy, non-secret value comes first. Descriptions double as
-  // placeholders, so they stay short. Claude Desktop keeps saved values by
-  // key: renaming one loses every user's instance or key.
+  // Built from entries so the order is explicit: Claude Desktop shows the
+  // fields in insertion order, and the easy, non-secret value comes first.
+  // Descriptions double as placeholders, so they stay short. Claude Desktop
+  // keeps saved values by key: renaming one loses every user's instance or
+  // key.
   user_config: Object.fromEntries([
     [
       'instance',

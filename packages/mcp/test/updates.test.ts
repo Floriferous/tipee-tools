@@ -105,6 +105,21 @@ describe('updates', () => {
     }),
   );
 
+  it.effect(
+    'fails an install, rather than say it is up to date, when GitHub cannot be reached',
+    () =>
+      Effect.gen(function* () {
+        server.use(http.get(RELEASES, () => HttpResponse.error()));
+        const error = yield* Effect.flip(install('0.3.1'));
+
+        expect(error._tag).toBe('UpdateFailed');
+        expect(error.message).toMatch(/could not look up the latest release on GitHub/u);
+        expect(error.message).toContain(
+          'Download tipee.mcpb from https://github.com/Floriferous/tipee-tools/releases/latest',
+        );
+      }),
+  );
+
   it('reads a checksum list the way sha256sum writes it', () => {
     const sums = 'abc  tipee-0.4.0.mcpb\ndef *tipee.mcpb\n';
 

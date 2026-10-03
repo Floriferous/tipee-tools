@@ -3,13 +3,14 @@
 // day Tipee changes a response shape, without the check ever aborting on a
 // refusal it can describe.
 
-import type { TipeeClient, TipeeError } from '@tipee-tools/core';
-import { integrationLink, operation, rightFor, invoke } from '@tipee-tools/core';
-import { DateTime, Effect, Option } from 'effect';
+import type { IntegrationLink, TipeeClient } from '@tipee-tools/core';
+import { TipeeError, integrationLink, operation, rightFor, invoke } from '@tipee-tools/core';
+import { DateTime, Effect, Fiber, Option } from 'effect';
 
 import { Telemetry } from './Telemetry.ts';
 import type { EndpointReport } from './Tools.ts';
 import { Updates } from './Updates.ts';
+import type { Update } from './Updates.ts';
 
 const DAYS_PER_WEEK = 7;
 const PAGE_SIZE = 100;
@@ -102,7 +103,15 @@ const probeWith = (
       })
     : probe(name, params);
 
-export const check = Effect.fn('check_setup')(function* ({
+// What the probes found: one line per endpoint, and the integration.
+export interface Report {
+  readonly date_range: string;
+  readonly endpoints: ReadonlyArray<typeof EndpointReport.Type>;
+  readonly integration?: IntegrationLink;
+  readonly ok: boolean;
+}
+
+export const probes = Effect.fn('check_setup.probes')(function* ({
   from,
   to,
 }: {
@@ -128,7 +137,7 @@ export const check = Effect.fn('check_setup')(function* ({
   const [somebody] =
     (people.result as { data?: ReadonlyArray<{ id: string }> } | undefined)?.data ?? [];
   const reports = [kinds.report, people.report];
-  const probes = [
+  const next = [
     probe('teams_list', {}),
     probe('schedule_templates_list', {}),
     probe('schedules_list', { date_range: dateRange }),
@@ -139,16 +148,50 @@ export const check = Effect.fn('check_setup')(function* ({
       filters: [{ key: 'timecheck.date_range', value: dateRange }],
     }),
   ];
-  for (const next of probes) {
-    reports.push((yield* next).report);
+  for (const one of next) {
+    reports.push((yield* one).report);
   }
   const integration = yield* integrationLink;
-  const update = yield* Effect.flatMap(Updates, (updates) => updates.available);
   return {
     date_range: dateRange,
     endpoints: reports,
     ...(integration === undefined ? {} : { integration }),
     ok: reports.every((report) => report.status !== 'failed'),
-    ...(Option.isSome(update) ? { update: update.value } : {}),
-  };
+  } satisfies Report;
 });
+
+// A failed check, with the newer version offered after its own fix.
+const offering = (error: TipeeError, update: Update): TipeeError =>
+  new TipeeError({
+    fix: [
+      error.fix,
+      `Version ${update.version} of Tipee for Claude is available: offer to install it with update_plugin.`,
+    ]
+      .filter((part) => part !== undefined)
+      .join(' '),
+    reason: error.reason,
+  });
+
+// The check_setup tool: the probes' report with the running version and any
+// newer one. The newer one is looked up alongside the probes and offered on a
+// failure too, since a release may fix what makes every call fail.
+export const check = <R>(
+  report: Effect.Effect<Report, TipeeError, R>,
+): Effect.Effect<Report & { version: string; update?: Update }, TipeeError, R | Updates> =>
+  Effect.gen(function* () {
+    const updates = yield* Updates;
+    const lookup = yield* Effect.forkChild(updates.available);
+    const found = yield* report.pipe(
+      Effect.catchTag('TipeeError', (error) =>
+        Effect.flatMap(Fiber.join(lookup), (update) =>
+          Effect.fail(Option.isSome(update) ? offering(error, update.value) : error),
+        ),
+      ),
+    );
+    const update = yield* Fiber.join(lookup);
+    return {
+      ...found,
+      ...(Option.isSome(update) ? { update: update.value } : {}),
+      version: updates.current,
+    };
+  });

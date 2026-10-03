@@ -9,7 +9,13 @@ import { Tool } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 import { HttpResponse, http } from 'msw/http';
 
-import { Telemetry, TipeeToolkit, TipeeToolkitLayer, Updates } from '../src/index.ts';
+import {
+  SERVER_VERSION,
+  Telemetry,
+  TipeeToolkit,
+  TipeeToolkitLayer,
+  Updates,
+} from '../src/index.ts';
 import { call, clientFor } from './toolkit.ts';
 
 const CHLOE = '1000000000000000104';
@@ -44,7 +50,7 @@ const recordedCalls = (): ReadonlyArray<Recorded> =>
 const recordingClient = TipeeToolkitLayer.pipe(
   Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
   Layer.provide(recording),
-  Layer.provide(Updates.layerNone),
+  Layer.provide(Updates.layerNone(SERVER_VERSION)),
   Layer.provide(FetchHttpClient.layer),
 );
 
