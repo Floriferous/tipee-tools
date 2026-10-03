@@ -1,11 +1,11 @@
 ---
 name: effect-v4
-description: Writing idiomatic Effect 4 (release candidate) code in this repo — services, layers, schemas, errors, HttpClient, McpServer, testing — and the API renames that differ from Effect 3 and from most training data. Use whenever editing TypeScript under packages/.
+description: Writing idiomatic Effect 4 code in this repo — services, layers, schemas, errors, HttpClient, McpServer, testing — and the API renames that differ from Effect 3 and from most training data. Use whenever editing TypeScript under packages/.
 ---
 
 # Effect 4 in tipee-tools
 
-This repo pins `effect@4.0.0-rc.118` (and `@effect/platform-node`,
+This repo pins `effect@4.0.0` (and `@effect/platform-node`,
 `@effect/vitest` at the same version). v4 renamed and merged a lot; most
 model training data describes v3. **Read the installed sources, not memory**:
 `node_modules/effect/src/<Module>.ts` (JSDoc with examples on every export)
@@ -49,7 +49,7 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
 
 ## RC renames and gotchas met in this repo
 
-| Looking for (v3 / memory) | In v4 rc.118 |
+| Looking for (v3 / memory) | In v4 |
 | :-- | :-- |
 | `Context.Tag`, `Effect.Service`, `ServiceMap.Service` | `Context.Service<Self, Shape>()("id")` |
 | `Effect.fork`, `forkDaemon` | `Effect.forkChild`, `Effect.forkDetach` |
@@ -62,7 +62,7 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
 | `@effect/platform` imports | `effect/http`, `effect/ai`; Node bits from `@effect/platform-node` |
 | `Effect.fork` in `it.effect` without adjusting the clock | nothing happens: `TestClock` starts at the epoch and never advances on its own |
 
-Since rc.118 the former `effect/unstable/*` modules live at the top level
+Since 4.0.0-rc.118 the former `effect/unstable/*` modules live at the top level
 (`effect/http`, `effect/http-api`, `effect/ai`, `effect/cli`, …) but are still
 marked `@stability unstable` and may break in a minor release; `Schema`,
 `Config`, `Layer`, `Effect` are stable. The tsconfigs turn off the
