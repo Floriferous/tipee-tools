@@ -103,8 +103,12 @@ pnpm verify   # everything CI runs: lint, format, types, tests, bundle
 pnpm fix      # apply the fixers and rebuild the plugin
 ```
 
-The tools are generated from Tipee's OpenAPI document, so the plugin cannot
-drift from the API; a new Tipee version is a new document in
-`packages/core/spec` and a `pnpm fix`. [ARCHITECTURE.md](ARCHITECTURE.md)
+The tools are generated from Tipee's OpenAPI document, vendored in
+`packages/core/spec`. Tipee refines that document, sometimes within a
+published version, so a workflow runs `pnpm spec:refresh` every Monday: it
+downloads the newest stable document, regenerates the tools and, when
+anything changed, opens a PR listing the operations and schemas that moved,
+with the version bumped. Review it, merge it, release it. Run
+`pnpm spec:refresh` yourself to do the same locally. [ARCHITECTURE.md](ARCHITECTURE.md)
 explains the design, and the skills in `.claude/skills` brief agents working
 in this repository.

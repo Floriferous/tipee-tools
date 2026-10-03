@@ -23,6 +23,7 @@
     "pack": "turbo run pack",
     "plugin:validate": "claude plugin validate ./plugins/tipee --strict && claude plugin validate . --strict",
     "prepare": "effect-tsgo patch --typescript --oxlint",
+    "spec:refresh": "node packages/core/scripts/refresh.ts",
     "test": "turbo run test",
     "verify": "turbo run generate lint:check format:check check test build pack --continue && pnpm build:check"
   },

@@ -1,0 +1,94 @@
+name: Spec refresh
+
+# Every Monday morning (UTC), brings Tipee's OpenAPI document up to date with
+# `pnpm spec:refresh` and, when anything changed, opens or updates one PR with
+# The summary as its body and the version bumped. That PR is the alert: review
+# The summary and the diff, merge, release. A broken run is reported by
+# GitHub's failure email.
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec-refresh
+  cancel-in-progress: false
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  refresh:
+    name: Refresh the Tipee API document
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # A PR opened with GITHUB_TOKEN triggers no workflow, so Verify would
+      # Never run on it. A fine-grained token (contents and pull requests:
+      # Write, on this repository only) pushes and opens the PR instead.
+      - name: Check the token
+        env:
+          SPEC_REFRESH_TOKEN: ${{ secrets.SPEC_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$SPEC_REFRESH_TOKEN" ]; then
+            echo "::error::The SPEC_REFRESH_TOKEN secret is missing. Add a fine-grained token with contents and pull requests write on this repository, so that Verify runs on the refresh PR."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.SPEC_REFRESH_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Minor when operations were added, patch otherwise; a removed or
+      # Renamed operation gets the needs-major label for a person to decide.
+      - name: Refresh the document
+        run: pnpm spec:refresh --bump --report "$RUNNER_TEMP/refresh.json"
+
+      # A new stable version gets a PR of its own (spec-move-<version>);
+      # Changes within the pinned version share the spec-refresh branch. Each
+      # Run rebuilds the branch from main, so the PR always holds one commit.
+      - name: Open or update the PR
+        env:
+          GH_TOKEN: ${{ secrets.SPEC_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/refresh.json"
+          if [ "$(jq -r .changed "$report")" != true ]; then
+            echo "Tipee's document has not changed."
+            exit 0
+          fi
+          branch=$(jq -r .branch "$report")
+          title=$(jq -r .title "$report")
+          jq -r .body "$report" > "$RUNNER_TEMP/body.md"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --force-create "$branch"
+          git add --all
+          git commit --message "$title" --message "Opened by the spec-refresh workflow: pnpm spec:refresh --bump."
+          git push --force origin "$branch"
+          number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$number" ]; then
+            gh pr create --base main --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr edit "$number" --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          fi
+          if [ "$(jq -r .needs_major "$report")" = true ]; then
+            gh label create needs-major --color B60205 --description 'Removes or renames a tool: needs a major version' --force
+            gh pr edit "$branch" --add-label needs-major
+          fi

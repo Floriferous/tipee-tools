@@ -278,10 +278,12 @@ only, and asks for Node 24 on the machine.
 2. **Done: the whole API, generated.** `@effect/openapi-generator` turns
    Tipee's OpenAPI document into an `HttpApi`; `HttpApiClient` derives the
    client; `HttpApi.reflect` yields the operation catalogue; one
-   `Tool.dynamic` per operation gives 68 tools plus `check` and `update`,
+   `Tool.dynamic` per operation gives 69 tools plus `check` and `update`,
    with read-only and destructive annotations from the verb. No hand-written schemas,
    no deny list, no server-side gate: which tools a user has, and which need
-   approval, is configured in the Claude client.
+   approval, is configured in the Claude client. The one exception is left
+   out at generation: granting and revoking roles, which an admin does in
+   Tipee. A weekly workflow refreshes the document and opens a PR.
 3. **Beyond Claude Code.** Triggered by the first user on another agent or
    in a terminal: tsdown builds for npm, OIDC publishing, a CLI on
    `effect/cli` sharing the core, profile store, `npx skills add`
