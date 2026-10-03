@@ -2827,7 +2827,7 @@ const Prototype = (options) => makePrimitiveProto({
 * @category constructors
 * @since 2.0.0
 */
-const make$51 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
+const make$50 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 /**
 * Creates an equivalence relation that uses strict equality (`===`) to compare values.
@@ -2935,7 +2935,7 @@ const strictEqual = () => isStrictEquivalent;
 * @since 4.0.0
 */
 function Tuple$1(elements) {
-	return make$51((self, that) => {
+	return make$50((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!elements[i](self[i], that[i])) return false;
 		return true;
@@ -2945,7 +2945,7 @@ function Tuple$1(elements) {
 * @since 4.0.0
 */
 function Array_(item) {
-	return make$51((self, that) => {
+	return make$50((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!item(self[i], that[i])) return false;
 		return true;
@@ -3145,7 +3145,7 @@ const succeed$9 = (success) => new SuccessImpl(success);
 * @category constructors
 * @since 2.0.0
 */
-function make$50(compare) {
+function make$49(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
 /**
@@ -3175,7 +3175,7 @@ function make$50(compare) {
 * @category instances
 * @since 4.0.0
 */
-const String$5 = /*#__PURE__*/ make$50((self, that) => self < that ? -1 : 1);
+const String$5 = /*#__PURE__*/ make$49((self, that) => self < that ? -1 : 1);
 /**
 * Order instance for numbers that compares them numerically.
 *
@@ -3207,7 +3207,7 @@ const String$5 = /*#__PURE__*/ make$50((self, that) => self < that ? -1 : 1);
 * @category instances
 * @since 4.0.0
 */
-const Number$4 = /*#__PURE__*/ make$50((self, that) => {
+const Number$4 = /*#__PURE__*/ make$49((self, that) => {
 	if (globalThis.Number.isNaN(self) && globalThis.Number.isNaN(that)) return 0;
 	if (globalThis.Number.isNaN(self)) return -1;
 	if (globalThis.Number.isNaN(that)) return 1;
@@ -3245,7 +3245,7 @@ const Number$4 = /*#__PURE__*/ make$50((self, that) => {
 * @category mapping
 * @since 2.0.0
 */
-const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$50((b1, b2) => self(f(b1), f(b2))));
+const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$49((b1, b2) => self(f(b1), f(b2))));
 /**
 * Checks whether one value is strictly less than another according to the given order.
 *
@@ -3726,7 +3726,7 @@ const liftThrowable = (f) => (...a) => {
 * @category mapping
 * @since 2.0.0
 */
-const map$8 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
+const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
 /**
 * Applies a function that returns an `Option` to the value of a `Some`,
 * flattening the result. Returns `None` if the input is `None`.
@@ -3900,7 +3900,7 @@ const ServiceProto = {
 		return self;
 	},
 	context(self) {
-		return make$49(this, self);
+		return make$48(this, self);
 	},
 	use(f) {
 		return withFiber$1((fiber) => f(get$2(fiber.context, this)));
@@ -4100,7 +4100,7 @@ const emptyContext = /*#__PURE__*/ makeUnsafe$7(/*#__PURE__*/ new Map());
 * @category constructors
 * @since 2.0.0
 */
-const make$49 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
+const make$48 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
 /**
 * Adds a service to a given `Context`.
 *
@@ -4675,6 +4675,39 @@ const isSuccess$1 = isSuccess$2;
 */
 const mapError$4 = /*#__PURE__*/ dual(2, (self, f) => isFailure$1(self) ? fail$7(f(self.failure)) : self);
 /**
+* Transforms the success channel of a `Result`, leaving the failure channel unchanged.
+*
+* **When to use**
+*
+* Use to apply a transformation to the success value of a `Result` while
+* preserving any existing failure.
+*
+* **Details**
+*
+* - If the result is a `Success`, applies `f` to the value and returns a new `Success`
+* - If the result is a `Failure`, returns it as-is
+* - Use {@link flatMap} if `f` returns a `Result` (to avoid nested Results)
+*
+* **Example** (Doubling the success value)
+*
+* ```ts import.meta.vitest
+* import { pipe, Result } from "effect"
+*
+* pipe(
+*   Result.succeed(3),
+*   Result.map((n) => n * 2)
+* ) // => Result.succeed(6)
+* ```
+*
+* @see {@link mapError} to transform only the error value
+* @see {@link mapBoth} to transform both channels
+* @see {@link flatMap} when `f` returns a `Result`
+*
+* @category mapping
+* @since 2.0.0
+*/
+const map$9 = /*#__PURE__*/ dual(2, (self, f) => isSuccess$1(self) ? succeed$8(f(self.success)) : self);
+/**
 * Folds a `Result` into a single value by applying one of two functions.
 *
 * **When to use**
@@ -4834,7 +4867,7 @@ const has = /*#__PURE__*/ dual(2, (self, key) => Object.hasOwn(self, key));
 * @category mapping
 * @since 2.0.0
 */
-const map$7 = /*#__PURE__*/ dual(2, (self, f) => {
+const map$8 = /*#__PURE__*/ dual(2, (self, f) => {
 	const out = { ...self };
 	for (const key of keys(self)) assignProperty(out, key, f(self[key], key));
 	return out;
@@ -5219,7 +5252,7 @@ const of = (a) => [a];
 * @category mapping
 * @since 2.0.0
 */
-const map$6 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
+const map$7 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
 /**
 * Creates an `Equivalence` for arrays based on an element `Equivalence`. Two
 * arrays are equivalent when they have the same length and all elements are
@@ -5328,7 +5361,7 @@ const fromInputUnsafe$1 = (input) => {
 				if (Number.isNaN(input[0]) || Number.isNaN(input[1])) return zero$1;
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
-				return make$48(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
+				return make$47(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
 			}
 			const obj = input;
 			let millis = 0;
@@ -5338,8 +5371,8 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.minutes) millis += obj.minutes * 6e4;
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
-			if (!obj.microseconds && !obj.nanoseconds) return make$48(millis);
-			return make$48(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
+			if (!obj.microseconds && !obj.nanoseconds) return make$47(millis);
+			return make$47(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
 		}
 	}
 	return invalid$2(input);
@@ -5405,7 +5438,7 @@ const DurationProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const make$48 = (input) => {
+const make$47 = (input) => {
 	const duration = Object.create(DurationProto);
 	if (typeof input === "number") {
 		if (isNaN(input) || input === 0 || Object.is(input, -0)) duration.value = zeroDurationValue;
@@ -5523,8 +5556,8 @@ const abs = (self) => {
 	switch (self.value._tag) {
 		case "Infinity":
 		case "NegativeInfinity": return infinity;
-		case "Millis": return self.value.millis < 0 ? make$48(-self.value.millis) : self;
-		case "Nanos": return self.value.nanos < bigint0$3 ? make$48(-self.value.nanos) : self;
+		case "Millis": return self.value.millis < 0 ? make$47(-self.value.millis) : self;
+		case "Nanos": return self.value.nanos < bigint0$3 ? make$47(-self.value.nanos) : self;
 	}
 };
 /**
@@ -5541,7 +5574,7 @@ const abs = (self) => {
 * @category constructors
 * @since 2.0.0
 */
-const zero$1 = /*#__PURE__*/ make$48(0);
+const zero$1 = /*#__PURE__*/ make$47(0);
 /**
 * A Duration representing infinite time.
 *
@@ -5556,7 +5589,7 @@ const zero$1 = /*#__PURE__*/ make$48(0);
 * @category constructors
 * @since 2.0.0
 */
-const infinity = /*#__PURE__*/ make$48(Infinity);
+const infinity = /*#__PURE__*/ make$47(Infinity);
 /**
 * A Duration representing negative infinite time.
 *
@@ -5571,7 +5604,7 @@ const infinity = /*#__PURE__*/ make$48(Infinity);
 * @category constructors
 * @since 4.0.0
 */
-const negativeInfinity = /*#__PURE__*/ make$48(-Infinity);
+const negativeInfinity = /*#__PURE__*/ make$47(-Infinity);
 /**
 * Creates a Duration from nanoseconds.
 *
@@ -5586,7 +5619,7 @@ const negativeInfinity = /*#__PURE__*/ make$48(-Infinity);
 * @category constructors
 * @since 2.0.0
 */
-const nanos = (nanos) => make$48(nanos);
+const nanos = (nanos) => make$47(nanos);
 /**
 * Creates a Duration from milliseconds.
 *
@@ -5601,7 +5634,7 @@ const nanos = (nanos) => make$48(nanos);
 * @category constructors
 * @since 2.0.0
 */
-const millis = (millis) => make$48(millis);
+const millis = (millis) => make$47(millis);
 /**
 * Creates a Duration from seconds.
 *
@@ -5616,7 +5649,7 @@ const millis = (millis) => make$48(millis);
 * @category constructors
 * @since 2.0.0
 */
-const seconds = (seconds) => make$48(seconds * 1e3);
+const seconds = (seconds) => make$47(seconds * 1e3);
 /**
 * Creates a Duration from minutes.
 *
@@ -5631,7 +5664,7 @@ const seconds = (seconds) => make$48(seconds * 1e3);
 * @category constructors
 * @since 2.0.0
 */
-const minutes = (minutes) => make$48(minutes * 6e4);
+const minutes = (minutes) => make$47(minutes * 6e4);
 /**
 * Creates a Duration from hours.
 *
@@ -5646,7 +5679,7 @@ const minutes = (minutes) => make$48(minutes * 6e4);
 * @category constructors
 * @since 2.0.0
 */
-const hours = (hours) => make$48(hours * 36e5);
+const hours = (hours) => make$47(hours * 36e5);
 /**
 * Creates a Duration from days.
 *
@@ -5661,7 +5694,7 @@ const hours = (hours) => make$48(hours * 36e5);
 * @category constructors
 * @since 2.0.0
 */
-const days = (days) => make$48(days * 864e5);
+const days = (days) => make$47(days * 864e5);
 /**
 * Creates a Duration from weeks.
 *
@@ -5676,7 +5709,7 @@ const days = (days) => make$48(days * 864e5);
 * @category constructors
 * @since 2.0.0
 */
-const weeks = (weeks) => make$48(weeks * 6048e5);
+const weeks = (weeks) => make$47(weeks * 6048e5);
 /**
 * Converts a Duration to milliseconds.
 *
@@ -6574,7 +6607,7 @@ var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiber
 * @category constructors
 * @since 2.0.0
 */
-const make$47 = (options) => options;
+const make$46 = (options) => options;
 /**
 * Creates an `ExternalSpan` from trace and span identifiers, defaulting
 * `sampled` to `true` and annotations to an empty context when they are not
@@ -6720,7 +6753,7 @@ const TracerKey = "effect/Tracer";
 * @category references
 * @since 4.0.0
 */
-const nativeTracer = /*#__PURE__*/ make$47({ span: (options) => new NativeSpan(options) });
+const nativeTracer = /*#__PURE__*/ make$46({ span: (options) => new NativeSpan(options) });
 /**
 * Default in-memory `Span` implementation used by the native tracer. It
 * generates span and trace identifiers, stores attributes, events, and links,
@@ -7148,7 +7181,7 @@ var FiberImpl = class {
 	interruptUnsafe(fiberId, annotations) {
 		if (this._exit) return;
 		let cause = causeInterrupt(fiberId);
-		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$49(StackTraceKey, this.cache.stackFrame));
+		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$48(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
 		this._interruptedCause = this._interruptedCause ? causeCombine(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
@@ -7693,7 +7726,7 @@ const tapEffectCont = function(value) {
 	return new ContImpl(this.payload, succeedPayload, value);
 };
 /** @internal */
-const asSome = (self) => map$5(self, some);
+const asSome = (self) => map$6(self, some);
 /** @internal */
 const andThen$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? returnPayload : andThenCont, f));
 /** @internal */
@@ -7742,9 +7775,9 @@ const flatMapEager$1 = /*#__PURE__*/ dual(2, (self, f) => {
 /** @internal */
 const flatten$1 = (self) => flatMap$2(self, identity);
 /** @internal */
-const map$5 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, mapCont, f));
+const map$6 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, mapCont, f));
 /** @internal */
-const mapEager$1 = /*#__PURE__*/ dual(2, (self, f) => effectIsExit(self) ? exitMap(self, f) : map$5(self, f));
+const mapEager$1 = /*#__PURE__*/ dual(2, (self, f) => effectIsExit(self) ? exitMap(self, f) : map$6(self, f));
 /** @internal */
 const mapErrorEager$1 = /*#__PURE__*/ dual(2, (self, f) => effectIsExit(self) ? exitMapError(self, f) : mapError$3(self, f));
 /** @internal */
@@ -8033,7 +8066,7 @@ const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSo
 /** @internal */
 const timed$1 = (self) => clockWith((clock) => {
 	const start = clock.monotonicTimeNanosUnsafe();
-	return map$5(self, (a) => [nanos(clock.monotonicTimeNanosUnsafe() - start), a]);
+	return map$6(self, (a) => [nanos(clock.monotonicTimeNanosUnsafe() - start), a]);
 });
 /** @internal */
 const ScopeTypeId = "~effect/Scope";
@@ -8308,7 +8341,7 @@ const all$2 = (arg, options) => {
 	else if (options?.discard) return options.mode === "result" ? forEach$2(Object.values(arg), result$2, options) : forEach$2(Object.values(arg), identity, options);
 	return suspend$3(() => {
 		const out = {};
-		return as$1(forEach$2(Object.entries(arg), ([key, effect]) => map$5(options?.mode === "result" ? result$2(effect) : effect, (value) => {
+		return as$1(forEach$2(Object.entries(arg), ([key, effect]) => map$6(options?.mode === "result" ? result$2(effect) : effect, (value) => {
 			assignProperty(out, key, value);
 		}), {
 			discard: true,
@@ -9334,7 +9367,7 @@ const hasInterruptsOnly = hasInterruptsOnly$1;
 * @category mapping
 * @since 2.0.0
 */
-const map$4 = causeMap;
+const map$5 = causeMap;
 /**
 * Merges two causes into a single cause whose `reasons` array is the union
 * of both inputs (de-duplicated by value equality).
@@ -10080,7 +10113,7 @@ const makeUnsafe$6 = () => new DeferredImpl();
 * @category constructors
 * @since 2.0.0
 */
-const make$46 = () => sync$1(() => makeUnsafe$6());
+const make$45 = () => sync$1(() => makeUnsafe$6());
 const _await = (self) => callback$2((resume) => {
 	if (self.effect) return resume(self.effect);
 	self.resumes ??= [];
@@ -10424,7 +10457,7 @@ const Scope = scopeTag;
 * @category constructors
 * @since 2.0.0
 */
-const make$45 = scopeMake;
+const make$44 = scopeMake;
 /**
 * Creates a new `Scope` synchronously without wrapping it in an `Effect`.
 * This is useful when you need a scope immediately but should be used with caution
@@ -10934,7 +10967,7 @@ var CurrentMemoMap = class CurrentMemoMap extends (/*#__PURE__*/ Service$1()("ef
 * @category destructors
 * @since 2.0.0
 */
-const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provideService$1(map$5(self.build(memoMap, scope), add$2(CurrentMemoMap, memoMap)), CurrentMemoMap, memoMap));
+const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provideService$1(map$6(self.build(memoMap, scope), add$2(CurrentMemoMap, memoMap)), CurrentMemoMap, memoMap));
 /**
 * Builds a layer into a scoped value.
 *
@@ -11053,8 +11086,8 @@ const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber
 * @since 2.0.0
 */
 const succeed$4 = function() {
-	if (arguments.length === 1) return (resource) => succeedContext(make$49(arguments[0], resource));
-	return succeedContext(make$49(arguments[0], arguments[1]));
+	if (arguments.length === 1) return (resource) => succeedContext(make$48(arguments[0], resource));
+	return succeedContext(make$48(arguments[0], arguments[1]));
 };
 /**
 * Constructs a layer that provides all services in an already available
@@ -11146,7 +11179,7 @@ const effect = function() {
 	if (arguments.length === 1) return (effect) => effectImpl(arguments[0], effect);
 	return effectImpl(arguments[0], arguments[1]);
 };
-const effectImpl = (service, effect) => effectContext(map$5(effect, (value) => make$49(service, value)));
+const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$48(service, value)));
 /**
 * Constructs a layer from an effect that produces all services in a `Context`.
 *
@@ -11254,7 +11287,7 @@ const unwrapKey = /*#__PURE__*/ Service$1("effect/Layer/unwrap");
 const unwrap$3 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
 const mergeAllEffect = (layers, memoMap, scope) => {
 	const parentScope = forkUnsafe(scope, "parallel");
-	return forEach$2(layers, (layer) => layer.build(memoMap, forkUnsafe(parentScope, "sequential")), { concurrency: layers.length }).pipe(map$5((context) => mergeAll$1(...context)));
+	return forEach$2(layers, (layer) => layer.build(memoMap, forkUnsafe(parentScope, "sequential")), { concurrency: layers.length }).pipe(map$6((context) => mergeAll$1(...context)));
 };
 /**
 * Combines all the provided layers concurrently, creating a new layer with
@@ -11305,7 +11338,7 @@ const mergeAllEffect = (layers, memoMap, scope) => {
 * @since 2.0.0
 */
 const mergeAll = (...layers) => fromBuild((memoMap, scope) => mergeAllEffect(layers, memoMap, scope));
-const provideWith = (self, that, f) => fromBuild((memoMap, scope) => flatMap$2(Array.isArray(that) ? mergeAllEffect(that, memoMap, scope) : that.build(memoMap, scope), (context) => self.build(memoMap, scope).pipe(provideContext$3(context), map$5((merged) => f(merged, context)))));
+const provideWith = (self, that, f) => fromBuild((memoMap, scope) => flatMap$2(Array.isArray(that) ? mergeAllEffect(that, memoMap, scope) : that.build(memoMap, scope), (context) => self.build(memoMap, scope).pipe(provideContext$3(context), map$6((merged) => f(merged, context)))));
 /**
 * Feeds the output services of the dependency layer into the requirements of
 * this layer, returning a layer that only provides the services from this layer.
@@ -11791,9 +11824,9 @@ const makeUnsafe$4 = (input) => {
 */
 const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input);
 /** @internal */
-const make$44 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
+const make$43 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
 /** @internal */
-const now$1 = /*#__PURE__*/ map$5(currentTimeMillis, makeUtc);
+const now$1 = /*#__PURE__*/ map$6(currentTimeMillis, makeUtc);
 /** @internal */
 const toUtc$1 = (self) => makeUtc(self.epochMilliseconds);
 /** @internal */
@@ -12244,7 +12277,7 @@ const metadataFn = () => {
 * @category constructors
 * @since 4.0.0
 */
-const fromStepWithMetadata = (step) => fromStep(map$5(step, (f) => {
+const fromStepWithMetadata = (step) => fromStep(map$6(step, (f) => {
 	const meta = metadataFn();
 	return (now, input) => f(meta(now, input));
 }));
@@ -12296,7 +12329,7 @@ const toStep = (schedule) => catchCause$2(schedule.step, (cause) => succeed$7(()
 * @category destructors
 * @since 4.0.0
 */
-const toStepWithMetadata = (schedule) => clockWith((clock) => map$5(toStep(schedule), (step) => {
+const toStepWithMetadata = (schedule) => clockWith((clock) => map$6(toStep(schedule), (step) => {
 	const metaFn = metadataFn();
 	return (input) => suspend$3(() => {
 		const now = clock.currentTimeMillisUnsafe();
@@ -12359,7 +12392,7 @@ const exponential = (base, factor = 2) => {
 * @category mapping
 * @since 2.0.0
 */
-const passthrough$2 = (self) => fromStep(map$5(toStep(self), (step) => (now, input) => matchEffect$1(step(now, input), {
+const passthrough$2 = (self) => fromStep(map$6(toStep(self), (step) => (now, input) => matchEffect$1(step(now, input), {
 	onSuccess: (result) => succeed$7([input, result[1]]),
 	onFailure: failCause$6,
 	onDone: () => done$1(input)
@@ -12394,7 +12427,7 @@ const spaced = (duration) => {
 	const decoded = fromInputUnsafe$1(duration);
 	return fromStepWithMetadata(succeed$7((meta) => succeed$7([meta.attempt - 1, decoded])));
 };
-const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$5(toStep(self), (step) => {
+const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$6(toStep(self), (step) => {
 	const meta = metadataFn();
 	return (now, input) => flatMap$2(step(now, input), (result) => {
 		const [output, duration] = result;
@@ -12481,7 +12514,7 @@ const buildFromOptions = (options) => {
 	});
 	if (options.until) schedule = while_(schedule, ({ input }) => {
 		const applied = options.until(input);
-		return isEffect$1(applied) ? map$5(applied, (b) => !b) : succeed$7(!applied);
+		return isEffect$1(applied) ? map$6(applied, (b) => !b) : succeed$7(!applied);
 	});
 	if (options.times !== void 0) schedule = while_(schedule, ({ attempt }) => succeed$7(attempt <= options.times));
 	return schedule;
@@ -13754,7 +13787,7 @@ const exit = exit$1;
 * @category mapping
 * @since 2.0.0
 */
-const map$3 = map$5;
+const map$4 = map$6;
 /**
 * Replaces the value inside an effect with a constant value.
 *
@@ -16727,7 +16760,7 @@ const isBigDecimal = (u) => hasProperty(u, TypeId$41);
 * @category constructors
 * @since 2.0.0
 */
-const make$43 = (value, scale) => {
+const make$42 = (value, scale) => {
 	if (!Number.isSafeInteger(scale)) throw new RangeError(`Scale must be a safe integer, got ${scale}`);
 	const o = Object.create(BigDecimalProto);
 	o.value = value;
@@ -16735,7 +16768,7 @@ const make$43 = (value, scale) => {
 	return o;
 };
 const makeNormalized = (value, scale) => {
-	const o = make$43(value, scale);
+	const o = make$42(value, scale);
 	o.normalized = o;
 	return o;
 };
@@ -17159,13 +17192,13 @@ const binaryUnits = [
 ];
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
-const make$42 = (value) => value;
+const make$41 = (value) => value;
 const invalid$1 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
 	if (!Number.isSafeInteger(input) || input < 0) return invalid$1(`expected a non-negative safe integer, received ${input}`);
-	return make$42(BigInt(input));
+	return make$41(BigInt(input));
 };
 /**
 * Parses a byte-size string and throws for invalid syntax, unsupported units,
@@ -17190,7 +17223,7 @@ const fromStringUnsafe = (input) => {
 	const scale = BigInt(10) ** BigInt(fraction.length);
 	const numerator = BigInt(match[1] + fraction) * unit.factor;
 	if (numerator % scale !== bigint0) return invalid$1(`${JSON.stringify(input)} does not represent an integral number of bytes`);
-	return make$42(numerator / scale);
+	return make$41(numerator / scale);
 };
 /**
 * Decodes a trusted input into a byte size and throws for invalid input.
@@ -17202,7 +17235,7 @@ const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
 			if (input < bigint0) return invalid$1(`expected a non-negative bigint, received ${input}`);
-			return make$42(input);
+			return make$41(input);
 		case "number": return fromNumber(input);
 		case "string": return fromStringUnsafe(input);
 	}
@@ -17316,7 +17349,7 @@ const makeUnsafe$3 = makeUnsafe$4;
 * @category constructors
 * @since 3.6.0
 */
-const make$41 = make$44;
+const make$40 = make$43;
 /**
 * Gets the current time using the `Clock` service and converts it to a `DateTime`.
 *
@@ -17589,7 +17622,7 @@ const Proto$16 = {
 	toJSON() {
 		return {
 			_id: "effect/Cookies",
-			cookies: map$7(this.cookies, (cookie) => cookie.toJSON())
+			cookies: map$8(this.cookies, (cookie) => cookie.toJSON())
 		};
 	},
 	pipe() {
@@ -17828,7 +17861,7 @@ const isRedacted = (u) => hasProperty(u, TypeId$39);
 * @category constructors
 * @since 3.3.0
 */
-const make$40 = (value, options) => {
+const make$39 = (value, options) => {
 	const self = Object.create(Proto$15);
 	if (options?.label) self.label = options.label;
 	redactedRegistry.set(self, value);
@@ -17901,7 +17934,7 @@ const value$2 = value$3;
 * @category instances
 * @since 4.0.0
 */
-const makeEquivalence = (isEquivalent) => make$51((x, y) => isEquivalent(value$2(x), value$2(y)));
+const makeEquivalence = (isEquivalent) => make$50((x, y) => isEquivalent(value$2(x), value$2(y)));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/http/Headers.js
 /**
@@ -17940,7 +17973,7 @@ const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.crea
 	toString: { value: BaseProto.toString },
 	[NodeInspectSymbol]: { value: BaseProto[NodeInspectSymbol] }
 });
-const make$39 = (input) => Object.assign(Object.create(Proto$14), input);
+const make$38 = (input) => Object.assign(Object.create(Proto$14), input);
 /**
 * Provides an `Equivalence` instance that compares `Headers` by header names
 * and string values.
@@ -18005,7 +18038,7 @@ const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$14);
 * @since 4.0.0
 */
 const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
-	const out = make$39(self);
+	const out = make$38(self);
 	out[key.toLowerCase()] = value;
 	return out;
 });
@@ -18020,7 +18053,7 @@ const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
 * @category combinators
 * @since 4.0.0
 */
-const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$39({
+const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$38({
 	...self,
 	...fromInput$1(headers)
 }));
@@ -18036,7 +18069,7 @@ const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$39({
 * @since 4.0.0
 */
 const merge = /*#__PURE__*/ dual(2, (self, headers) => {
-	const out = make$39(self);
+	const out = make$38(self);
 	Object.assign(out, headers);
 	return out;
 });
@@ -18052,7 +18085,7 @@ const merge = /*#__PURE__*/ dual(2, (self, headers) => {
 * @since 4.0.0
 */
 const remove$2 = /*#__PURE__*/ dual(2, (self, key) => {
-	const out = make$39(self);
+	const out = make$38(self);
 	delete out[key.toLowerCase()];
 	return out;
 });
@@ -18072,8 +18105,8 @@ const redact = /*#__PURE__*/ dual(2, (self, key) => {
 	const modify = (key) => {
 		if (typeof key === "string") {
 			const k = key.toLowerCase();
-			if (k in self) out[k] = make$40(self[k]);
-		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$40(self[name]);
+			if (k in self) out[k] = make$39(self[k]);
+		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$39(self[name]);
 	};
 	if (Array.isArray(key)) for (let i = 0; i < key.length; i++) modify(key[i]);
 	else modify(key);
@@ -18170,7 +18203,7 @@ const Proto$13 = {
 * @category constructors
 * @since 4.0.0
 */
-const make$38 = (params) => {
+const make$37 = (params) => {
 	const self = Object.create(Proto$13);
 	self.params = params;
 	return self;
@@ -18195,7 +18228,7 @@ const fromInput = (input) => {
 		const [keys, value] = parsed[i];
 		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
 	} else out.push(parsed[i]);
-	return make$38(out);
+	return make$37(out);
 };
 const fromInputNested = (input) => {
 	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
@@ -18220,7 +18253,7 @@ const fromInputNested = (input) => {
 * @category instances
 * @since 4.0.0
 */
-const Equivalence = /*#__PURE__*/ make$51((a, b) => arrayEquivalence(a.params, b.params));
+const Equivalence = /*#__PURE__*/ make$50((a, b) => arrayEquivalence(a.params, b.params));
 const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ strictEqual()]));
 /**
 * An empty `UrlParams` value.
@@ -18229,7 +18262,7 @@ const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquiv
 * @category constructors
 * @since 4.0.0
 */
-const empty$6 = /*#__PURE__*/ make$38([]);
+const empty$6 = /*#__PURE__*/ make$37([]);
 /**
 * Transforms the underlying ordered key-value pairs of `UrlParams`.
 *
@@ -18241,7 +18274,7 @@ const empty$6 = /*#__PURE__*/ make$38([]);
 * @category combinators
 * @since 4.0.0
 */
-const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$38(f(self.params)));
+const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$37(f(self.params)));
 /**
 * Sets multiple query parameters from input.
 *
@@ -18262,7 +18295,7 @@ const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 		if (keys.has(self.params[i][0])) continue;
 		params.push(self.params[i]);
 	}
-	return make$38(params);
+	return make$37(params);
 });
 /**
 * Appends all query parameters produced from the supplied input.
@@ -18723,7 +18756,7 @@ function makeSingle(out, input, options) {
 function normalizeFilterOutput(ast, out, input, options) {
 	if (Array.isArray(out)) {
 		if (!isReadonlyArrayNonEmpty(out)) return;
-		return out.length === 1 ? makeFilterIssue(out[0], input, options) : new Composite(ast, map$6(out, (entry) => makeFilterIssue(entry, input, options)), input, options);
+		return out.length === 1 ? makeFilterIssue(out[0], input, options) : new Composite(ast, map$7(out, (entry) => makeFilterIssue(entry, input, options)), input, options);
 	}
 	return makeSingle(out, input, options);
 }
@@ -20645,7 +20678,7 @@ const parseArrayConcurrent = /*#__PURE__*/ iterateConcurrent()(parseArrayOptions
 const wrapPropertyKeyIssue = (s, ast, key, exit) => {
 	if (exit.cause.reasons.length === 0) return exit;
 	const issue = getSchemaIssue(exit.cause);
-	if (issue === void 0) return failCause$5(map$4(exit.cause, (issue) => new Composite(ast, [new Pointer([key], issue)], s.input, s.options)));
+	if (issue === void 0) return failCause$5(map$5(exit.cause, (issue) => new Composite(ast, [new Pointer([key], issue)], s.input, s.options)));
 	const pointer = new Pointer([key], issue);
 	if (s.options.errors === "all") {
 		if (s.issues) s.issues.push(pointer);
@@ -22109,7 +22142,7 @@ function compileTransformation(transformation) {
 }
 const fromOptionalEffect = (effect) => flatMapEager(effect, fromOptionExit);
 /** @internal */
-const wrapEncoding = (ast, input, options, effect) => catchCause$1(effect, (cause) => failCauseSync(() => map$4(cause, (issue) => new Encoding(ast, issue, input, options))));
+const wrapEncoding = (ast, input, options, effect) => catchCause$1(effect, (cause) => failCauseSync(() => map$5(cause, (issue) => new Encoding(ast, issue, input, options))));
 function makeConstructorParser(descriptor, compile) {
 	const transform = compileTransformation(descriptor.link.transformation);
 	let sourceParser;
@@ -22343,7 +22376,7 @@ function makeOption(schema) {
 * @category constructors
 * @since 4.0.0
 */
-function make$37(schema) {
+function make$36(schema) {
 	return makeConstructorSync(toType$1(schema.ast));
 }
 /**
@@ -22565,7 +22598,7 @@ const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
 	[TypeId$33]: TypeId$33,
 	get make() {
-		const value = make$37(this);
+		const value = make$36(this);
 		Object.defineProperty(this, "make", {
 			value,
 			enumerable: true
@@ -22601,11 +22634,11 @@ const SchemaProto = {
 		return this.rebuild(appendChecks(this.ast, checks));
 	},
 	rebuild(ast) {
-		return make$36(ast, this[RebuildOptions]);
+		return make$35(ast, this[RebuildOptions]);
 	}
 };
 /** @internal */
-function make$36(ast, options) {
+function make$35(ast, options) {
 	function Schema() {}
 	const self = Object.setPrototypeOf(Schema, SchemaProto);
 	if (options && (Object.hasOwn(options, "name") || Object.hasOwn(options, "length") || Object.hasOwn(options, "__proto__"))) Object.defineProperties(self, Object.getOwnPropertyDescriptors({ ...options }));
@@ -22846,7 +22879,7 @@ const PRE_2020_TO_2020_COLLISIONS = [
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/internal/schema/toCodec.js
 /** @internal */
 function toCodecJson$1(schema) {
-	return make$36(toCodecJsonAST(schema.ast), { schema });
+	return make$35(toCodecJsonAST(schema.ast), { schema });
 }
 /** @internal */
 const toCodecJsonAST = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempotent((ast) => {
@@ -22881,7 +22914,7 @@ function toCodecJsonASTStep(ast, recur) {
 		case "Declaration": {
 			const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec;
 			if (!isFunction(getLink)) return replaceEncoding(ast, [unknownToJson]);
-			const link = getLink(ast.typeParameters.map((tp) => make$36(toEncoded$1(tp))));
+			const link = getLink(ast.typeParameters.map((tp) => make$35(toEncoded$1(tp))));
 			return link === void 0 ? ast : replaceEncoding(ast, [mapLink(link, recur)]);
 		}
 		case "Unknown": return replaceEncoding(ast, [unknownToJson]);
@@ -22908,7 +22941,7 @@ function toCodecJsonASTStep(ast, recur) {
 }
 /** @internal */
 function toCodecStringTree$1(schema) {
-	return make$36(toCodecStringTreeAST(schema.ast), { schema });
+	return make$35(toCodecStringTreeAST(schema.ast), { schema });
 }
 const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 	switch (ast._tag) {
@@ -22924,7 +22957,7 @@ const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 function toCodecStringTreeASTStep(ast, recur, onMissingAnnotation) {
 	switch (ast._tag) {
 		case "Declaration": {
-			const typeParameters = ast.typeParameters.map((tp) => make$36(recur(toEncoded$1(tp))));
+			const typeParameters = ast.typeParameters.map((tp) => make$35(recur(toEncoded$1(tp))));
 			const getStringTreeLink = ast.annotations?.toCodecStringTree;
 			if (isFunction(getStringTreeLink)) {
 				const link = getStringTreeLink(typeParameters);
@@ -23139,7 +23172,7 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 	const fallbackDefinitions = /* @__PURE__ */ new Map();
 	const referenceKeys = Object.keys(references);
 	for (const key of referenceKeys) compileDefinition(key, ["references", key]);
-	const compiledSchemas = map$6(representations, (representation, index) => recur(representation, rootPaths[index], []));
+	const compiledSchemas = map$7(representations, (representation, index) => recur(representation, rootPaths[index], []));
 	for (const [branches, schemas] of pendingOneOf.values()) if (!isExact(branches)) {
 		for (const schema of schemas) if (Array.isArray(schema.oneOf)) {
 			schema.anyOf = schema.oneOf;
@@ -23158,7 +23191,7 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 			else candidates.push(key);
 		} else definitionAliases.set(key, match);
 	}
-	const schemas = map$6(compiledSchemas, finalizeJsonSchema);
+	const schemas = map$7(compiledSchemas, finalizeJsonSchema);
 	const definitions = {};
 	for (const key of referenceKeys) if (!definitionAliases.has(key)) assignProperty(definitions, key, finalizeJsonSchema(compiledDefinitions.get(key)[0]));
 	return {
@@ -23580,7 +23613,7 @@ function toRepresentations(asts, options) {
 		else if (candidate.isRecursive) candidate.reference = getReference(`${candidate.ast._tag}_`, candidate, "");
 	}
 	return {
-		representations: map$6(asts, (ast) => recur(ast)),
+		representations: map$7(asts, (ast) => recur(ast)),
 		references
 	};
 	function getReference(prefix, owner, separator = "_") {
@@ -23787,7 +23820,7 @@ function toRepresentations(asts, options) {
 			};
 			case "FilterGroup": return {
 				_tag: "FilterGroup",
-				checks: map$6(check.checks, fromCheck),
+				checks: map$7(check.checks, fromCheck),
 				...fromCheckAnnotations(check.annotations)
 			};
 		}
@@ -23969,7 +24002,7 @@ const TypeId$32 = TypeId$33;
 */
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
-		return make$35(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$35(ast))), annotations));
+		return make$34(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$34(ast))), annotations));
 	};
 }
 /**
@@ -24080,10 +24113,10 @@ function isSchemaError(u) {
 }
 function fromIssueEffect(self) {
 	if (effectIsExit(self)) return fromIssueExit(self);
-	return catchCause$1(self, (cause) => failCauseSync(() => map$4(cause, (issue) => new SchemaError(issue))));
+	return catchCause$1(self, (cause) => failCauseSync(() => map$5(cause, (issue) => new SchemaError(issue))));
 }
 function fromIssueExit(exit) {
-	return isSuccess(exit) ? exit : failCause$5(map$4(exit.cause, (issue) => new SchemaError(issue)));
+	return isSuccess(exit) ? exit : failCause$5(map$5(exit.cause, (issue) => new SchemaError(issue)));
 }
 function getSchemaErrorOrThrow(cause, message) {
 	let schemaError;
@@ -24450,7 +24483,7 @@ const encodeSync = encodeUnknownSync;
 * @category constructors
 * @since 3.10.0
 */
-const make$35 = make$36;
+const make$34 = make$35;
 /**
 * Checks whether a value is a `Schema`.
 *
@@ -24482,7 +24515,7 @@ function isSchema(u) {
 * @category combinators
 * @since 4.0.0
 */
-const optionalKey = /*#__PURE__*/ lambda((schema) => make$35(optionalKey$1(schema.ast), { schema }));
+const optionalKey = /*#__PURE__*/ lambda((schema) => make$34(optionalKey$1(schema.ast), { schema }));
 /**
 * Marks a struct field as optional, allowing the key to be absent or
 * `undefined`.
@@ -24514,7 +24547,7 @@ const optionalKey = /*#__PURE__*/ lambda((schema) => make$35(optionalKey$1(schem
 */
 const optional$5 = /*#__PURE__*/ lambda((self) => {
 	const schema = UndefinedOr(self);
-	return make$35(optional$6(self.ast), { schema });
+	return make$34(optional$6(self.ast), { schema });
 });
 /**
 * Extracts the type-side schema: sets `Encoded` to equal the decoded `Type`,
@@ -24523,7 +24556,7 @@ const optional$5 = /*#__PURE__*/ lambda((self) => {
 * @category transforming
 * @since 4.0.0
 */
-const toType = /*#__PURE__*/ lambda((schema) => make$35(toType$1(schema.ast), { schema }));
+const toType = /*#__PURE__*/ lambda((schema) => make$34(toType$1(schema.ast), { schema }));
 /**
 * Extracts the encoded-side schema: sets `Type` to equal the `Encoded`,
 * discarding the decoding transformation path.
@@ -24531,7 +24564,7 @@ const toType = /*#__PURE__*/ lambda((schema) => make$35(toType$1(schema.ast), { 
 * @category transforming
 * @since 4.0.0
 */
-const toEncoded = /*#__PURE__*/ lambda((schema) => make$35(toEncoded$1(schema.ast), { schema }));
+const toEncoded = /*#__PURE__*/ lambda((schema) => make$34(toEncoded$1(schema.ast), { schema }));
 /**
 * Creates a schema for a single literal value (string, number, bigint, boolean, or null).
 *
@@ -24552,7 +24585,7 @@ const toEncoded = /*#__PURE__*/ lambda((schema) => make$35(toEncoded$1(schema.as
 * @since 3.10.0
 */
 function Literal(literal) {
-	const out = make$35(new Literal$1(literal), {
+	const out = make$34(new Literal$1(literal), {
 		literal,
 		transform(to) {
 			return out.pipe(decodeTo(Literal(to), {
@@ -24602,7 +24635,7 @@ function templateLiteralParts(parts) {
 * @since 3.10.0
 */
 function TemplateLiteral(parts) {
-	return make$35(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
+	return make$34(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
 }
 /**
 * Schema for the `never` type. Always fails validation — no value satisfies it.
@@ -24610,7 +24643,7 @@ function TemplateLiteral(parts) {
 * @category schemas
 * @since 3.10.0
 */
-const Never = /*#__PURE__*/ make$35(never);
+const Never = /*#__PURE__*/ make$34(never);
 /**
 * Schema for the `any` type. Accepts any value without validation.
 *
@@ -24618,7 +24651,7 @@ const Never = /*#__PURE__*/ make$35(never);
 * @category schemas
 * @since 3.10.0
 */
-const Any = /*#__PURE__*/ make$35(any);
+const Any = /*#__PURE__*/ make$34(any);
 /**
 * Schema for the `unknown` type. Accepts any value without validation.
 *
@@ -24631,7 +24664,7 @@ const Any = /*#__PURE__*/ make$35(any);
 * @category schemas
 * @since 3.10.0
 */
-const Unknown = /*#__PURE__*/ make$35(unknown);
+const Unknown = /*#__PURE__*/ make$34(unknown);
 /**
 * Schema for the `null` literal. Validates that the input is strictly `null`.
 *
@@ -24639,7 +24672,7 @@ const Unknown = /*#__PURE__*/ make$35(unknown);
 * @category schemas
 * @since 3.10.0
 */
-const Null = /*#__PURE__*/ make$35(null_);
+const Null = /*#__PURE__*/ make$34(null_);
 /**
 * Schema for the `undefined` literal. Validates that the input is strictly `undefined`.
 *
@@ -24647,14 +24680,14 @@ const Null = /*#__PURE__*/ make$35(null_);
 * @category schemas
 * @since 3.10.0
 */
-const Undefined = /*#__PURE__*/ make$35(undefined_);
+const Undefined = /*#__PURE__*/ make$34(undefined_);
 /**
 * Schema for `string` values. Validates that the input is `typeof` `"string"`.
 *
 * @category schemas
 * @since 4.0.0
 */
-const String$2 = /*#__PURE__*/ make$35(string);
+const String$2 = /*#__PURE__*/ make$34(string);
 /**
 * Schema for `number` values, including `NaN`, `Infinity`, and `-Infinity`.
 *
@@ -24669,7 +24702,7 @@ const String$2 = /*#__PURE__*/ make$35(string);
 * @category schemas
 * @since 4.0.0
 */
-const Number$1 = /*#__PURE__*/ make$35(number);
+const Number$1 = /*#__PURE__*/ make$34(number);
 /**
 * Schema for `boolean` values. Validates that the input is `typeof` `"boolean"`.
 *
@@ -24682,7 +24715,7 @@ const Number$1 = /*#__PURE__*/ make$35(number);
 * @category schemas
 * @since 4.0.0
 */
-const Boolean = /*#__PURE__*/ make$35(boolean);
+const Boolean = /*#__PURE__*/ make$34(boolean);
 /**
 * Schema for `bigint` values. Validates that the input is `typeof` `"bigint"`.
 *
@@ -24696,7 +24729,7 @@ const Boolean = /*#__PURE__*/ make$35(boolean);
 * @category schemas
 * @since 4.0.0
 */
-const BigInt$1 = /*#__PURE__*/ make$35(bigInt);
+const BigInt$1 = /*#__PURE__*/ make$34(bigInt);
 /**
 * Schema for a TypeScript `void` return value.
 *
@@ -24716,9 +24749,9 @@ const BigInt$1 = /*#__PURE__*/ make$35(bigInt);
 * @category schemas
 * @since 3.10.0
 */
-const Void = /*#__PURE__*/ make$35(void_);
+const Void = /*#__PURE__*/ make$34(void_);
 function makeStruct(ast, fields) {
-	return make$35(ast, {
+	return make$34(ast, {
 		fields,
 		mapFields(f, options) {
 			const fields = f(this.fields);
@@ -24802,7 +24835,7 @@ function Struct(fields) {
 * @since 3.10.0
 */
 function Record(key, value) {
-	return make$35(record(key.ast, value.ast), {
+	return make$34(record(key.ast, value.ast), {
 		key,
 		value
 	});
@@ -24836,13 +24869,13 @@ function Record(key, value) {
 * @since 4.0.0
 */
 function StructWithRest(schema, records) {
-	return make$35(structWithRest(schema.ast, records.map(getAST)), {
+	return make$34(structWithRest(schema.ast, records.map(getAST)), {
 		schema,
 		records
 	});
 }
 function makeTuple(ast, elements) {
-	return make$35(ast, {
+	return make$34(ast, {
 		elements,
 		mapElements(f, options) {
 			const elements = f(this.elements);
@@ -24873,7 +24906,7 @@ function Tuple(elements) {
 * @category constructors
 * @since 4.0.0
 */
-const ArraySchema = /*#__PURE__*/ lambda((schema) => make$35(new Arrays(false, [], [schema.ast]), { value: schema }));
+const ArraySchema = /*#__PURE__*/ lambda((schema) => make$34(new Arrays(false, [], [schema.ast]), { value: schema }));
 /**
 * Defines a non-empty `ReadonlyArray` schema — at least one element required.
 * Type is `readonly [T, ...T[]]`.
@@ -24891,9 +24924,9 @@ const ArraySchema = /*#__PURE__*/ lambda((schema) => make$35(new Arrays(false, [
 * @category constructors
 * @since 3.10.0
 */
-const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$35(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
+const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$34(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
 function makeUnion(ast, members) {
-	return make$35(ast, {
+	return make$34(ast, {
 		members,
 		mapMembers(f, options) {
 			const members = f(this.members);
@@ -24946,7 +24979,7 @@ function Union(members, options) {
 */
 function Literals(literals) {
 	const members = literals.map(Literal);
-	return make$35(union(members, void 0, void 0), {
+	return make$34(union(members, void 0, void 0), {
 		literals,
 		members,
 		mapMembers(f) {
@@ -24976,7 +25009,7 @@ const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
 function decodeTo(to, transformation) {
 	return (from) => {
-		return make$35(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
+		return make$34(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
 			from,
 			to
 		});
@@ -25067,10 +25100,10 @@ function decode$2(transformation) {
 * @since 3.10.0
 */
 function withConstructorDefault(defaultValue) {
-	return (schema) => make$35(withConstructorDefault$1(schema.ast, defaultValue), { schema });
+	return (schema) => make$34(withConstructorDefault$1(schema.ast, defaultValue), { schema });
 }
 function toIssueEffect(self) {
-	return catchCause$1(self, (cause) => failCauseSync(() => map$4(cause, (error) => error.issue)));
+	return catchCause$1(self, (cause) => failCauseSync(() => map$5(cause, (error) => error.issue)));
 }
 /**
 * Wraps the `Encoded` side with `optional` (key absent **or** `undefined`)
@@ -25352,7 +25385,7 @@ function isPattern(regExp, annotations) {
 * @category schemas
 * @since 3.10.0
 */
-const Finite = /*#__PURE__*/ make$35(finite);
+const Finite = /*#__PURE__*/ make$34(finite);
 /**
 * Validates that a number is finite (not `Infinity`, `-Infinity`, or `NaN`).
 *
@@ -25860,7 +25893,7 @@ function CauseReason(error, defect) {
 			}
 		}))
 	});
-	return make$35(schema.ast, {
+	return make$34(schema.ast, {
 		error,
 		defect
 	});
@@ -25912,14 +25945,14 @@ function Cause(error, defect) {
 			encode: ({ reasons: failures }) => failures
 		}))
 	});
-	return make$35(schema.ast, {
+	return make$34(schema.ast, {
 		error,
 		defect
 	});
 }
 const dateTimeUtcFromString = /*#__PURE__*/ transformEffect({
 	decode: (s, options) => {
-		return match$3(make$41(s), {
+		return match$3(make$40(s), {
 			onNone: () => fail$3(new InvalidValue({ expected: "a valid UTC DateTime string" }, s, options)),
 			onSome: (result) => succeed$3(toUtc(result))
 		});
@@ -26105,7 +26138,7 @@ function Exit(value, error, defect) {
 			}
 		}))
 	});
-	return make$35(schema.ast, {
+	return make$34(schema.ast, {
 		value,
 		error,
 		defect
@@ -26156,7 +26189,7 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 	expected: "UrlParams",
 	toEquivalence: () => Equivalence,
 	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform({
-		decode: make$38,
+		decode: make$37,
 		encode: (self) => self.params
 	}))
 })).pipe(/*#__PURE__*/ decodeTo(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([String$2, /*#__PURE__*/ NonEmptyArray(String$2)])), /*#__PURE__*/ transform({
@@ -26195,7 +26228,7 @@ function Redacted$1(value, options) {
 		if (isRedacted(input)) {
 			const label = decodeLabel !== void 0 ? mapErrorEager(decodeLabel(input.label, poptions), (issue) => new Pointer(["label"], issue)) : void_$1;
 			return flatMapEager(label, () => mapBothEager(decodeUnknownEffect$1(value)(value$2(input), poptions), {
-				onSuccess: (value) => make$40(value, { label: input.label }),
+				onSuccess: (value) => make$39(value, { label: input.label }),
 				onFailure: () => {
 					return new Composite(ast, [new Pointer(["value"], new InvalidValue(void 0, input, poptions))], input, poptions);
 				}
@@ -26214,12 +26247,12 @@ function Redacted$1(value, options) {
 		}),
 		expected: "Redacted",
 		toCodecJson: ([value]) => link$1()(value, {
-			decode: transform$1((e) => make$40(e, { label })),
+			decode: transform$1((e) => make$39(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$1(value$2)
 		}),
 		toEquivalence: ([value]) => makeEquivalence(value)
 	});
-	return make$35(schema.ast, { value });
+	return make$34(schema.ast, { value });
 }
 const immerable = /*#__PURE__*/ globalThis.Symbol.for("immer-draftable");
 const payloadToken = {};
@@ -26256,7 +26289,7 @@ function makeClass(Inherited, identifier, struct$1, annotations, proto) {
 			return getClassSchema(this).rebuild(ast);
 		}
 		static make(input, options) {
-			return make$37(getClassSchema(this))(input ?? {}, options);
+			return make$36(getClassSchema(this))(input ?? {}, options);
 		}
 		static makeOption(input, options) {
 			return makeOption(getClassSchema(this))(input ?? {}, options);
@@ -26307,7 +26340,7 @@ function getClassSchemaFactory(from, identifier, annotations) {
 		const ClassTypeId = getClassTypeId(identifier);
 		const isClassValue = (input) => input instanceof self || hasProperty(input, ClassTypeId);
 		const transformation = getClassTransformation(self);
-		return memo = decodeTo(make$35(new Declaration([from.ast], () => (input, ast, options) => {
+		return memo = decodeTo(make$34(new Declaration([from.ast], () => (input, ast, options) => {
 			return isClassValue(input) ? succeed$3(input) : fail$3(new InvalidType(ast, input, options));
 		}, {
 			identifier,
@@ -26602,7 +26635,7 @@ const toCodecStringTree = toCodecStringTree$1;
 * @category schemas
 * @since 4.0.0
 */
-const Json = /*#__PURE__*/ make$35(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
+const Json = /*#__PURE__*/ make$34(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
 	runtime: "Schema.Json",
 	Type: "Schema.Json"
 }) }));
@@ -26634,7 +26667,7 @@ const JsonObject$4 = /*#__PURE__*/ Record(String$2, Json);
 * @category schemas
 * @since 4.0.0
 */
-const MutableJson = /*#__PURE__*/ make$35(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
+const MutableJson = /*#__PURE__*/ make$34(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
@@ -27157,7 +27190,7 @@ const MutableRefProto = {
 * @category constructors
 * @since 2.0.0
 */
-const make$34 = (value) => {
+const make$33 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
@@ -27270,7 +27303,7 @@ const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
 * @category constructors
 * @since 2.0.0
 */
-const make$33 = () => ({
+const make$32 = () => ({
 	head: void 0,
 	tail: void 0,
 	length: 0
@@ -27584,7 +27617,7 @@ const SubscriptionTypeId = "~effect/PubSub/Subscription";
 * @category constructors
 * @since 4.0.0
 */
-const make$32 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$34(false), options.strategy(), make$34(none())));
+const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$33(false), options.strategy(), make$33(none())));
 /**
 * Creates an unbounded `PubSub`.
 *
@@ -27614,7 +27647,7 @@ const make$32 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(),
 * @category constructors
 * @since 2.0.0
 */
-const unbounded$1 = (options) => make$32({
+const unbounded$1 = (options) => make$31({
 	atomicPubSub: () => makeAtomicUnbounded(options),
 	strategy: () => new DroppingStrategy()
 });
@@ -27772,7 +27805,7 @@ const removeSubscribers = (subscribers, subscription, pollers) => {
 	set.delete(pollers);
 	if (set.size === 0) subscribers.delete(subscription);
 };
-const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$33(), makeUnsafe$2(false), make$34(false), strategy, pubsub.replayWindow(), ended);
+const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$32(), makeUnsafe$2(false), make$33(false), strategy, pubsub.replayWindow(), ended);
 var UnboundedPubSub = class {
 	publisherHead = {
 		value: AbsentValue,
@@ -28232,12 +28265,12 @@ const QueueProto = {
 * @category constructors
 * @since 4.0.0
 */
-const make$31 = (options) => withFiber$1((fiber) => {
+const make$30 = (options) => withFiber$1((fiber) => {
 	const self = Object.create(QueueProto);
 	self.dispatcher = fiber.currentDispatcher;
 	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
 	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$33();
+	self.messages = make$32();
 	self.scheduleRunning = false;
 	self.state = {
 		_tag: "Open",
@@ -28277,7 +28310,7 @@ const make$31 = (options) => withFiber$1((fiber) => {
 * @category constructors
 * @since 2.0.0
 */
-const bounded = (capacity) => make$31({ capacity });
+const bounded = (capacity) => make$30({ capacity });
 /**
 * Creates an unbounded queue that can grow to any size without blocking producers.
 *
@@ -28313,7 +28346,7 @@ const bounded = (capacity) => make$31({ capacity });
 * @category constructors
 * @since 2.0.0
 */
-const unbounded = () => make$31();
+const unbounded = () => make$30();
 /**
 * Adds a message to the queue. Returns `false` if the queue is done.
 *
@@ -29298,7 +29331,7 @@ var SemaphoreImpl = class {
 * @category constructors
 * @since 4.0.0
 */
-const make$30 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+const make$29 = (permits) => sync$1(() => new SemaphoreImpl(permits));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Channel.js
 /**
@@ -29458,7 +29491,7 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 * @since 4.0.0
 */
 const toTransform = (channel) => channel.transform;
-const asyncQueue = (scope, f, options) => make$31({
+const asyncQueue = (scope, f, options) => make$30({
 	capacity: options?.bufferSize,
 	strategy: options?.strategy
 }).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => forkIn(provide$3(f(queue), scope), scope)));
@@ -29481,7 +29514,7 @@ const asyncQueue = (scope, f, options) => make$31({
 * @category constructors
 * @since 4.0.0
 */
-const callbackArray = (f, options) => fromTransform$1((_, scope) => map$3(asyncQueue(scope, f, options), takeAll));
+const callbackArray = (f, options) => fromTransform$1((_, scope) => map$4(asyncQueue(scope, f, options), takeAll));
 /**
 * Creates a `Channel` that lazily evaluates to another channel.
 *
@@ -29631,7 +29664,7 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$34(void 0);
+	const exit = options.exit ?? make$33(void 0);
 	const pull = suspend$2(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
@@ -29687,9 +29720,9 @@ const readableStreamToPullUnsafe = (options) => {
 * @category sequencing
 * @since 2.0.0
 */
-const map$2 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => sync(() => {
+const map$3 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => sync(() => {
 	let i = 0;
-	return map$3(pull, (o) => f(o, i++));
+	return map$4(pull, (o) => f(o, i++));
 })));
 /**
 * Maps the done value of this channel using the specified function.
@@ -29743,10 +29776,10 @@ const concurrencyIsSequential = (concurrency) => concurrency === void 0 || concu
 * @category sequencing
 * @since 2.0.0
 */
-const mapEffect$1 = /*#__PURE__*/ dual((args) => isChannel(args[0]), (self, f, options) => concurrencyIsSequential(options?.concurrency) ? mapEffectSequential(self, f) : mapEffectConcurrent(self, f, options));
+const mapEffect$2 = /*#__PURE__*/ dual((args) => isChannel(args[0]), (self, f, options) => concurrencyIsSequential(options?.concurrency) ? mapEffectSequential(self, f) : mapEffectConcurrent(self, f, options));
 const mapEffectSequential = (self, f) => fromTransform$1((upstream, scope) => {
 	let i = 0;
-	return map$3(toTransform(self)(upstream, scope), flatMap((o) => f(o, i++)));
+	return map$4(toTransform(self)(upstream, scope), flatMap((o) => f(o, i++)));
 });
 const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntraced(function* (upstream, scope, forkedScope) {
 	let i = 0;
@@ -29877,7 +29910,7 @@ const flattenArray = (self) => transformPull$1(self, (pull) => {
 */
 const catchCause = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream, scope) => {
 	let forkedScope = forkUnsafe(scope);
-	return map$3(toTransform(self)(upstream, forkedScope), (pull) => {
+	return map$4(toTransform(self)(upstream, forkedScope), (pull) => {
 		let currentPull = pull.pipe(catchCause$1((cause) => {
 			if (isDoneCause(cause)) return failCause$3(cause);
 			const toClose = forkedScope;
@@ -30063,7 +30096,7 @@ const runWith = (self, f, onHalt) => suspend$2(() => {
 * @category providing services
 * @since 2.0.0
 */
-const provideContext$1 = /*#__PURE__*/ dual(2, (self, context) => fromTransform$1((upstream, scope) => map$3(provideContext$2(toTransform(self)(upstream, scope), context), provideContext$2(context))));
+const provideContext$1 = /*#__PURE__*/ dual(2, (self, context) => fromTransform$1((upstream, scope) => map$4(provideContext$2(toTransform(self)(upstream, scope), context), provideContext$2(context))));
 /**
 * Runs a channel and applies an effect to each output element.
 *
@@ -30487,7 +30520,7 @@ const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f)
 * @category constructors
 * @since 2.0.0
 */
-const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$3(effect, toChannel$1)));
+const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$4(effect, toChannel$1)));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/RcMap.js
 /**
@@ -30570,7 +30603,7 @@ const makeUnsafe = (options) => ({
 * @category constructors
 * @since 3.5.0
 */
-const make$29 = (options) => withFiber((fiber) => {
+const make$28 = (options) => withFiber((fiber) => {
 	const context = fiber.context;
 	const scope = get$2(context, Scope);
 	const self = makeUnsafe({
@@ -30773,7 +30806,7 @@ const fromChannel = fromChannel$2;
 * @category constructors
 * @since 2.0.0
 */
-const fromEffect = (effect) => fromChannel(fromEffect$1(map$3(effect, of)));
+const fromEffect = (effect) => fromChannel(fromEffect$1(map$4(effect, of)));
 /**
 * Creates a stream from a pull effect, such as one produced by `Stream.toPull`.
 *
@@ -31037,7 +31070,7 @@ const fromReadableStream = (options) => fromChannel(fromReadableStream$1(options
 * @category constructors
 * @since 2.0.0
 */
-const unwrap = (effect) => fromChannel(unwrap$2(map$3(effect, toChannel)));
+const unwrap = (effect) => fromChannel(unwrap$2(map$4(effect, toChannel)));
 /**
 * Transforms the elements of this stream using the supplied function.
 *
@@ -31053,9 +31086,9 @@ const unwrap = (effect) => fromChannel(unwrap$2(map$3(effect, toChannel)));
 * @category mapping
 * @since 2.0.0
 */
-const map$1 = /*#__PURE__*/ dual(2, (self, f) => suspend(() => {
+const map$2 = /*#__PURE__*/ dual(2, (self, f) => suspend(() => {
 	let i = 0;
-	return fromChannel(map$2(self.channel, map$6((o) => f(o, i++))));
+	return fromChannel(map$3(self.channel, map$7((o) => f(o, i++))));
 }));
 /**
 * Maps over elements of the stream with the specified effectful function.
@@ -31094,7 +31127,7 @@ const map$1 = /*#__PURE__*/ dual(2, (self, f) => suspend(() => {
 * @category mapping
 * @since 2.0.0
 */
-const mapEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, f, options) => self.channel.pipe(flattenArray, mapEffect$1(f, options), map$2(of), fromChannel));
+const mapEffect$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, f, options) => self.channel.pipe(flattenArray, mapEffect$2(f, options), map$3(of), fromChannel));
 const catch_ = /*#__PURE__*/ dual(2, (self, f) => fromChannel(catch_$1(self.channel, (error) => f(error).channel)));
 /**
 * Pipes this stream through a channel that consumes and emits chunked elements.
@@ -31161,7 +31194,7 @@ const pipeThroughChannel = /*#__PURE__*/ dual(2, (self, channel) => fromChannel(
 */
 const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => suspend(() => {
 	const decoder = new TextDecoder(options?.encoding);
-	return map$1(self, (chunk) => decoder.decode(chunk, { stream: true }));
+	return map$2(self, (chunk) => decoder.decode(chunk, { stream: true }));
 }));
 /**
 * Runs the provided effect when the stream ends successfully.
@@ -31265,7 +31298,7 @@ const provideContext = /*#__PURE__*/ dual(2, (self, context) => fromChannel(prov
 * @category destructors
 * @since 2.0.0
 */
-const run = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullScoped(self.channel, scope).pipe(flatMap((upstream) => sink.transform(upstream, scope)), map$3(([a]) => a))));
+const run = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullScoped(self.channel, scope).pipe(flatMap((upstream) => sink.transform(upstream, scope)), map$4(([a]) => a))));
 /**
 * Runs the stream and returns the last element as an `Option`.
 *
@@ -31290,7 +31323,7 @@ const run = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullSc
 * @category destructors
 * @since 2.0.0
 */
-const runLast = (self) => map$3(runLast$1(self.channel), map$8(lastNonEmpty));
+const runLast = (self) => map$4(runLast$1(self.channel), map$10(lastNonEmpty));
 /**
 * Runs the provided effectful callback for each element of the stream.
 *
@@ -31431,7 +31464,7 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 * @category destructors
 * @since 2.0.0
 */
-const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$3(context(), (context) => toReadableStreamWith(self, context, options)));
+const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$4(context(), (context) => toReadableStreamWith(self, context, options)));
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/FileSystem.js
 /**
@@ -31510,7 +31543,7 @@ const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
 * @category constructors
 * @since 4.0.0
 */
-const make$28 = (impl) => FileSystem.of({
+const make$27 = (impl) => FileSystem.of({
 	...impl,
 	[TypeId$21]: TypeId$21,
 	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
@@ -31545,7 +31578,7 @@ const make$28 = (impl) => FileSystem.of({
 	sink: (path, options) => pipe(impl.open(path, {
 		...options,
 		flag: options?.flag ?? "w"
-	}), map$3((file) => forEach((_) => file.writeAll(_))), unwrap$1),
+	}), map$4((file) => forEach((_) => file.writeAll(_))), unwrap$1),
 	writeFileString: (path, data, options) => flatMap(try_({
 		try: () => new TextEncoder().encode(data),
 		catch: (cause) => badArgument({
@@ -31734,6 +31767,40 @@ function makeArray(length, value) {
 	};
 }
 /**
+* Typed error indicating that a configuration source could not be read.
+*
+* **When to use**
+*
+* Use when you need to report that a custom provider's underlying store is
+* unreachable or produced an I/O error while reading configuration data.
+*
+* **Gotchas**
+*
+* Do not use `SourceError` for "key not found". That case is represented by
+* returning `undefined` from `load`.
+*
+* **Example** (Failing with a SourceError)
+*
+* ```ts import.meta.vitest
+* import { ConfigProvider, Effect } from "effect"
+*
+* const provider = ConfigProvider.make((_path) =>
+*   Effect.fail(
+*     new ConfigProvider.SourceError({ message: "connection refused" })
+*   )
+* )
+*
+* Effect.runSync(Effect.flip(provider.load(["host"]))).message // => "connection refused"
+* ```
+*
+* @see {@link ConfigProvider} – the interface whose `load` may fail with this
+*   error
+*
+* @category errors
+* @since 4.0.0
+*/
+var SourceError = class extends (/*#__PURE__*/ TaggedError$1("SourceError")) {};
+/**
 * Context reference for the active raw configuration provider, registered in the context with a
 * default value of `fromEnv()`. Because it is a `Context.Reference`, it is
 * available without explicit provision; `Config` schemas automatically resolve
@@ -31830,7 +31897,7 @@ function makeSource(get, transform) {
 * @category constructors
 * @since 4.0.0
 */
-function make$27(get) {
+function make$26(get) {
 	return makeSource(get, identityPath);
 }
 function emptyStringAsMissing(value, preserveEmptyStrings) {
@@ -31867,7 +31934,7 @@ function emptyStringAsMissing(value, preserveEmptyStrings) {
 function fromEnvRecord(env, options) {
 	const preserveEmptyStrings = options?.preserveEmptyStrings === true;
 	const trie = buildEnvTrie(env);
-	return make$27((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
+	return make$26((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
 }
 /**
 * Creates a `ConfigProvider` backed by environment variables.
@@ -32037,13 +32104,70 @@ const Proto$11 = {
 		return { _id: "Config" };
 	}
 };
-function make$26(evaluator) {
+function make$25(evaluator) {
 	const self = Object.create(Proto$11);
 	self.evaluator = evaluator;
 	self.parse = (provider) => flatMapEager(evaluator(provider, []), fromResult);
 	return self;
 }
 const evaluateAt = (self, provider, pathPrefix) => self.evaluator(provider, pathPrefix);
+/**
+* Transforms the parsed value of a config with a pure function.
+*
+* **When to use**
+*
+* Use when you need to transform a parsed config value with a function that
+* cannot fail.
+*
+* **Example** (Uppercasing a string config)
+*
+* ```ts import.meta.vitest
+* import { Config, ConfigProvider, Effect } from "effect"
+*
+* const upper = Config.String("name").pipe(
+*   Config.map((s) => s.toUpperCase())
+* )
+*
+* const provider = ConfigProvider.fromUnknown({ name: "alice" })
+* Effect.runSync(upper.parse(provider)) // => "ALICE"
+* ```
+*
+* @see {@link mapEffect} – when the transformation can fail
+*
+* @category mapping
+* @since 2.0.0
+*/
+const map$1 = /*#__PURE__*/ dual(2, (self, f) => {
+	return make$25((provider, pathPrefix) => map$4(evaluateAt(self, provider, pathPrefix), map$9(f)));
+});
+/**
+* Transforms the parsed value with a function that may fail.
+*
+* **When to use**
+*
+* Use when you need to transform a parsed config value with a function that can
+* produce a `ConfigError` (e.g. parsing a URL, checking a range).
+*
+* **Example** (Wrapping a value in an effectful transformation)
+*
+* ```ts import.meta.vitest
+* import { Config, ConfigProvider, Effect } from "effect"
+*
+* const trimmed = Config.String("name").pipe(
+*   Config.mapEffect((s) => Effect.succeed(s.trim()))
+* )
+* const provider = ConfigProvider.fromUnknown({ name: " Alice " })
+* Effect.runSync(trimmed.parse(provider)) // => "Alice"
+* ```
+*
+* @see {@link map} – when the transformation cannot fail
+*
+* @category mapping
+* @since 2.0.0
+*/
+const mapEffect = /*#__PURE__*/ dual(2, (self, f) => {
+	return make$25((provider, pathPrefix) => flatMap(evaluateAt(self, provider, pathPrefix), (resolution) => isSuccess$1(resolution) ? mapEager(f(resolution.success), succeed$8) : succeed$3(fail$7(resolution.failure))));
+});
 /**
 * Combines multiple configs into a single config that parses all of them.
 *
@@ -32088,7 +32212,7 @@ const evaluateAt = (self, provider, pathPrefix) => self.evaluator(provider, path
 */
 function all(arg) {
 	const configs = globalThis.Array.isArray(arg) ? arg : Symbol.iterator in arg ? [...arg] : arg;
-	return make$26((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$7(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
+	return make$25((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$8(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
 }
 /**
 * Provides a fallback value when the config is absent.
@@ -32126,7 +32250,7 @@ function all(arg) {
 * @since 2.0.0
 */
 const withDefault = /*#__PURE__*/ dual(2, (self, defaultValue) => {
-	return make$26((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
+	return make$25((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
 });
 const isSourceError = (u) => isTagged(u, "SourceError");
 const cursorToString = () => "<configuration>";
@@ -32289,9 +32413,9 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 function schema$1(codec, path) {
 	const codecStringTree = toCodecStringTree(codec);
 	const encodedAst = toEncoded$1(codecStringTree.ast);
-	const decodeCursor = decodeUnknownEffect$1(make$35(toConfigCursorAST(codecStringTree.ast)));
+	const decodeCursor = decodeUnknownEffect$1(make$34(toConfigCursorAST(codecStringTree.ast)));
 	const localPath = typeof path === "string" ? [path] : path ?? [];
-	return make$26((provider, pathPrefix) => {
+	return make$25((provider, pathPrefix) => {
 		const fullPath = [...pathPrefix, ...localPath];
 		return loadCursor(provider, fullPath).pipe(flatMapEager((cursor) => decodeCursor(cursor).pipe(mapEager(succeed$8), catchEager((issue) => {
 			const error = new ConfigError(new SchemaError(fullPath.length > 0 ? new Pointer(fullPath, issue) : issue));
@@ -33223,7 +33347,7 @@ const Stdio = /*#__PURE__*/ Service$1(TypeId$18);
 * @category constructors
 * @since 4.0.0
 */
-const make$25 = (options) => ({
+const make$24 = (options) => ({
 	[TypeId$18]: TypeId$18,
 	stdinIsTerminal: succeed$3(false),
 	stdoutIsTerminal: succeed$3(false),
@@ -33724,7 +33848,7 @@ var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
 * @category constructors
 * @since 4.0.0
 */
-const make$24 = (url, params, hash) => try_$2({
+const make$23 = (url, params, hash) => try_$2({
 	try: () => {
 		const urlInstance = new URL(url, baseUrl());
 		for (let i = 0; i < params.params.length; i++) {
@@ -33792,7 +33916,7 @@ const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$6, /*#__PURE__*/ none(
 * @category constructors
 * @since 4.0.0
 */
-const make$23 = (method) => (url, options) => modify(empty$1, {
+const make$22 = (method) => (url, options) => modify(empty$1, {
 	method,
 	url,
 	...options ?? void 0
@@ -33804,7 +33928,7 @@ const make$23 = (method) => (url, options) => modify(empty$1, {
 * @category constructors
 * @since 4.0.0
 */
-const post$1 = /*#__PURE__*/ make$23("POST");
+const post$1 = /*#__PURE__*/ make$22("POST");
 /**
 * Applies request options to an `HttpClientRequest`, returning a new request.
 *
@@ -33945,7 +34069,7 @@ const setBody = /*#__PURE__*/ dual(2, (self, body) => {
 * @category combinators
 * @since 4.0.0
 */
-const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$3(json(body), (body) => setBody(self, body)));
+const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$4(json(body), (body) => setBody(self, body)));
 /**
 * Sets a `FormData` request body.
 *
@@ -33962,7 +34086,7 @@ const bodyFormData = /*#__PURE__*/ dual(2, (self, body) => setBody(self, formDat
 * @since 4.0.0
 */
 function toUrl(self) {
-	const r = make$24(self.url, self.urlParams, getOrUndefined$1(self.hash));
+	const r = make$23(self.url, self.urlParams, getOrUndefined$1(self.hash));
 	if (isSuccess$1(r)) return some(r.success);
 	return none();
 }
@@ -34136,7 +34260,7 @@ var WebHttpClientResponse = class extends Class$2 {
 	}
 	textBody;
 	get text() {
-		return this.textBody ??= map$3(this.arrayBuffer, (_) => new TextDecoder().decode(_));
+		return this.textBody ??= map$4(this.arrayBuffer, (_) => new TextDecoder().decode(_));
 	}
 	get urlParamsBody() {
 		return flatMap(this.text, (_) => try_({
@@ -34270,7 +34394,7 @@ const Proto$8 = {
 		return { _id: "effect/HttpClient" };
 	},
 	.../*#__PURE__*/ Object.fromEntries(/*#__PURE__*/ allShort.map(([fullMethod, method]) => [method, function(url, options) {
-		return this.execute(make$23(fullMethod)(url, options));
+		return this.execute(make$22(fullMethod)(url, options));
 	}]))
 };
 /**
@@ -34284,10 +34408,10 @@ const Proto$8 = {
 * @category constructors
 * @since 4.0.0
 */
-const make$22 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
+const make$21 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
 	const scopedController = scopedRequests.get(request);
 	const controller = scopedController ?? new AbortController();
-	const urlResult = make$24(request.url, request.urlParams, getOrUndefined$1(request.hash));
+	const urlResult = make$23(request.url, request.urlParams, getOrUndefined$1(request.hash));
 	if (isFailure$1(urlResult)) return fail$3(new HttpClientError({ reason: new InvalidUrlError({
 		request,
 		cause: urlResult.failure
@@ -34348,7 +34472,7 @@ const make$22 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 * @category mapping
 * @since 4.0.0
 */
-const mapRequest = /*#__PURE__*/ dual(2, (self, f) => makeWith$1(self.postprocess, (request) => map$3(self.preprocess(request), f)));
+const mapRequest = /*#__PURE__*/ dual(2, (self, f) => makeWith$1(self.postprocess, (request) => map$4(self.preprocess(request), f)));
 /**
 * Retries common transient errors, such as rate limiting, timeouts or network issues.
 *
@@ -34420,7 +34544,7 @@ const SpanNameGenerator = /*#__PURE__*/ Reference("effect/http/HttpClient/SpanNa
 * @category layers
 * @since 4.0.0
 */
-const layerMergedContext = (effect$1) => effect(HttpClient)(contextWith((context) => map$3(effect$1, (client) => transformResponse$1(client, updateContext((input) => merge$1(context, input))))));
+const layerMergedContext = (effect$1) => effect(HttpClient)(contextWith((context) => map$4(effect$1, (client) => transformResponse$1(client, updateContext((input) => merge$1(context, input))))));
 const responseRegistry = /*#__PURE__*/ (() => {
 	if ("FinalizationRegistry" in globalThis && globalThis.FinalizationRegistry) {
 		const registry = /*#__PURE__*/ new FinalizationRegistry((controller) => {
@@ -34592,12 +34716,12 @@ var RequestInit = class extends (/*#__PURE__*/ Service$1()("effect/http/FetchHtt
 * @category layers
 * @since 4.0.0
 */
-const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$22((request, url, signal, fiber) => {
+const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$21((request, url, signal, fiber) => {
 	const fetch = fiber.getRef(Fetch);
 	const options = getOrUndefined(fiber.context, RequestInit) ?? {};
 	let headers = options.headers ? merge(fromInput$1(options.headers), request.headers) : request.headers;
 	if (headers["content-length"]) headers = remove$2(headers, "content-length");
-	const send = (body) => map$3(tryPromise({
+	const send = (body) => map$4(tryPromise({
 		try: () => fetch(url, {
 			...options,
 			method: request.method,
@@ -34698,7 +34822,7 @@ const isCleanSingleTrailingParam = (path) => CLEAN_SINGLE_PARAM_REGEXP.test(path
 /**
 * @internal
 */
-const make$21 = (options = {}) => new RouterImpl(options);
+const make$20 = (options = {}) => new RouterImpl(options);
 var RouterImpl = class {
 	constructor(options = {}) {
 		this.options = {
@@ -35316,7 +35440,7 @@ const httpMethods = [
 * @category constructors
 * @since 4.0.0
 */
-const make$20 = make$21;
+const make$19 = make$20;
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/http/internal/headers.js
 const Proto$7 = /*#__PURE__*/ Object.getPrototypeOf(empty$7);
@@ -35578,7 +35702,7 @@ const makeMiddleware = (middleware, options) => options?.global ? effectDiscard(
 	const router = yield* HttpRouter;
 	const fn = isEffect(middleware) ? yield* middleware : middleware;
 	yield* router.addGlobalMiddleware(fn);
-})) : new MiddlewareImpl(isEffect(middleware) ? effectContext(map$3(middleware, (fn) => makeUnsafe$7(/* @__PURE__ */ new Map([[fnContextKey, fn]])))) : succeedContext(makeUnsafe$7(/* @__PURE__ */ new Map([[fnContextKey, middleware]]))));
+})) : new MiddlewareImpl(isEffect(middleware) ? effectContext(map$4(middleware, (fn) => makeUnsafe$7(/* @__PURE__ */ new Map([[fnContextKey, fn]])))) : succeedContext(makeUnsafe$7(/* @__PURE__ */ new Map([[fnContextKey, middleware]]))));
 let middlewareId = 0;
 const fnContextKey = "effect/http/HttpRouter/MiddlewareFn";
 var MiddlewareImpl = class MiddlewareImpl {
@@ -35794,7 +35918,16 @@ var InvalidRequest$1 = class extends TaggedError()("InvalidRequest", { details: 
 		return `The request does not match Tipee's API description, so it was not sent:\n${this.details}`;
 	}
 };
-/** The request never got an answer (DNS, TLS, connection reset…). */
+/**
+* No Tipee instance has this name. `*.tipee.net` resolves for any name, so a
+* Typo is not a DNS failure: Tipee answers 410 `instance_not_found`.
+*/
+var InstanceNotFound = class extends TaggedError()("InstanceNotFound", { body: String$2 }) {
+	get message() {
+		return saying("Tipee has no instance at this address (HTTP 410)", this.body, "no such instance.");
+	}
+};
+/** The request never got an answer (DNS, TLS, connection reset, timeout…). */
 var Unreachable = class extends TaggedError()("Unreachable", { description: String$2 }) {
 	get message() {
 		return `Tipee could not be reached: ${this.description}`;
@@ -35816,9 +35949,54 @@ const TipeeErrorReason = Union([
 	UnexpectedStatus,
 	UnexpectedShape,
 	InvalidRequest$1,
+	InstanceNotFound,
 	Unreachable,
 	Internal
 ]);
+//#endregion
+//#region ../../packages/core/src/Rights.ts
+/** Where the instance and the API key are entered, in each Claude app. */
+const SETTINGS = "the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee → Configure; Claude Code: /plugin → Installed → tipee)";
+const pages = (instance) => {
+	const base = `https://${instance}.tipee.net`;
+	return {
+		api: `${base}/admin/instance/integrations/`,
+		integrations: `${base}/hr-core/integrations`,
+		roles: (integrationId) => `${base}/hr-core/profile/${integrationId}/roles`
+	};
+};
+const RIGHTS = {
+	Activity: { module: "Activités" },
+	Balances: {
+		module: "Calcul des soldes",
+		read: "Voir les soldes"
+	},
+	Directory: {
+		module: "Cœur RH",
+		read: "Voir les collaborateurs",
+		write: "Gérer les collaborateurs"
+	},
+	Schedule: {
+		module: "Planning",
+		read: "Voir les plannings",
+		write: "Planifier"
+	},
+	Timeclock: {
+		module: "Saisie des heures",
+		read: "Voir les timbrages"
+	}
+};
+const SPECIAL_RIGHTS = [
+	[/^schedule_templates_/u, "Gérer les modèles horaires"],
+	[/^timechecks_delete/u, "Supprimer un timbrage"],
+	[/^timechecks_(?:validate|propose)/u, "Valider l'ensemble des timbrages des personnes"]
+];
+const rightFor = (target) => {
+	const rights = RIGHTS[target.group];
+	if (rights === void 0) return "the right this operation needs";
+	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
+	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
+};
 //#endregion
 //#region ../../packages/core/src/Errors.ts
 const JsonObject$3 = fromJsonString(Record(String$2, Unknown));
@@ -35848,6 +36026,7 @@ const ErrorCode = Struct({
 });
 const codeOf = (found) => getOrUndefined$1(flatMap$3(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
+const INSTANCE_NOT_FOUND_MARKER = "instance_not_found";
 const HTTP_OK_MIN = 200;
 const HTTP_OK_MAX = 299;
 const HTTP_BAD_REQUEST = 400;
@@ -35855,6 +36034,7 @@ const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
+const HTTP_GONE = 410;
 const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS$1 = 429;
 const statusReason = (status, rawBody, retryAfter) => {
@@ -35862,6 +36042,7 @@ const statusReason = (status, rawBody, retryAfter) => {
 	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing({ body }) : new ApiKeyRejected({ body });
 	if (status === HTTP_FORBIDDEN) return new Forbidden({ body });
 	if (status === HTTP_NOT_FOUND) return new NotFound({ body });
+	if (status === HTTP_GONE && rawBody.includes(INSTANCE_NOT_FOUND_MARKER)) return new InstanceNotFound({ body });
 	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
 		const code = codeOf(decodeOption(fromJsonString(ErrorCode))(rawBody));
 		return new Rejected({
@@ -35904,6 +36085,7 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			const description = [cause.message, chain(reason.cause)].filter((part) => part !== "").join(": ");
 			return new TipeeError({ reason: new Unreachable({ description }) });
 		}
+		if (isTimeoutError(cause)) return new TipeeError({ reason: new Unreachable({ description: "Tipee did not answer within 20 s" }) });
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
 		if (typeof cause === "object" && cause !== null && !(cause instanceof Error)) {
 			const code = codeOf(decodeOption(ErrorCode)(cause));
@@ -35920,7 +36102,8 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 /** `TIPEE_INSTANCE` or `TIPEE_API_KEY` is missing or malformed. */
 var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", { cause: Defect() }) {
 	get message() {
-		return `Missing Tipee configuration: set TIPEE_INSTANCE (the subdomain you sign in at) and TIPEE_API_KEY (an integration key). ${String(this.cause)}`;
+		const detail = this.cause instanceof ConfigError ? this.cause.cause.message : String(this.cause);
+		return `Tipee is not set up: enter your Tipee instance (acme for acme.tipee.net) and an API key in ${SETTINGS}.\n${detail}`;
 	}
 };
 //#endregion
@@ -36310,7 +36493,7 @@ const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/http-api/Htt
 * @internal
 */
 function rebuildWithHeaders(self, schema, headers) {
-	return make$35(self.ast, {
+	return make$34(self.ast, {
 		[WithHeadersTypeId]: WithHeadersTypeId,
 		schema,
 		headers
@@ -36547,7 +36730,7 @@ function makeProto$5(options) {
 * @category constructors
 * @since 4.0.0
 */
-const make$15 = (method) => (identifier, path, options) => {
+const make$14 = (method) => (identifier, path, options) => {
 	const disableCodecs = options?.disableCodecs ?? false;
 	const transformStringTree = disableCodecs ? identity : toCodecStringTree;
 	return makeProto$5({
@@ -36740,7 +36923,7 @@ function transformPayload(schema, method) {
 * @category constructors
 * @since 4.0.0
 */
-const post = /*#__PURE__*/ make$15("POST");
+const post = /*#__PURE__*/ make$14("POST");
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/http-api/HttpApi.js
 const TypeId$6 = "~effect/http-api/HttpApi";
@@ -36771,13 +36954,13 @@ const Proto$4 = {
 	prefix(prefix) {
 		return makeProto$4({
 			...optionsFromApi(this),
-			groups: map$7(this.groups, (group) => group.prefix(prefix))
+			groups: map$8(this.groups, (group) => group.prefix(prefix))
 		});
 	},
 	middleware(tag) {
 		return makeProto$4({
 			...optionsFromApi(this),
-			groups: map$7(this.groups, (group) => group.middleware(tag))
+			groups: map$8(this.groups, (group) => group.middleware(tag))
 		});
 	},
 	annotate(key, value) {
@@ -36816,7 +36999,7 @@ const makeProto$4 = (options) => {
 * @category constructors
 * @since 4.0.0
 */
-const make$14 = (identifier) => makeProto$4({
+const make$13 = (identifier) => makeProto$4({
 	identifier,
 	groups: {},
 	annotations: empty$10()
@@ -37124,7 +37307,7 @@ const makeClient = (api, options) => gen(function* () {
 			const encodeQuery = map(endpoint.query, (schema) => encodeUnknownEffect(schema, parseOptions.query));
 			const middlewareKeys = Array.from(onEndpointOptions.middleware, (tag) => `${tag.key}/Client`);
 			const endpointFn = fnUntraced(function* (request) {
-				let httpRequest = make$23(endpoint.method)(endpoint.path);
+				let httpRequest = make$22(endpoint.method)(endpoint.path);
 				if (request !== void 0) {
 					if (encodeParams !== void 0) {
 						const params = yield* encodeParams(request.params);
@@ -37164,18 +37347,6 @@ const makeClient = (api, options) => gen(function* () {
 		}
 	});
 });
-/**
-* Constructs a type-safe client for an HTTP API using the `HttpClient` service,
-* endpoint schemas, middleware, and optional client or response transformations.
-*
-* @stability unstable
-* @category constructors
-* @since 4.0.0
-*/
-const make$13 = (api, options) => flatMap(HttpClient, (httpClient) => makeWith(api, {
-	...options,
-	httpClient: options?.transformClient ? options.transformClient(httpClient) : httpClient
-}));
 /**
 * Constructs a type-safe client for an HTTP API from the supplied `HttpClient`,
 * using the API metadata to encode requests, execute middleware, and decode
@@ -37247,7 +37418,7 @@ function toCodecArrayBufferWithHeaders(schema, options, headersOptions) {
 		decode: (pair) => all$1({
 			body: decodeBody(pair.body),
 			headers: decodeHeaders(pair.headers)
-		}).pipe(map$3(parts.toValue), mapError$2((error) => error.issue)),
+		}).pipe(map$4(parts.toValue), mapError$2((error) => error.issue)),
 		encode: (input, options) => fail$3(new Forbidden$1({ message: "Decode only schema" }, input, options))
 	})));
 }
@@ -37308,10 +37479,10 @@ function streamToResponse(successSchema, options, headersOptions) {
 		declaration: streamSchema,
 		decoder: makeSseDecoder(streamSchema, options)
 	};
-	const toStream = (response, sseOptions) => map$3(context(), (context) => provideContext(sse === void 0 ? response.stream : decodeSseStream(response.stream, sse.declaration, sse.decoder(sseOptions)), context));
+	const toStream = (response, sseOptions) => map$4(context(), (context) => provideContext(sse === void 0 ? response.stream : decodeSseStream(response.stream, sse.declaration, sse.decoder(sseOptions)), context));
 	if (!isWithHeaders) return toStream;
 	const decodeHeaders = decodeUnknownEffect(successSchema.headers, headersOptions);
-	return (response, sseOptions) => flatMap(decodeHeaders(response.headers), (headers) => map$3(toStream(response, sseOptions), (body) => withHeaders({
+	return (response, sseOptions) => flatMap(decodeHeaders(response.headers), (headers) => map$4(toStream(response, sseOptions), (body) => withHeaders({
 		body,
 		headers
 	})));
@@ -37344,7 +37515,7 @@ function decodeSseStream(stream, declaration, decoder) {
 			});
 		});
 	}));
-	if (declaration.sseMode === "data") return map$1(events, (event) => event.data);
+	if (declaration.sseMode === "data") return map$2(events, (event) => event.data);
 	return events;
 }
 const ArrayBuffer$1 = /*#__PURE__*/ instanceOf(globalThis.ArrayBuffer, { expected: "ArrayBuffer" });
@@ -37447,13 +37618,13 @@ const Proto$3 = {
 	prefix(prefix) {
 		return makeProto$3({
 			...optionsFromGroup(this),
-			endpoints: map$7(this.endpoints, (endpoint) => endpoint.prefix(prefix))
+			endpoints: map$8(this.endpoints, (endpoint) => endpoint.prefix(prefix))
 		});
 	},
 	middleware(middleware) {
 		return makeProto$3({
 			...optionsFromGroup(this),
-			endpoints: map$7(this.endpoints, (endpoint) => endpoint.middleware(middleware))
+			endpoints: map$8(this.endpoints, (endpoint) => endpoint.middleware(middleware))
 		});
 	},
 	annotateMerge(annotations) {
@@ -37471,13 +37642,13 @@ const Proto$3 = {
 	annotateEndpointsMerge(annotations) {
 		return makeProto$3({
 			...optionsFromGroup(this),
-			endpoints: map$7(this.endpoints, (endpoint) => endpoint.annotateMerge(annotations))
+			endpoints: map$8(this.endpoints, (endpoint) => endpoint.annotateMerge(annotations))
 		});
 	},
 	annotateEndpoints(annotation, value) {
 		return makeProto$3({
 			...optionsFromGroup(this),
-			endpoints: map$7(this.endpoints, (endpoint) => endpoint.annotate(annotation, value))
+			endpoints: map$8(this.endpoints, (endpoint) => endpoint.annotate(annotation, value))
 		});
 	},
 	pipe() {
@@ -40061,7 +40232,7 @@ var TimeclockGroup = class extends make$12("Timeclock").add(post("postAppUiApiTi
 	payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson,
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
-var Tipee = class extends make$14("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
+var Tipee = class extends make$13("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 //#endregion
 //#region ../../packages/core/src/TipeeClient.ts
 const TIPEE_API_VERSION = "26.06.25";
@@ -40076,29 +40247,40 @@ const TRANSIENT_STATUSES = /* @__PURE__ */ new Set([
 	503,
 	504
 ]);
+const REQUEST_TIMEOUT = "20 seconds";
 const readsOnly = (path) => /^(?:list|show)/u.test(path.slice(path.lastIndexOf(".") + 1));
 const resendable = (request, status) => status === HTTP_TOO_MANY_REQUESTS || readsOnly(new URL(request.url).pathname) && (status === void 0 || TRANSIENT_STATUSES.has(status));
-const retried = (response) => response.pipe(repeat({
+const retried = (response) => response.pipe(timeout(REQUEST_TIMEOUT), repeat({
 	schedule: RETRY_SCHEDULE,
 	times: RETRY_ATTEMPTS,
 	while: (answer) => TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status)
 }), retry({
 	schedule: RETRY_SCHEDULE,
 	times: RETRY_ATTEMPTS,
-	while: (error) => isHttpClientError(error) && (error.reason._tag === "TransportError" ? resendable(error.request) : error.reason._tag === "StatusCodeError" && resendable(error.request, error.reason.response.status))
+	while: (error) => isHttpClientError(error) && error.reason._tag === "TransportError" && resendable(error.request)
 }));
+const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
+const normalizeInstance = (raw) => {
+	const [host = ""] = raw.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//u, "").split("/");
+	const subdomain = host.replace(/\.tipee\.net$/u, "");
+	return DNS_LABEL.test(subdomain) ? some(subdomain) : none();
+};
+const instanceConfig = String$1("TIPEE_INSTANCE").pipe(mapEffect((raw) => mapError$2(fromOption(normalizeInstance(raw)), () => new ConfigError(new SourceError({ message: `"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.` })))));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
-	static layer = (credentials) => effect(TipeeClient, make$13(Tipee, {
-		baseUrl: `https://${credentials.instance}.tipee.net`,
-		transformClient: (client) => client.pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), transformResponse$1(retried))
-	}).pipe(map$3((api) => ({
-		api,
-		instance: credentials.instance
-	}))));
+	static layer = (credentials) => effect(TipeeClient, gen(function* () {
+		const client = (yield* HttpClient).pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), transformResponse$1(retried));
+		return {
+			api: yield* makeWith(Tipee, {
+				baseUrl: `https://${credentials.instance}.tipee.net`,
+				httpClient: client
+			}),
+			instance: credentials.instance
+		};
+	}));
 	static layerConfig = unwrap$3(all({
-		apiKey: Redacted("TIPEE_API_KEY"),
-		instance: String$1("TIPEE_INSTANCE")
-	}).pipe(map$3((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
+		apiKey: Redacted("TIPEE_API_KEY").pipe(map$1((key) => make$39(value$2(key).trim()))),
+		instance: instanceConfig
+	}).pipe(map$4((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
 };
 //#endregion
 //#region ../../packages/core/src/Operations.ts
@@ -40147,50 +40329,6 @@ const operation = (name) => {
 	const found = operations.find((candidate) => candidate.name === name);
 	if (found === void 0) throw new Error(`Tipee has no operation named ${name}`);
 	return found;
-};
-//#endregion
-//#region ../../packages/core/src/Rights.ts
-/** Where the instance and the API key are entered, in each Claude app. */
-const SETTINGS = "the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee → Configure; Claude Code: /plugin → Installed → tipee)";
-const pages = (instance) => {
-	const base = `https://${instance}.tipee.net`;
-	return {
-		api: `${base}/admin/instance/integrations/`,
-		integrations: `${base}/hr-core/integrations`,
-		roles: (integrationId) => `${base}/hr-core/profile/${integrationId}/roles`
-	};
-};
-const RIGHTS = {
-	Activity: { module: "Activités" },
-	Balances: {
-		module: "Calcul des soldes",
-		read: "Voir les soldes"
-	},
-	Directory: {
-		module: "Cœur RH",
-		read: "Voir les collaborateurs",
-		write: "Gérer les collaborateurs"
-	},
-	Schedule: {
-		module: "Planning",
-		read: "Voir les plannings",
-		write: "Planifier"
-	},
-	Timeclock: {
-		module: "Saisie des heures",
-		read: "Voir les timbrages"
-	}
-};
-const SPECIAL_RIGHTS = [
-	[/^schedule_templates_/u, "Gérer les modèles horaires"],
-	[/^timechecks_delete/u, "Supprimer un timbrage"],
-	[/^timechecks_(?:validate|propose)/u, "Valider l'ensemble des timbrages des personnes"]
-];
-const rightFor = (target) => {
-	const rights = RIGHTS[target.group];
-	if (rights === void 0) return "the right this operation needs";
-	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
-	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
 };
 //#endregion
 //#region ../../packages/core/src/Invoke.ts
@@ -40253,7 +40391,7 @@ const explain = (error, target) => gen(function* () {
 	});
 	if (reason._tag === "RightsMissing") return fixed(`Open ${pages(instance).integrations}, pick the integration whose key you pasted, and tick «Configurations générales → Se connecter avec des applications externes» in its Roles tab. If the API itself is not turned on yet, an admin with the «Responsable API» role does that at ${pages(instance).api}.`);
 	if (reason._tag === "ApiKeyRejected") return fixed(`Check the instance name, then the integration and its key at ${pages(instance).integrations}, and re-enter them in ${SETTINGS}.`);
-	if (reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return fixed(`${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`);
+	if (reason._tag === "InstanceNotFound" || reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return fixed(`${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`);
 	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to Tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
 	const serverError = reason._tag === "UnexpectedStatus" && reason.status >= HTTP_SERVER_ERROR;
 	if (!target.readOnly && (reason._tag === "Unreachable" || serverError)) return fixed("This write was not retried, and Tipee may have applied it before failing: read it back before trying again.");
@@ -42204,7 +42342,7 @@ const TypeId$2 = "~effect/ai/Toolkit";
 * @since 4.0.0
 */
 const FailureOrigin = /*#__PURE__*/ Reference("effect/ai/Toolkit/FailureOrigin", { defaultValue: () => "result" });
-const failureCause = (error, origin) => annotate$1(fail$5(error), make$49(FailureOrigin, origin));
+const failureCause = (error, origin) => annotate$1(fail$5(error), make$48(FailureOrigin, origin));
 const Proto$1 = {
 	.../*#__PURE__*/ Prototype({
 		label: "Toolkit",
@@ -42267,7 +42405,7 @@ const Proto$1 = {
 							})
 						});
 						if (tool.failureMode === "error") return yield* failCause$3(failureCause(error, "parameters"));
-						return fromEffect(map$3(encodeResult(error, true), (encodedResult) => ({
+						return fromEffect(map$4(encodeResult(error, true), (encodedResult) => ({
 							result: error,
 							isFailure: true,
 							failureOrigin: "parameters",
@@ -42276,7 +42414,7 @@ const Proto$1 = {
 						})));
 					}
 					const decodedParams = decodedParamsResult.success;
-					const queue = yield* make$31();
+					const queue = yield* make$30();
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -42316,7 +42454,7 @@ const Proto$1 = {
 							failureOrigin,
 							preliminary: false
 						});
-					}), mapEffect(fnUntraced(function* (output) {
+					}), mapEffect$1(fnUntraced(function* (output) {
 						const encodedResult = yield* encodeResult(output.result, output.isFailure);
 						return {
 							...output,
@@ -42448,7 +42586,7 @@ const schema = /*#__PURE__*/ declare(isStream);
 * @since 4.0.0
 */
 function Stream(success, error) {
-	return make$35(schema.ast, {
+	return make$34(schema.ast, {
 		[StreamSchemaTypeId]: StreamSchemaTypeId,
 		success,
 		error
@@ -42763,7 +42901,7 @@ const RpcGroupProto = {
 		});
 	},
 	annotateRpcs(service, value) {
-		return this.annotateRpcsMerge(make$49(service, value));
+		return this.annotateRpcsMerge(make$48(service, value));
 	},
 	annotateMerge(context) {
 		return makeProto({
@@ -45412,7 +45550,7 @@ const withRun = () => (f) => suspend$2(() => {
 		buffer.push([args, context]);
 		return void_$1;
 	});
-	return map$3(f((...args) => write(...args)), (a) => ({
+	return map$4(f((...args) => write(...args)), (a) => ({
 		...a,
 		run(f) {
 			return semaphore.withPermits(1)(gen(function* () {
@@ -45450,7 +45588,7 @@ const withRunClient = (f) => suspend$2(() => {
 		buffer.push([data, context]);
 		return void_$1;
 	});
-	return map$3(f((clientId, data) => {
+	return map$4(f((clientId, data) => {
 		const clientWrite = clientWrites.get(clientId);
 		if (clientWrite) return clientWrite(data);
 		return write(clientId, data);
@@ -45518,7 +45656,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 			}
 			const queue = onStreamRequest(rpc, middleware, rpc.payloadSchema.make(payload), headers, opts?.streamBufferSize ?? 16, context);
 			if (opts?.asQueue) return queue;
-			return unwrap(map$3(queue, fromQueue));
+			return unwrap(map$4(queue, fromQueue));
 		};
 	};
 	const onEffectRequest = (rpc, middleware, span, payload, headers, context, discard) => withFiber((parentFiber) => {
@@ -45804,7 +45942,7 @@ const makeRpcSchemas = (codecFor) => {
 		if (entry !== void 0) return entry;
 		const streamSchemas = getStreamSchemas(rpc.successSchema);
 		entry = {
-			decodeChunk: map$8(streamSchemas, (streamSchemas) => decodeUnknownEffect(codecFor(NonEmptyArray(streamSchemas.success)))),
+			decodeChunk: map$10(streamSchemas, (streamSchemas) => decodeUnknownEffect(codecFor(NonEmptyArray(streamSchemas.success)))),
 			encodePayload: encodeEffect(codecFor(rpc.payloadSchema)),
 			decodeExit: decodeUnknownEffect(codecFor(exitSchema(rpc)))
 		};
@@ -46106,7 +46244,7 @@ const make$4 = (options) => {
 		return codecs;
 	};
 	const installHandlers = (core, lifecycle, target) => options.handlerRpcs === void 0 || options.makeHandlers === void 0 ? void_$1 : lifecycle === void 0 && options.runtime._tag === "Stateful" ? die("MCP sessionful handler installation requires a lifecycle runtime") : target.install(options, options.handlerRpcs, options.makeHandlers(core, options.runtime._tag === "Stateful" ? lifecycle : void 0, target.context));
-	const makeReverseClient = (profile) => make$5(options.serverRequestRpcs, { spanPrefix: "McpServer/Client" }).pipe(map$3((client) => options.toReverseClient(profile, client)));
+	const makeReverseClient = (profile) => make$5(options.serverRequestRpcs, { spanPrefix: "McpServer/Client" }).pipe(map$4((client) => options.toReverseClient(profile, client)));
 	return {
 		...options,
 		payloadCodecs,
@@ -47259,7 +47397,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 	serverNotificationRpcs: ServerNotificationRpcs$3,
 	handlerRpcs: AdapterRpcs$3,
 	makeHandlers: (core, lifecycle) => AdapterRpcs$3.of({
-		initialize: (request, { client }) => lifecycle.initialize(protocolVersion$3, profileFromInitialize$2(request), client.id).pipe(map$3((result) => InitializeResult$3.make({
+		initialize: (request, { client }) => lifecycle.initialize(protocolVersion$3, profileFromInitialize$2(request), client.id).pipe(map$4((result) => InitializeResult$3.make({
 			protocolVersion: protocolVersion$3,
 			capabilities: projectCapabilities(result.capabilities),
 			serverInfo: result.serverInfo,
@@ -47275,8 +47413,8 @@ const protocol$3 = /*#__PURE__*/ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$3((resources) => ListResourcesResult$2.make({ resources }))),
-		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$3((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates }))),
+		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult$2.make({ resources }))),
+		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates }))),
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -47295,7 +47433,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$3((prompts) => ListPromptsResult$2.make({ prompts: prompts.map((prompt) => ({
+		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult$2.make({ prompts: prompts.map((prompt) => ({
 			name: prompt.name,
 			description: prompt.description,
 			arguments: prompt.arguments?.map((argument) => ({
@@ -47312,7 +47450,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 				feature: "prompt input requirements"
 			}));
 			const result = outcome.value;
-			const messages = yield* forEach$1(result.messages, (message) => projectContent$3(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent$3(message.content).pipe(map$4((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -47346,7 +47484,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 		}),
 		"tools/list": fnUntraced(function* () {
 			const request = yield* McpServerClient;
-			return yield* core.tools.list(profileFromClient(request)).pipe(map$3((tools) => ListToolsResult$3.make({ tools: tools.map((tool) => Tool$3.make({
+			return yield* core.tools.list(profileFromClient(request)).pipe(map$4((tools) => ListToolsResult$3.make({ tools: tools.map((tool) => Tool$3.make({
 				name: tool.name,
 				description: tool.description,
 				inputSchema: tool.inputSchema
@@ -47382,7 +47520,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 		elicit: () => fail$3(unsupported$3("elicitation/create", "Elicitation was introduced after this protocol revision"))
 	}),
 	projectNotification: (notification) => makeNotificationProjector({ supportsProgressMessage: false }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$3((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
@@ -47682,7 +47820,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 	serverNotificationRpcs: ServerNotificationRpcs$2,
 	handlerRpcs: AdapterRpcs$2,
 	makeHandlers: (core, lifecycle) => AdapterRpcs$2.of({
-		initialize: (request, { client }) => lifecycle.initialize(protocolVersion$2, profileFromInitialize$1(request), client.id).pipe(map$3((result) => InitializeResult$2.make({
+		initialize: (request, { client }) => lifecycle.initialize(protocolVersion$2, profileFromInitialize$1(request), client.id).pipe(map$4((result) => InitializeResult$2.make({
 			protocolVersion: protocolVersion$2,
 			capabilities: {
 				experimental: result.capabilities.experimental,
@@ -47706,7 +47844,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$3((resources) => ListResourcesResult$2.make({ resources: resources.map((resource) => ({
+		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult$2.make({ resources: resources.map((resource) => ({
 			uri: resource.uri,
 			name: resource.name,
 			description: resource.description,
@@ -47714,7 +47852,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 			size: resource.size,
 			annotations: resource.annotations
 		})) }))),
-		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$3((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates: resourceTemplates.map((template) => ({
+		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates: resourceTemplates.map((template) => ({
 			uriTemplate: template.uriTemplate,
 			name: template.name,
 			description: template.description,
@@ -47731,7 +47869,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$3((prompts) => ListPromptsResult$2.make({ prompts: prompts.map((prompt) => ({
+		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult$2.make({ prompts: prompts.map((prompt) => ({
 			name: prompt.name,
 			description: prompt.description,
 			arguments: prompt.arguments?.map((argument) => ({
@@ -47748,7 +47886,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 				feature: "prompt input requirements"
 			}));
 			const result = outcome.value;
-			const messages = yield* forEach$1(result.messages, (message) => projectContent$2(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent$2(message.content).pipe(map$4((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -47823,7 +47961,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 		elicit: () => fail$3(unsupported$2("elicitation/create", "Elicitation was introduced after this protocol revision"))
 	}),
 	projectNotification: (notification) => makeNotificationProjector({ supportsProgressMessage: true }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$3((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
@@ -48382,7 +48520,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 	serverNotificationRpcs: ServerNotificationRpcs$1,
 	handlerRpcs: AdapterRpcs$1,
 	makeHandlers: (core, lifecycle) => AdapterRpcs$1.of({
-		initialize: (request, { client }) => lifecycle.initialize(protocolVersion$1, profileFromInitialize(request), client.id).pipe(map$3((result) => InitializeResult$1.make({
+		initialize: (request, { client }) => lifecycle.initialize(protocolVersion$1, profileFromInitialize(request), client.id).pipe(map$4((result) => InitializeResult$1.make({
 			protocolVersion: protocolVersion$1,
 			capabilities: {
 				experimental: result.capabilities.experimental,
@@ -48406,8 +48544,8 @@ const protocol$1 = /*#__PURE__*/ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$3((resources) => ListResourcesResult$1.make({ resources }))),
-		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$3((resourceTemplates) => ListResourceTemplatesResult$1.make({ resourceTemplates }))),
+		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult$1.make({ resources }))),
+		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$1.make({ resourceTemplates }))),
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -48418,7 +48556,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$3((prompts) => ListPromptsResult$1.make({ prompts }))),
+		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult$1.make({ prompts }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -48427,7 +48565,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 				feature: "prompt input requirements"
 			}));
 			const result = outcome.value;
-			const messages = yield* forEach$1(result.messages, (message) => projectContent$1(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent$1(message.content).pipe(map$4((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -48518,7 +48656,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 		})
 	}),
 	projectNotification: (notification) => makeNotificationProjector({ supportsProgressMessage: true }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$3((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
@@ -49095,7 +49233,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 			clientCapabilities: ClientCapabilities$3.make(request.capabilities),
 			clientInfo: Implementation$3.make(request.clientInfo),
 			requestMetadata: request._meta
-		}, client.id).pipe(map$3((result) => InitializeResult.make({
+		}, client.id).pipe(map$4((result) => InitializeResult.make({
 			protocolVersion,
 			capabilities: {
 				experimental: result.capabilities.experimental,
@@ -49119,8 +49257,8 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": () => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$3((resources) => ListResourcesResult.make({ resources: resources.map((resource) => Resource.make(resource)) }))),
-		"resources/templates/list": () => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$3((resourceTemplates) => ListResourceTemplatesResult.make({ resourceTemplates: resourceTemplates.map((resourceTemplate) => ResourceTemplate.make(resourceTemplate)) }))),
+		"resources/list": () => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult.make({ resources: resources.map((resource) => Resource.make(resource)) }))),
+		"resources/templates/list": () => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult.make({ resourceTemplates: resourceTemplates.map((resourceTemplate) => ResourceTemplate.make(resourceTemplate)) }))),
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -49141,7 +49279,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$3((prompts) => ListPromptsResult.make({ prompts: prompts.map((prompt) => Prompt.make(prompt)) }))),
+		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult.make({ prompts: prompts.map((prompt) => Prompt.make(prompt)) }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -49150,7 +49288,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 				feature: "prompt input requirements"
 			}));
 			const result = outcome.value;
-			const messages = yield* forEach$1(result.messages, (message) => projectContent(message.content).pipe(map$3((content) => ({
+			const messages = yield* forEach$1(result.messages, (message) => projectContent(message.content).pipe(map$4((content) => ({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
@@ -49255,7 +49393,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 		tag: "notifications/elicitation/complete",
 		payload: { elicitationId: notification.elicitationId }
 	}) : makeNotificationProjector({ supportsProgressMessage: true }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$3((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
@@ -49313,7 +49451,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$30(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$29(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
 	const shutdownLatch = makeUnsafe$2(false);
@@ -49570,7 +49708,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
 	const encodeDefectUnsafe = encodeSync(codecFor(Defect()));
 	const services = yield* context();
-	const scope = yield* make$45();
+	const scope = yield* make$44();
 	const server = yield* makeNoSerialization(group, {
 		...options,
 		disableClientAcks: !supportsAck,
@@ -49637,7 +49775,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 		const write = isExit(effect) && isSuccess(effect) ? send(client.id, responseEnvelope(requestId, tag, effect.value), collector && collector.clearUnsafe()) : flatMap(provideContext$2(collector ? provideService(effect, Collector, collector) : effect, schemas.context), (value) => send(client.id, responseEnvelope(requestId, tag, value), collector && collector.clearUnsafe()));
 		return catchCause$1(write, (cause) => {
 			client.schemas.delete(requestId);
-			const defect = squash(map$4(cause, (e) => defaultFormatter(e.issue)));
+			const defect = squash(map$5(cause, (e) => defaultFormatter(e.issue)));
 			return andThen(sendRequestDefect(client, requestId, schemas.encodeDefect, defect), server.write(client.id, {
 				_tag: "Interrupt",
 				requestId,
@@ -49763,7 +49901,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 		}), sandbox, tapError(logError), retry(spaced(500)), ensuring$2(forkDetach(interrupt(fiber), { startImmediately: true })), forkScoped);
 		yield* fromQueue(queue).pipe(run(stdio.stdout()), retry(spaced(500)), forkScoped);
 		return {
-			disconnects: yield* make$31(),
+			disconnects: yield* make$30(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -49864,13 +50002,13 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$31();
+		const notificationsQueue = yield* make$30();
 		const notificationDelivery = { consumers: 0 };
 		const pendingListChanges = /* @__PURE__ */ new Set();
 		const dispatcher = (yield* Scheduler).makeDispatcher();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
-			onFromClient: (options) => make$46().pipe(flatMap((delivered) => withFiber((fiber) => {
+			onFromClient: (options) => make$45().pipe(flatMap((delivered) => withFiber((fiber) => {
 				const message = options.message;
 				if (message._tag !== "Request") return void_$1;
 				const notification = toInternalServerNotification(message);
@@ -49907,7 +50045,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		});
 		const service = McpServer.of({
 			notifications: notifications.client,
-			notifyElicitationComplete: ({ clientId, elicitationId }) => make$46().pipe(flatMap((delivered) => offer(notificationsQueue, {
+			notifyElicitationComplete: ({ clientId, elicitationId }) => make$45().pipe(flatMap((delivered) => offer(notificationsQueue, {
 				notification: ServerNotification.ElicitationComplete({ elicitationId }),
 				targetClientId: clientId,
 				delivered
@@ -49939,7 +50077,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 							name: options.tool.name,
 							message: error.message
 						}))
-					}), map$3((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
+					}), map$4((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
 				});
 				yield* notifications.client["notifications/tools/list_changed"]({});
 			}),
@@ -50004,7 +50142,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 					},
 					read: (uri, params, invocation) => provideInvocationContext(handle(uri, Array.from(params)), invocation)
 				});
-				for (const [param, handle] of Object.entries(completions)) yield* internalCore.completions.register(`resource/${template.uriTemplate}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$3((result) => ({
+				for (const [param, handle] of Object.entries(completions)) yield* internalCore.completions.register(`resource/${template.uriTemplate}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$4((result) => ({
 					values: result.completion.values,
 					total: result.completion.total,
 					hasMore: result.completion.hasMore,
@@ -50033,9 +50171,9 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 							clientInfo: profile.clientInfo
 						});
 					},
-					get: (params, invocation) => provideInvocationContext(options.handle(params), invocation).pipe(map$3((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
+					get: (params, invocation) => provideInvocationContext(options.handle(params), invocation).pipe(map$4((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
 				});
-				for (const [param, handle] of Object.entries(options.completions)) yield* internalCore.completions.register(`prompt/${options.prompt.name}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$3((result) => ({
+				for (const [param, handle] of Object.entries(options.completions)) yield* internalCore.completions.register(`prompt/${options.prompt.name}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$4((result) => ({
 					values: result.completion.values,
 					total: result.completion.total,
 					hasMore: result.completion.hasMore,
@@ -50172,7 +50310,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		defaultLogLevel,
 		serverInfo: options
 	});
-	const clients = yield* make$29({
+	const clients = yield* make$28({
 		lookup: fnUntraced(function* (key) {
 			const selectedProtocol = runtime.selectProtocol(key.profile.protocolVersion);
 			let write;
@@ -50246,7 +50384,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 			getClient: get(clients, new McpClientKey({
 				clientId: client.id,
 				profile
-			})).pipe(map$3(({ client }) => client))
+			})).pipe(map$4(({ client }) => client))
 		})), McpRequestContext, requestContext), CurrentLogLevel, runtime.effectLogLevel(client.id, headers, defaultLogLevel));
 	});
 	const patchedProtocol = Protocol.of({
@@ -50645,7 +50783,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 		const toolMeta = getOrUndefined(annotations, Meta$2);
 		const isDeclaredFailure = is$2(tool.failureSchema);
 		const encodeFailure = encodeUnknownEffect(tool.failureSchema);
-		const declaredFailureResult = (error) => error instanceof Error && error.message !== "" ? succeed$3(toolErrorResult(error.message)) : map$3(encodeFailure(error), (encoded) => new CallToolResult$4({
+		const declaredFailureResult = (error) => error instanceof Error && error.message !== "" ? succeed$3(toolErrorResult(error.message)) : map$4(encodeFailure(error), (encoded) => new CallToolResult$4({
 			isError: true,
 			content: toolResultContent(encoded)
 		}));
@@ -50667,7 +50805,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 			inputSchema,
 			outputSchema,
 			annotations: {
-				...getOption(tool.annotations, Title).pipe(map$8((title) => ({ title })), getOrUndefined$1),
+				...getOption(tool.annotations, Title).pipe(map$10((title) => ({ title })), getOrUndefined$1),
 				readOnlyHint: get$2(tool.annotations, Readonly),
 				destructiveHint: get$2(tool.annotations, Destructive),
 				idempotentHint: get$2(tool.annotations, Idempotent),
@@ -50679,7 +50817,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 			tool: mcpTool,
 			annotations,
 			handle(payload) {
-				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap, runLast, flatMap(fromOption), flatMap((result) => result.isFailure && result.failureOrigin !== "handler" ? failCause$3(annotate$1(fail$5(result.result), make$49(FailureOrigin, result.failureOrigin ?? "result"))) : succeed$3(new CallToolResult$4({
+				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap, runLast, flatMap(fromOption), flatMap((result) => result.isFailure && result.failureOrigin !== "handler" ? failCause$3(annotate$1(fail$5(result.result), make$48(FailureOrigin, result.failureOrigin ?? "result"))) : succeed$3(new CallToolResult$4({
 					isError: result.isFailure,
 					structuredContent: result.isFailure ? void 0 : result.encodedResult,
 					content: toolResultContent(result.encodedResult)
@@ -50747,7 +50885,7 @@ const registerPrompt = (options) => {
 		const completions = Object.create(null);
 		for (const [param, handle] of Object.entries(completion)) {
 			const encodeArray = encodeEffect(ArraySchema(props[param]));
-			const handler = (input, context) => handle(input, context).pipe(flatMap(encodeArray), map$3((values) => ({ completion: {
+			const handler = (input, context) => handle(input, context).pipe(flatMap(encodeArray), map$4((values) => ({ completion: {
 				values,
 				total: values.length,
 				hasMore: false
@@ -50764,7 +50902,7 @@ const registerPrompt = (options) => {
 			handle: (params) => decode(params).pipe(mapError$2((error) => new InvalidParams({ message: error.message })), flatMap((params) => options.content(params).pipe(catchCause$1((cause) => {
 				const prettyError = prettyErrors(cause)[0];
 				return fail$3(new InternalError({ message: prettyError.message }));
-			}))), map$3((messages) => {
+			}))), map$4((messages) => {
 				messages = typeof messages === "string" ? [{
 					role: "user",
 					content: TextContent$3.make({ text: messages })
@@ -50798,7 +50936,7 @@ const registerPrompt = (options) => {
 */
 const prompt = (options) => effectDiscard(registerPrompt(options)).pipe(provide$2(McpServer.layer));
 const makeUriMatcher = () => {
-	const router = make$20({
+	const router = make$19({
 		ignoreTrailingSlash: true,
 		ignoreDuplicateSlashes: true,
 		caseSensitive: true
@@ -50853,7 +50991,7 @@ const SEND_RETRIES = 2;
 const FRAME_LIMIT = 30;
 const settings$1 = all({
 	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
-	instance: String$1("TIPEE_INSTANCE").pipe(withDefault("")),
+	instance: String$1("TIPEE_INSTANCE").pipe(map$1((raw) => getOrElse(normalizeInstance(raw), () => "")), withDefault("")),
 	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY))
 });
 const silent = {
@@ -51074,11 +51212,11 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 		};
 		const { channel, downloadBase, opener, releasesUrl, stateDir } = config.value;
 		const file = path.join(stateDir, CACHE_FILE);
-		const cached = fs.readFileString(file).pipe(flatMap(decodeEffect(CachedJson)), filterOrFail((entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS, () => new Stale()), map$3((entry) => ({
+		const cached = fs.readFileString(file).pipe(flatMap(decodeEffect(CachedJson)), filterOrFail((entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS, () => new Stale()), map$4((entry) => ({
 			url: entry.url,
 			version: entry.version
 		})));
-		const fetched = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$3(({ body }) => ({
+		const fetched = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => ({
 			url: body.html_url,
 			version: body.tag_name.replace(/^v/u, "")
 		})), tap((latest) => option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, JSON.stringify({
@@ -51147,7 +51285,7 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 //#endregion
 //#region ../../packages/mcp/src/Check.ts
 const PAGE_SIZE = 100;
-const defaultRange = map$3(now, (now) => ({
+const defaultRange = map$4(now, (now) => ({
 	from: formatIsoDate(now),
 	to: formatIsoDate(add(now, { days: 6 }))
 }));
@@ -51156,7 +51294,7 @@ const countOf = (result) => {
 	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
 	return 1;
 };
-const probe = (name, params) => invoke(operation(name), params).pipe(map$3((result) => ({
+const probe = (name, params) => invoke(operation(name), params).pipe(map$4((result) => ({
 	report: {
 		count: countOf(result),
 		name,
@@ -51316,7 +51454,7 @@ const said = (outcome) => {
 	if (outcome.status === "instructions") return `Version ${outcome.version} is available. In a terminal run \`claude plugin update tipee@tipee-tools\` (Claude Code can run it for you), then /reload-plugins, or use /plugin → Installed → tipee → Update now. Release notes: ${outcome.url}`;
 	return "Tipee for Claude is already the latest version.";
 };
-const update = map$3(flatMap(Updates, (updates) => updates.install), (outcome) => ({
+const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) => ({
 	message: said(outcome),
 	outcome
 }));
@@ -51336,7 +51474,7 @@ const REPORTED = /* @__PURE__ */ new Set([
 	"InvalidRequest",
 	"Internal"
 ]);
-const caller = map$3(serviceOption(McpServerClient), (client) => match$3(client, {
+const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
 	onNone: () => ({}),
 	onSome: ({ clientInfo, protocolVersion }) => ({
 		mcp_client: clientInfo.name,
@@ -51404,7 +51542,7 @@ const TipeeToolkitLayer = TipeeToolkit.toLayer(gen(function* () {
 		check_setup: observed(watcher, "check_setup", (params) => withClient(check(params))),
 		update_plugin: observed(watcher, "update_plugin", () => withClient(update))
 	};
-	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => withClient(invoke(target, params)).pipe(map$3((result) => result ?? { done: true })));
+	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => withClient(invoke(target, params)).pipe(map$4((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
 }));
 //#endregion
@@ -51576,7 +51714,7 @@ const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableT
 const readableToPullUnsafe = (options) => {
 	const readable = options.readable;
 	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$34(void 0);
+	const exit = options.exit ?? make$33(void 0);
 	const latch = options.latch ?? makeUnsafe$2(false);
 	function onReadable() {
 		latch.openUnsafe();
@@ -51716,7 +51854,7 @@ const makeTempDirectoryScoped = /*#__PURE__*/ (() => {
 const openFactory = (method) => {
 	const nodeOpen = effectify(NFS.open, handleErrnoException("FileSystem", method), handleBadArgument(method));
 	const nodeClose = effectify(NFS.close, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	return (path, options) => pipe(acquireRelease(nodeOpen(path, options?.flag ?? "r", options?.mode), (fd) => orDie(nodeClose(fd))), map$3((fd) => makeFile(fd, options?.flag?.startsWith("a") ?? false)));
+	return (path, options) => pipe(acquireRelease(nodeOpen(path, options?.flag ?? "r", options?.mode), (fd) => orDie(nodeClose(fd))), map$4((fd) => makeFile(fd, options?.flag?.startsWith("a") ?? false)));
 };
 const open = /*#__PURE__*/ openFactory("open");
 const makeFile = /*#__PURE__*/ (() => {
@@ -51760,7 +51898,7 @@ const makeFile = /*#__PURE__*/ (() => {
 		read(buffer) {
 			return suspend$2(() => {
 				const position = this.position;
-				return map$3(nodeRead(this.fd, {
+				return map$4(nodeRead(this.fd, {
 					buffer,
 					position
 				}), (bytesRead) => {
@@ -51775,7 +51913,7 @@ const makeFile = /*#__PURE__*/ (() => {
 					if (!Number.isInteger(size) || size < 0) throw new RangeError("size must be a non-negative integer");
 					const buffer = Buffer.allocUnsafeSlow(size);
 					const position = this.position;
-					return map$3(nodeReadAlloc(this.fd, {
+					return map$4(nodeReadAlloc(this.fd, {
 						buffer,
 						position
 					}), (bytesRead) => {
@@ -51792,7 +51930,7 @@ const makeFile = /*#__PURE__*/ (() => {
 			});
 		}
 		truncate(length) {
-			return map$3(nodeTruncate(this.fd, length || void 0), () => {
+			return map$4(nodeTruncate(this.fd, length || void 0), () => {
 				if (!this.append) {
 					const len = BigInt(length ?? 0);
 					if (this.position > len) this.position = len;
@@ -51802,7 +51940,7 @@ const makeFile = /*#__PURE__*/ (() => {
 		write(buffer) {
 			return suspend$2(() => {
 				const position = this.position;
-				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$3(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$4(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
 					if (!this.append) this.position = position + BigInt(bytesWritten);
 					return bytesWritten;
 				}));
@@ -51946,7 +52084,7 @@ const watchNode = (path, info, options) => callback((queue) => acquireRelease(sy
 	});
 	return watcher;
 }), (watcher) => sync(() => watcher.close())));
-const watch = (backend, path, options) => stat(path).pipe(map$3((stat) => backend.pipe(flatMap$3((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
+const watch = (backend, path, options) => stat(path).pipe(map$4((stat) => backend.pipe(flatMap$3((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
 const writeFile = (path, data, options) => callback$1((resume, signal) => {
 	try {
 		NFS.writeFile(path, data, {
@@ -51961,7 +52099,7 @@ const writeFile = (path, data, options) => callback$1((resume, signal) => {
 		resume(fail$3(handleBadArgument("writeFile")(err)));
 	}
 });
-const makeFileSystem = /*#__PURE__*/ map$3(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$28({
+const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$27({
 	access,
 	chmod,
 	chown,
@@ -52028,7 +52166,7 @@ const layer$2 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 * @category layers
 * @since 4.0.0
 */
-const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$25({
+const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
 	stdoutIsTerminal: /*#__PURE__*/ sync(() => process.stdout.isTTY === true),

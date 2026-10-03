@@ -120,7 +120,23 @@ export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('Invali
   }
 }
 
-/** The request never got an answer (DNS, TLS, connection reset…). */
+/**
+ * No Tipee instance has this name. `*.tipee.net` resolves for any name, so a
+ * Typo is not a DNS failure: Tipee answers 410 `instance_not_found`.
+ */
+export class InstanceNotFound extends Schema.TaggedError<InstanceNotFound>()('InstanceNotFound', {
+  body: Schema.String,
+}) {
+  public override get message(): string {
+    return saying(
+      'Tipee has no instance at this address (HTTP 410)',
+      this.body,
+      'no such instance.',
+    );
+  }
+}
+
+/** The request never got an answer (DNS, TLS, connection reset, timeout…). */
 export class Unreachable extends Schema.TaggedError<Unreachable>()('Unreachable', {
   description: Schema.String,
 }) {
@@ -148,6 +164,7 @@ export const TipeeErrorReason = Schema.Union([
   UnexpectedStatus,
   UnexpectedShape,
   InvalidRequest,
+  InstanceNotFound,
   Unreachable,
   Internal,
 ]);
