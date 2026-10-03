@@ -39,8 +39,9 @@ export default defineConfig({
     },
     {
       // The MCPB manifest carries literal `${__dirname}` / `${user_config.x}`
-      // Placeholders that Claude Desktop substitutes at install time.
-      files: ['plugins/*/scripts/**/*.ts'],
+      // Placeholders that Claude Desktop substitutes at install time, and
+      // The configuration tests check what an unsubstituted one does.
+      files: ['plugins/*/scripts/**/*.ts', 'packages/core/test/config.test.ts'],
       rules: {
         'eslint/no-template-curly-in-string': 'off',
       },

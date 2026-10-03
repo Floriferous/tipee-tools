@@ -5,10 +5,12 @@ import { expect, layer } from '@effect/vitest';
 import { Effect } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
+import { SETTINGS } from '../src/Rights.ts';
 import {
   HTTP_BAD_REQUEST,
   HTTP_CONFLICT,
   HTTP_FORBIDDEN,
+  HTTP_GONE,
   HTTP_UNAUTHORIZED,
   HTTP_UNPROCESSABLE,
   NEW_SCHEDULE,
@@ -215,6 +217,20 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.message).toContain(
         `Tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)} `,
+      );
+    }),
+  );
+
+  // *.tipee.net resolves for any name: a typo gets this answer, not ENOTFOUND.
+  it.effect('explains an instance that does not exist', () =>
+    Effect.gen(function* () {
+      server.use(status(HTTP_GONE, { body: { error: 'instance_not_found' } }));
+      const error = yield* failure(call('kinds_list', {}));
+
+      expect(error.reason._tag).toBe('InstanceNotFound');
+      expect(error.message).toBe(
+        'Tipee has no instance at this address (HTTP 410): {"error":"instance_not_found"} ' +
+          `acme.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`,
       );
     }),
   );

@@ -136,7 +136,10 @@ const explain = (
           `and re-enter them in ${SETTINGS}.`,
       );
     }
-    if (reason._tag === 'Unreachable' && /ENOTFOUND/u.test(reason.description)) {
+    if (
+      reason._tag === 'InstanceNotFound' ||
+      (reason._tag === 'Unreachable' && /ENOTFOUND/u.test(reason.description))
+    ) {
       return fixed(
         `${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`,
       );

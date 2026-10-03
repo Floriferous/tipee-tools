@@ -2,12 +2,13 @@
 // Tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
 // Surfaces show `message`, which explains the cause and the fix.
 
-import { Effect, Option, Schema } from 'effect';
+import { Cause, Config, Effect, Option, Schema } from 'effect';
 import { HttpClientError } from 'effect/http';
 
 import {
   ApiKeyRejected,
   Forbidden,
+  InstanceNotFound,
   Internal,
   NotFound,
   RateLimited,
@@ -18,6 +19,7 @@ import {
   UnexpectedStatus,
   Unreachable,
 } from './Reasons.ts';
+import { SETTINGS } from './Rights.ts';
 
 export * from './Reasons.ts';
 
@@ -79,6 +81,7 @@ const codeOf = (found: Option.Option<typeof ErrorCode.Type>): string | undefined
 // Tipee answers 401 (not 403) for a valid key whose integration was never
 // Granted any rights, so the body is the only way to tell the cases apart.
 const RIGHTS_MISSING_MARKER = 'token_rights_missing';
+const INSTANCE_NOT_FOUND_MARKER = 'instance_not_found';
 const HTTP_OK_MIN = 200;
 const HTTP_OK_MAX = 299;
 const HTTP_BAD_REQUEST = 400;
@@ -86,6 +89,7 @@ const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
+const HTTP_GONE = 410;
 const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS = 429;
 
@@ -105,6 +109,9 @@ const statusReason = (
   }
   if (status === HTTP_NOT_FOUND) {
     return new NotFound({ body });
+  }
+  if (status === HTTP_GONE && rawBody.includes(INSTANCE_NOT_FOUND_MARKER)) {
+    return new InstanceNotFound({ body });
   }
   if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
     const code = codeOf(Schema.decodeOption(Schema.fromJsonString(ErrorCode))(rawBody));
@@ -157,6 +164,12 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
           .join(': ');
         return new TipeeError({ reason: new Unreachable({ description }) });
       }
+      // An attempt that outlasted its timeout (see TipeeClient).
+      if (Cause.isTimeoutError(cause)) {
+        return new TipeeError({
+          reason: new Unreachable({ description: 'Tipee did not answer within 20 s' }),
+        });
+      }
       if (Schema.isSchemaError(cause)) {
         return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
       }
@@ -184,9 +197,11 @@ export class ConfigurationMissing extends Schema.TaggedError<ConfigurationMissin
   { cause: Schema.Defect() },
 ) {
   public override get message(): string {
+    const detail =
+      this.cause instanceof Config.ConfigError ? this.cause.cause.message : String(this.cause);
     return (
-      'Missing Tipee configuration: set TIPEE_INSTANCE (the subdomain you sign in at) ' +
-      `and TIPEE_API_KEY (an integration key). ${String(this.cause)}`
+      'Tipee is not set up: enter your Tipee instance (acme for acme.tipee.net) and an API key ' +
+      `in ${SETTINGS}.\n${detail}`
     );
   }
 }

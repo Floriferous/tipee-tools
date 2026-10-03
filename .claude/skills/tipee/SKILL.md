@@ -86,7 +86,11 @@ the vendored document's version), `Accept: application/json`.
   POST, so the client retries only reads (`*.list`, `*.show*`) on HTTP 408,
   5xx and network failures, and anything on a 429 (`resendable` in
   `TipeeClient.ts`): a write that failed may have been applied, so it is
-  never sent twice and its error says to read it back.
+  never sent twice and its error says to read it back. Each attempt times
+  out after 20 s (MCP clients give up near 60 s), and one that timed out is
+  not sent again.
+- `*.tipee.net` has a wildcard DNS record: a mistyped instance never fails
+  with ENOTFOUND but answers HTTP 410 `{"error":"instance_not_found"}`.
 - Error messages quote Tipee's whole answer and the HTTP status: never trim
   or paraphrase what Tipee said, the agent acts on it.
 - Versions are date-based and supported ≥ 6 months after the next release;
