@@ -17,12 +17,13 @@ Setup takes three steps, described in the
    and the key when asked; the key is stored in your keychain.
 3. **Check**: send the **check-tipee-setup** prompt (the **+** menu in
    Claude Desktop, the `/` menu in Claude Code) or ask Claude to run
-   `check`. It reports whether the setup is
-   complete or what is still missing.
+   `check_setup`. It reports whether the setup is complete or what is still
+   missing.
 
-Claude asks before changing anything, and Claude itself asks your permission
-the first time each tool is used. Which tools are enabled is decided in
-Claude's settings.
+Every tool that changes Tipee instructs Claude to tell you exactly what will
+change and to wait for your yes first. Claude Desktop also asks your
+permission for each tool: choose "Allow once" to approve every change
+yourself. Which tools are enabled is decided in Claude's settings.
 
 The plugin collects usage data to help improve it: tool usage, errors and
 your instance name; never your key or anything about your people.

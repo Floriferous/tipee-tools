@@ -9,15 +9,17 @@ Tipee is a Swiss HR tool (employees, shifts, absences, activities). This
 repo exposes its **whole API** to agents, for any Tipee instance:
 `@tipee-tools/core` (the HttpApi generated from Tipee's OpenAPI document,
 the derived client, the operation catalogue, errors), `@tipee-tools/mcp`
-(one MCP tool per operation, built from the catalogue, plus `check` and
-`update`), and the Claude Code plugin in `plugins/tipee` that bundles the
+(one MCP tool per operation, built from the catalogue, plus `check_setup`
+and `update_plugin`), and the Claude Code plugin in `plugins/tipee` that bundles the
 server. The user-facing skill lives in `plugins/tipee/skills/tipee`; this one is for developing the repo.
 
 ## Guardrails
 
 - **Writes exist now.** Which tools a user gets, and which need approval, is
   decided in the Claude client; the server only annotates reads as read-only
-  and deletions as destructive. Don't add server-side gates or deny lists.
+  and every write but a create as destructive, and each write's description
+  asks Claude to confirm first (Claude Desktop never loads the plugin's
+  skill). Don't add server-side gates or deny lists.
   The one exception: `resources.grant-roles` and `resources.revoke-roles`
   are left out of the generated API (`EXCLUDED` in
   `packages/core/scripts/spec.ts`), since they would let Claude raise
@@ -102,7 +104,9 @@ schedule create's empty answer) and name tools instead of routes; add
 `orders` and `pagination` to the required keys of `ListResourcesQuery`; let
 map-typed response properties also be `[]` (PHP's empty map); drop
 `example(s)`; turn nested `and`/`or` filters into plain objects Tipee
-validates; close request objects with `additionalProperties: false`; turn
+validates; close request objects with `additionalProperties: false`, which
+shortens their schemas but refuses nothing (decoding drops unknown keys;
+the tools are `Tool.Strict`, which refuses them); turn
 enums only answers carry into strings listing the known values (Tipee adds
 values within a version; request enums stay closed); remove the excluded
 operations. Dropping examples, cutting filters and closing objects keep the
@@ -127,7 +131,8 @@ review the summary and the generated diff (fix or drop patches in
 Run `pnpm spec:refresh` locally (without `--bump`) to do the same by hand.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
 derives tool names from paths; the MCP package turns each entry into a
-`Tool.dynamic`. Spec-versus-reality fixes belong in the patch, nowhere else.
+strict, titled `Tool.dynamic`. Failure messages end with their next step
+(`explain` in `Invoke.ts`): Claude Desktop has no skill to look fixes up in. Spec-versus-reality fixes belong in the patch, nowhere else.
 
 ## Repository notes
 
