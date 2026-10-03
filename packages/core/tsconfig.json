@@ -19,9 +19,9 @@
         "diagnosticSeverity": { "unstableApiUsage": "off" },
         "overrides": [
           {
-            "include": ["src/generated/**"],
+            "include": ["src/generated/*.ts"],
             "options": {
-              "diagnostics": false
+              "diagnosticSeverity": { "schemaNumber": "off" }
             }
           }
         ]

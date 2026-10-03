@@ -8,9 +8,9 @@ description: Writing idiomatic Effect 4 code in this repo — services, layers, 
 This repo pins `effect@4.0.0` (and `@effect/platform-node`,
 `@effect/vitest` at the same version). v4 renamed and merged a lot; most
 model training data describes v3. **Read the installed sources, not memory**:
-`node_modules/effect/src/<Module>.ts` (JSDoc with examples on every export)
-and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
-`LLMS.md`, `ai-docs/src/**`, `migration/*.md`.
+`node_modules/effect/src/<Module>.ts` in any package (JSDoc with examples on
+every export), and Effect's own agent docs shipped beside them:
+`node_modules/effect/AGENTS.md` and `node_modules/effect/ai-docs/`.
 
 ## Conventions (from Effect's LLMS.md, applied here)
 
@@ -56,18 +56,18 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
 
 ## v4 renames and gotchas met in this repo
 
-| Looking for (v3 / memory) | In v4 |
-| :-- | :-- |
-| `Context.Tag`, `Effect.Service`, `ServiceMap.Service` | `Context.Service<Self, Shape>()("id")` |
-| `Effect.fork`, `forkDaemon` | `Effect.forkChild`, `Effect.forkDetach` |
-| `Config.string`, `Config.redacted` | `Config.String`, `Config.Redacted` (capitalised) |
-| `Schema.filter`, `Schema.pattern` | `Schema.String.check(Schema.isPattern(re))` |
-| `Schema.optional` (key may be absent) | `Schema.optionalKey` (`optional` also allows `undefined`) |
-| `Schema.Schema.Any` as a generic bound | `Schema.Constraint`; for `decodeUnknownSync` use `Schema.ConstraintDecoder<unknown>` |
-| `ParseResult.TreeFormatter` | `error.message` on `SchemaError` already formats the issue |
-| `HttpClientResponse.isOk` | compare `response.status` yourself, or `HttpClient.filterStatusOk` |
-| `@effect/platform` imports | `effect/http`, `effect/ai`; Node bits from `@effect/platform-node` |
-| `Effect.fork` in `it.effect` without adjusting the clock | nothing happens: `TestClock` starts at the epoch and never advances on its own |
+| Looking for (v3 / memory)                                | In v4                                                                                |
+| :------------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| `Context.Tag`, `Effect.Service`, `ServiceMap.Service`    | `Context.Service<Self, Shape>()("id")`                                               |
+| `Effect.fork`, `forkDaemon`                              | `Effect.forkChild`, `Effect.forkDetach`                                              |
+| `Config.string`, `Config.redacted`                       | `Config.String`, `Config.Redacted` (capitalised)                                     |
+| `Schema.filter`, `Schema.pattern`                        | `Schema.String.check(Schema.isPattern(re))`                                          |
+| `Schema.optional` (key may be absent)                    | `Schema.optionalKey` (`optional` also allows `undefined`)                            |
+| `Schema.Schema.Any` as a generic bound                   | `Schema.Constraint`; for `decodeUnknownSync` use `Schema.ConstraintDecoder<unknown>` |
+| `ParseResult.TreeFormatter`                              | `error.message` on `SchemaError` already formats the issue                           |
+| `HttpClientResponse.isOk`                                | compare `response.status` yourself, or `HttpClient.filterStatusOk`                   |
+| `@effect/platform` imports                               | `effect/http`, `effect/ai`; Node bits from `@effect/platform-node`                   |
+| `Effect.fork` in `it.effect` without adjusting the clock | nothing happens: `TestClock` starts at the epoch and never advances on its own       |
 
 Since 4.0.0-rc.118 the former `effect/unstable/*` modules live at the top level
 (`effect/http`, `effect/http-api`, `effect/ai`, `effect/cli`, …) but are still
