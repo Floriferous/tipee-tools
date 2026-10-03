@@ -146,9 +146,10 @@ strict, titled `Tool.dynamic`. Failure messages end with their next step
   adding a distribution channel or a configuration source.
 - Effect 4 is at 4.0.0 stable, pinned exactly; the `effect-v4` skill
   in `.claude/skills` lists the idioms and v4 gotchas. Read Effect's sources
-  in `node_modules/effect/src` (exact version) and its agent docs in
-  `node_modules/effect/AGENTS.md` and `node_modules/effect/ai-docs` rather
-  than memory.
+  in `packages/core/node_modules/effect/src` (exact version; pnpm does not
+  link `effect` at the root) and its agent docs in
+  `packages/core/node_modules/effect/AGENTS.md` and `.../effect/ai-docs`
+  rather than memory.
 - TypeScript 7 (native compiler) with `@effect/tsgo`: `pnpm install` runs
   `effect-tsgo patch`, after which `tsc` and the type-aware lint report
   Effect diagnostics (for example preferTypedSchemaDecoder). Fix them rather

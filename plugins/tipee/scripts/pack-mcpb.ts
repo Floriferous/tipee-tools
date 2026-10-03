@@ -24,7 +24,7 @@ const manifest = {
     claude_desktop: '>=0.10.0',
     platforms: ['darwin', 'win32', 'linux'],
     // The first Node 22 with `tls.setDefaultCACertificates` (see Start.ts), and
-    // the oldest one the bundle is built for and tested on.
+    // the oldest one the bundle is built for.
     runtimes: { node: '>=22.19.0' },
   },
   description:
