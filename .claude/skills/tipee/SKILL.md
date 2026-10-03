@@ -18,6 +18,10 @@ server. The user-facing skill lives in `plugins/tipee/skills/tipee`; this one is
 - **Writes exist now.** Which tools a user gets, and which need approval, is
   decided in the Claude client; the server only annotates reads as read-only
   and deletions as destructive. Don't add server-side gates or deny lists.
+  The one exception: `resources.grant-roles` and `resources.revoke-roles`
+  are left out of the generated API (`EXCLUDED` in
+  `packages/core/scripts/spec.ts`), since they would let Claude raise
+  anyone's rights, its own integration's included; a test keeps them out.
 - **Shift templates are history.** Old templates are referenced by past
   plannings; never delete or modify them (that rewrites who worked when).
   A new need means a new template.
@@ -58,9 +62,10 @@ come back as `{"redacted": "forbidden"}`.
 ## API facts that differ from the docs
 
 Docs: https://api.tipee.ch/ (index https://api.tipee.ch/llms.txt, OpenAPI
-https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
+https://api.tipee.ch/openapi/<version>.json). Every endpoint is
 `POST https://<instance>.tipee.net/api/...` with a JSON body and headers
-`Authorization: Bearer`, `Tipee-Version: 26.06.25`, `Accept: application/json`.
+`Authorization: Bearer`, `Tipee-Version: <version>` (`TIPEE_API_VERSION`,
+the vendored document's version), `Accept: application/json`.
 
 - Date-time intervals carry **no seconds**: `2026-09-07T23:00/2026-09-08T00:00`
   (the docs' examples show seconds). Template hours are `23:00/PT1H`.
@@ -91,17 +96,35 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
 version). `pnpm generate` runs `@effect/openapi-generator` on it, through a
 JSON Patch built in `packages/core/scripts/generate.ts`: mark every request
 body required (Tipee wants a JSON body even when empty); add to a few
-operation descriptions what Tipee's document leaves out (pagination, the
+descriptions what Tipee's document leaves out (pagination, the
 `integration` kind, the timecheck date range, an absence's percentage, a
-schedule create's empty answer); require `kind_id`, `orders` and `pagination` in `ListResourcesQuery`; let
+schedule create's empty answer) and name tools instead of routes; add
+`orders` and `pagination` to the required keys of `ListResourcesQuery`; let
 map-typed response properties also be `[]` (PHP's empty map); drop
 `example(s)`; turn nested `and`/`or` filters into plain objects Tipee
-validates; close request objects with `additionalProperties: false`. The
-last three keep the 70 tool definitions small, since Claude Desktop loads
-all of them into every chat. It writes
+validates; close request objects with `additionalProperties: false`; turn
+enums only answers carry into strings listing the known values (Tipee adds
+values within a version; request enums stay closed); remove the excluded
+operations. Dropping examples, cutting filters and closing objects keep the
+71 tool definitions small, since Claude Desktop loads all of them into
+every chat. A description rewrite that no longer changes anything fails the
+generation: Tipee reworded the text, so the patch needs a look. It writes
 `packages/core/src/generated/TipeeApi.ts` — committed,
-never edited, freshness-checked by `pnpm verify`. To update Tipee's version:
-replace the spec file, bump `TIPEE_API_VERSION`, `pnpm fix`, read the diff.
+never edited, freshness-checked by `pnpm verify`.
+
+Keeping up with Tipee: `.github/workflows/spec-refresh.yml` runs
+`pnpm spec:refresh --bump` every Monday. The script (in
+`packages/core/scripts/refresh.ts`) finds the newest stable version in
+`llms.txt`, downloads its document over the vendored one (or, for a new
+version, replaces the file and moves `TIPEE_API_VERSION`), regenerates,
+rebuilds and prints the operations and schemas that changed. The workflow
+opens or updates the PR (`spec-refresh`, or `spec-move-<version>` for a
+new version), with the version bumped: minor when operations were added,
+patch otherwise, and a `needs-major` label when one disappeared or was
+renamed, since tool names are the public surface. The routine: refresh PR →
+review the summary and the generated diff (fix or drop patches in
+`generate.ts`, add a fixture for a new shape) → merge → release.
+Run `pnpm spec:refresh` locally (without `--bump`) to do the same by hand.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
 derives tool names from paths; the MCP package turns each entry into a
 `Tool.dynamic`. Spec-versus-reality fixes belong in the patch, nowhere else.
