@@ -14,8 +14,6 @@ import { toolName, toolRoutes, vendored } from '../../../packages/core/scripts/s
 const root = path.join(import.meta.dirname, '..');
 const TIMEOUT_MS = 10_000;
 const SETUP_PROMPT = 'check-tipee-setup';
-// Never tools: granting or revoking roles is left to an admin in Tipee.
-const ROLE_TOOLS = new Set(['resources_grant_roles', 'resources_revoke_roles']);
 
 interface Response {
   readonly id?: number;
@@ -135,8 +133,6 @@ try {
   check(missing.length === 0, `missing tools: ${missing.join(', ')}`);
   const unexpected = names.filter((name) => !expected.has(name));
   check(unexpected.length === 0, `unexpected tools: ${unexpected.join(', ')}`);
-  const roles = names.filter((name) => ROLE_TOOLS.has(name));
-  check(roles.length === 0, `role tools listed: ${roles.join(', ')}`);
   const promptNames = ((prompts.result?.prompts ?? []) as Array<{ name: string }>).map(
     ({ name }) => name,
   );

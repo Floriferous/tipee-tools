@@ -5,6 +5,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
+import { toolName, toolRoutes, vendored } from '../scripts/spec.ts';
 import { TIPEE_API_VERSION } from '../src/index.ts';
 import { operation, operations } from '../src/Operations.ts';
 
@@ -12,8 +13,12 @@ const SPEC = new URL('../spec/', import.meta.url);
 
 describe('operations', () => {
   it('lists every operation of the API document with a unique path-derived name', () => {
-    expect(operations.length).toBe(69);
-    expect(new Set(operations.map((candidate) => candidate.name)).size).toBe(69);
+    const names = operations.map((candidate) => candidate.name);
+
+    expect(new Set(names)).toEqual(
+      new Set(toolRoutes(vendored().document).map((route) => toolName(route))),
+    );
+    expect(new Set(names).size).toBe(operations.length);
     expect(operation('schedules_list').path).toBe('/api/schedule/schedules.list');
     expect(operation('resources_show_activity_rates').group).toBe('Directory');
     expect(operation('day_tasks_submit_for_contributor').readOnly).toBe(false);
