@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    setupFiles: ['./test/setup.ts'],
+    // The core's fake Tipee lifecycle: unknown requests fail the test.
+    setupFiles: ['@tipee-tools/core/testing/setup'],
   },
 });

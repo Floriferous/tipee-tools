@@ -6,8 +6,8 @@ import { setImmediate } from 'node:timers/promises';
 import { Effect, Fiber, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { TestClock } from 'effect/testing';
-import { HttpResponse, http } from 'msw';
-import type { HttpHandler } from 'msw';
+import { HttpResponse, http } from 'msw/http';
+import type { HttpHandler } from 'msw/http';
 
 import type { TipeeError } from '../src/index.ts';
 import { TipeeClient, invoke, operation } from '../src/index.ts';

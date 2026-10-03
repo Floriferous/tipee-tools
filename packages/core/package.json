@@ -1,12 +1,13 @@
 {
   "name": "@tipee-tools/core",
   "version": "0.3.8",
-  "description": "Effect client and schemas for the Tipee HR API (read-only)",
+  "description": "Effect client and schemas for the whole Tipee HR API",
   "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./test/testing.ts"
+    "./testing": "./test/testing.ts",
+    "./testing/setup": "./test/setup.ts"
   },
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",

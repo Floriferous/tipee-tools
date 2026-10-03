@@ -4,7 +4,7 @@
 import { expect, layer } from '@effect/vitest';
 import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
 import { Effect } from 'effect';
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, http } from 'msw/http';
 
 import { call, clientFor } from './toolkit.ts';
 

@@ -7,7 +7,7 @@ import { API_KEY, BASE, server } from '@tipee-tools/core/testing';
 import { Context, Effect, Layer, Redacted } from 'effect';
 import { Tool } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, http } from 'msw/http';
 
 import { Telemetry, TipeeToolkit, TipeeToolkitLayer, Updates } from '../src/index.ts';
 import { call, clientFor } from './toolkit.ts';
