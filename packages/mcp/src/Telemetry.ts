@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { arch, platform, version as nodeVersion } from 'node:process';
 
-import { TipeeError } from '@tipee-tools/core';
+import { TIPEE_API_VERSION, TipeeError } from '@tipee-tools/core';
 import type { TipeeErrorReason } from '@tipee-tools/core';
 import { Config, Context, Effect, Layer, Option, Queue, Schedule } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/http';
@@ -194,13 +194,15 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
         yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep(INTERVAL), drain)));
         yield* Effect.addFinalizer(() => drain.pipe(Effect.timeout(DRAIN_TIMEOUT), Effect.ignore));
 
-        // What describes an installation, kept on its person profile too.
+        // What describes an installation, kept on its person profile too. The
+        // Tipee API version ties a drifting answer to the document it broke.
         const profile: Properties = {
           arch,
           channel,
           instance: config.instance,
           node_version: nodeVersion,
           os: platform,
+          tipee_api_version: TIPEE_API_VERSION,
           ...base,
         };
         const properties = (own: Properties | undefined): Properties => ({
