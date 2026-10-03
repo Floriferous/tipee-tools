@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "2.1.2",
-    "@types/node": "24.13.4",
+    "@types/node": "24.19.0",
     "tsdown": "0.23.0"
   }
 }
