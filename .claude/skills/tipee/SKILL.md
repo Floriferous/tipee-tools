@@ -75,8 +75,13 @@ https://api.tipee.ch/openapi/26.06.25.json). Every endpoint is
   and identical filters/orders on every page or Tipee answers 422. The
   cursor can be non-null on the last full page (the next page is empty).
 - Team filter: `{key: "resource.team", value: {teams: [id], recursive: true}}`.
-- Rate limits are generous (500-token bucket, 4/s); the client retries
-  transient failures with backoff (`HttpClient.retryTransient`).
+- Rate limits are generous (500-token bucket, 4/s). Every operation is a
+  POST, so the client retries only reads (`*.list`, `*.show*`) on timeouts,
+  5xx and network failures, and anything on a 429 (`resendable` in
+  `TipeeClient.ts`): a write that failed may have been applied, so it is
+  never sent twice and its error says to read it back.
+- Error messages quote Tipee's whole answer and the HTTP status: never trim
+  or paraphrase what Tipee said, the agent acts on it.
 - Versions are date-based and supported ≥ 6 months after the next release;
   subscribe to the changelog on https://api.tipee.ch/.
 

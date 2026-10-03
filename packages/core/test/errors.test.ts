@@ -2,72 +2,30 @@
 // A user can fix by hand ending with the page to open on their instance.
 
 import { expect, layer } from '@effect/vitest';
-import { Effect, Fiber, Layer, Redacted } from 'effect';
-import { FetchHttpClient } from 'effect/http';
-import { TestClock } from 'effect/testing';
+import { Effect } from 'effect';
 import { HttpResponse, http } from 'msw';
 
-import type { TipeeError } from '../src/index.ts';
-import { TipeeClient, invoke, operation } from '../src/index.ts';
-import { API_KEY, BASE } from './handlers.ts';
+import {
+  HTTP_BAD_REQUEST,
+  HTTP_CONFLICT,
+  HTTP_FORBIDDEN,
+  HTTP_UNAUTHORIZED,
+  HTTP_UNPROCESSABLE,
+  NEW_SCHEDULE,
+  PROJECTS_URL,
+  RESOURCES_URL,
+  SCHEDULES_CREATE_URL,
+  SCHEDULES_DELETE_URL,
+  SCHEDULES_URL,
+  TestClient,
+  WEEK,
+  call,
+  failure,
+  status,
+} from './answers.ts';
+import { BASE } from './handlers.ts';
 import { server } from './server.ts';
 import { INTEGRATION_ID } from './tables.ts';
-
-const WEEK = '2026-09-07/2026-09-13';
-const KINDS_URL = `${BASE}/api/directory/kinds.list`;
-const SCHEDULES_URL = `${BASE}/api/schedule/schedules.list`;
-const RESOURCES_URL = `${BASE}/api/directory/resources.list`;
-const PROJECTS_URL = `${BASE}/api/activity/projects.list`;
-const SCHEDULES_CREATE_URL = `${BASE}/api/schedule/schedules.create`;
-const SCHEDULES_DELETE_URL = `${BASE}/api/schedule/schedules.delete`;
-const HTTP_BAD_REQUEST = 400;
-const HTTP_UNAUTHORIZED = 401;
-const HTTP_FORBIDDEN = 403;
-const HTTP_NOT_FOUND = 404;
-const HTTP_CONFLICT = 409;
-const HTTP_UNPROCESSABLE = 422;
-const HTTP_TOO_MANY_REQUESTS = 429;
-const HTTP_SERVER_ERROR = 500;
-
-const NEW_SCHEDULE = {
-  hour_ranges: [{ auto_correct: null, hour_range: '08:00/PT8H', paid_break: null }],
-  options: {
-    allow_partial: false,
-    employee_resident_ratio: false,
-    schedule_on_bank_holidays: false,
-    special_hour_range: null,
-    text_color: null,
-  },
-  resource_id: '1',
-  team_id: '2',
-  when: '2026-10-05',
-};
-
-const credentials = { apiKey: Redacted.make(API_KEY), instance: 'acme' };
-const TestClient = TipeeClient.layer(credentials).pipe(Layer.provide(FetchHttpClient.layer));
-
-interface Answer {
-  readonly url?: string;
-  readonly body?: unknown;
-  readonly headers?: Record<string, string>;
-  readonly once?: boolean;
-}
-
-// Makes the fake answer one request (by default) with a status and body.
-const status = (code: number, { url = KINDS_URL, body, headers, once = true }: Answer = {}) =>
-  http.post(
-    url,
-    () =>
-      body === undefined
-        ? new HttpResponse(undefined, { headers, status: code })
-        : HttpResponse.json(body, { headers, status: code }),
-    { once },
-  );
-
-const call = (name: string, params: unknown) => invoke(operation(name), params);
-
-const failure = <A, R>(effect: Effect.Effect<A, TipeeError, R>): Effect.Effect<TipeeError, A, R> =>
-  Effect.flip(effect);
 
 layer(TestClient)('errors', (it) => {
   it.effect('explains a response that does not match the API description', () =>
@@ -89,7 +47,7 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('NotFound');
       expect(error.message).toBe(
-        `Tipee could not find it: L'élément avec l'id "1" n'a pas été trouvé.`,
+        `Tipee could not find it (HTTP 404): L'élément avec l'id "1" n'a pas été trouvé.`,
       );
     }),
   );
@@ -106,7 +64,7 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('Rejected');
       expect(error.message).toBe(
-        'Tipee rejected the request: Text cannot be parsed to an interval: 01.11.2026',
+        'Tipee rejected the request (HTTP 400): Text cannot be parsed to an interval: 01.11.2026',
       );
     }),
   );
@@ -125,7 +83,9 @@ layer(TestClient)('errors', (it) => {
       const error = yield* failure(call('schedules_create', NEW_SCHEDULE));
 
       expect(error.reason).toMatchObject({ _tag: 'Rejected', code: 'OVERLAPPING', status: 409 });
-      expect(error.message).toMatch(/^Tipee rejected the request: .*OVERLAPPING.*2026-10-05/u);
+      expect(error.message).toMatch(
+        /^Tipee rejected the request \(HTTP 409, OVERLAPPING\): .*2026-10-05/u,
+      );
     }),
   );
 
@@ -238,40 +198,35 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('Rejected');
       expect(error.message).toBe(
-        'Tipee rejected the request: date_range: This value is not a valid date range.',
+        'Tipee rejected the request (HTTP 422): date_range: This value is not a valid date range.',
       );
     }),
   );
 
-  it.effect('does not retry client errors', () =>
+  it.effect('keeps every field of a validation error, not just its message', () =>
     Effect.gen(function* () {
-      server.use(status(HTTP_NOT_FOUND));
+      const body = {
+        details: { when: 'This date is in a locked period.' },
+        message: 'Invalid request',
+      };
+      server.use(status(HTTP_UNPROCESSABLE, { body, url: SCHEDULES_URL }));
+      const error = yield* failure(call('schedules_list', { date_range: WEEK }));
+
+      expect(error.message).toBe(
+        `Tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)}`,
+      );
+    }),
+  );
+
+  it.effect("quotes Tipee's reason for refusing a key", () =>
+    Effect.gen(function* () {
+      server.use(status(HTTP_UNAUTHORIZED, { body: { message: 'Token expired on 2026-09-30' } }));
       const error = yield* failure(call('kinds_list', {}));
 
-      expect(error.reason._tag).toBe('NotFound');
-    }),
-  );
-
-  it.effect('retries a 429 and succeeds once the limit lifts', () =>
-    Effect.gen(function* () {
-      server.use(status(HTTP_TOO_MANY_REQUESTS, { headers: { 'Retry-After': '1' } }));
-      const pending = yield* Effect.forkChild(call('kinds_list', {}));
-      yield* TestClock.adjust('10 seconds');
-      const kinds = (yield* Fiber.join(pending)) as ReadonlyArray<unknown>;
-
-      expect(kinds.length).toBeGreaterThan(0);
-    }),
-  );
-
-  it.effect('gives up after repeated server errors', () =>
-    Effect.gen(function* () {
-      server.use(status(HTTP_SERVER_ERROR, { once: false }));
-      const pending = yield* Effect.forkChild(failure(call('kinds_list', {})));
-      yield* TestClock.adjust('10 seconds');
-      const error = yield* Fiber.join(pending);
-
-      expect(error.reason._tag).toBe('UnexpectedStatus');
-      expect(error.message).toMatch(/HTTP 500/u);
+      expect(error.reason._tag).toBe('ApiKeyRejected');
+      expect(error.message).toMatch(
+        /^Tipee refused the API key \(HTTP 401\): Token expired on 2026-09-30 /u,
+      );
     }),
   );
 });

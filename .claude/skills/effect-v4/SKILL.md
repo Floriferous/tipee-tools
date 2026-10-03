@@ -32,7 +32,9 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
   the MCP JSON Schema).
 - HttpClient (`effect/http`): take `yield* HttpClient.HttpClient`,
   shape it with `HttpClient.mapRequest(flow(prependUrl, acceptJson, bearerToken, setHeader))`
-  and `HttpClient.retryTransient({ schedule, times })`; decode with
+  and retries with `HttpClient.transformResponse` (`Effect.repeat` on
+  transient responses, `Effect.retry` on errors; see `TipeeClient.ts` for why
+  not `retryTransient`); decode with
   `HttpClientResponse.schemaBodyJson(schema)`. Provide `FetchHttpClient.layer`
   (MSW intercepts it in tests).
 - MCP (`effect/ai`): `Tool.make(name, { description, parameters, success, failure })`

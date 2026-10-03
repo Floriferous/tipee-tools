@@ -159,7 +159,7 @@ describe('configuration', () => {
       const error = yield* failure(call('kinds_list', {}));
 
       expect(error.reason._tag).toBe('ApiKeyRejected');
-      expect(error.message).toMatch(/rejected the API key/u);
+      expect(error.message).toMatch(/^Tipee refused the API key \(HTTP 401\): /u);
       expect(error.message).toContain('https://acme.tipee.net/hr-core/integrations');
     }).pipe(Effect.provide(withProvider({ TIPEE_API_KEY: 'wrong', TIPEE_INSTANCE: 'acme' }))),
   );

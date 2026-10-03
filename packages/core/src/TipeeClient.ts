@@ -5,7 +5,8 @@
 
 import { Config, Context, Effect, Layer, Schedule, flow } from 'effect';
 import type { Redacted } from 'effect';
-import { HttpClient, HttpClientRequest } from 'effect/http';
+import { HttpClient, HttpClientError, HttpClientRequest } from 'effect/http';
+import type { HttpClientResponse } from 'effect/http';
 import { HttpApiClient } from 'effect/http-api';
 import type { HttpApi } from 'effect/http-api';
 
@@ -15,6 +16,45 @@ import { Tipee } from './generated/TipeeApi.ts';
 export const TIPEE_API_VERSION = '26.06.25';
 
 const RETRY_ATTEMPTS = 3;
+const RETRY_SCHEDULE = Schedule.exponential('250 millis');
+const HTTP_TOO_MANY_REQUESTS = 429;
+// Timeouts, rate limits and server errors that may pass on their own.
+const TRANSIENT_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+// `*.list` and `*.show*` operations, the ones that only read.
+export const readsOnly = (path: string): boolean =>
+  /^(?:list|show)/u.test(path.slice(path.lastIndexOf('.') + 1));
+
+// Whether a failed request may be sent again. Every Tipee operation is a
+// POST, and a write that timed out or lost its connection may already have
+// Been applied: sending it again could create it twice. Only reads are
+// Retried, plus a 429 for anything, since Tipee then did nothing.
+const resendable = (request: HttpClientRequest.HttpClientRequest, status?: number): boolean =>
+  status === HTTP_TOO_MANY_REQUESTS ||
+  (readsOnly(new URL(request.url).pathname) &&
+    (status === undefined || TRANSIENT_STATUSES.has(status)));
+
+const retried = <E, R>(
+  response: Effect.Effect<HttpClientResponse.HttpClientResponse, E, R>,
+): Effect.Effect<HttpClientResponse.HttpClientResponse, E, R> =>
+  response.pipe(
+    Effect.repeat({
+      schedule: RETRY_SCHEDULE,
+      times: RETRY_ATTEMPTS,
+      while: (answer) =>
+        TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status),
+    }),
+    Effect.retry({
+      schedule: RETRY_SCHEDULE,
+      times: RETRY_ATTEMPTS,
+      while: (error) =>
+        HttpClientError.isHttpClientError(error) &&
+        (error.reason._tag === 'TransportError'
+          ? resendable(error.request)
+          : error.reason._tag === 'StatusCodeError' &&
+            resendable(error.request, error.reason.response.status)),
+    }),
+  );
 
 export interface TipeeCredentials {
   /** The Tipee subdomain, e.g. "acme" for acme.tipee.net. */
@@ -53,12 +93,9 @@ export class TipeeClient extends Context.Service<
                 HttpClientRequest.setHeader('tipee-version', TIPEE_API_VERSION),
               ),
             ),
-            // Rate limits (429), server errors and network hiccups are retried
-            // With backoff; whatever is left is explained by TipeeError.fromCause.
-            HttpClient.retryTransient({
-              schedule: Schedule.exponential('250 millis'),
-              times: RETRY_ATTEMPTS,
-            }),
+            // Retried with backoff where that is safe (see `resendable`);
+            // Whatever is left is explained by TipeeError.fromCause.
+            HttpClient.transformResponse(retried),
           ),
       }).pipe(Effect.map((api) => ({ api, instance: credentials.instance }))),
     );
