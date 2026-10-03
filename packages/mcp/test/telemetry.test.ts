@@ -7,7 +7,13 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from '@effect/vitest';
-import { Rejected, TipeeError, UnexpectedShape, UnexpectedStatus } from '@tipee-tools/core';
+import {
+  Rejected,
+  TIPEE_API_VERSION,
+  TipeeError,
+  UnexpectedShape,
+  UnexpectedStatus,
+} from '@tipee-tools/core';
 import { server } from '@tipee-tools/core/testing';
 import { Cause, ConfigProvider, Effect, Layer } from 'effect';
 import { FetchHttpClient } from 'effect/http';
@@ -91,6 +97,9 @@ describe('telemetry', () => {
         instance: INSTANCE,
         server_version: '0.0.0-test',
       });
+      for (const event of batch?.batch ?? []) {
+        expect(event.properties.tipee_api_version).toBe(TIPEE_API_VERSION);
+      }
       expect(first?.properties.launch_id).toBe(exception?.properties.launch_id);
       const [listed] = (exception?.properties.$exception_list ?? []) as Array<{
         type: string;
