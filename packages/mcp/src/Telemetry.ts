@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { arch, platform, version as nodeVersion } from 'node:process';
 
-import { TIPEE_API_VERSION, TipeeError } from '@tipee-tools/core';
+import { TIPEE_API_VERSION, TipeeError, normalizeInstance } from '@tipee-tools/core';
 import type { TipeeErrorReason } from '@tipee-tools/core';
 import { Config, Context, Effect, Layer, Option, Queue, Schedule } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/http';
@@ -20,8 +20,8 @@ import { HttpClient, HttpClientRequest } from 'effect/http';
 import { channel, installationId } from './Install.ts';
 
 /** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
-export const POSTHOG_KEY = 'phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y';
-export const POSTHOG_HOST = 'https://eu.i.posthog.com';
+const POSTHOG_KEY = 'phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y';
+const POSTHOG_HOST = 'https://eu.i.posthog.com';
 
 /** A property value PostHog can store: plain JSON, never a Tipee object. */
 export type PropertyValue =
@@ -72,10 +72,14 @@ const SEND_RETRIES = 2;
 const FRAME_LIMIT = 30;
 
 // Overridable so tests and forks can point elsewhere. The instance is the
-// Same value the Tipee client reads; absent only in tests.
+// Same value the Tipee client reads, normalized the same way so `acme` and
+// `acme.tipee.net/` are one company; empty when absent or not an instance.
 const settings = Config.all({
   host: Config.String('TIPEE_POSTHOG_HOST').pipe(Config.withDefault(POSTHOG_HOST)),
-  instance: Config.String('TIPEE_INSTANCE').pipe(Config.withDefault('')),
+  instance: Config.String('TIPEE_INSTANCE').pipe(
+    Config.map((raw) => Option.getOrElse(normalizeInstance(raw), () => '')),
+    Config.withDefault(''),
+  ),
   key: Config.String('TIPEE_POSTHOG_KEY').pipe(Config.withDefault(POSTHOG_KEY)),
 });
 
