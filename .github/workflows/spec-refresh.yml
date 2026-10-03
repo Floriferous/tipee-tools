@@ -93,4 +93,7 @@ jobs:
           if [ "$(jq -r .needs_major "$report")" = true ]; then
             gh label create needs-major --color B60205 --description 'Removes or renames a tool: needs a major version' --force
             gh pr edit "$branch" --add-label needs-major
+          else
+            # A later run may find the operation back: the label must go too.
+            gh pr edit "$branch" --remove-label needs-major 2>/dev/null || true
           fi
