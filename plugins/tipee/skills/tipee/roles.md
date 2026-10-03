@@ -20,6 +20,10 @@ access right plus the view or manage right matching what the tool does.
 | `work_regimes_*`                                                                     | Calcul des soldes        | Voir les soldes                                    |                                                                       |
 | `projects_*`, `tasks_*`, `activities_*`, `day_tasks_*`                               | Activités                | the module's rights as shown on the screen         |                                                                       |
 
+The tools never grant or revoke roles, the integration's own included:
+`resources_list_roles` only reads who holds which role, and an admin changes
+roles in Tipee, on the screen above.
+
 ## Configurations générales
 
 - **Afficher les modules non disponibles avec leurs teasers** — Permet de découvrir, en simple aperçu, tous les modules proposés par tipee, même s'ils ne sont pas activés sur votre instance.

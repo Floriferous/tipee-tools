@@ -1,18 +1,17 @@
 // Regenerates src/generated/TipeeApi.ts from the vendored OpenAPI document
 // With @effect/openapi-generator. Everything the toolkit knows about Tipee's
 // Operations and shapes comes from that file; run `pnpm generate` after
-// Dropping a new spec version into spec/.
+// Dropping a new spec version into spec/ (`pnpm spec:refresh` does both).
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const root = path.join(import.meta.dirname, '..');
-const specs = readdirSync(path.join(root, 'spec')).filter((file) => file.endsWith('.json'));
-const [spec] = specs;
-if (spec === undefined || specs.length !== 1) {
-  throw new Error(`expected exactly one spec in ${path.join(root, 'spec')}, found ${specs.length}`);
-}
+import { EXCLUDED, pointer, referenced, root, toolRoutes, vendored } from './spec.ts';
+import type { Schema } from './spec.ts';
+
+const { document, file } = vendored();
+const spec = path.basename(file);
 const output = path.join(root, 'src', 'generated', 'TipeeApi.ts');
 const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
 
@@ -21,39 +20,19 @@ const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
 // Request bodies required (Tipee expects one even when empty), descriptions
 // Only Claude can learn from, required pagination and orders, empty maps as
 // [], the 900-odd `examples` dropped, recursive filters cut to one level,
-// And request objects closed.
-interface Document {
-  readonly paths: Record<
-    string,
-    Record<string, { readonly requestBody?: unknown; readonly description?: string }>
-  >;
-  readonly components: { readonly schemas: Record<string, Schema> };
-}
-interface Schema {
-  readonly oneOf?: ReadonlyArray<Schema>;
-  readonly discriminator?: {
-    readonly propertyName: string;
-    readonly mapping?: Record<string, string>;
-  };
-  readonly properties?: Record<string, Schema>;
-  readonly items?: Schema;
-  readonly $ref?: string;
-  readonly enum?: ReadonlyArray<string>;
-  readonly examples?: unknown;
-  readonly [key: string]: unknown;
-}
+// Request objects closed, answer-only enums opened, and the operations the
+// Tools leave out removed.
 interface Patch {
   readonly op: 'add' | 'remove' | 'replace';
   readonly path: string;
   readonly value?: unknown;
 }
 
-const document = JSON.parse(readFileSync(path.join(root, 'spec', spec), 'utf8')) as Document;
-const pointer = (segment: string): string => segment.replaceAll('~', '~0').replaceAll('/', '~1');
 const patch: Array<Patch> = [];
+const routes = toolRoutes(document);
 
-for (const [route, methods] of Object.entries(document.paths)) {
-  for (const [method, operation] of Object.entries(methods)) {
+for (const route of routes) {
+  for (const [method, operation] of Object.entries(document.paths[route] ?? {})) {
     if (operation.requestBody !== undefined) {
       patch.push({
         op: 'add',
@@ -64,18 +43,37 @@ for (const [route, methods] of Object.entries(document.paths)) {
   }
 }
 
-// What Tipee's document does not say and Claude cannot learn otherwise: the
-// Description is the only place a Claude Desktop user's Claude reads.
-const describe = (route: string, rewrite: (current: string) => string): void => {
-  const operation = document.paths[route]?.post;
-  if (operation === undefined) {
-    throw new Error(`no POST ${route} in the document`);
+// Rewrites one text of the document. A rewrite that changes nothing means
+// Tipee reworded the text it was written for: fail rather than ship the
+// Patch as a silent no-op.
+const reword = (at: ReadonlyArray<string>, rewrite: (current: string) => string): void => {
+  let current: unknown = document;
+  for (const key of at) {
+    current = (current as Record<string, unknown> | undefined)?.[key];
   }
-  patch.push({
-    op: 'replace',
-    path: `/paths/${pointer(route)}/post/description`,
-    value: rewrite(operation.description ?? ''),
-  });
+  const where = `/${at.map((segment) => pointer(segment)).join('/')}`;
+  if (typeof current !== 'string') {
+    throw new TypeError(`no text at ${where} in the document`);
+  }
+  const next = rewrite(current);
+  if (next === current) {
+    throw new Error(`the rewrite of ${where} no longer changes it: update it in generate.ts`);
+  }
+  patch.push({ op: 'replace', path: where, value: next });
+};
+// Replaces a passage that must still be there.
+const swap = (text: string, passage: string, replacement: string): string => {
+  if (!text.includes(passage)) {
+    throw new Error(`"${passage}" is no longer in "${text}": update generate.ts`);
+  }
+  return text.replace(passage, replacement);
+};
+
+// What Tipee's document does not say and Claude cannot learn otherwise: the
+// Description is the only place a Claude Desktop user's Claude reads. Routes
+// Mentioned in a description become the tool names Claude knows.
+const describe = (route: string, rewrite: (current: string) => string): void => {
+  reword(['paths', route, 'post', 'description'], rewrite);
 };
 describe('/api/directory/resources.list', (current) =>
   `${current} Pagination: send pagination with a limit and next_token ` +
@@ -86,21 +84,47 @@ describe('/api/directory/resources.list', (current) =>
 patch.push({
   op: 'replace',
   path: '/components/schemas/ListResourcesQuery/required',
-  value: ['kind_id', 'orders', 'pagination'],
+  value: [
+    ...new Set([
+      ...(document.components.schemas.ListResourcesQuery?.required ?? []),
+      'orders',
+      'pagination',
+    ]),
+  ],
 });
+reword(
+  ['components', 'schemas', 'ListResourcesQuery', 'properties', 'kind_id', 'description'],
+  (current) =>
+    swap(
+      current,
+      'Only the "employee" kind is available at the moment.',
+      "The id of a kind from kinds_list: the 'employee' kind lists people, the 'integration' kind the API integrations.",
+    ),
+);
+reword(
+  ['components', 'schemas', 'ListResourcesQuery', 'properties', 'attributes', 'description'],
+  (current) => swap(current, "The 'api/directory/kinds.show' endpoint", 'The kinds_show tool'),
+);
 describe('/api/directory/kinds.list', (current) =>
-  current.replace(
+  swap(
+    current,
     "Only 'employee' is available at the moment.",
     "The 'integration' kind lists the API integrations, including the one this key belongs to.",
   ));
+describe('/api/directory/kinds.show', (current) =>
+  swap(current, "'api/directory/resources.list'", 'resources_list'));
 describe('/api/timeclock/timechecks.list', (current) =>
-  `${current} Always pass a timecheck.date_range filter of a few weeks at most: without one ` +
-  'Tipee runs out of memory (HTTP 507).');
+  `${swap(current, '<br />', ' ')} Always pass a timecheck.date_range filter of a few weeks ` +
+  'at most: without one Tipee runs out of memory (HTTP 507).');
+reword(
+  ['components', 'schemas', 'ListDayTasksQuery', 'properties', 'task_ids', 'title'],
+  (current) => swap(current, '<br />', ' '),
+);
 describe('/api/schedule/absences.create', (current) =>
   `${current} Pass percentage (100 for a whole day) or time_ranges (for part of a day); ` +
   'Tipee refuses an absence with neither.');
 describe('/api/schedule/schedules.create', (current) =>
-  `${current} Tipee answers with no body: read the day back with schedules.list to get ` +
+  `${current} Tipee answers with no body: read the day back with schedules_list to get ` +
   'the id of what was created.');
 
 // PHP serialises an empty map as [], so every map-typed property in a response
@@ -190,8 +214,8 @@ const closeObjects = (node: Schema | undefined, at: string): void => {
     }
   }
 };
-for (const [route, methods] of Object.entries(document.paths)) {
-  for (const [method, operation] of Object.entries(methods)) {
+for (const route of routes) {
+  for (const [method, operation] of Object.entries(document.paths[route] ?? {})) {
     const body = (
       operation.requestBody as { content?: Record<string, { schema?: Schema }> } | undefined
     )?.content?.['application/json']?.schema;
@@ -202,18 +226,55 @@ for (const [route, methods] of Object.entries(document.paths)) {
   }
 }
 
+const requests = new Set<string>();
+const answers = new Set<string>();
+for (const route of routes) {
+  for (const operation of Object.values(document.paths[route] ?? {})) {
+    referenced(document, operation.requestBody, requests);
+    referenced(document, operation.responses, answers);
+  }
+}
+
+// Tipee adds enum values within a version, and one value the schema does not
+// Know fails the whole answer. An enum only answers carry becomes a string
+// That lists the known values; enums a request can carry stay closed.
+for (const [name, schema] of Object.entries(document.components.schemas)) {
+  if (schema.enum !== undefined && answers.has(name) && !requests.has(name)) {
+    patch.push({
+      op: 'replace',
+      path: `/components/schemas/${pointer(name)}`,
+      value: {
+        description: [schema.description, `Known values: ${schema.enum.join(', ')}.`]
+          .filter((part) => part !== undefined)
+          .join(' '),
+        type: 'string',
+      },
+    });
+  }
+}
+
+// The excluded operations go last, after the patches above touched them,
+// Along with the schemas no tool refers to any more.
+const kept = new Set([...requests, ...answers]);
+const orphans = new Set<string>();
+for (const route of EXCLUDED) {
+  const methods = document.paths[route];
+  if (methods !== undefined) {
+    patch.push({ op: 'remove', path: `/paths/${pointer(route)}` });
+    for (const name of referenced(document, methods)) {
+      if (!kept.has(name)) {
+        orphans.add(name);
+      }
+    }
+  }
+}
+for (const name of orphans) {
+  patch.push({ op: 'remove', path: `/components/schemas/${pointer(name)}` });
+}
+
 const result = spawnSync(
   generator,
-  [
-    '--spec',
-    path.join(root, 'spec', spec),
-    '--format',
-    'httpapi',
-    '--name',
-    'Tipee',
-    '--patch',
-    JSON.stringify(patch),
-  ],
+  ['--spec', file, '--format', 'httpapi', '--name', 'Tipee', '--patch', JSON.stringify(patch)],
   { encoding: 'utf8' },
 );
 if (result.status !== 0) {

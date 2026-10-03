@@ -359,6 +359,25 @@
     },
     {
       "attribute": {
+        "id": "schedule_period_start",
+        "content_type": "month-day/plain",
+        "label": {
+          "de": "Beginn der Abschlussperiode",
+          "en": "Closing period start",
+          "fr": "Début de la période de bouclement"
+        },
+        "choices": null,
+        "icon": null,
+        "type": "string",
+        "format": null
+      },
+      "classification_level": "internal",
+      "access_level": "read",
+      "searchable": false,
+      "sortable": false
+    },
+    {
+      "attribute": {
         "id": "full_address",
         "content_type": "text/address",
         "label": {

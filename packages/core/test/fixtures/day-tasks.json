@@ -1,0 +1,28 @@
+[
+  {
+    "resource_id": "1000000000000000100",
+    "task_id": "1000000000000000160",
+    "date": "2026-09-07",
+    "actor_id": "1000000000000000100",
+    "status": "submitted",
+    "at": "2026-09-07T16:12:03.48211Z",
+    "remark": null,
+    "validator_remark": null,
+    "editable": false,
+    "virtual": false,
+    "enabled_transitions": ["cancel-submission", "validate", "reject"]
+  },
+  {
+    "resource_id": "1000000000000000100",
+    "task_id": "1000000000000000161",
+    "date": "2026-09-08",
+    "actor_id": null,
+    "status": "editing",
+    "at": null,
+    "remark": null,
+    "validator_remark": null,
+    "editable": true,
+    "virtual": true,
+    "enabled_transitions": ["submit", "submit-for-contributor"]
+  }
+]
