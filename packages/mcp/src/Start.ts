@@ -6,7 +6,7 @@
 
 import tls from 'node:tls';
 
-import { NodeRuntime } from '@effect/platform-node';
+import { runMain } from '@effect/platform-node/NodeRuntime';
 import { Cause, Effect, Logger } from 'effect';
 
 import { main, reportCrash } from './Server.ts';
@@ -38,7 +38,7 @@ export const start = (): void => {
   trustSystemCertificates();
   // Why a start failed reaches stderr, which Claude keeps in its logs, in the
   // error's own words; a shutdown is not worth a line.
-  NodeRuntime.runMain(
+  runMain(
     main.pipe(
       Effect.tapCause((cause) =>
         Cause.hasInterruptsOnly(cause) ? Effect.void : Effect.logError(cause),

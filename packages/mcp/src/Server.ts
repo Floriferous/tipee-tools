@@ -2,7 +2,7 @@
 // the handlers backed by a TipeeClient configured from the environment, and
 // the report of why it stopped. `start` (Start.ts) runs it.
 
-import { NodeFileSystem, NodeStdio } from '@effect/platform-node';
+import { layer as stdioLayer } from '@effect/platform-node/NodeStdio';
 import { TipeeClient } from '@tipee-tools/core';
 import type { ConfigurationMissing } from '@tipee-tools/core';
 import { Cause, Effect, Layer, Result } from 'effect';
@@ -67,8 +67,7 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
   Layer.provide(TelemetryLive),
   Layer.provide(Updates.layer(SERVER_VERSION)),
   Layer.provide(FetchHttpClient.layer),
-  Layer.provide(NodeFileSystem.layer),
-  Layer.provide(NodeStdio.layer),
+  Layer.provide(stdioLayer),
 );
 
 // Reports why the server stopped, from a telemetry of its own: the server's
