@@ -27,14 +27,15 @@ jobs:
     timeout-minutes: 15
     steps:
       # A PR opened with GITHUB_TOKEN triggers no workflow, so Verify would
-      # never run on it. A fine-grained token (contents and pull requests:
-      # write, on this repository only) pushes and opens the PR instead.
+      # never run on it. A fine-grained token on this repository only pushes
+      # and opens the PR instead: contents and pull requests write, plus issues
+      # write for the needs-major label.
       - name: Check the token
         env:
           SPEC_REFRESH_TOKEN: ${{ secrets.SPEC_REFRESH_TOKEN }}
         run: |
           if [ -z "$SPEC_REFRESH_TOKEN" ]; then
-            echo "::error::The SPEC_REFRESH_TOKEN secret is missing. Add a fine-grained token with contents and pull requests write on this repository, so that Verify runs on the refresh PR."
+            echo "::error::The SPEC_REFRESH_TOKEN secret is missing. Add a fine-grained token with contents, pull requests and issues write on this repository, so that Verify runs on the refresh PR."
             exit 1
           fi
 
@@ -73,6 +74,12 @@ jobs:
           report="$RUNNER_TEMP/refresh.json"
           if [ "$(jq -r .changed "$report")" != true ]; then
             echo "Tipee's document has not changed."
+            # Tipee may have reverted what an earlier run proposed: that PR
+            # would now replace main's document with a superseded one.
+            stale=$(gh pr list --head spec-refresh --state open --json number --jq '.[0].number // empty')
+            if [ -n "$stale" ]; then
+              gh pr close "$stale" --delete-branch --comment "Tipee's document matches main again: nothing to refresh."
+            fi
             exit 0
           fi
           branch=$(jq -r .branch "$report")
