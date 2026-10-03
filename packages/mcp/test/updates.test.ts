@@ -148,6 +148,18 @@ describe('updates', () => {
     }),
   );
 
+  it.effect('fails, without crashing, when spawning the opener throws', () =>
+    Effect.gen(function* () {
+      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      // A path through a file: Node throws ENOTDIR instead of emitting it.
+      const opener = `${process.execPath}/opener`;
+      const error = yield* Effect.flip(install('0.3.1', { opener }));
+
+      expect(error._tag).toBe('UpdateFailed');
+      expect(error.message).toMatch(/could not open .*ENOTDIR/u);
+    }),
+  );
+
   it.effect('refuses a bundle whose checksum does not match', () =>
     Effect.gen(function* () {
       server.use(github('v0.4.0'), ...bundleAt('0.4.0', 'deadbeef'));

@@ -194,17 +194,26 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
 
         // Hands the file to Claude Desktop and returns once the opener has
         // Started: the process may be replaced as soon as the user confirms.
-        // An opener that cannot start reports it as an event, not a throw.
+        // An opener that cannot start reports it as an event (ENOENT, EACCES…)
+        // Or throws (ENOTDIR…), depending on the error.
         const open = (target: string): Effect.Effect<void, UpdateFailed> =>
-          Effect.callback((resume) => {
-            const child = spawn(opener, [target], { detached: true, stdio: 'ignore' });
-            child.once('spawn', () => {
-              child.unref();
-              resume(Effect.void);
+          Effect.gen(function* () {
+            const cannotOpen = (cause: unknown): UpdateFailed =>
+              failed(`could not open ${target}: ${describe(cause)}`);
+            const child = yield* Effect.try({
+              catch: cannotOpen,
+              try: () => spawn(opener, [target], { detached: true, stdio: 'ignore' }),
             });
-            child.once('error', (cause) => {
-              resume(Effect.fail(failed(`could not open ${target}: ${describe(cause)}`)));
+            const started: Effect.Effect<void, UpdateFailed> = Effect.callback((resume) => {
+              child.once('spawn', () => {
+                child.unref();
+                resume(Effect.void);
+              });
+              child.once('error', (cause) => {
+                resume(Effect.fail(cannotOpen(cause)));
+              });
             });
+            yield* started;
           });
 
         const install: Effect.Effect<Installed, UpdateFailed> = Effect.gen(function* () {
