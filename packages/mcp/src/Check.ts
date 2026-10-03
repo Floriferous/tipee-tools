@@ -54,27 +54,23 @@ const probe = (
       report: { count: countOf(result), name, status: 'ok' },
       result,
     })),
-    Effect.catchIf(
-      (failure) => failure.reason._tag === 'UnexpectedShape',
-      (failure) =>
-        Effect.as(
-          Effect.flatMap(Telemetry, (telemetry) =>
-            telemetry.exception(failure, { handled: true, properties: { tool: 'check_setup' } }),
-          ),
-          {
-            report: { error: failure.reason.message, name, status: 'failed' },
-            result: undefined,
-          } satisfies Probe,
+    Effect.catchReason('TipeeError', 'UnexpectedShape', (reason, failure) =>
+      Effect.as(
+        Effect.flatMap(Telemetry, (telemetry) =>
+          telemetry.exception(failure, { handled: true, properties: { tool: 'check_setup' } }),
         ),
+        {
+          report: { error: reason.message, name, status: 'failed' },
+          result: undefined,
+        } satisfies Probe,
+      ),
     ),
     // The whole message, with the right to tick and where.
-    Effect.catchIf(
-      (failure) => failure.reason._tag === 'Forbidden',
-      (failure) =>
-        Effect.succeed<Probe>({
-          report: { error: failure.message, name, status: 'skipped' },
-          result: undefined,
-        }),
+    Effect.catchReason('TipeeError', 'Forbidden', (_reason, failure) =>
+      Effect.succeed<Probe>({
+        report: { error: failure.message, name, status: 'skipped' },
+        result: undefined,
+      }),
     ),
   );
 

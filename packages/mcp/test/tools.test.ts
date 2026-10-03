@@ -37,12 +37,32 @@ const recording = Layer.succeed(Telemetry, {
     }),
   flush: Effect.void,
 });
+// What a call recorded, without the session event of whichever call came first.
+const recordedCalls = (): ReadonlyArray<Recorded> =>
+  recorded.filter((entry) => entry.event !== 'session_started');
 const recordingClient = TipeeToolkitLayer.pipe(
   Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
   Layer.provide(recording),
   Layer.provide(Updates.layerNone),
   Layer.provide(FetchHttpClient.layer),
 );
+
+// A layer of its own, so its first call is the session's first.
+layer(recordingClient)('telemetry of a session', (it) => {
+  it.effect('reports the session on the first tool call only', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      yield* call('teams_list', {});
+      yield* call('teams_list', {});
+
+      expect(recorded.map((entry) => entry.event)).toEqual([
+        'session_started',
+        'tool_called',
+        'tool_called',
+      ]);
+    }),
+  );
+});
 
 layer(recordingClient)('telemetry of a tool call', (it) => {
   it.effect('records the outcome and reason, never the parameters or the answer', () =>
@@ -55,22 +75,22 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       );
       yield* call('teams_list', {});
       yield* Effect.flip(call('schedules_list', { date_range: WEEK }));
+      const calls = recordedCalls();
 
-      expect(recorded.map((entry) => entry.event)).toEqual([
-        'session_started',
+      expect(calls.map((entry) => entry.event)).toEqual([
         'tool_called',
         'tool_called',
         '$exception',
       ]);
-      expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'teams_list' });
-      expect(recorded[1]?.properties.duration_ms).toBeTypeOf('number');
-      expect(recorded[2]?.properties).toMatchObject({
+      expect(calls[0]?.properties).toMatchObject({ outcome: 'ok', tool: 'teams_list' });
+      expect(calls[0]?.properties.duration_ms).toBeTypeOf('number');
+      expect(calls[1]?.properties).toMatchObject({
         outcome: 'failed',
         reason: 'UnexpectedShape',
         tool: 'schedules_list',
       });
-      expect(recorded[3]?.properties).toMatchObject({ handled: true, tool: 'schedules_list' });
-      expect(recorded[3]?.properties.message).toMatch(/does not match/u);
+      expect(calls[2]?.properties).toMatchObject({ handled: true, tool: 'schedules_list' });
+      expect(calls[2]?.properties.message).toMatch(/does not match/u);
       expect(JSON.stringify(recorded)).not.toContain(WEEK);
       expect(JSON.stringify(recorded)).not.toContain('Opérations');
     }),
@@ -94,7 +114,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
         call('schedules_delete', { ids: ['1'], options: { group_action: 'single' } }),
       );
 
-      expect(recorded.at(-1)?.properties).toMatchObject({
+      expect(recordedCalls().at(-1)?.properties).toMatchObject({
         error_code: 'locked_schedules',
         http_status: HTTP_CONFLICT,
         outcome: 'failed',
@@ -116,12 +136,12 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
         ),
       );
       const report = (yield* call('check_setup', {})) as { ok: boolean };
+      const calls = recordedCalls();
 
       expect(report.ok).toBe(false);
-      // No second session_started: the test above already opened this one.
-      expect(recorded.map((entry) => entry.event)).toEqual(['$exception', 'tool_called']);
-      expect(recorded[0]?.properties).toMatchObject({ handled: true, tool: 'check_setup' });
-      expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check_setup' });
+      expect(calls.map((entry) => entry.event)).toEqual(['$exception', 'tool_called']);
+      expect(calls[0]?.properties).toMatchObject({ handled: true, tool: 'check_setup' });
+      expect(calls[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check_setup' });
     }),
   );
 });

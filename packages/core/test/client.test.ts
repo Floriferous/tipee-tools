@@ -3,15 +3,13 @@
 // Requests made; the fake enforces Tipee's rules and answers real (anonymised)
 // Responses, so this is also where the generated schemas meet reality.
 
-import { describe, expect, it, layer } from '@effect/vitest';
-import { ConfigProvider, Effect, Layer, Redacted } from 'effect';
-import { FetchHttpClient } from 'effect/http';
+import { describe, expect, layer } from '@effect/vitest';
+import { Effect } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
-import type { TipeeError } from '../src/index.ts';
-import { TipeeClient, invoke, operation } from '../src/index.ts';
+import { TestClient, WEEK, call, failure } from './answers.ts';
 import { readFixture } from './fixtures.ts';
-import { API_KEY, BASE, FAKE_PAGE_SIZE } from './handlers.ts';
+import { BASE, FAKE_PAGE_SIZE } from './handlers.ts';
 import { server } from './server.ts';
 import { EMPLOYEE_KIND_ID } from './tables.ts';
 
@@ -19,16 +17,7 @@ const GE = '1000000000000000102';
 const FR = '1000000000000000105';
 const ALICE = '1000000000000000100';
 const CHLOE = '1000000000000000104';
-const WEEK = '2026-09-07/2026-09-13';
 const PAGE_SIZE = 100;
-
-const credentials = { apiKey: Redacted.make(API_KEY), instance: 'acme' };
-const TestClient = TipeeClient.layer(credentials).pipe(Layer.provide(FetchHttpClient.layer));
-
-const call = (name: string, params: unknown) => invoke(operation(name), params);
-
-const failure = <A, R>(effect: Effect.Effect<A, TipeeError, R>): Effect.Effect<TipeeError, A, R> =>
-  Effect.flip(effect);
 
 layer(TestClient)('TipeeClient', (it) => {
   describe('directory', () => {
@@ -191,6 +180,16 @@ layer(TestClient)('TipeeClient', (it) => {
       }),
     );
 
+    it.effect('lists shifts over an open date range', () =>
+      Effect.gen(function* () {
+        const shifts = (yield* call('schedules_list', {
+          date_range: '2026-08-01/-',
+        })) as ReadonlyArray<unknown>;
+
+        expect(shifts.length).toBeGreaterThan(0);
+      }),
+    );
+
     it.effect('lists absences, on-calls and templates', () =>
       Effect.gen(function* () {
         const absences = (yield* call('absences_list', { date_range: WEEK })) as ReadonlyArray<{
@@ -212,34 +211,4 @@ layer(TestClient)('TipeeClient', (it) => {
       }),
     );
   });
-});
-
-describe('configuration', () => {
-  const withProvider = (values: Record<string, string>) =>
-    Layer.provide(
-      TipeeClient.layerConfig,
-      Layer.mergeAll(
-        FetchHttpClient.layer,
-        ConfigProvider.layer(ConfigProvider.fromUnknown(values)),
-      ),
-    );
-
-  it.effect('rejects a wrong key with an explanation', () =>
-    Effect.gen(function* () {
-      const error = yield* failure(call('kinds_list', {}));
-
-      expect(error.reason._tag).toBe('ApiKeyRejected');
-      expect(error.message).toMatch(/^Tipee refused the API key \(HTTP 401\): /u);
-      expect(error.message).toContain('https://acme.tipee.net/hr-core/integrations');
-    }).pipe(Effect.provide(withProvider({ TIPEE_API_KEY: 'wrong', TIPEE_INSTANCE: 'acme' }))),
-  );
-
-  it.effect('explains missing configuration without calling Tipee', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(Layer.build(withProvider({})));
-
-      expect(error._tag).toBe('ConfigurationMissing');
-      expect(error.message).toMatch(/TIPEE_INSTANCE/u);
-    }).pipe(Effect.scoped),
-  );
 });
