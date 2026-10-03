@@ -1,7 +1,7 @@
 {
   "name": "@tipee-tools/mcp",
   "private": true,
-  "description": "MCP server giving Claude the whole Tipee API",
+  "description": "MCP server giving Claude Tipee's HR API as tools",
   "license": "MIT",
   "type": "module",
   "exports": {

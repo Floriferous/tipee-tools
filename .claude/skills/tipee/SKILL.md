@@ -6,12 +6,14 @@ description: Working on tipee-tools (Effect 4 core client, MCP server, Claude Co
 # Tipee API via tipee-tools
 
 Tipee is a Swiss HR tool (employees, shifts, absences, activities). This
-repo exposes its **whole API** to agents, for any Tipee instance:
-`@tipee-tools/core` (the HttpApi generated from Tipee's OpenAPI document,
-the derived client, the operation catalogue, errors), `@tipee-tools/mcp`
-(one MCP tool per operation, built from the catalogue, plus `check_setup`
-and `update_plugin`), and the Claude Code plugin in `plugins/tipee` that bundles the
-server. The user-facing skill lives in `plugins/tipee/skills/tipee`; this one is for developing the repo.
+repo exposes its API to agents, every operation but granting and revoking
+roles, for any Tipee instance: `@tipee-tools/core` (the HttpApi generated
+from Tipee's OpenAPI document, the derived client, the operation
+catalogue, errors), `@tipee-tools/mcp` (one MCP tool per operation, built
+from the catalogue, plus `check_setup` and `update_plugin`), and the Claude
+Code plugin in `plugins/tipee` that bundles the server. The user-facing
+skill lives in `plugins/tipee/skills/tipee`; this one is for developing
+the repo.
 
 ## Guardrails
 
@@ -102,23 +104,22 @@ the vendored document's version), `Accept: application/json`.
 version). `pnpm generate` runs `@effect/openapi-generator` on it, through a
 JSON Patch built in `packages/core/scripts/generate.ts`: mark every request
 body required (Tipee wants a JSON body even when empty); add to a few
-descriptions what Tipee's document leaves out (pagination, the
-`integration` kind, the timecheck date range, an absence's percentage, a
-schedule create's empty answer) and name tools instead of routes; add
-`orders` and `pagination` to the required keys of `ListResourcesQuery`; let
-map-typed response properties also be `[]` (PHP's empty map); drop
-`example(s)`; turn nested `and`/`or` filters into plain objects Tipee
-validates; close request objects with `additionalProperties: false`, which
-shortens their schemas but refuses nothing (decoding drops unknown keys;
-the tools are `Tool.Strict`, which refuses them); turn
-enums only answers carry into strings listing the known values (Tipee adds
-values within a version; request enums stay closed); remove the excluded
-operations. Dropping examples, cutting filters and closing objects keep the
-71 tool definitions small, since Claude Desktop loads all of them into
-every chat. A description rewrite that no longer changes anything fails the
-generation: Tipee reworded the text, so the patch needs a look. It writes
-`packages/core/src/generated/TipeeApi.ts` — committed,
-never edited, freshness-checked by `pnpm verify`.
+descriptions what Tipee's document leaves out (pagination, the `integration`
+kind, the timecheck date range, an absence's percentage, a schedule create's
+empty answer) and name tools instead of routes; add `orders` and
+`pagination` to the required keys of `ListResourcesQuery`; let map-typed
+response properties also be `[]` (PHP's empty map); drop `example(s)`; turn
+nested `and`/`or` filters into plain objects Tipee validates; close request
+objects with `additionalProperties: false`, which shortens their schemas but
+refuses nothing (decoding drops unknown keys; the tools are `Tool.Strict`,
+which refuses them); turn enums only answers carry into strings listing the
+known values (Tipee adds values within a version; request enums stay
+closed); remove the excluded operations. Dropping examples, cutting filters
+and closing objects keep the tool definitions small, since Claude Desktop
+loads all of them into every chat. A description rewrite that no longer
+changes anything fails the generation: Tipee reworded the text, so the patch
+needs a look. It writes `packages/core/src/generated/TipeeApi.ts` —
+committed, never edited, freshness-checked by `pnpm verify`.
 
 Keeping up with Tipee: `.github/workflows/spec-refresh.yml` runs
 `pnpm spec:refresh --bump` every Monday. The script (in
@@ -136,7 +137,8 @@ Run `pnpm spec:refresh` locally (without `--bump`) to do the same by hand.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
 derives tool names from paths; the MCP package turns each entry into a
 strict, titled `Tool.dynamic`. Failure messages end with their next step
-(`explain` in `Invoke.ts`): Claude Desktop has no skill to look fixes up in. Spec-versus-reality fixes belong in the patch, nowhere else.
+(`explain` in `Invoke.ts`): Claude Desktop has no skill to look fixes up
+in. Spec-versus-reality fixes belong in the patch, nowhere else.
 
 ## Repository notes
 

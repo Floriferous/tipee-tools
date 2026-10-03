@@ -1,6 +1,6 @@
 {
   "name": "tipee-tools",
-  "description": "Tipee for Claude: the whole Tipee HR API as tools.",
+  "description": "Tipee for Claude: Tipee's HR API as tools.",
   "owner": {
     "name": "Florian Bienefelt",
     "url": "https://github.com/Floriferous"

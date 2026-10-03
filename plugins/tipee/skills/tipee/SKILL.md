@@ -5,10 +5,11 @@ description: Tipee HR plannings and timesheets through the Tipee for Claude tool
 
 # Tipee through the MCP tools
 
-Every operation of Tipee's API is a tool named `<resource>_<verb>`:
-`schedules_list`, `absences_create`, `resources_show_activity_rates`. The
-tool's schema is the truth about what Tipee accepts and returns; this file
-carries only what the schema cannot say.
+Every operation of Tipee's API but granting and revoking roles is a tool
+named `<resource>_<verb>`: `schedules_list`, `absences_create`,
+`resources_show_activity_rates`. The tool's schema is the truth about what
+Tipee accepts and returns; this file carries only what the schema cannot
+say.
 
 ## Working a request
 
