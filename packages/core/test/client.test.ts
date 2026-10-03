@@ -6,10 +6,13 @@
 import { describe, expect, it, layer } from '@effect/vitest';
 import { ConfigProvider, Effect, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
+import { HttpResponse, http } from 'msw/http';
 
 import type { TipeeError } from '../src/index.ts';
 import { TipeeClient, invoke, operation } from '../src/index.ts';
-import { API_KEY, FAKE_PAGE_SIZE } from './handlers.ts';
+import { readFixture } from './fixtures.ts';
+import { API_KEY, BASE, FAKE_PAGE_SIZE } from './handlers.ts';
+import { server } from './server.ts';
 import { EMPLOYEE_KIND_ID } from './tables.ts';
 
 const GE = '1000000000000000102';
@@ -50,8 +53,8 @@ layer(TestClient)('TipeeClient', (it) => {
       }),
     );
 
-    // Tipee added month-day/plain inside 26.06.25: a content type the
-    // Document does not list yet must not fail the whole kind.
+    // Tipee added month-day/plain inside 26.06.25; the regenerated document
+    // Now lists it.
     it.effect('shows a kind whose attributes include a month-day', () =>
       Effect.gen(function* () {
         const kind = (yield* call('kinds_show', { id: EMPLOYEE_KIND_ID })) as {
@@ -61,6 +64,45 @@ layer(TestClient)('TipeeClient', (it) => {
         expect(kind.attributes.map((entry) => entry.attribute.content_type)).toContain(
           'month-day/plain',
         );
+      }),
+    );
+
+    // Tipee adds enum values within a version, so enums only answers carry
+    // Are open: a content type the document does not list must still decode.
+    it.effect('shows a kind whose attributes include an unknown content type', () =>
+      Effect.gen(function* () {
+        const kind = readFixture('kind-employee') as {
+          attributes: ReadonlyArray<{ attribute: object }>;
+        };
+        const attributes = kind.attributes.map((entry, index) =>
+          index === 0
+            ? { ...entry, attribute: { ...entry.attribute, content_type: 'week-day/plain' } }
+            : entry,
+        );
+        server.use(
+          http.post(`${BASE}/api/directory/kinds.show`, () =>
+            HttpResponse.json({ ...kind, attributes }),
+          ),
+        );
+        const shown = (yield* call('kinds_show', { id: EMPLOYEE_KIND_ID })) as {
+          attributes: ReadonlyArray<{ attribute: { content_type: string } }>;
+        };
+
+        expect(shown.attributes[0]?.attribute.content_type).toBe('week-day/plain');
+        expect(shown.attributes).toHaveLength(attributes.length);
+      }),
+    );
+
+    // Enums a request can carry stay closed: a value Tipee would refuse is
+    // Caught before sending.
+    it.effect('refuses a status the document does not list', () =>
+      Effect.gen(function* () {
+        const error = yield* failure(
+          call('projects_update_status', { id: '1000000000000000200', status: 'bogus' }),
+        );
+
+        expect(error.reason._tag).toBe('InvalidRequest');
+        expect(error.message).toMatch(/at \["status"\]/u);
       }),
     );
 
