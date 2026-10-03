@@ -124,5 +124,5 @@ const run = (...args: ReadonlyArray<string>): void => {
   }
 };
 
-run('validate', path.join(staging, 'manifest.json'));
+// Pack validates the manifest first.
 run('pack', staging, output);

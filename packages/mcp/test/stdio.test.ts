@@ -43,12 +43,32 @@ describe('stdio transport', () => {
         stderr.push(chunk.toString());
       });
       const lines = createInterface({ input: child.stdout });
-      const responses = new Map<number, (response: JsonRpcResponse) => void>();
+      const responses = new Map<
+        number,
+        { resolve: (response: JsonRpcResponse) => void; reject: (error: Error) => void }
+      >();
       lines.on('line', (line) => {
         const message = JSON.parse(line) as JsonRpcResponse;
         if (message.id !== undefined) {
-          responses.get(message.id)?.(message);
+          responses.get(message.id)?.resolve(message);
+          responses.delete(message.id);
         }
+      });
+      // A server that stops fails what it left unanswered at once, saying why.
+      const state: { ended?: Error } = {};
+      const end = (cause: string): void => {
+        state.ended ??= new Error(`${cause}; stderr:\n${stderr.join('')}`);
+        for (const { reject } of responses.values()) {
+          reject(state.ended);
+        }
+        responses.clear();
+      };
+      child.once('error', (error) => {
+        end(`the server could not start: ${error.message}`);
+      });
+      // 'close' rather than 'exit': by then stderr has been read to the end.
+      child.once('close', (code, signal) => {
+        end(`the server exited (${signal ?? `code ${code}`})`);
       });
       const send = (message: object): void => {
         child.stdin.write(`${JSON.stringify(message)}\n`);
@@ -58,8 +78,12 @@ describe('stdio transport', () => {
         method: string,
         params: object,
       ): Promise<JsonRpcResponse> =>
-        new Promise((resolve) => {
-          responses.set(id, resolve);
+        new Promise((resolve, reject) => {
+          if (state.ended !== undefined) {
+            reject(state.ended);
+            return;
+          }
+          responses.set(id, { reject, resolve });
           send({ id, jsonrpc: '2.0', method, params });
         });
 

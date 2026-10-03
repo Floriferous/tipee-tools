@@ -1,11 +1,13 @@
-# Pre-commit: apply the fixers and rebuild the plugin bundle, restage what
-# they rewrote, then run the cached checks. CI runs `pnpm verify` instead,
-# which only checks.
+# Pre-commit: apply the fixers, regenerate the client and rebuild the plugin
+# bundle, then run the cached checks. The staged files the fixers rewrote are
+# restaged, and so are the generated client and the bundle, which a
+# source-only commit would otherwise leave stale. CI runs `pnpm verify`
+# instead, which only checks.
 pre-commit:
   commands:
     fix:
       priority: 1
-      run: pnpm fix
+      run: pnpm fix && git add -- packages/core/src/generated plugins/tipee/server
       stage_fixed: true
     check:
       priority: 2
