@@ -51290,8 +51290,10 @@ const InstallUpdate = make$10("update_plugin", {
 const CONFIRM = "Changes Tipee: first tell the user exactly what will change and for whom, and wait for their yes, unless they asked for this precise change.";
 const describe = (operation) => {
 	if (operation.readOnly) return operation.description;
+	const text = operation.description.trimEnd();
+	const base = /[.!?]$/u.test(text) ? text : `${text}.`;
 	const final = /\.delete/u.test(operation.path) ? " It cannot be undone." : "";
-	return `${operation.description} ${CONFIRM}${final}`;
+	return `${base} ${CONFIRM}${final}`;
 };
 const words = (part) => part.replaceAll("-", " ");
 const titleOf = (path) => {
