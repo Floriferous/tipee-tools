@@ -46,7 +46,9 @@ and Effect's own agent docs in `opensrc/effect` (`pnpm docs:effect`):
   A declared `failure` schema makes the MCP result carry `error.message`.
 - Tests: `import { it, layer } from "@effect/vitest"`; `layer(L)("suite", (it) => …)`
   shares a layer; `it.effect` runs on the `TestClock` (fork with
-  `Effect.forkChild`, `TestClock.adjust`, `Fiber.join` to drive retries);
+  `Effect.forkChild`, `TestClock.adjust`, `Fiber.join` to drive retries;
+  when the effect also waits on real I/O such as MSW, step the clock in a
+  loop instead, as `settled` in `packages/core/test/answers.ts` does);
   `Effect.flip` to get the error.
 
 ## RC renames and gotchas met in this repo

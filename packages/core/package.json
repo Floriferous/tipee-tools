@@ -20,7 +20,7 @@
     "@effect/openapi-generator": "4.0.0",
     "@effect/vitest": "4.0.0",
     "@types/node": "24.19.1",
-    "msw": "2.15.0",
+    "msw": "3.0.1",
     "vitest": "5.0.3"
   }
 }

@@ -2,8 +2,7 @@
 // Nothing more can be done: reads and rate limits are retried, writes never.
 
 import { expect, layer } from '@effect/vitest';
-import { Effect, Fiber } from 'effect';
-import { TestClock } from 'effect/testing';
+import { Effect } from 'effect';
 import { HttpResponse, http } from 'msw';
 
 import {
@@ -16,6 +15,7 @@ import {
   TestClient,
   call,
   failure,
+  settled,
   status,
 } from './answers.ts';
 import { server } from './server.ts';
@@ -30,9 +30,7 @@ layer(TestClient)('retries', (it) => {
           once: false,
         }),
       );
-      const pending = yield* Effect.forkChild(failure(call('kinds_list', {})));
-      yield* TestClock.adjust('10 seconds');
-      const error = yield* Fiber.join(pending);
+      const error = yield* settled(failure(call('kinds_list', {})));
 
       expect(error.reason._tag).toBe('RateLimited');
       expect(error.message).toContain('Retry-After: 30');
@@ -52,9 +50,7 @@ layer(TestClient)('retries', (it) => {
           );
         }),
       );
-      const pending = yield* Effect.forkChild(failure(call('schedules_create', NEW_SCHEDULE)));
-      yield* TestClock.adjust('10 seconds');
-      const error = yield* Fiber.join(pending);
+      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
 
       expect(sent).toBe(1);
       expect(error.message).toMatch(
@@ -93,9 +89,7 @@ layer(TestClient)('retries', (it) => {
   it.effect('retries a 429 and succeeds once the limit lifts', () =>
     Effect.gen(function* () {
       server.use(status(HTTP_TOO_MANY_REQUESTS, { headers: { 'Retry-After': '1' } }));
-      const pending = yield* Effect.forkChild(call('kinds_list', {}));
-      yield* TestClock.adjust('10 seconds');
-      const kinds = (yield* Fiber.join(pending)) as ReadonlyArray<unknown>;
+      const kinds = (yield* settled(call('kinds_list', {}))) as ReadonlyArray<unknown>;
 
       expect(kinds.length).toBeGreaterThan(0);
     }),
@@ -104,9 +98,7 @@ layer(TestClient)('retries', (it) => {
   it.effect('gives up after repeated server errors', () =>
     Effect.gen(function* () {
       server.use(status(HTTP_SERVER_ERROR, { once: false }));
-      const pending = yield* Effect.forkChild(failure(call('kinds_list', {})));
-      yield* TestClock.adjust('10 seconds');
-      const error = yield* Fiber.join(pending);
+      const error = yield* settled(failure(call('kinds_list', {})));
 
       expect(error.reason._tag).toBe('UnexpectedStatus');
       expect(error.message).toMatch(/HTTP 500/u);

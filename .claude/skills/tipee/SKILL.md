@@ -132,8 +132,10 @@ derives tool names from paths; the MCP package turns each entry into a
 - Tests: `@effect/vitest` + MSW. `packages/core/test/handlers.ts` is a fake
   Tipee that enforces the real rules (401 bad key, 422 bad pagination) —
   assert on output, not on requests. Other packages import it from
-  `@tipee-tools/core/testing`. `it.effect` runs on the test clock: fork,
-  `TestClock.adjust`, join to exercise retries.
+  `@tipee-tools/core/testing`. `it.effect` runs on the test clock: wrap a
+  call that retries in `settled` (`test/answers.ts`), which steps the clock
+  until it finishes. One `TestClock.adjust` is not enough: MSW answers on
+  the real event loop, so the adjust can pass before a retry's sleep exists.
 - `pnpm fix` applies the oxlint/oxfmt fixers and rebuilds the bundle;
   `pnpm verify` only checks (CI and the pre-commit hook rely on that split);
   every disabled rule is commented in `oxlint.config.ts` (notably
