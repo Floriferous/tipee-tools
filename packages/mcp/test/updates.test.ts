@@ -1,7 +1,8 @@
-// The update check against a fake GitHub: newer, same, unreachable, cached.
+// The update check and install against a fake GitHub: newer, same,
+// Unreachable, a bundle that does not match, and each way to hand it over.
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { NodeFileSystem } from '@effect/platform-node';
@@ -13,7 +14,6 @@ import { HttpResponse, http } from 'msw/http';
 
 import { Updates, checksumOf, isNewer } from '../src/index.ts';
 
-const tmpdir = (): string => process.env.TMPDIR ?? '/tmp';
 const RELEASES = 'https://github.test/releases/latest';
 const DOWNLOADS = 'https://github.test/download';
 const BUNDLE = new TextEncoder().encode('not really a zip, but the bytes we expect');
@@ -28,44 +28,24 @@ const bundleAt = (
     HttpResponse.arrayBuffer(BUNDLE.buffer),
   ),
 ];
-let asked = 0;
 const github = (tag: string) =>
-  http.get(RELEASES, () => {
-    asked += 1;
-    return HttpResponse.json({ html_url: `https://github.test/tag/${tag}`, tag_name: tag });
-  });
-
-const layerFor = (current: string, stateDir: string, channel: string) =>
-  Updates.layer(current).pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        FetchHttpClient.layer,
-        NodeFileSystem.layer,
-        ConfigProvider.layer(
-          ConfigProvider.fromUnknown({
-            TIPEE_DOWNLOAD_BASE: DOWNLOADS,
-            TIPEE_OPENER: '/usr/bin/true',
-            TIPEE_RELEASES_URL: RELEASES,
-            TIPEE_STATE_DIR: stateDir,
-            TIPEE_UPDATE_CHANNEL: channel,
-          }),
-        ),
-      ),
-    ),
+  http.get(RELEASES, () =>
+    HttpResponse.json({ html_url: `https://github.test/tag/${tag}`, tag_name: tag }),
   );
 
-const installFor = (
+interface Setup {
+  readonly channel?: string;
+  readonly opener?: string;
+}
+
+// The service for a running `current` version, configured like a Claude
+// Desktop install that can open files unless told otherwise.
+const using = <A, E>(
   current: string,
-  channel = 'desktop',
-  stateDir = mkdtempSync(path.join(tmpdir(), 'tipee-up-')),
+  use: (updates: (typeof Updates)['Service']) => Effect.Effect<A, E>,
+  { channel = 'desktop', opener = '/usr/bin/true' }: Setup = {},
 ) =>
-  Effect.flatMap(Updates, (updates) => updates.install).pipe(
-    Effect.provide(layerFor(current, stateDir, channel)),
-    Effect.map((outcome) => ({ outcome, stateDir })),
-  );
-
-const updatesFor = (current: string, stateDir = mkdtempSync(path.join(tmpdir(), 'tipee-up-'))) =>
-  Effect.flatMap(Updates, (updates) => updates.available).pipe(
+  Effect.flatMap(Updates, use).pipe(
     Effect.provide(
       Updates.layer(current).pipe(
         Layer.provide(
@@ -73,16 +53,26 @@ const updatesFor = (current: string, stateDir = mkdtempSync(path.join(tmpdir(), 
             FetchHttpClient.layer,
             NodeFileSystem.layer,
             ConfigProvider.layer(
-              ConfigProvider.fromUnknown({
-                TIPEE_RELEASES_URL: RELEASES,
-                TIPEE_STATE_DIR: stateDir,
-              }),
+              // An empty opener is what a platform without one gets by default.
+              ConfigProvider.fromUnknown(
+                {
+                  TIPEE_DOWNLOAD_BASE: DOWNLOADS,
+                  TIPEE_OPENER: opener,
+                  TIPEE_RELEASES_URL: RELEASES,
+                  TIPEE_UPDATE_CHANNEL: channel,
+                },
+                { preserveEmptyStrings: true },
+              ),
             ),
           ),
         ),
       ),
     ),
   );
+
+const available = (current: string) => using(current, (updates) => updates.available);
+const install = (current: string, setup?: Setup) =>
+  using(current, (updates) => updates.install, setup);
 
 describe('updates', () => {
   it('compares versions numerically', () => {
@@ -93,29 +83,24 @@ describe('updates', () => {
     expect(isNewer('latest', '0.3.1')).toBe(false);
   });
 
-  it.effect('reports a newer release with its link, once a day', () =>
+  it.effect('reports a newer release with its link', () =>
     Effect.gen(function* () {
-      asked = 0;
       server.use(github('v0.4.0'));
-      const stateDir = mkdtempSync(path.join(tmpdir(), 'tipee-up-'));
-      const first = yield* updatesFor('0.3.1', stateDir);
-      const second = yield* updatesFor('0.3.1', stateDir);
+      const update = yield* available('0.3.1');
 
-      expect(Option.getOrUndefined(first)).toMatchObject({
+      expect(Option.getOrUndefined(update)).toMatchObject({
         url: 'https://github.test/tag/v0.4.0',
         version: '0.4.0',
       });
-      expect(Option.isSome(second)).toBe(true);
-      expect(asked).toBe(1);
     }),
   );
 
   it.effect('reports nothing when up to date or when GitHub cannot be reached', () =>
     Effect.gen(function* () {
       server.use(github('v0.3.1'));
-      const same = yield* updatesFor('0.3.1');
+      const same = yield* available('0.3.1');
       server.use(http.get(RELEASES, () => HttpResponse.error()));
-      const unreachable = yield* updatesFor('0.3.1');
+      const unreachable = yield* available('0.3.1');
 
       expect(Option.isNone(same)).toBe(true);
       expect(Option.isNone(unreachable)).toBe(true);
@@ -133,19 +118,40 @@ describe('updates', () => {
   it.effect('downloads the verified bundle and hands it to Claude Desktop', () =>
     Effect.gen(function* () {
       server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
-      const { outcome, stateDir } = yield* installFor('0.3.1');
+      const outcome = yield* install('0.3.1');
 
       expect(outcome).toMatchObject({ status: 'opened', version: '0.4.0' });
-      const file = path.join(stateDir, 'updates', 'tipee-0.4.0.mcpb');
-      expect(existsSync(file)).toBe(true);
+      const file = 'path' in outcome ? outcome.path : '';
+      expect(path.basename(file)).toBe('tipee-0.4.0.mcpb');
       expect(new Uint8Array(readFileSync(file))).toEqual(BUNDLE);
+    }),
+  );
+
+  it.effect('leaves the bundle for the user to open when nothing here can', () =>
+    Effect.gen(function* () {
+      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      const outcome = yield* install('0.3.1', { opener: '' });
+
+      expect(outcome).toMatchObject({ status: 'downloaded', version: '0.4.0' });
+      const file = 'path' in outcome ? outcome.path : '';
+      expect(new Uint8Array(readFileSync(file))).toEqual(BUNDLE);
+    }),
+  );
+
+  it.effect('fails, without crashing, when the opener cannot start', () =>
+    Effect.gen(function* () {
+      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      const error = yield* Effect.flip(install('0.3.1', { opener: '/nonexistent/opener' }));
+
+      expect(error._tag).toBe('UpdateFailed');
+      expect(error.message).toMatch(/could not open .*ENOENT/u);
     }),
   );
 
   it.effect('refuses a bundle whose checksum does not match', () =>
     Effect.gen(function* () {
       server.use(github('v0.4.0'), ...bundleAt('0.4.0', 'deadbeef'));
-      const error = yield* Effect.flip(installFor('0.3.1'));
+      const error = yield* Effect.flip(install('0.3.1'));
 
       expect(error._tag).toBe('UpdateFailed');
       expect(error.message).toMatch(/checksum/u);
@@ -158,12 +164,12 @@ describe('updates', () => {
   it.effect('gives Claude Code users the commands, and says when nothing is newer', () =>
     Effect.gen(function* () {
       server.use(github('v0.4.0'));
-      const plugin = yield* installFor('0.3.1', 'plugin');
+      const plugin = yield* install('0.3.1', { channel: 'plugin' });
       server.use(github('v0.3.1'));
-      const same = yield* installFor('0.3.1');
+      const same = yield* install('0.3.1');
 
-      expect(plugin.outcome).toMatchObject({ status: 'instructions', version: '0.4.0' });
-      expect(same.outcome).toEqual({ status: 'up_to_date' });
+      expect(plugin).toMatchObject({ status: 'instructions', version: '0.4.0' });
+      expect(same).toEqual({ status: 'up_to_date' });
     }),
   );
 });

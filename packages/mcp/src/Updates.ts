@@ -3,13 +3,13 @@
 // And the `update_plugin` tool installs it: in Claude Desktop it downloads the bundle
 // From this repository's releases, verifies its checksum, and opens it, which
 // Makes Claude Desktop ask the user to confirm the update; the instance and
-// Key are kept. GitHub's latest release is asked at most once a day and the
-// Answer kept in the state directory (~/.tipee-tools); a failed lookup means
-// "nothing to report".
+// Key are kept. GitHub's latest release is looked up afresh each time, since
+// Only a check or an update the user asked for looks; a failed lookup means
+// "nothing to report". Nothing is kept on disk but the downloaded bundle, in
+// A temporary directory.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { platform } from 'node:process';
 
@@ -18,8 +18,8 @@ import { HttpClient, HttpClientResponse } from 'effect/http';
 
 import { channel as detectedChannel } from './Install.ts';
 
-export const RELEASES_URL = 'https://api.github.com/repos/Floriferous/tipee-tools/releases/latest';
-export const DOWNLOAD_BASE = 'https://github.com/Floriferous/tipee-tools/releases/download';
+const RELEASES_URL = 'https://api.github.com/repos/Floriferous/tipee-tools/releases/latest';
+const DOWNLOAD_BASE = 'https://github.com/Floriferous/tipee-tools/releases/download';
 
 /** A release newer than the one running. */
 export class Update extends Schema.Class<Update>('Update')({
@@ -67,21 +67,8 @@ const Release = Schema.Struct({
   }),
 });
 
-const Cached = Schema.Struct({
-  checked_at: Schema.String,
-  url: Schema.String,
-  version: Schema.String,
-});
-const CachedJson = Schema.fromJsonString(Cached);
-
-/** The cached answer is older than a day. */
-class Stale extends Schema.TaggedError<Stale>()('Stale', {}) {}
-
-const CACHE_FILE = 'latest-release.json';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT = '3 seconds';
 const DOWNLOAD_TIMEOUT = '60 seconds';
-const BUNDLE_LIMIT = 50 * 1024 * 1024;
 const CHECKSUMS = 'SHA256SUMS';
 
 // Overridable so tests and forks can point elsewhere; the opener is what
@@ -93,9 +80,6 @@ const settings = Config.all({
     Config.withDefault(platform === 'darwin' ? 'open' : ''),
   ),
   releasesUrl: Config.String('TIPEE_RELEASES_URL').pipe(Config.withDefault(RELEASES_URL)),
-  stateDir: Config.String('TIPEE_STATE_DIR').pipe(
-    Config.withDefault(path.join(homedir(), '.tipee-tools')),
-  ),
 });
 
 const PART = /^\d+$/u;
@@ -132,20 +116,21 @@ const failed = (detail: string): UpdateFailed => new UpdateFailed({ detail });
 const describe = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-export class Updates extends Context.Service<
-  Updates,
-  {
-    /** The newer release, if one is known. Never fails. */
-    readonly available: Effect.Effect<Option.Option<Update>>;
-    /** Installs the newer release, if one is known. */
-    readonly install: Effect.Effect<Installed, UpdateFailed>;
-  }
->()('@tipee-tools/mcp/Updates') {
+interface Service {
+  /** The newer release, if one is known. Never fails. */
+  readonly available: Effect.Effect<Option.Option<Update>>;
+  /** Installs the newer release, if one is known. */
+  readonly install: Effect.Effect<Installed, UpdateFailed>;
+}
+
+const none: Service = {
+  available: Effect.succeedNone,
+  install: Effect.succeed({ status: 'up_to_date' }),
+};
+
+export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/mcp/Updates') {
   // Never reports an update: for tests.
-  public static readonly layerNone: Layer.Layer<Updates> = Layer.succeed(Updates, {
-    available: Effect.succeedNone,
-    install: Effect.succeed({ status: 'up_to_date' as const }),
-  });
+  public static readonly layerNone: Layer.Layer<Updates> = Layer.succeed(Updates, none);
 
   // Compares GitHub's latest release with `current`.
   public static readonly layer = (
@@ -158,48 +143,21 @@ export class Updates extends Context.Service<
         const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk);
         const config = yield* Effect.option(settings);
         if (Option.isNone(config)) {
-          return {
-            available: Effect.succeedNone,
-            install: Effect.succeed({ status: 'up_to_date' as const }),
-          };
+          return none;
         }
-        const { channel, downloadBase, opener, releasesUrl, stateDir } = config.value;
-        const file = path.join(stateDir, CACHE_FILE);
+        const { channel, downloadBase, opener, releasesUrl } = config.value;
 
-        const cached = fs.readFileString(file).pipe(
-          Effect.flatMap(Schema.decodeEffect(CachedJson)),
-          Effect.filterOrFail(
-            (entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS,
-            () => new Stale(),
-          ),
-          Effect.map((entry) => ({ url: entry.url, version: entry.version })),
-        );
-        const fetched = http.get(releasesUrl).pipe(
+        const available = http.get(releasesUrl).pipe(
           Effect.flatMap(HttpClientResponse.schemaJson(Release)),
           Effect.timeout(FETCH_TIMEOUT),
-          Effect.map(({ body }) => ({
-            url: body.html_url,
-            version: body.tag_name.replace(/^v/u, ''),
-          })),
-          Effect.tap((latest) =>
-            Effect.option(
-              Effect.flatMap(fs.makeDirectory(stateDir, { recursive: true }), () =>
-                fs.writeFileString(
-                  file,
-                  JSON.stringify({ checked_at: new Date().toISOString(), ...latest }),
-                ),
-              ),
-            ),
-          ),
+          Effect.map(({ body }) => {
+            const version = body.tag_name.replace(/^v/u, '');
+            return isNewer(version, current)
+              ? Option.some(new Update({ url: body.html_url, version }))
+              : Option.none<Update>();
+          }),
+          Effect.orElseSucceed(() => Option.none<Update>()),
         );
-
-        const available = Effect.gen(function* () {
-          const known = yield* Effect.option(cached);
-          const latest = Option.isSome(known) ? known.value : yield* fetched;
-          return isNewer(latest.version, current)
-            ? Option.some(new Update({ url: latest.url, version: latest.version }))
-            : Option.none<Update>();
-        }).pipe(Effect.orElseSucceed(() => Option.none<Update>()));
 
         // The bundle, verified against the checksums published with it.
         const download = (version: string): Effect.Effect<string, UpdateFailed> =>
@@ -216,16 +174,15 @@ export class Updates extends Context.Service<
             const bytes = yield* http
               .get(`${base}/${asset}`)
               .pipe(Effect.flatMap((response) => response.arrayBuffer));
-            if (bytes.byteLength > BUNDLE_LIMIT) {
-              return yield* failed(`${asset} is larger than expected`);
-            }
             const content = new Uint8Array(bytes);
             const actual = createHash('sha256').update(content).digest('hex');
             if (actual !== expected) {
               return yield* failed(`the checksum of ${asset} does not match the published one`);
             }
-            const target = path.join(stateDir, 'updates', asset);
-            yield* fs.makeDirectory(path.dirname(target), { recursive: true });
+            // Not scoped: the file must outlive this call until Claude Desktop
+            // Has read it.
+            const directory = yield* fs.makeTempDirectory({ prefix: 'tipee-update-' });
+            const target = path.join(directory, asset);
             yield* fs.writeFile(target, content);
             return target;
           }).pipe(
@@ -235,14 +192,19 @@ export class Updates extends Context.Service<
             ),
           );
 
-        // Hands the file to Claude Desktop and returns at once: the process
-        // May be replaced as soon as the user confirms.
+        // Hands the file to Claude Desktop and returns once the opener has
+        // Started: the process may be replaced as soon as the user confirms.
+        // An opener that cannot start reports it as an event, not a throw.
         const open = (target: string): Effect.Effect<void, UpdateFailed> =>
-          Effect.try({
-            catch: (cause) => failed(`could not open ${target}: ${describe(cause)}`),
-            try: () => {
-              spawn(opener, [target], { detached: true, stdio: 'ignore' }).unref();
-            },
+          Effect.callback((resume) => {
+            const child = spawn(opener, [target], { detached: true, stdio: 'ignore' });
+            child.once('spawn', () => {
+              child.unref();
+              resume(Effect.void);
+            });
+            child.once('error', (cause) => {
+              resume(Effect.fail(failed(`could not open ${target}: ${describe(cause)}`)));
+            });
           });
 
         const install: Effect.Effect<Installed, UpdateFailed> = Effect.gen(function* () {
