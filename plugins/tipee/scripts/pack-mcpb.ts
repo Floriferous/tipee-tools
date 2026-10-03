@@ -33,12 +33,13 @@ const manifest = {
   license: 'MIT',
   long_description:
     'Give Claude access to your Tipee: people, teams, shifts, absences, on-calls, ' +
-    'activities and time clock, reading and changing. Claude asks before changing ' +
-    'anything.\n\n' +
+    'activities and time clock, reading and changing. Every tool that changes Tipee ' +
+    'instructs Claude to say exactly what will change and wait for your yes, and Claude ' +
+    'Desktop asks your permission per tool: choose "Allow once" to approve every change.\n\n' +
     'The API key belongs to an integration created in the Tipee admin panel. It needs the ' +
     'authorization "Se connecter avec des applications externes" plus the module rights ' +
     'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
-    'run check: it names the integration, links where its rights are set, and explains ' +
+    'run check_setup: it names the integration, links where its rights are set, and explains ' +
     'anything missing in plain words.\n\n' +
     'The extension collects usage data to help improve it: tool usage, errors and your ' +
     'instance name; never your key or anything about your people. Not affiliated with Tipee.',

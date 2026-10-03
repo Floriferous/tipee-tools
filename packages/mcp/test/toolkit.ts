@@ -1,9 +1,10 @@
 // Shared by the tool tests: the toolkit wired to the fake Tipee, and a call
-// That runs a tool the way the MCP server does (decode parameters, run the
-// Handler, encode the result).
+// That runs a tool the way the MCP server does (decode parameters, strictly
+// For a strict tool, run the handler, encode the result).
 
 import { TipeeClient } from '@tipee-tools/core';
 import { Effect, Layer, Option, Redacted, Stream } from 'effect';
+import { Tool } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
 import { Telemetry, TipeeToolkit, TipeeToolkitLayer, Updates } from '../src/index.ts';
@@ -23,7 +24,13 @@ type Handled = Effect.Effect<Stream.Stream<{ readonly encodedResult: unknown }, 
 
 export const call = Effect.fn('call')(function* (name: string, params: unknown) {
   const toolkit = yield* TipeeToolkit;
-  const handled = toolkit.handle(name as never, params) as unknown as Handled;
+  const tool = TipeeToolkit.tools[name as keyof typeof TipeeToolkit.tools];
+  // The options McpServer decodes with.
+  const options = {
+    errors: 'all',
+    onExcessProperty: tool !== undefined && Tool.getStrictMode(tool) === true ? 'error' : 'ignore',
+  } as const;
+  const handled = toolkit.handle(name as never, params, undefined, options) as unknown as Handled;
   const last = yield* handled.pipe(Stream.unwrap, Stream.runLast);
   return Option.getOrThrow(last).encodedResult;
 });

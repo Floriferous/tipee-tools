@@ -1,4 +1,4 @@
-// The check tool against the fake Tipee: every probed endpoint reported, and
+// The check_setup tool against the fake Tipee: every probed endpoint reported, and
 // What a skipped or failed endpoint tells the user.
 
 import { expect, layer } from '@effect/vitest';
@@ -10,10 +10,10 @@ import { call, clientFor } from './toolkit.ts';
 
 const HTTP_FORBIDDEN = 403;
 
-layer(clientFor(API_KEY))('check', (it) => {
-  it.effect('check reports every probed endpoint ok, over the coming week by default', () =>
+layer(clientFor(API_KEY))('check_setup', (it) => {
+  it.effect('reports every probed endpoint ok, over the coming week by default', () =>
     Effect.gen(function* () {
-      const report = (yield* call('check', {})) as {
+      const report = (yield* call('check_setup', {})) as {
         ok: boolean;
         date_range: string;
         endpoints: Array<{ name: string; status: string }>;
@@ -41,7 +41,7 @@ layer(clientFor(API_KEY))('check', (it) => {
     }),
   );
 
-  it.effect('check skips an endpoint whose module is off, and stays ok', () =>
+  it.effect('skips an endpoint whose module is off, and stays ok', () =>
     Effect.gen(function* () {
       server.use(
         http.post(
@@ -54,7 +54,7 @@ layer(clientFor(API_KEY))('check', (it) => {
           { once: true },
         ),
       );
-      const report = (yield* call('check', {})) as {
+      const report = (yield* call('check_setup', {})) as {
         ok: boolean;
         endpoints: Array<{ name: string; status: string; error?: string }>;
       };
@@ -66,7 +66,7 @@ layer(clientFor(API_KEY))('check', (it) => {
     }),
   );
 
-  it.effect('check names the right a skipped endpoint needs, and where to tick it', () =>
+  it.effect('names the right a skipped endpoint needs, and where to tick it', () =>
     Effect.gen(function* () {
       server.use(
         http.post(
@@ -75,7 +75,7 @@ layer(clientFor(API_KEY))('check', (it) => {
           { once: true },
         ),
       );
-      const report = (yield* call('check', {})) as {
+      const report = (yield* call('check_setup', {})) as {
         endpoints: Array<{ name: string; status: string; error?: string }>;
       };
       const schedules = report.endpoints.find((endpoint) => endpoint.name === 'schedules_list');
@@ -87,7 +87,7 @@ layer(clientFor(API_KEY))('check', (it) => {
     }),
   );
 
-  it.effect('check flags an endpoint whose response no longer matches', () =>
+  it.effect('flags an endpoint whose response no longer matches', () =>
     Effect.gen(function* () {
       server.use(
         http.post(
@@ -96,7 +96,7 @@ layer(clientFor(API_KEY))('check', (it) => {
           { once: true },
         ),
       );
-      const report = (yield* call('check', { from: '2026-09-07', to: '2026-09-13' })) as {
+      const report = (yield* call('check_setup', { from: '2026-09-07', to: '2026-09-13' })) as {
         ok: boolean;
         endpoints: Array<{ name: string; status: string; error?: string }>;
       };
@@ -107,6 +107,43 @@ layer(clientFor(API_KEY))('check', (it) => {
       expect(report.ok).toBe(false);
       expect(templates?.status).toBe('failed');
       expect(templates?.error).toMatch(/does not match/u);
+    }),
+  );
+
+  it.effect('skips the probes that need a refused list, and runs the rest', () =>
+    Effect.gen(function* () {
+      server.use(
+        http.post(`${BASE}/api/directory/kinds.list`, () =>
+          HttpResponse.json({ message: 'Access denied.' }, { status: HTTP_FORBIDDEN }),
+        ),
+      );
+      const report = (yield* call('check_setup', {})) as {
+        ok: boolean;
+        endpoints: Array<{ name: string; status: string; error?: string }>;
+      };
+      const skipped = report.endpoints.filter((endpoint) => endpoint.status === 'skipped');
+
+      expect(report.ok).toBe(true);
+      expect(skipped.map((endpoint) => endpoint.name)).toEqual([
+        'kinds_list',
+        'resources_list',
+        'resources_show_activity_rates',
+      ]);
+      expect(skipped[1]?.error).toBe(
+        'Not called: it needs an id from kinds_list, which needs «Cœur RH → Voir les collaborateurs».',
+      );
+      expect(skipped[2]?.error).toMatch(/needs an id from resources_list/u);
+      expect(report.endpoints.filter((endpoint) => endpoint.status === 'ok')).toHaveLength(6);
+    }),
+  );
+
+  it.effect('falls back to the coming week when only one end of the range is given', () =>
+    Effect.gen(function* () {
+      const report = (yield* call('check_setup', { from: '2026-09-07' })) as {
+        date_range: string;
+      };
+
+      expect(report.date_range).toBe('1970-01-01/1970-01-07');
     }),
   );
 });

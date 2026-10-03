@@ -105,7 +105,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
     }),
   );
 
-  it.effect('check reports a response shape that changed, and still succeeds', () =>
+  it.effect('check_setup reports a response shape that changed, and still succeeds', () =>
     Effect.gen(function* () {
       recorded.length = 0;
       server.use(
@@ -115,28 +115,29 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
           { once: true },
         ),
       );
-      const report = (yield* call('check', {})) as { ok: boolean };
+      const report = (yield* call('check_setup', {})) as { ok: boolean };
 
       expect(report.ok).toBe(false);
       // No second session_started: the test above already opened this one.
       expect(recorded.map((entry) => entry.event)).toEqual(['$exception', 'tool_called']);
-      expect(recorded[0]?.properties).toMatchObject({ handled: true, tool: 'check' });
-      expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check' });
+      expect(recorded[0]?.properties).toMatchObject({ handled: true, tool: 'check_setup' });
+      expect(recorded[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check_setup' });
     }),
   );
 });
 
 describe('toolkit', () => {
-  it('has one tool per operation of the API document, plus check and update', () => {
+  it('has one tool per operation of the API document, plus check_setup and update_plugin', () => {
     const tools = Object.values(TipeeToolkit.tools);
 
     expect(tools).toHaveLength(operations.length + 2);
     expect(tools.map((tool) => tool.name)).toContain('schedules_create');
     expect(tools.map((tool) => tool.name)).toContain('day_tasks_submit_for_contributor');
-    expect(tools.map((tool) => tool.name)).toContain('check');
+    expect(tools.map((tool) => tool.name)).toContain('check_setup');
+    expect(tools.map((tool) => tool.name)).toContain('update_plugin');
   });
 
-  it('marks reads read-only and deletions destructive, from the document', () => {
+  it('marks reads read-only and every write but a create destructive', () => {
     for (const target of operations) {
       const tool = TipeeToolkit.tools[target.name as keyof typeof TipeeToolkit.tools];
       if (tool === undefined) {
@@ -146,7 +147,27 @@ describe('toolkit', () => {
       expect(Context.get(tool.annotations, Tool.Readonly)).toBe(target.readOnly);
       expect(Context.get(tool.annotations, Tool.Destructive)).toBe(target.destructive);
     }
-    expect(Context.get(TipeeToolkit.tools.check.annotations, Tool.Readonly)).toBe(true);
+    expect(Context.get(TipeeToolkit.tools.check_setup.annotations, Tool.Readonly)).toBe(true);
+    expect(Context.get(TipeeToolkit.tools.update_plugin.annotations, Tool.Destructive)).toBe(true);
+  });
+
+  it('asks for a yes before every write, and says a deletion cannot be undone', () => {
+    const descriptions = new Map(
+      Object.values(TipeeToolkit.tools).map((tool) => [tool.name, Tool.getDescription(tool)]),
+    );
+    const descriptionOf = (name: string): string => descriptions.get(name) ?? '';
+
+    for (const target of operations) {
+      expect(descriptionOf(target.name).includes('wait for their yes')).toBe(!target.readOnly);
+    }
+    expect(descriptionOf('absences_delete')).toMatch(/It cannot be undone\.$/u);
+    expect(descriptionOf('absences_update')).not.toMatch(/undone/u);
+  });
+
+  it('makes every tool strict', () => {
+    for (const tool of Object.values(TipeeToolkit.tools)) {
+      expect(Tool.getStrictMode(tool)).toBe(true);
+    }
   });
 });
 
@@ -187,6 +208,28 @@ layer(clientFor(API_KEY))('tools', (it) => {
 });
 
 describe('failures', () => {
+  it.effect('refuse a misspelled key before anything reaches Tipee', () =>
+    Effect.gen(function* () {
+      let sent = 0;
+      server.use(
+        http.post(`${BASE}/api/schedule/absences.update`, () => {
+          sent += 1;
+          return HttpResponse.json({ failed: [], failed_count: 0, updated: [], updated_count: 1 });
+        }),
+      );
+      const error = yield* Effect.flip(
+        call('absences_update', {
+          id: '1',
+          options: { alow_partial: true, group_action: 'single' },
+          percentage: 50,
+        }),
+      );
+
+      expect(sent).toBe(0);
+      expect(String(error)).toContain('["options"]["alow_partial"]');
+    }).pipe(Effect.provide(clientFor(API_KEY))),
+  );
+
   it.effect('surface the Tipee error so the model reads the explanation', () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(call('teams_list', {}));

@@ -1,6 +1,6 @@
 // Whether a newer release exists, and installing it. The plugin has no
-// Channel to update itself through, so `check` reports a newer release and
-// The `update` tool installs it: in Claude Desktop it downloads the bundle
+// Channel to update itself through, so `check_setup` reports a newer release
+// And the `update_plugin` tool installs it: in Claude Desktop it downloads the bundle
 // From this repository's releases, verifies its checksum, and opens it, which
 // Makes Claude Desktop ask the user to confirm the update; the instance and
 // Key are kept. GitHub's latest release is asked at most once a day and the
@@ -33,7 +33,10 @@ export class UpdateFailed extends Schema.TaggedError<UpdateFailed>()('UpdateFail
   detail: Schema.String,
 }) {
   public override get message(): string {
-    return `The update could not be installed: ${this.detail}`;
+    return (
+      `The update could not be installed: ${this.detail}. Download tipee.mcpb from ` +
+      'https://github.com/Floriferous/tipee-tools/releases/latest and open it.'
+    );
   }
 }
 
