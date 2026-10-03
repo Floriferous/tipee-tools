@@ -51203,17 +51203,23 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			yield* fs.writeFile(target, content);
 			return target;
 		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
-		const open = (target) => callback$1((resume) => {
-			const child = spawn(opener, [target], {
-				detached: true,
-				stdio: "ignore"
+		const open = (target) => gen(function* () {
+			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
+			const child = yield* try_({
+				catch: cannotOpen,
+				try: () => spawn(opener, [target], {
+					detached: true,
+					stdio: "ignore"
+				})
 			});
-			child.once("spawn", () => {
-				child.unref();
-				resume(void_$1);
-			});
-			child.once("error", (cause) => {
-				resume(fail$3(failed(`could not open ${target}: ${describe$1(cause)}`)));
+			yield* callback$1((resume) => {
+				child.once("spawn", () => {
+					child.unref();
+					resume(void_$1);
+				});
+				child.once("error", (cause) => {
+					resume(fail$3(cannotOpen(cause)));
+				});
 			});
 		});
 		return {
