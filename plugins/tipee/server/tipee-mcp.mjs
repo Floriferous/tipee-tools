@@ -4,7 +4,7 @@ import * as Path from "node:path";
 import path from "node:path";
 import { arch, argv, env, platform, version } from "node:process";
 import * as OS from "node:os";
-import { homedir, hostname, userInfo } from "node:os";
+import { hostname, userInfo } from "node:os";
 import { spawn } from "node:child_process";
 import tls from "node:tls";
 import * as NFS from "node:fs";
@@ -3015,7 +3015,7 @@ const isNone$1 = (fa) => fa._tag === "None";
 /** @internal */
 const isSome$1 = (fa) => fa._tag === "Some";
 /** @internal */
-const none$1 = /*#__PURE__*/ Object.create(NoneProto);
+const none$2 = /*#__PURE__*/ Object.create(NoneProto);
 /** @internal */
 const SomeImpl = function(value) {
 	this.value = value;
@@ -3398,7 +3398,7 @@ const isGreaterThanOrEqualTo$2 = (O) => dual(2, (self, that) => O(self, that) !=
 * @category constructors
 * @since 2.0.0
 */
-const none = () => none$1;
+const none$1 = () => none$2;
 /**
 * Wraps the given value into an `Option` to represent its presence.
 *
@@ -3602,7 +3602,7 @@ const getOrElse = /*#__PURE__*/ dual(2, (self, onNone) => isNone(self) ? onNone(
 * @category converting
 * @since 4.0.0
 */
-const fromNullishOr = (a) => a == null ? none() : some(a);
+const fromNullishOr = (a) => a == null ? none$1() : some(a);
 /**
 * Converts a possibly `undefined` value into an `Option`, leaving `null`
 * as a valid `Some`.
@@ -3633,7 +3633,7 @@ const fromNullishOr = (a) => a == null ? none() : some(a);
 * @category converting
 * @since 4.0.0
 */
-const fromUndefinedOr = (a) => a === void 0 ? none() : some(a);
+const fromUndefinedOr = (a) => a === void 0 ? none$1() : some(a);
 /**
 * Extracts the value from a `Some`, or returns `undefined` for `None`.
 *
@@ -3695,7 +3695,7 @@ const liftThrowable = (f) => (...a) => {
 	try {
 		return some(f(...a));
 	} catch {
-		return none();
+		return none$1();
 	}
 };
 /**
@@ -3727,7 +3727,7 @@ const liftThrowable = (f) => (...a) => {
 * @category mapping
 * @since 2.0.0
 */
-const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
+const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none$1() : some(f(self.value)));
 /**
 * Applies a function that returns an `Option` to the value of a `Some`,
 * flattening the result. Returns `None` if the input is `None`.
@@ -3770,7 +3770,7 @@ const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f
 * @category sequencing
 * @since 2.0.0
 */
-const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
+const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none$1() : f(self.value));
 /**
 * Filters an `Option` using a predicate. Returns `None` if the predicate is
 * not satisfied or the input is `None`.
@@ -3806,7 +3806,7 @@ const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(s
 * @category filtering
 * @since 2.0.0
 */
-const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
+const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none$1() : predicate(self.value) ? some(self.value) : none$1());
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/Context.js
 /**
@@ -4308,7 +4308,7 @@ const serviceNotFoundError = (service) => {
 const getOption = /*#__PURE__*/ dual(2, (self, service) => {
 	const value = lookup(self, service.key);
 	if (value !== notFound) return some(value);
-	return isReference(service) ? some(getDefaultValue(service)) : none();
+	return isReference(service) ? some(getDefaultValue(service)) : none$1();
 });
 /**
 * Merges two `Context`s into one.
@@ -7454,7 +7454,7 @@ const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 /** @internal */
 const succeedSome$1 = (a) => succeed$7(some(a));
 /** @internal */
-const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none());
+const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none$1());
 /** @internal */
 const failCauseSync$1 = (evaluate) => suspend$3(() => failCause$6(evaluate()));
 /** @internal */
@@ -7864,8 +7864,6 @@ const provideService$1 = function() {
 };
 const provideServiceImpl = (self, service, implementation) => updateContext$1(self, add$2(service, implementation));
 /** @internal */
-const filterOrFail$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, orFailWith) => filterOrElse(self, predicate, orFailWith ? (a) => fail$6(orFailWith(a)) : () => fail$6(new NoSuchElementError())));
-/** @internal */
 const when$3 = /*#__PURE__*/ dual(2, (self, condition) => flatMap$2(condition, (pass) => pass ? asSome(self) : succeedNone$1));
 /** @internal */
 const forever$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => whileLoop$1({
@@ -7971,7 +7969,7 @@ const ignoreCause$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, o
 });
 /** @internal */
 const option$1 = (self) => match(self, {
-	onFailure: none,
+	onFailure: none$1,
 	onSuccess: some
 });
 /** @internal */
@@ -8063,7 +8061,7 @@ const timeout$1 = /*#__PURE__*/ dual(2, (self, duration) => {
 	});
 });
 /** @internal */
-const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep$1(duration), none())));
+const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep$1(duration), none$1())));
 /** @internal */
 const timed$1 = (self) => clockWith((clock) => {
 	const start = clock.monotonicTimeNanosUnsafe();
@@ -8529,8 +8527,6 @@ const forEachConcurrent = /*#__PURE__*/ iterateConcurrentImpl({
 	}
 });
 /** @internal */
-const filterOrElse = /*#__PURE__*/ dual(3, (self, predicate, orElse) => flatMap$2(self, (a) => predicate(a) ? succeed$7(a) : orElse(a)));
-/** @internal */
 const forkChild$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => {
 	interruptChildrenPatch();
 	return succeed$7(forkUnsafe$1(fiber, self, options?.startImmediately, false, options?.uninterruptible ?? false));
@@ -8729,13 +8725,13 @@ const NoopSpanProto = {
 /** @internal */
 const noopSpan = (options) => Object.assign(Object.create(NoopSpanProto), options);
 const filterDisablePropagation = (span) => {
-	if (!span) return none();
-	return get$2(span.annotations, DisablePropagation) ? span._tag === "Span" ? filterDisablePropagation(getOrUndefined$1(span.parent)) : none() : some(span);
+	if (!span) return none$1();
+	return get$2(span.annotations, DisablePropagation) ? span._tag === "Span" ? filterDisablePropagation(getOrUndefined$1(span.parent)) : none$1() : some(span);
 };
 /** @internal */
 const makeSpanUnsafe = (fiber, name, options) => {
 	const disablePropagation = !fiber.cache.tracerEnabled || options?.annotations && get$2(options.annotations, DisablePropagation);
-	const parent = options?.parent !== void 0 ? some(options.parent) : options?.root ? none() : filterDisablePropagation(fiber.cache.span);
+	const parent = options?.parent !== void 0 ? some(options.parent) : options?.root ? none$1() : filterDisablePropagation(fiber.cache.span);
 	let span;
 	if (disablePropagation) span = noopSpan({
 		name,
@@ -12480,7 +12476,7 @@ const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2
 	let meta = CurrentMetadata.defaultValue();
 	return catch_$3(forever$2(tap$1(flatMap$2(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), step), (meta_) => sync$1(() => {
 		meta = meta_;
-	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$7(error.value) : orElse(error, meta.attempt === 0 ? none() : some(meta)));
+	})), { disableYield: true }), (error) => isDone$1(error) ? succeed$7(error.value) : orElse(error, meta.attempt === 0 ? none$1() : some(meta)));
 }));
 /** @internal */
 const retryOrElse = /*#__PURE__*/ dual(3, (self, policy, orElse) => flatMap$2(toStepWithMetadata(policy), (step) => {
@@ -14522,37 +14518,6 @@ const timed = timed$1;
 * @since 2.0.0
 */
 const raceFirst = raceFirst$1;
-/**
-* Filters an effect, failing with a custom error if the predicate fails.
-*
-* **Details**
-*
-* This function applies a predicate to the result of an effect. If the
-* predicate evaluates to `false`, the effect fails with either a custom
-* error (if `orFailWith` is provided) or a `NoSuchElementError`.
-*
-* **Example** (Filtering with a custom failure)
-*
-* ```ts import.meta.vitest
-* import { Effect } from "effect"
-*
-* // An effect that produces a number
-* const program = Effect.succeed(5)
-*
-* // Filter for even numbers, fail for odd numbers
-* const filtered = Effect.filterOrFail(
-*   program,
-*   (n) => n % 2 === 0,
-*   (n) => `Expected even number, got ${n}`
-* )
-*
-* Effect.runSync(Effect.flip(filtered)) // => "Expected even number, got 5"
-* ```
-*
-* @category filtering
-* @since 2.0.0
-*/
-const filterOrFail = filterOrFail$1;
 /**
 * Runs an effect conditionally based on the result of an effectful boolean
 * condition.
@@ -17006,7 +16971,7 @@ const BigInt$4 = globalThis.BigInt;
 * @since 2.0.0
 */
 const toNumber = (b) => {
-	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none();
+	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none$1();
 	return some(Number(b));
 };
 //#endregion
@@ -18434,7 +18399,7 @@ const missingExit = /*#__PURE__*/ succeed$2(missing);
 /** @internal */
 const sameExit = /*#__PURE__*/ succeed$2(missing);
 /** @internal */
-const toOption = (value) => value === missing ? none() : some(value);
+const toOption = (value) => value === missing ? none$1() : some(value);
 /** @internal */
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed$2(option.value);
 //#endregion
@@ -19230,7 +19195,7 @@ function transformOptionalEffect(f) {
 * @since 4.0.0
 */
 function omit$1() {
-	return transformOptional(() => none());
+	return transformOptional(() => none$1());
 }
 /**
 * Creates a getter that replaces `undefined` values with a default.
@@ -22349,7 +22314,7 @@ function makeOption(schema) {
 		const exit = runSyncExit(parser(input, options));
 		if (isSuccess(exit)) return some(exit.value);
 		getSchemaIssueOrThrow(exit.cause, "Option adapter can only return none for schema issues");
-		return none();
+		return none$1();
 	};
 }
 /**
@@ -22549,7 +22514,7 @@ function asOption(parser) {
 		const exit = parserExit(input, options);
 		if (isSuccess(exit)) return some(exit.value);
 		getSchemaIssueOrThrow(exit.cause, "Option adapter can only return none for schema issues");
-		return none();
+		return none$1();
 	};
 }
 function asResult(parser) {
@@ -26767,10 +26732,10 @@ const empty$5 = () => {
 */
 const get$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	if (self.backing.has(key)) return some(self.backing.get(key));
-	else if (isSimpleKey(key)) return none();
+	else if (isSimpleKey(key)) return none$1();
 	const hash$2 = hash(key);
 	const bucket = self.buckets.get(hash$2);
-	if (bucket === void 0) return none();
+	if (bucket === void 0) return none$1();
 	return getFromBucket(self, bucket, key);
 });
 const isSimpleKey = (u) => typeof u !== "object" && typeof u !== "function";
@@ -26779,7 +26744,7 @@ const getFromBucket = (self, bucket, key) => {
 		const refKey = bucket[i];
 		return some(self.backing.get(refKey));
 	}
-	return none();
+	return none$1();
 };
 /**
 * Sets a key-value pair in the MutableHashMap, mutating the map in place.
@@ -27618,7 +27583,7 @@ const SubscriptionTypeId = "~effect/PubSub/Subscription";
 * @category constructors
 * @since 4.0.0
 */
-const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$33(false), options.strategy(), make$33(none())));
+const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$33(false), options.strategy(), make$33(none$1())));
 /**
 * Creates an unbounded `PubSub`.
 *
@@ -33909,7 +33874,7 @@ function makeWith$2(method, url, urlParams, hash, headers, body) {
 * @category constructors
 * @since 4.0.0
 */
-const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$6, /*#__PURE__*/ none(), empty$7, empty$2);
+const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$6, /*#__PURE__*/ none$1(), empty$7, empty$2);
 /**
 * Creates a request constructor for the specified HTTP method.
 *
@@ -34089,7 +34054,7 @@ const bodyFormData = /*#__PURE__*/ dual(2, (self, body) => setBody(self, formDat
 function toUrl(self) {
 	const r = make$23(self.url, self.urlParams, getOrUndefined$1(self.hash));
 	if (isSuccess$1(r)) return some(r.success);
-	return none();
+	return none$1();
 }
 //#endregion
 //#region ../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/http/HttpIncomingMessage.js
@@ -34233,7 +34198,7 @@ var WebHttpClientResponse = class extends Class$2 {
 		return this.cachedCookies = fromSetCookie(this.source.headers.getSetCookie());
 	}
 	get remoteAddress() {
-		return none();
+		return none$1();
 	}
 	get stream() {
 		return this.source.body ? fromReadableStream({
@@ -36004,7 +35969,7 @@ const JsonObject$3 = fromJsonString(Record(String$2, Unknown));
 const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
 const quoted = (body) => decodeOption(JsonObject$3)(body).pipe(flatMap$3((json) => {
 	const key = ["detail", "message"].find((candidate) => typeof json[candidate] === "string");
-	if (key === void 0) return none();
+	if (key === void 0) return none$1();
 	const line = String(json[key]);
 	const complete = Object.keys(json).every((other) => other === key || RESTATED.has(other));
 	return some(complete ? line : `${line}\n${body}`);
@@ -40264,7 +40229,7 @@ const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const normalizeInstance = (raw) => {
 	const [host = ""] = raw.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//u, "").split("/");
 	const subdomain = host.replace(/\.tipee\.net$/u, "");
-	return DNS_LABEL.test(subdomain) ? some(subdomain) : none();
+	return DNS_LABEL.test(subdomain) ? some(subdomain) : none$1();
 };
 const instanceConfig = String$1("TIPEE_INSTANCE").pipe(mapEffect((raw) => mapError$2(fromOption(normalizeInstance(raw)), () => new ConfigError(new SourceError({ message: `"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.` })))));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
@@ -42575,7 +42540,7 @@ function getStreamSchemas(schema) {
 	return isStreamSchema(schema) ? some({
 		success: schema.success,
 		error: schema.error
-	}) : none();
+	}) : none$1();
 }
 const schema = /*#__PURE__*/ declare(isStream);
 /**
@@ -51167,25 +51132,14 @@ const Release = Struct({ body: Struct({
 	html_url: String$2,
 	tag_name: String$2
 }) });
-const CachedJson = fromJsonString(Struct({
-	checked_at: String$2,
-	url: String$2,
-	version: String$2
-}));
-/** The cached answer is older than a day. */
-var Stale = class extends TaggedError()("Stale", {}) {};
-const CACHE_FILE = "latest-release.json";
-const CACHE_TTL_MS = 864e5;
 const FETCH_TIMEOUT = "3 seconds";
 const DOWNLOAD_TIMEOUT = "60 seconds";
-const BUNDLE_LIMIT = 52428800;
 const CHECKSUMS = "SHA256SUMS";
 const settings = all({
 	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(channel)),
 	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
 	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
-	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL)),
-	stateDir: String$1("TIPEE_STATE_DIR").pipe(withDefault(path.join(homedir(), ".tipee-tools")))
+	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL))
 });
 const PART = /^\d+$/u;
 const isNewer = (candidate, current) => {
@@ -51205,40 +51159,25 @@ const isNewer = (candidate, current) => {
 const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
 const failed = (detail) => new UpdateFailed({ detail });
 const describe$1 = (error) => error instanceof Error ? error.message : String(error);
+const none = {
+	available: succeedNone,
+	install: succeed$3({ status: "up_to_date" })
+};
 var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
-	static layerNone = succeed$4(Updates, {
-		available: succeedNone,
-		install: succeed$3({ status: "up_to_date" })
-	});
+	static layerNone = succeed$4(Updates, none);
 	static layer = (current) => effect(Updates, gen(function* () {
 		const fs = yield* FileSystem;
 		const http = (yield* HttpClient).pipe(filterStatusOk);
 		const config = yield* option(settings);
-		if (isNone(config)) return {
-			available: succeedNone,
-			install: succeed$3({ status: "up_to_date" })
-		};
-		const { channel, downloadBase, opener, releasesUrl, stateDir } = config.value;
-		const file = path.join(stateDir, CACHE_FILE);
-		const cached = fs.readFileString(file).pipe(flatMap(decodeEffect(CachedJson)), filterOrFail((entry) => Date.now() - Date.parse(entry.checked_at) < CACHE_TTL_MS, () => new Stale()), map$4((entry) => ({
-			url: entry.url,
-			version: entry.version
-		})));
-		const fetched = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => ({
-			url: body.html_url,
-			version: body.tag_name.replace(/^v/u, "")
-		})), tap((latest) => option(flatMap(fs.makeDirectory(stateDir, { recursive: true }), () => fs.writeFileString(file, JSON.stringify({
-			checked_at: (/* @__PURE__ */ new Date()).toISOString(),
-			...latest
-		}))))));
-		const available = gen(function* () {
-			const known = yield* option(cached);
-			const latest = isSome(known) ? known.value : yield* fetched;
-			return isNewer(latest.version, current) ? some(new Update({
-				url: latest.url,
-				version: latest.version
-			})) : none();
-		}).pipe(orElseSucceed(() => none()));
+		if (isNone(config)) return none;
+		const { channel, downloadBase, opener, releasesUrl } = config.value;
+		const available = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
+			const version = body.tag_name.replace(/^v/u, "");
+			return isNewer(version, current) ? some(new Update({
+				url: body.html_url,
+				version
+			})) : none$1();
+		}), orElseSucceed(() => none$1()));
 		const download = (version) => gen(function* () {
 			const asset = `tipee-${version}.mcpb`;
 			const base = `${downloadBase}/v${version}`;
@@ -51246,22 +51185,25 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			const expected = checksumOf(sums, asset);
 			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
 			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
-			if (bytes.byteLength > BUNDLE_LIMIT) return yield* failed(`${asset} is larger than expected`);
 			const content = new Uint8Array(bytes);
 			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
-			const target = path.join(stateDir, "updates", asset);
-			yield* fs.makeDirectory(path.dirname(target), { recursive: true });
+			const directory = yield* fs.makeTempDirectory({ prefix: "tipee-update-" });
+			const target = path.join(directory, asset);
 			yield* fs.writeFile(target, content);
 			return target;
 		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
-		const open = (target) => try_({
-			catch: (cause) => failed(`could not open ${target}: ${describe$1(cause)}`),
-			try: () => {
-				spawn(opener, [target], {
-					detached: true,
-					stdio: "ignore"
-				}).unref();
-			}
+		const open = (target) => callback$1((resume) => {
+			const child = spawn(opener, [target], {
+				detached: true,
+				stdio: "ignore"
+			});
+			child.once("spawn", () => {
+				child.unref();
+				resume(void_$1);
+			});
+			child.once("error", (cause) => {
+				resume(fail$3(failed(`could not open ${target}: ${describe$1(cause)}`)));
+			});
 		});
 		return {
 			available,
@@ -51925,7 +51867,7 @@ const makeFile = /*#__PURE__*/ (() => {
 						buffer,
 						position
 					}), (bytesRead) => {
-						if (bytesRead === 0) return none();
+						if (bytesRead === 0) return none$1();
 						this.position = position + BigInt(bytesRead);
 						if (bytesRead === size) return some(buffer);
 						const dst = Buffer.allocUnsafeSlow(bytesRead);
@@ -52032,7 +51974,7 @@ const makeFileInfo = (stat) => try_({
 		uid: bigintToNumberOption(stat.uid),
 		gid: bigintToNumberOption(stat.gid),
 		size: bytes(stat.size),
-		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none(),
+		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none$1(),
 		blocks: bigintToNumberOption(stat.blocks)
 	}),
 	catch: handleBadArgument("stat")
