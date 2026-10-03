@@ -47,7 +47,8 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('NotFound');
       expect(error.message).toBe(
-        `Tipee could not find it (HTTP 404): L'élément avec l'id "1" n'a pas été trouvé.`,
+        `Tipee could not find it (HTTP 404): L'élément avec l'id "1" n'a pas été trouvé. ` +
+          'Re-read the list the id came from.',
       );
     }),
   );
@@ -63,8 +64,8 @@ layer(TestClient)('errors', (it) => {
       const error = yield* failure(call('schedules_list', { date_range: '01.11.2026' }));
 
       expect(error.reason._tag).toBe('Rejected');
-      expect(error.message).toBe(
-        'Tipee rejected the request (HTTP 400): Text cannot be parsed to an interval: 01.11.2026',
+      expect(error.message).toMatch(
+        /^Tipee rejected the request \(HTTP 400\): Text cannot be parsed to an interval: 01\.11\.2026 Nothing was changed\./u,
       );
     }),
   );
@@ -197,8 +198,8 @@ layer(TestClient)('errors', (it) => {
       const error = yield* failure(call('schedules_list', { date_range: 'yesterday' }));
 
       expect(error.reason._tag).toBe('Rejected');
-      expect(error.message).toBe(
-        'Tipee rejected the request (HTTP 422): date_range: This value is not a valid date range.',
+      expect(error.message).toMatch(
+        /^Tipee rejected the request \(HTTP 422\): date_range: This value is not a valid date range\. Nothing/u,
       );
     }),
   );
@@ -212,8 +213,8 @@ layer(TestClient)('errors', (it) => {
       server.use(status(HTTP_UNPROCESSABLE, { body, url: SCHEDULES_URL }));
       const error = yield* failure(call('schedules_list', { date_range: WEEK }));
 
-      expect(error.message).toBe(
-        `Tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)}`,
+      expect(error.message).toContain(
+        `Tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)} `,
       );
     }),
   );

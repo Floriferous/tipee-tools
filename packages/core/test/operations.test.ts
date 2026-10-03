@@ -19,15 +19,22 @@ describe('operations', () => {
     expect(operation('day_tasks_submit_for_contributor').readOnly).toBe(false);
   });
 
-  it('classifies reads and deletions from the verb', () => {
+  it('classifies reads, creates and the other writes from the verb', () => {
     const reads = operations.filter((candidate) => candidate.readOnly);
-    const deletions = operations.filter((candidate) => candidate.destructive);
+    const writes = operations.filter((candidate) => !candidate.readOnly);
+    const creates = writes.filter((candidate) => candidate.name.endsWith('_create'));
 
     expect(reads.map((candidate) => candidate.name)).toContain('teams_list');
     expect(reads.map((candidate) => candidate.name)).toContain('resources_show_teams');
     expect(reads.every((candidate) => !candidate.destructive)).toBe(true);
-    expect(deletions.map((candidate) => candidate.name)).toContain('schedules_delete');
-    expect(deletions.every((candidate) => candidate.name.includes('delete'))).toBe(true);
+    expect(creates.map((candidate) => candidate.name)).toContain('schedules_create');
+    expect(creates.every((candidate) => !candidate.destructive)).toBe(true);
+    // MCP reads destructiveHint false as "only adds": updates, cancellations
+    // And unassignments all change what is there.
+    expect(
+      writes.filter((candidate) => !creates.includes(candidate)).every((one) => one.destructive),
+    ).toBe(true);
+    expect(operation('teams_disable').destructive).toBe(true);
   });
 
   it('knows which operations answer with a body', () => {
