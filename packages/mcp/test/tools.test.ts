@@ -17,6 +17,7 @@ const WEEK = '2026-09-07/2026-09-13';
 const HTTP_NO_CONTENT = 204;
 
 const HTTP_CONFLICT = 409;
+const HTTP_GONE = 410;
 
 interface Recorded {
   readonly event: string;
@@ -122,6 +123,28 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
         tool: 'schedules_delete',
       });
       expect(JSON.stringify(recorded)).not.toContain('Some schedules are locked');
+    }),
+  );
+
+  it.effect('records an instance that does not exist, without reporting an exception', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      server.use(
+        http.post(
+          `${BASE}/api/directory/teams.list`,
+          () => HttpResponse.json({ error: 'instance_not_found' }, { status: HTTP_GONE }),
+          { once: true },
+        ),
+      );
+      yield* Effect.flip(call('teams_list', {}));
+      const calls = recordedCalls();
+
+      expect(calls.map((entry) => entry.event)).toEqual(['tool_called']);
+      expect(calls[0]?.properties).toMatchObject({
+        outcome: 'failed',
+        reason: 'InstanceNotFound',
+        tool: 'teams_list',
+      });
     }),
   );
 
