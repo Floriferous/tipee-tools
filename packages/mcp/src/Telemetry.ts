@@ -19,7 +19,7 @@ import { HttpClient, HttpClientRequest } from 'effect/http';
 
 import { channel, installationId } from './Install.ts';
 
-/** The PostHog project events go to: a public, write-only token. Empty means nothing is sent. */
+/** The PostHog project events go to: a public, write-only token. */
 const POSTHOG_KEY = 'phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y';
 const POSTHOG_HOST = 'https://eu.i.posthog.com';
 
@@ -166,7 +166,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
       Telemetry,
       Effect.gen(function* () {
         const read = yield* Effect.option(settings);
-        if (Option.isNone(read) || read.value.key === '') {
+        if (Option.isNone(read)) {
           return silent;
         }
         const config = read.value;

@@ -48,7 +48,7 @@ const username = (): string => {
 };
 
 // The same id for every copy of the plugin on one account, so Claude's
-// surfaces count as one installation. One way: the machine and account names
-// cannot be read back out, and are never sent.
+// surfaces count as one installation. Pseudonymous, not anonymous: the names
+// are never sent, but whoever knows them can compute the id and match it.
 export const installationId = (): string =>
   shaped(createHash('sha256').update(`tipee-tools:${hostname()}:${username()}`).digest('hex'));

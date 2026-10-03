@@ -124,6 +124,8 @@ const update = (): string | undefined => {
       `TIPEE_API_VERSION = '${pinned}'`,
       `TIPEE_API_VERSION = '${latest}'`,
     );
+    // The README's compatibility section names the version too.
+    rewrite(path.join(repository, 'README.md'), `Tipee API ${pinned}`, `Tipee API ${latest}`);
   }
   const bumped = options.bump ? bump() : undefined;
   run('pnpm', ['exec', 'oxfmt', specDirectory]);
