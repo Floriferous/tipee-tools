@@ -1,22 +1,29 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "npm dependencies via Renovate (Dependabot cannot run pnpm 12 in its sandbox); GitHub Actions stay with Dependabot.",
-  "extends": ["config:recommended", ":pinAllExceptPeerDependencies", "group:allNonMajor"],
+  "description": "npm dependencies (Dependabot cannot run pnpm 12 in its sandbox) and GitHub Actions, pinned to digests. A PR that fails build:check needs `pnpm fix` committed on its branch; one that changes plugins/tipee/server also needs a version bump in plugin.json and SERVER_VERSION, which CI enforces once the version is released.",
+  "extends": [
+    "config:recommended",
+    ":pinAllExceptPeerDependencies",
+    "group:allNonMajor",
+    "helpers:pinGitHubActionDigestsToSemver"
+  ],
   "timezone": "Europe/Zurich",
   "schedule": ["before 6am on monday"],
   "minimumReleaseAge": "7 days",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
-  },
-  "github-actions": {
-    "enabled": false
+    "schedule": ["before 6am on the first day of the month"]
   },
   "packageRules": [
     {
-      "description": "Effect's packages must move in lockstep (a mismatch breaks the platform layer), and its http, http-api and ai modules may change in a minor: one PR of their own. @effect/tsgo follows oxlint and TypeScript instead.",
+      "description": "Effect's packages must move in lockstep (a mismatch breaks the platform layer), and its http, http-api and ai modules may change in a minor: one PR of their own. @effect/tsgo belongs to the TypeScript toolchain instead.",
       "matchPackageNames": ["effect", "@effect/**", "!@effect/tsgo"],
       "groupName": "Effect"
+    },
+    {
+      "description": "@effect/tsgo patches TypeScript and pins exact oxlint versions: moved apart, they break the type-aware lint (#5).",
+      "matchPackageNames": ["@effect/tsgo", "oxlint", "oxlint-tsgolint", "typescript"],
+      "groupName": "TypeScript toolchain"
     },
     {
       "description": "Node types follow the Node 24 runtime pinned in .node-version.",
