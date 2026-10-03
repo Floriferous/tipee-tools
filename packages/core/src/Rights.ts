@@ -6,8 +6,8 @@ import type { Operation } from './Operations.ts';
 
 /** Where the instance and the API key are entered, in each Claude app. */
 export const SETTINGS =
-  'the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee → Configure; ' +
-  'Claude Code: /plugin → Installed → tipee)';
+  'the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee for Claude → ' +
+  'Configure; Claude Code: /plugin → Installed → tipee)';
 
 export interface Pages {
   /** Where an admin turns the API on. */

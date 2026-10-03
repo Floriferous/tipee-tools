@@ -14,19 +14,24 @@ const staging = path.join(root, 'dist', 'mcpb');
 const output = path.join(root, 'dist', `tipee-${SERVER_VERSION}.mcpb`);
 const mcpb = path.join(root, 'node_modules', '.bin', 'mcpb');
 
+const REPOSITORY = 'https://github.com/Floriferous/tipee-tools';
+
 const manifest = {
+  // Claude Desktop recognizes an installed extension by its author's name and
+  // its name: renaming either installs a second copy beside the first.
   author: { name: 'Florian Bienefelt', url: 'https://github.com/Floriferous' },
   compatibility: {
     claude_desktop: '>=0.10.0',
     platforms: ['darwin', 'win32', 'linux'],
-    // The bundled undici 8 needs Node 22.19.
+    // The first Node 22 with `tls.setDefaultCACertificates` (see Start.ts), and
+    // the oldest one the bundle is built for and tested on.
     runtimes: { node: '>=22.19.0' },
   },
   description:
     'Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.',
-  display_name: 'Tipee',
-  documentation: 'https://github.com/Floriferous/tipee-tools#readme',
-  homepage: 'https://github.com/Floriferous/tipee-tools',
+  display_name: 'Tipee for Claude',
+  documentation: `${REPOSITORY}#readme`,
+  homepage: REPOSITORY,
   // Tipee's square mark, from the favicon on tipee.ch.
   icon: 'icon.png',
   keywords: ['tipee', 'hr', 'planning', 'shifts'],
@@ -41,15 +46,20 @@ const manifest = {
     'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
     'run check_setup: it names the integration, links where its rights are set, and explains ' +
     'anything missing in plain words.\n\n' +
-    'The extension collects usage data to help improve it: tool usage, errors and your ' +
-    'instance name; never your key or anything about your people. Not affiliated with Tipee.',
+    'The extension sends usage data to PostHog to help improve it: which tools ran, how they ' +
+    'failed, your instance name and your setup (system, Node and Claude versions); never your ' +
+    'key, anything Tipee answered, or anything about your people. See the privacy policy.\n\n' +
+    'An independent project, not made or endorsed by Tipee.',
   manifest_version: '0.3',
+  // See `author`.
   name: 'tipee',
+  // MCPB asks extensions that talk to outside services for a privacy policy.
+  privacy_policies: [`${REPOSITORY}#privacy-and-telemetry`],
   prompts: [
     { description: SETUP_PROMPT.description, name: SETUP_PROMPT.name, text: SETUP_PROMPT.text },
   ],
   prompts_generated: false,
-  repository: { type: 'git', url: 'https://github.com/Floriferous/tipee-tools' },
+  repository: { type: 'git', url: REPOSITORY },
   server: {
     entry_point: 'server/tipee-mcp.mjs',
     mcp_config: {
@@ -62,6 +72,7 @@ const manifest = {
     },
     type: 'node',
   },
+  support: `${REPOSITORY}/issues`,
   tools: Object.values(TipeeToolkit.tools).map((tool) => ({
     description: Tool.getDescription(tool),
     name: tool.name,
@@ -69,7 +80,8 @@ const manifest = {
   tools_generated: false,
   // An array, not an object: Claude Desktop shows the fields in this order,
   // and the easy, non-secret value comes first. Descriptions double as
-  // placeholders, so they stay short.
+  // placeholders, so they stay short. Claude Desktop keeps saved values by
+  // key: renaming one loses every user's instance or key.
   user_config: Object.fromEntries([
     [
       'instance',
@@ -101,7 +113,9 @@ copyFileSync(
   path.join(root, 'server', 'tipee-mcp.mjs'),
   path.join(staging, 'server', 'tipee-mcp.mjs'),
 );
-copyFileSync(path.join(root, 'icon.png'), path.join(staging, 'icon.png'));
+for (const file of ['icon.png', 'LICENSE']) {
+  copyFileSync(path.join(root, file), path.join(staging, file));
+}
 
 const run = (...args: ReadonlyArray<string>): void => {
   const result = spawnSync(mcpb, args, { stdio: 'inherit' });

@@ -1,29 +1,15 @@
 # Tipee for Claude
 
-Give Claude access to your company's Tipee: employees, teams, shifts,
-absences, on-call duties, activities and time clock, reading and changing.
-Not affiliated with Tipee.
+Gives Claude access to your company's [Tipee](https://tipee.ch): people, teams,
+shifts, absences, on-call duties, activities and time clock, to read and, when
+you ask, to change. An independent project, not made or endorsed by Tipee.
 
-Setup takes three steps, described in the
-[project README](https://github.com/Floriferous/tipee-tools#readme):
+```
+/plugin marketplace add Floriferous/tipee-tools
+/plugin install tipee@tipee-tools
+```
 
-1. **Get an API key from Tipee**: an admin with the "Responsable API" role
-   turns the API on (`/admin/instance/integrations/`), then creates an
-   integration (`/hr-core/integrations`), generates its key, and ticks its
-   rights: "Se connecter avec des applications externes" plus the module
-   rights Claude should have.
-2. **Install**: in Claude Desktop, from the downloaded extension file; in
-   Claude Code, with `/plugin install tipee@tipee-tools`. Enter your instance
-   and the key when asked; the key is stored in your keychain.
-3. **Check**: send the **check-tipee-setup** prompt (the **+** menu in
-   Claude Desktop, the `/` menu in Claude Code) or ask Claude to run
-   `check_setup`. It reports whether the setup is complete or what is still
-   missing.
-
-Every tool that changes Tipee instructs Claude to tell you exactly what will
-change and to wait for your yes first. Claude Desktop also asks your
-permission for each tool: choose "Allow once" to approve every change
-yourself. Which tools are enabled is decided in Claude's settings.
-
-The plugin collects usage data to help improve it: tool usage, errors and
-your instance name; never your key or anything about your people.
+Enter your Tipee instance and an integration's API key when asked, then run
+**Check Tipee setup** (`check-tipee-setup` in the `/` menu). Getting the key, updating, removing
+and privacy are described in the
+[project README](https://github.com/Floriferous/tipee-tools#readme).
