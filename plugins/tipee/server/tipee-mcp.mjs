@@ -7902,7 +7902,7 @@ const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$2(s
 /** @internal */
 const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
 /** @internal */
-const catchIf$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$2(self, (cause) => {
+const catchIf = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$2(self, (cause) => {
 	const error = findError$1(cause);
 	if (isFailure$1(error)) return failCause$6(error.failure);
 	if (!predicate(error.success)) return orElse ? orElse(error.success) : failCause$6(cause);
@@ -7919,7 +7919,7 @@ const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, fil
 /** @internal */
 const catchTag$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
 	const pred = Array.isArray(k) ? (e) => hasProperty(e, "_tag") && k.includes(e._tag) : isTagged(k);
-	return catchIf$1(self, pred, f, orElse);
+	return catchIf(self, pred, f, orElse);
 });
 /** @internal */
 const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cases, orElse) => {
@@ -7929,6 +7929,12 @@ const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cas
 		return hasProperty(e, "_tag") && isString(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$7(e);
 	}, (e) => cases[e["_tag"]](e), orElse);
 });
+/** @internal */
+const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
+	const reason = e.reason;
+	if (isTagged(reason, reasonTag)) return f(reason, e);
+	return orElse ? orElse(reason, e) : fail$6(e);
+}));
 /** @internal */
 const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => failSync(() => f(error))));
 /** @internal */
@@ -13931,6 +13937,56 @@ const catchTag = catchTag$1;
 */
 const catchTags = catchTags$1;
 /**
+* Catches a specific reason within a tagged error.
+*
+* **When to use**
+*
+* Use to handle one nested reason inside an `Effect`'s tagged error while
+* preserving the parent error shape for unmatched reasons.
+*
+* **Details**
+*
+* Use this to handle nested error causes without removing the parent error
+* from the error channel. The handler receives the unwrapped reason.
+*
+* **Example** (Handling an error reason)
+*
+* ```ts import.meta.vitest
+* import { Data, Effect } from "effect"
+*
+* class RateLimitError extends Data.TaggedError("RateLimitError")<{
+*   retryAfter: number
+* }> {}
+*
+* class QuotaExceededError extends Data.TaggedError("QuotaExceededError")<{
+*   limit: number
+* }> {}
+*
+* class AiError extends Data.TaggedError("AiError")<{
+*   reason: RateLimitError | QuotaExceededError
+* }> {}
+*
+* const program: Effect.Effect<string, AiError> = Effect.fail(
+*   new AiError({ reason: new RateLimitError({ retryAfter: 30 }) })
+* )
+*
+* // Handle rate limits specifically
+* const handled = program.pipe(
+*   Effect.catchReason("AiError", "RateLimitError", (reason) =>
+*     Effect.succeed(`Retry after ${reason.retryAfter}s`)
+*   )
+* )
+*
+* Effect.runSync(handled) // => "Retry after 30s"
+* ```
+*
+* @see {@link catchReasons} for handling several nested reason tags
+*
+* @category error handling
+* @since 4.0.0
+*/
+const catchReason = catchReason$1;
+/**
 * Handles both recoverable and unrecoverable errors by providing a recovery
 * effect.
 *
@@ -14019,51 +14075,6 @@ const catchCause$1 = catchCause$2;
 * @since 4.0.0
 */
 const catchDefect = catchDefect$1;
-/**
-* Recovers from specific errors using a `Predicate` or `Refinement`.
-*
-* **When to use**
-*
-* Use when you need to recover from errors that match a condition.
-*
-* **Details**
-*
-* Use a `Refinement` for type narrowing or a `Predicate` for simple boolean
-* matching. Non-matching errors re-fail with the original cause. Defects and
-* interrupts are not caught.
-*
-* **Example** (Recovering when a predicate matches)
-*
-* ```ts import.meta.vitest
-* import { Data, Effect, Filter } from "effect"
-*
-* class NotFound extends Data.TaggedError("NotFound")<{ id: string }> {}
-*
-* const program = Effect.fail(new NotFound({ id: "user-1" }))
-*
-* // With a refinement
-* const recovered = program.pipe(
-*   Effect.catchIf(
-*     (error): error is NotFound => error._tag === "NotFound",
-*     (error) => Effect.succeed(`missing:${error.id}`)
-*   )
-* )
-*
-* // With a Filter
-* const recovered2 = program.pipe(
-*   Effect.catchFilter(
-*     Filter.tagged("NotFound"),
-*     (error) => Effect.succeed(`missing:${error.id}`)
-*   )
-* )
-*
-* Effect.runSync(Effect.all([recovered, recovered2])) // => ['missing:user-1', 'missing:user-1']
-* ```
-*
-* @category error handling
-* @since 2.0.0
-*/
-const catchIf = catchIf$1;
 /**
 * Transforms the failure value of an effect without changing its success value.
 *
@@ -51251,17 +51262,17 @@ const probe = (name, params) => invoke(operation(name), params).pipe(map$4((resu
 		status: "ok"
 	},
 	result
-})), catchIf((failure) => failure.reason._tag === "UnexpectedShape", (failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
+})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
 	handled: true,
 	properties: { tool: "check_setup" }
 })), {
 	report: {
-		error: failure.reason.message,
+		error: reason.message,
 		name,
 		status: "failed"
 	},
 	result: void 0
-})), catchIf((failure) => failure.reason._tag === "Forbidden", (failure) => succeed$3({
+})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
 	report: {
 		error: failure.message,
 		name,

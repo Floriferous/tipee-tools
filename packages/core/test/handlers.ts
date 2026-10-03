@@ -36,7 +36,10 @@ const HTTP_INSUFFICIENT_STORAGE = 507;
 
 const api = (path: string): string => `${BASE}${path}`;
 
-const DateRange = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}$/u));
+// Either end may be open: `2026-08-01/-`, `-/2018-12-31`.
+const DateRange = Schema.String.check(
+  Schema.isPattern(/^(?:\d{4}-\d{2}-\d{2}|-)\/(?:\d{4}-\d{2}-\d{2}|-)$/u),
+);
 const Ids = Schema.Array(Schema.String);
 const TeamFilter = Schema.Struct({
   key: Schema.Literal('resource.team'),
