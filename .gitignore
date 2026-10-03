@@ -16,6 +16,3 @@ dist/
 .DS_Store
 .idea/
 .claude/worktrees/
-
-# opensrc source mirror for exploration (symlink into the global cache)
-opensrc/
