@@ -13422,7 +13422,7 @@ const TipeeErrorReason = Union([
 ]);
 //#endregion
 //#region ../../packages/core/src/Rights.ts
-const SETTINGS = "the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee → Configure; Claude Code: /plugin → Installed → tipee)";
+const SETTINGS = "the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee for Claude → Configure; Claude Code: /plugin → Installed → tipee)";
 const pages = (instance) => {
 	const base = `https://${instance}.tipee.net`;
 	return {
@@ -23825,7 +23825,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 	static layerOff = succeed$4(Telemetry, silent);
 	static layer = (base) => effect(Telemetry, gen(function* () {
 		const read = yield* option(settings$1);
-		if (isNone(read) || read.value.key === "") return silent;
+		if (isNone(read)) return silent;
 		const config = read.value;
 		const http = (yield* HttpClient).pipe(retryTransient({
 			schedule: exponential("500 millis"),

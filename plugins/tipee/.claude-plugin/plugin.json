@@ -1,5 +1,6 @@
 {
   "name": "tipee",
+  "displayName": "Tipee for Claude",
   "version": "0.3.9",
   "description": "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.",
   "author": {
@@ -19,7 +20,7 @@
     "api_key": {
       "type": "string",
       "title": "Tipee API key",
-      "description": "Integration key from the Tipee admin panel (see the plugin README for the authorizations it needs)",
+      "description": "Integration key from the Tipee admin panel; the key and its rights: https://github.com/Floriferous/tipee-tools#1-get-an-api-key-from-tipee",
       "sensitive": true,
       "required": true
     }

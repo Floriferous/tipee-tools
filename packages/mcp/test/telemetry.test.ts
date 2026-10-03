@@ -75,7 +75,7 @@ describe('telemetry', () => {
     server.use(fakePostHog);
   });
 
-  it.effect('batches anonymous events to PostHog', () =>
+  it.effect('batches pseudonymous events to PostHog', () =>
     Effect.gen(function* () {
       // Grouped under the instance however it was typed.
       yield* record({ TIPEE_INSTANCE: ' https://Acme.tipee.net/ ' });
