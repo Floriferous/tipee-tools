@@ -7898,12 +7898,6 @@ const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cas
 	}, (e) => cases[e["_tag"]](e), orElse);
 });
 /** @internal */
-const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$1(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
-	const reason = e.reason;
-	if (isTagged(reason, reasonTag)) return f(reason, e);
-	return orElse ? orElse(reason, e) : fail$6(e);
-}));
-/** @internal */
 const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => failSync(() => f(error))));
 /** @internal */
 const mapBoth = /*#__PURE__*/ dual(2, (self, options) => matchEffect$2(self, {
@@ -13906,56 +13900,6 @@ const catchTag = catchTag$1;
 * @since 2.0.0
 */
 const catchTags = catchTags$1;
-/**
-* Catches a specific reason within a tagged error.
-*
-* **When to use**
-*
-* Use to handle one nested reason inside an `Effect`'s tagged error while
-* preserving the parent error shape for unmatched reasons.
-*
-* **Details**
-*
-* Use this to handle nested error causes without removing the parent error
-* from the error channel. The handler receives the unwrapped reason.
-*
-* **Example** (Handling an error reason)
-*
-* ```ts import.meta.vitest
-* import { Data, Effect } from "effect"
-*
-* class RateLimitError extends Data.TaggedError("RateLimitError")<{
-*   retryAfter: number
-* }> {}
-*
-* class QuotaExceededError extends Data.TaggedError("QuotaExceededError")<{
-*   limit: number
-* }> {}
-*
-* class AiError extends Data.TaggedError("AiError")<{
-*   reason: RateLimitError | QuotaExceededError
-* }> {}
-*
-* const program: Effect.Effect<string, AiError> = Effect.fail(
-*   new AiError({ reason: new RateLimitError({ retryAfter: 30 }) })
-* )
-*
-* // Handle rate limits specifically
-* const handled = program.pipe(
-*   Effect.catchReason("AiError", "RateLimitError", (reason) =>
-*     Effect.succeed(`Retry after ${reason.retryAfter}s`)
-*   )
-* )
-*
-* Effect.runSync(handled) // => "Retry after 30s"
-* ```
-*
-* @see {@link catchReasons} for handling several nested reason tags
-*
-* @category error handling
-* @since 4.0.0
-*/
-const catchReason = catchReason$1;
 /**
 * Handles both recoverable and unrecoverable errors by providing a recovery
 * effect.
@@ -31853,7 +31797,7 @@ const Json = /*#__PURE__*/ make$28(/*#__PURE__*/ annotate(Json$1, { toCode: () =
 * @category schemas
 * @since 4.0.0
 */
-const JsonObject$3 = /*#__PURE__*/ Record(String$2, Json);
+const JsonObject$4 = /*#__PURE__*/ Record(String$2, Json);
 /**
 * Schema that accepts any mutable JSON-compatible value. See {@link Json} for
 * the immutable variant.
@@ -38213,21 +38157,12 @@ const codeByLiteral = {
 */
 const fromLiteral = (literal) => codeByLiteral[literal];
 //#endregion
-//#region ../../packages/core/src/Errors.ts
-const ProblemBody = fromJsonString(Struct({
-	detail: optionalKey(String$2),
-	message: optionalKey(String$2)
-}));
-const explained = (body) => decodeOption(ProblemBody)(body).pipe(flatMap$3((problem) => fromNullishOr(problem.detail ?? problem.message)), getOrElse(() => body));
-const ErrorCode = Struct({
-	error: optionalKey(String$2),
-	warning_type: optionalKey(String$2)
-});
-const codeOf = (found) => getOrUndefined$1(flatMap$3(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
-/** The key is not one Tipee knows (typo, revoked, or another instance's). */
+//#region ../../packages/core/src/Reasons.ts
+const saying = (summary, body, otherwise) => body === "" ? `${summary}: ${otherwise}` : `${summary}: ${body}`;
+/** The key is not one Tipee accepts (typo, revoked, expired, or another instance's). */
 var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: String$2 }) {
 	get message() {
-		return "Tipee rejected the API key: it is not the key of an integration on this instance.";
+		return saying("Tipee refused the API key (HTTP 401)", this.body, "it is mistyped, revoked, or the key of another instance.");
 	}
 };
 /**
@@ -38235,24 +38170,28 @@ var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: Strin
 * Unlocks the API. Tipee answers 401 here (not 403), so only the body tells
 * This apart from a bad key.
 */
-var RightsMissing = class extends TaggedError()("RightsMissing", {}) {
+var RightsMissing = class extends TaggedError()("RightsMissing", { body: String$2 }) {
 	get message() {
-		return "The API key works, but its Tipee integration is not allowed to use the API yet.";
+		return `The API key works, but its Tipee integration is not allowed to use the API yet (HTTP 401: ${this.body}).`;
 	}
 };
 var Forbidden = class extends TaggedError()("Forbidden", { body: String$2 }) {
 	get message() {
-		return this.body === "" ? "The Tipee integration lacks the right for this operation." : `Tipee refused the operation: ${this.body}`;
+		return saying("Tipee refused the operation (HTTP 403)", this.body, "the integration lacks the right for it.");
 	}
 };
 var NotFound = class extends TaggedError()("NotFound", { body: String$2 }) {
 	get message() {
-		return this.body === "" ? "Tipee could not find this resource." : `Tipee could not find it: ${this.body}`;
+		return saying("Tipee could not find it (HTTP 404)", this.body, "no such resource.");
 	}
 };
-var RateLimited = class extends TaggedError()("RateLimited", {}) {
+var RateLimited = class extends TaggedError()("RateLimited", {
+	body: String$2,
+	/** Tipee's Retry-After header, in seconds or as a date. */
+	retryAfter: optionalKey(String$2)
+}) {
 	get message() {
-		return "Tipee rate limit reached even after retrying. Wait a moment and try again.";
+		return `Tipee's rate limit was still reached after retrying (HTTP 429). ${this.retryAfter === void 0 ? "Wait a moment before trying again." : `Tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`}${this.body === "" ? "" : ` Tipee said: ${this.body}`}`;
 	}
 };
 /** Tipee refused the request on its own terms (a documented 4xx such as 409). */
@@ -38260,10 +38199,11 @@ var Rejected = class extends TaggedError()("Rejected", {
 	body: String$2,
 	/** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
 	code: optionalKey(String$2),
-	status: optionalKey(Int)
+	status: Int
 }) {
 	get message() {
-		return `Tipee rejected the request: ${this.body}`;
+		const code = this.code === void 0 ? "" : `, ${this.code}`;
+		return `Tipee rejected the request (HTTP ${this.status}${code}): ${this.body}`;
 	}
 };
 var UnexpectedStatus = class extends TaggedError()("UnexpectedStatus", {
@@ -38271,7 +38211,7 @@ var UnexpectedStatus = class extends TaggedError()("UnexpectedStatus", {
 	status: Int
 }) {
 	get message() {
-		return `Tipee returned an unexpected error (HTTP ${this.status}) ${this.body}`.trim();
+		return saying(`Tipee answered with an unexpected error (HTTP ${this.status})`, this.body, "no explanation given.");
 	}
 };
 /**
@@ -38296,6 +38236,12 @@ var Unreachable = class extends TaggedError()("Unreachable", { description: Stri
 		return `Tipee could not be reached: ${this.description}`;
 	}
 };
+/** A failure in tipee-tools itself, not an answer from Tipee: a bug to report. */
+var Internal = class extends TaggedError()("Internal", { description: String$2 }) {
+	get message() {
+		return `tipee-tools failed on its own, not because of anything Tipee answered: ${this.description}`;
+	}
+};
 const TipeeErrorReason = Union([
 	ApiKeyRejected,
 	RightsMissing,
@@ -38306,8 +38252,37 @@ const TipeeErrorReason = Union([
 	UnexpectedStatus,
 	UnexpectedShape,
 	InvalidRequest$1,
-	Unreachable
+	Unreachable,
+	Internal
 ]);
+//#endregion
+//#region ../../packages/core/src/Errors.ts
+const JsonObject$3 = fromJsonString(Record(String$2, Unknown));
+const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
+const quoted = (body) => decodeOption(JsonObject$3)(body).pipe(flatMap$3((json) => {
+	const key = ["detail", "message"].find((candidate) => typeof json[candidate] === "string");
+	if (key === void 0) return none();
+	const line = String(json[key]);
+	const complete = Object.keys(json).every((other) => other === key || RESTATED.has(other));
+	return some(complete ? line : `${line}\n${body}`);
+}), getOrElse(() => body));
+const MAX_CAUSES = 5;
+const chain = (error) => {
+	const parts = [];
+	let current = error;
+	while (current instanceof Error && parts.length < MAX_CAUSES) {
+		const { code } = current;
+		const part = typeof code === "string" && !current.message.includes(code) ? `${current.message} (${code})` : current.message;
+		if (part !== "" && parts.at(-1) !== part) parts.push(part);
+		current = current.cause;
+	}
+	return parts.join(": ");
+};
+const ErrorCode = Struct({
+	error: optionalKey(String$2),
+	warning_type: optionalKey(String$2)
+});
+const codeOf = (found) => getOrUndefined$1(flatMap$3(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
 const HTTP_OK_MIN = 200;
 const HTTP_OK_MAX = 299;
@@ -38317,10 +38292,10 @@ const HTTP_FORBIDDEN = 403;
 const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 const HTTP_UNPROCESSABLE = 422;
-const HTTP_TOO_MANY_REQUESTS = 429;
-const statusReason = (status, rawBody) => {
-	const body = explained(rawBody);
-	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing() : new ApiKeyRejected({ body });
+const HTTP_TOO_MANY_REQUESTS$1 = 429;
+const statusReason = (status, rawBody, retryAfter) => {
+	const body = quoted(rawBody);
+	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing({ body }) : new ApiKeyRejected({ body });
 	if (status === HTTP_FORBIDDEN) return new Forbidden({ body });
 	if (status === HTTP_NOT_FOUND) return new NotFound({ body });
 	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
@@ -38331,7 +38306,10 @@ const statusReason = (status, rawBody) => {
 			...code === void 0 ? {} : { code }
 		});
 	}
-	if (status === HTTP_TOO_MANY_REQUESTS) return new RateLimited();
+	if (status === HTTP_TOO_MANY_REQUESTS$1) return new RateLimited({
+		body,
+		...retryAfter === void 0 ? {} : { retryAfter }
+	});
 	return new UnexpectedStatus({
 		body,
 		status
@@ -38356,9 +38334,11 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 					return new TipeeError({ reason: new UnexpectedShape({ details }) });
 				}
 				const body = yield* reason.response.text.pipe(orElseSucceed(() => ""));
-				return new TipeeError({ reason: statusReason(status, body) });
+				const retryAfter = reason.response.headers["retry-after"];
+				return new TipeeError({ reason: statusReason(status, body, retryAfter) });
 			}
-			return new TipeeError({ reason: new Unreachable({ description: cause.message }) });
+			const description = [cause.message, chain(reason.cause)].filter((part) => part !== "").join(": ");
+			return new TipeeError({ reason: new Unreachable({ description }) });
 		}
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
 		if (typeof cause === "object" && cause !== null && !(cause instanceof Error)) {
@@ -38369,8 +38349,8 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 				...code === void 0 ? {} : { code }
 			}) });
 		}
-		const body = cause instanceof Error ? cause.message : String(cause);
-		return new TipeeError({ reason: new Rejected({ body }) });
+		const description = cause instanceof Error ? chain(cause) : String(cause);
+		return new TipeeError({ reason: new Internal({ description }) });
 	});
 };
 /** `TIPEE_INSTANCE` or `TIPEE_API_KEY` is missing or malformed. */
@@ -42612,16 +42592,78 @@ var TimeclockGroup = class extends make$8("Timeclock").add(post("postAppUiApiTim
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids).<br />Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
 var Tipee = class extends make$10("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 //#endregion
+//#region ../../packages/core/src/Rights.ts
+const pages = (instance) => {
+	const base = `https://${instance}.tipee.net`;
+	return {
+		api: `${base}/admin/instance/integrations/`,
+		integrations: `${base}/hr-core/integrations`,
+		roles: (integrationId) => `${base}/hr-core/profile/${integrationId}/roles`
+	};
+};
+const RIGHTS = {
+	Activity: { module: "Activités" },
+	Balances: {
+		module: "Calcul des soldes",
+		read: "Voir les soldes"
+	},
+	Directory: {
+		module: "Cœur RH",
+		read: "Voir les collaborateurs",
+		write: "Gérer les collaborateurs"
+	},
+	Schedule: {
+		module: "Planning",
+		read: "Voir les plannings",
+		write: "Planifier"
+	},
+	Timeclock: {
+		module: "Saisie des heures",
+		read: "Voir les timbrages"
+	}
+};
+const SPECIAL_RIGHTS = [
+	[/^schedule_templates_/u, "Gérer les modèles horaires"],
+	[/^absence_types_/u, "Gérer les types d'absence"],
+	[/^tags_/u, "Gérer les tags"],
+	[/^timechecks_delete/u, "Supprimer un timbrage"],
+	[/^timechecks_(?:validate|update|create)/u, "Valider l'ensemble des timbrages des personnes"]
+];
+const rightFor = (target) => {
+	const rights = RIGHTS[target.group];
+	if (rights === void 0) return "the right this operation needs";
+	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
+	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
+};
+//#endregion
 //#region ../../packages/core/src/TipeeClient.ts
 const TIPEE_API_VERSION = "26.06.25";
 const RETRY_ATTEMPTS = 3;
+const RETRY_SCHEDULE = exponential("250 millis");
+const HTTP_TOO_MANY_REQUESTS = 429;
+const TRANSIENT_STATUSES = /* @__PURE__ */ new Set([
+	408,
+	429,
+	500,
+	502,
+	503,
+	504
+]);
+const readsOnly = (path) => /^(?:list|show)/u.test(path.slice(path.lastIndexOf(".") + 1));
+const resendable = (request, status) => status === HTTP_TOO_MANY_REQUESTS || readsOnly(new URL(request.url).pathname) && (status === void 0 || TRANSIENT_STATUSES.has(status));
+const retried = (response) => response.pipe(repeat({
+	schedule: RETRY_SCHEDULE,
+	times: RETRY_ATTEMPTS,
+	while: (answer) => TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status)
+}), retry({
+	schedule: RETRY_SCHEDULE,
+	times: RETRY_ATTEMPTS,
+	while: (error) => isHttpClientError(error) && (error.reason._tag === "TransportError" ? resendable(error.request) : error.reason._tag === "StatusCodeError" && resendable(error.request, error.reason.response.status))
+}));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
 	static layer = (credentials) => effect(TipeeClient, make$9(Tipee, {
 		baseUrl: `https://${credentials.instance}.tipee.net`,
-		transformClient: (client) => client.pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), retryTransient({
-			schedule: exponential("250 millis"),
-			times: RETRY_ATTEMPTS
-		}))
+		transformClient: (client) => client.pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), transformResponse$1(retried))
 	}).pipe(map$3((api) => ({
 		api,
 		instance: credentials.instance
@@ -42663,7 +42705,7 @@ const collect = () => {
 				name: nameOf(endpoint.path),
 				parameters: bodySchema(endpoint),
 				path: endpoint.path,
-				readOnly: verb.startsWith("list") || verb.startsWith("show"),
+				readOnly: readsOnly(endpoint.path),
 				success: successSchema(successes)
 			});
 		},
@@ -42686,15 +42728,8 @@ const call = (target, params) => gen(function* () {
 	if (method === void 0) return yield* die(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
 	return yield* method({ payload: params }).pipe(catch_$2((error) => flatMap(TipeeError.fromCause(error), fail$3)));
 });
-const pages = (instance) => {
-	const base = `https://${instance}.tipee.net`;
-	return {
-		api: `${base}/admin/instance/integrations/`,
-		integrations: `${base}/hr-core/integrations`,
-		roles: (integrationId) => `${base}/hr-core/profile/${integrationId}/roles`
-	};
-};
 const PAGE_SIZE$1 = 100;
+const HTTP_SERVER_ERROR = 500;
 const integrations = gen(function* () {
 	const kind = (yield* call(operation("kinds_list"), {})).find((candidate) => candidate.machine_name === "integration");
 	if (kind === void 0) return [];
@@ -42728,40 +42763,6 @@ const rolesPage = gen(function* () {
 	const { instance } = yield* TipeeClient;
 	return (yield* integrationLink)?.roles_page ?? pages(instance).integrations;
 });
-const RIGHTS = {
-	Activity: { module: "Activités" },
-	Balances: {
-		module: "Calcul des soldes",
-		read: "Voir les soldes"
-	},
-	Directory: {
-		module: "Cœur RH",
-		read: "Voir les collaborateurs",
-		write: "Gérer les collaborateurs"
-	},
-	Schedule: {
-		module: "Planning",
-		read: "Voir les plannings",
-		write: "Planifier"
-	},
-	Timeclock: {
-		module: "Saisie des heures",
-		read: "Voir les timbrages"
-	}
-};
-const SPECIAL_RIGHTS = [
-	[/^schedule_templates_/u, "Gérer les modèles horaires"],
-	[/^absence_types_/u, "Gérer les types d'absence"],
-	[/^tags_/u, "Gérer les tags"],
-	[/^timechecks_delete/u, "Supprimer un timbrage"],
-	[/^timechecks_(?:validate|update|create)/u, "Valider l'ensemble des timbrages des personnes"]
-];
-const rightFor = (target) => {
-	const rights = RIGHTS[target.group];
-	if (rights === void 0) return "the right this operation needs";
-	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
-	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
-};
 const explain = (error, target) => gen(function* () {
 	const { instance } = yield* TipeeClient;
 	const { reason } = error;
@@ -42771,6 +42772,14 @@ const explain = (error, target) => gen(function* () {
 	});
 	if (reason._tag === "ApiKeyRejected") return new TipeeError({
 		fix: `Check the instance name, then the integration and its key at ${pages(instance).integrations}, and re-enter them in the extension settings.`,
+		reason
+	});
+	if (reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return new TipeeError({
+		fix: `${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in the extension settings.`,
+		reason
+	});
+	if (!target.readOnly && (reason._tag === "Unreachable" || reason._tag === "UnexpectedStatus" && reason.status >= HTTP_SERVER_ERROR)) return new TipeeError({
+		fix: "This write was not retried, and Tipee may have applied it before failing: read it back before trying again.",
 		reason
 	});
 	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? new TipeeError({
@@ -45064,7 +45073,7 @@ var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 * notifications. The receiver is not obligated to provide these
 * notifications.
 */
-progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [JsonObject$3])) }))) {};
+progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [JsonObject$4])) }))) {};
 /**
 * Schema for optional MCP result metadata.
 *
@@ -45082,7 +45091,7 @@ var ResultMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 * This result property is reserved by the protocol to allow clients and
 * servers to attach additional metadata to their responses.
 */
-_meta: /*#__PURE__*/ optional$4(JsonObject$3) }))) {};
+_meta: /*#__PURE__*/ optional$4(JsonObject$4) }))) {};
 /**
 * Schema for optional MCP notification metadata.
 *
@@ -45100,7 +45109,7 @@ var NotificationMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Str
 * This parameter name is reserved by MCP to allow clients and servers to
 * attach additional metadata to their notifications.
 */
-_meta: /*#__PURE__*/ optional$4(JsonObject$3) }))) {};
+_meta: /*#__PURE__*/ optional$4(JsonObject$4) }))) {};
 /**
 * Schema for opaque cursor tokens used in pagination.
 *
@@ -45770,7 +45779,7 @@ var Resource$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Resour
 	* This parameter name is reserved by MCP to allow clients and servers to
 	* attach additional metadata to resources.
 	*/
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 })) {};
 /**
 * Schema for the contents of a specific resource or sub-resource.
@@ -45791,7 +45800,7 @@ var ResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Str
 	/**
 	* Optional additional metadata for the client.
 	*/
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 }))) {};
 /**
 * Schema for text resource contents represented as a string.
@@ -45925,7 +45934,7 @@ var Prompt$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Prompt")
 	* Icons that clients can display for this prompt.
 	*/
 	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 })) {};
 /**
 * Represents text content provided to or from an LLM.
@@ -45944,7 +45953,7 @@ var TextContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	* Optional annotations for the client.
 	*/
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 }))) {};
 /**
 * Represents image content provided to or from an LLM.
@@ -45968,7 +45977,7 @@ var ImageContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct(
 	* Optional annotations for the client.
 	*/
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 }))) {};
 /**
 * Represents audio content provided to or from an LLM.
@@ -45992,7 +46001,7 @@ var AudioContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct(
 	* Optional annotations for the client.
 	*/
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 }))) {};
 /**
 * Represents resource contents embedded into a prompt or tool call result.
@@ -46013,7 +46022,7 @@ var EmbeddedResource$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Str
 	* Optional annotations for the client.
 	*/
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 }))) {};
 /**
 * Represents a readable resource included in a prompt or tool call result.
@@ -46165,9 +46174,9 @@ var ToolAnnotations$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Stru
 */
 const ToolJson = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, JsonObject$3)),
+	properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, JsonObject$4)),
 	required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
-}), [JsonObject$3]);
+}), [JsonObject$4]);
 /**
 * Schema for {@link ToolOutputJson}.
 *
@@ -46175,7 +46184,7 @@ const ToolJson = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 * @category tools
 * @since 4.0.0
 */
-const ToolOutputJson = JsonObject$3;
+const ToolOutputJson = JsonObject$4;
 /**
 * Schema for the definition of a tool the client can call.
 *
@@ -46217,7 +46226,7 @@ var Tool$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
 	* This parameter name is reserved by MCP to allow clients and servers to
 	* attach additional metadata to resources.
 	*/
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 })) {};
 ({ ...PaginatedResultMeta.fields });
 /**
@@ -46342,7 +46351,7 @@ var ToolUseContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/
 	* Arguments supplied to the tool.
 	*/
 	input: /*#__PURE__*/ Record(String$2, Unknown),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 })) {};
 /**
 * Schema for the result of a tool use supplied in a sampling message.
@@ -46369,7 +46378,7 @@ var ToolResultContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSche
 	* Whether tool execution ended in an error.
 	*/
 	isError: /*#__PURE__*/ optional$4(Boolean),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 })) {};
 /**
 * Schema for content blocks accepted in MCP sampling messages.
@@ -46395,7 +46404,7 @@ const SamplingMessageContentBlock$1 = /*#__PURE__*/ Union([
 var SamplingMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	role: Role$1,
 	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 }))) {};
 /**
 * Schema for controlling tool selection during MCP sampling.
@@ -46519,7 +46528,7 @@ var ModelPreferences$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchem
 var CreateMessageResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CreateMessageResult")({
 	role: Role$1,
 	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3),
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4),
 	/**
 	* The name of the model that generated the message.
 	*/
@@ -46616,7 +46625,7 @@ var Root$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Root")({
 	/**
 	* Optional additional metadata associated with the root.
 	*/
-	_meta: /*#__PURE__*/ optional$4(JsonObject$3)
+	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
 })) {};
 /**
 * Represents a client response containing the roots available to the server.
@@ -47896,7 +47905,7 @@ const optional$3 = (schema) => optionalKey(schema).pipe(decodeTo(optional$5(sche
 	decode: passthrough$1(),
 	encode: transformOptional(flatMap$3(fromUndefinedOr))
 }));
-const JsonObject$2 = JsonObject$3;
+const JsonObject$2 = JsonObject$4;
 /**
 * @internal
 */
@@ -47925,7 +47934,7 @@ const LoggingLevel = /*#__PURE__*/ Literals([
 /**
 * @internal
 */
-const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) }), [JsonObject$3])) });
+const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) }), [JsonObject$4])) });
 /**
 * @internal
 */
@@ -48847,7 +48856,7 @@ var CallTool$2 = class extends (/*#__PURE__*/ make$18("tools/call", {
 	payload: {
 		...RequestMeta.fields,
 		name: String$2,
-		arguments: /*#__PURE__*/ optional$2(JsonObject$3)
+		arguments: /*#__PURE__*/ optional$2(JsonObject$4)
 	}
 })) {};
 /**
@@ -48869,7 +48878,7 @@ var CreateMessage$2 = class extends (/*#__PURE__*/ make$18("sampling/createMessa
 		temperature: /*#__PURE__*/ optional$2(Finite),
 		maxTokens: Finite,
 		stopSequences: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$2(JsonObject$3)
+		metadata: /*#__PURE__*/ optional$2(JsonObject$4)
 	}
 })) {};
 /**
@@ -49138,7 +49147,7 @@ const protocol$2 = /*#__PURE__*/ make$3({
 */
 const protocolVersion$1 = "2025-06-18";
 const optional$1 = optional$3;
-const JsonObject$1 = JsonObject$3;
+const JsonObject$1 = JsonObject$4;
 const Meta$1 = /*#__PURE__*/ optional$1(JsonObject$1);
 /**
 * @internal
@@ -49312,7 +49321,7 @@ const ToolJsonSchema = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("object"),
 	properties: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, JsonObject$1)),
 	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
-}), [JsonObject$3]);
+}), [JsonObject$4]);
 /**
 * @internal
 */
@@ -49833,7 +49842,7 @@ const protocol$1 = /*#__PURE__*/ make$3({
 */
 const protocolVersion = "2025-11-25";
 const optional = optional$3;
-const JsonObject = JsonObject$3;
+const JsonObject = JsonObject$4;
 const Meta = /*#__PURE__*/ optional(JsonObject);
 /**
 * @internal
@@ -52022,9 +52031,9 @@ const probe = (name, params) => invoke(operation(name), params).pipe(map$3((resu
 		status: "failed"
 	},
 	result: void 0
-})), catchReason("TipeeError", "Forbidden", (reason) => succeed$3({
+})), catchIf((failure) => failure.reason._tag === "Forbidden", (failure) => succeed$3({
 	report: {
-		error: reason.message,
+		error: failure.message,
 		name,
 		status: "skipped"
 	},
@@ -52100,7 +52109,8 @@ const detailOf = (failure) => {
 const REPORTED = /* @__PURE__ */ new Set([
 	"UnexpectedShape",
 	"UnexpectedStatus",
-	"InvalidRequest"
+	"InvalidRequest",
+	"Internal"
 ]);
 const caller = map$3(serviceOption(McpServerClient), (client) => match$3(client, {
 	onNone: () => ({}),
@@ -52188,7 +52198,7 @@ const SetupPrompt = prompt({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "0.3.7";
+const SERVER_VERSION = "0.3.8";
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayer), provide$2(layerStdio({
 	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	name: SERVER_NAME,

@@ -5,20 +5,64 @@
 import { Effect, Option, Schema } from 'effect';
 import { HttpClientError } from 'effect/http';
 
-// Tipee's error bodies are JSON with a `message`, or RFC 9457 problem details
-// With a `detail`; either reads better than the raw body.
-const ProblemBody = Schema.fromJsonString(
-  Schema.Struct({
-    detail: Schema.optionalKey(Schema.String),
-    message: Schema.optionalKey(Schema.String),
-  }),
-);
+import {
+  ApiKeyRejected,
+  Forbidden,
+  Internal,
+  NotFound,
+  RateLimited,
+  Rejected,
+  RightsMissing,
+  TipeeErrorReason,
+  UnexpectedShape,
+  UnexpectedStatus,
+  Unreachable,
+} from './Reasons.ts';
 
-const explained = (body: string): string =>
-  Schema.decodeOption(ProblemBody)(body).pipe(
-    Option.flatMap((problem) => Option.fromNullishOr(problem.detail ?? problem.message)),
+export * from './Reasons.ts';
+
+// Tipee's error bodies are JSON with a `message`, or RFC 9457 problem details
+// With a `detail`. That line leads, and the whole body follows whenever it
+// Says more (field errors, violations, conflicting dates): the agent must see
+// Everything Tipee wrote.
+const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
+// Keys that only restate the line or the status.
+const RESTATED = new Set(['status', 'title']);
+
+const quoted = (body: string): string =>
+  Schema.decodeOption(JsonObject)(body).pipe(
+    Option.flatMap((json) => {
+      const key = ['detail', 'message'].find((candidate) => typeof json[candidate] === 'string');
+      if (key === undefined) {
+        return Option.none();
+      }
+      const line = String(json[key]);
+      const complete = Object.keys(json).every((other) => other === key || RESTATED.has(other));
+      return Option.some(complete ? line : `${line}\n${body}`);
+    }),
     Option.getOrElse(() => body),
   );
+
+const MAX_CAUSES = 5;
+
+// A failure's message and every cause under it, with Node's error codes
+// (ENOTFOUND, ECONNRESET…), which name what actually went wrong.
+const chain = (error: unknown): string => {
+  const parts: Array<string> = [];
+  let current = error;
+  while (current instanceof Error && parts.length < MAX_CAUSES) {
+    const { code } = current as { readonly code?: unknown };
+    const part =
+      typeof code === 'string' && !current.message.includes(code)
+        ? `${current.message} (${code})`
+        : current.message;
+    if (part !== '' && parts.at(-1) !== part) {
+      parts.push(part);
+    }
+    current = current.cause;
+  }
+  return parts.join(': ');
+};
 
 // Tipee names some refusals with a constant (`error` or `warning_type`, such
 // As OVERLAPPING), safe to record because it says nothing about anyone.
@@ -31,121 +75,6 @@ const codeOf = (found: Option.Option<typeof ErrorCode.Type>): string | undefined
   Option.getOrUndefined(
     Option.flatMap(found, (code) => Option.fromNullishOr(code.error ?? code.warning_type)),
   );
-
-/** The key is not one Tipee knows (typo, revoked, or another instance's). */
-export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKeyRejected', {
-  body: Schema.String,
-}) {
-  public override get message(): string {
-    return 'Tipee rejected the API key: it is not the key of an integration on this instance.';
-  }
-}
-
-/**
- * The key works, but its integration was never granted the authorization that
- * Unlocks the API. Tipee answers 401 here (not 403), so only the body tells
- * This apart from a bad key.
- */
-export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMissing', {}) {
-  public override get message(): string {
-    return 'The API key works, but its Tipee integration is not allowed to use the API yet.';
-  }
-}
-
-export class Forbidden extends Schema.TaggedError<Forbidden>()('Forbidden', {
-  body: Schema.String,
-}) {
-  public override get message(): string {
-    return this.body === ''
-      ? 'The Tipee integration lacks the right for this operation.'
-      : `Tipee refused the operation: ${this.body}`;
-  }
-}
-
-export class NotFound extends Schema.TaggedError<NotFound>()('NotFound', {
-  body: Schema.String,
-}) {
-  public override get message(): string {
-    return this.body === ''
-      ? 'Tipee could not find this resource.'
-      : `Tipee could not find it: ${this.body}`;
-  }
-}
-
-export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited', {}) {
-  public override get message(): string {
-    return 'Tipee rate limit reached even after retrying. Wait a moment and try again.';
-  }
-}
-
-/** Tipee refused the request on its own terms (a documented 4xx such as 409). */
-export class Rejected extends Schema.TaggedError<Rejected>()('Rejected', {
-  body: Schema.String,
-  /** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
-  code: Schema.optionalKey(Schema.String),
-  status: Schema.optionalKey(Schema.Int),
-}) {
-  public override get message(): string {
-    return `Tipee rejected the request: ${this.body}`;
-  }
-}
-
-export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('UnexpectedStatus', {
-  body: Schema.String,
-  status: Schema.Int,
-}) {
-  public override get message(): string {
-    return `Tipee returned an unexpected error (HTTP ${this.status}) ${this.body}`.trim();
-  }
-}
-
-/**
- * The response did not match the schema generated from Tipee's OpenAPI
- * Document. Tipee did accept the request, so a write may well have gone
- * Through: the message says so.
- */
-export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
-  details: Schema.String,
-}) {
-  public override get message(): string {
-    return (
-      'Tipee accepted the request but answered with a shape that does not match its API ' +
-      `description (a write may still have gone through; read it back to be sure):\n${this.details}`
-    );
-  }
-}
-
-/** The request body does not match Tipee's API description, so it was never sent. */
-export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('InvalidRequest', {
-  details: Schema.String,
-}) {
-  public override get message(): string {
-    return `The request does not match Tipee's API description, so it was not sent:\n${this.details}`;
-  }
-}
-
-/** The request never got an answer (DNS, TLS, connection reset…). */
-export class Unreachable extends Schema.TaggedError<Unreachable>()('Unreachable', {
-  description: Schema.String,
-}) {
-  public override get message(): string {
-    return `Tipee could not be reached: ${this.description}`;
-  }
-}
-
-export const TipeeErrorReason = Schema.Union([
-  ApiKeyRejected,
-  RightsMissing,
-  Forbidden,
-  NotFound,
-  RateLimited,
-  Rejected,
-  UnexpectedStatus,
-  UnexpectedShape,
-  InvalidRequest,
-  Unreachable,
-]);
-export type TipeeErrorReason = typeof TipeeErrorReason.Type;
 
 // Tipee answers 401 (not 403) for a valid key whose integration was never
 // Granted any rights, so the body is the only way to tell the cases apart.
@@ -160,11 +89,15 @@ const HTTP_CONFLICT = 409;
 const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS = 429;
 
-const statusReason = (status: number, rawBody: string): TipeeErrorReason => {
-  const body = explained(rawBody);
+const statusReason = (
+  status: number,
+  rawBody: string,
+  retryAfter: string | undefined,
+): TipeeErrorReason => {
+  const body = quoted(rawBody);
   if (status === HTTP_UNAUTHORIZED) {
     return rawBody.includes(RIGHTS_MISSING_MARKER)
-      ? new RightsMissing()
+      ? new RightsMissing({ body })
       : new ApiKeyRejected({ body });
   }
   if (status === HTTP_FORBIDDEN) {
@@ -178,7 +111,7 @@ const statusReason = (status: number, rawBody: string): TipeeErrorReason => {
     return new Rejected({ body, status, ...(code === undefined ? {} : { code }) });
   }
   if (status === HTTP_TOO_MANY_REQUESTS) {
-    return new RateLimited();
+    return new RateLimited({ body, ...(retryAfter === undefined ? {} : { retryAfter }) });
   }
   return new UnexpectedStatus({ body, status });
 };
@@ -216,9 +149,13 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
             return new TipeeError({ reason: new UnexpectedShape({ details }) });
           }
           const body = yield* reason.response.text.pipe(Effect.orElseSucceed(() => ''));
-          return new TipeeError({ reason: statusReason(status, body) });
+          const retryAfter = reason.response.headers['retry-after'];
+          return new TipeeError({ reason: statusReason(status, body, retryAfter) });
         }
-        return new TipeeError({ reason: new Unreachable({ description: cause.message }) });
+        const description = [cause.message, chain(reason.cause)]
+          .filter((part) => part !== '')
+          .join(': ');
+        return new TipeeError({ reason: new Unreachable({ description }) });
       }
       if (Schema.isSchemaError(cause)) {
         return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
@@ -236,8 +173,8 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
           }),
         });
       }
-      const body = cause instanceof Error ? cause.message : String(cause);
-      return new TipeeError({ reason: new Rejected({ body }) });
+      const description = cause instanceof Error ? chain(cause) : String(cause);
+      return new TipeeError({ reason: new Internal({ description }) });
     });
 }
 

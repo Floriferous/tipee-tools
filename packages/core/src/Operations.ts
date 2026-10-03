@@ -11,7 +11,8 @@ import type { HttpApiEndpoint } from 'effect/http-api';
 
 import { InvalidRequest, TipeeError } from './Errors.ts';
 import { Tipee } from './generated/TipeeApi.ts';
-import { TipeeClient } from './TipeeClient.ts';
+import { pages, rightFor } from './Rights.ts';
+import { TipeeClient, readsOnly } from './TipeeClient.ts';
 
 export interface Operation {
   /** `schedules_list` for `/api/schedule/schedules.list`. */
@@ -81,7 +82,7 @@ const collect = (): ReadonlyArray<Operation> => {
         name: nameOf(endpoint.path),
         parameters: bodySchema(endpoint),
         path: endpoint.path,
-        readOnly: verb.startsWith('list') || verb.startsWith('show'),
+        readOnly: readsOnly(endpoint.path),
         success: successSchema(successes),
       });
     },
@@ -132,17 +133,8 @@ const call = (
     );
   });
 
-// The pages where rights are fixed, on the user's own instance.
-const pages = (instance: string) => {
-  const base = `https://${instance}.tipee.net`;
-  return {
-    api: `${base}/admin/instance/integrations/`,
-    integrations: `${base}/hr-core/integrations`,
-    roles: (integrationId: string) => `${base}/hr-core/profile/${integrationId}/roles`,
-  };
-};
-
 const PAGE_SIZE = 100;
+const HTTP_SERVER_ERROR = 500;
 
 interface Kind {
   readonly id: string;
@@ -201,45 +193,6 @@ const rolesPage: Effect.Effect<string, never, TipeeClient> = Effect.gen(function
   return link?.roles_page ?? pages(instance).integrations;
 });
 
-// The right a group's operations usually need, as named in the Roles tab.
-const RIGHTS: Record<
-  string,
-  { readonly module: string; readonly read?: string; readonly write?: string }
-> = {
-  Activity: { module: 'Activités' },
-  Balances: { module: 'Calcul des soldes', read: 'Voir les soldes' },
-  Directory: {
-    module: 'Cœur RH',
-    read: 'Voir les collaborateurs',
-    write: 'Gérer les collaborateurs',
-  },
-  Schedule: { module: 'Planning', read: 'Voir les plannings', write: 'Planifier' },
-  Timeclock: { module: 'Saisie des heures', read: 'Voir les timbrages' },
-};
-
-// Writes whose right is not the group's usual manage right.
-const SPECIAL_RIGHTS: ReadonlyArray<readonly [RegExp, string]> = [
-  [/^schedule_templates_/u, 'Gérer les modèles horaires'],
-  [/^absence_types_/u, "Gérer les types d'absence"],
-  [/^tags_/u, 'Gérer les tags'],
-  [/^timechecks_delete/u, 'Supprimer un timbrage'],
-  [/^timechecks_(?:validate|update|create)/u, "Valider l'ensemble des timbrages des personnes"],
-];
-
-const rightFor = (target: Operation): string => {
-  const rights = RIGHTS[target.group];
-  if (rights === undefined) {
-    return 'the right this operation needs';
-  }
-  const special = target.readOnly
-    ? undefined
-    : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1];
-  const right = special ?? (target.readOnly ? rights.read : rights.write);
-  return right === undefined
-    ? `the ${rights.module} right this operation needs`
-    : `«${rights.module} → ${right}»`;
-};
-
 // Adds the "where to fix it" line to the errors a user can act on.
 const explain = (
   error: TipeeError,
@@ -263,6 +216,24 @@ const explain = (
         fix:
           `Check the instance name, then the integration and its key at ${pages(instance).integrations}, ` +
           'and re-enter them in the extension settings.',
+        reason,
+      });
+    }
+    if (reason._tag === 'Unreachable' && /ENOTFOUND/u.test(reason.description)) {
+      return new TipeeError({
+        fix: `${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in the extension settings.`,
+        reason,
+      });
+    }
+    // A write is never sent twice (see TipeeClient), but the one attempt may
+    // Have been applied before the failure: only reading it back tells.
+    if (
+      !target.readOnly &&
+      (reason._tag === 'Unreachable' ||
+        (reason._tag === 'UnexpectedStatus' && reason.status >= HTTP_SERVER_ERROR))
+    ) {
+      return new TipeeError({
+        fix: 'This write was not retried, and Tipee may have applied it before failing: read it back before trying again.',
         reason,
       });
     }

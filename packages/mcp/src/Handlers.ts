@@ -77,11 +77,14 @@ const probe = (
           } satisfies Probe,
         ),
     ),
-    Effect.catchReason('TipeeError', 'Forbidden', (reason) =>
-      Effect.succeed<Probe>({
-        report: { error: reason.message, name, status: 'skipped' },
-        result: undefined,
-      }),
+    // The whole message, with the right to tick and where.
+    Effect.catchIf(
+      (failure) => failure.reason._tag === 'Forbidden',
+      (failure) =>
+        Effect.succeed<Probe>({
+          report: { error: failure.message, name, status: 'skipped' },
+          result: undefined,
+        }),
     ),
   );
 
@@ -167,7 +170,7 @@ const detailOf = (failure: Failure): Properties => {
 };
 
 // Failures that mean a bug here or a change at Tipee, not a user's mistake.
-const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest']);
+const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest', 'Internal']);
 
 // Which client is calling, for the record: Claude Desktop, Claude Code…
 const caller: Effect.Effect<Properties> = Effect.map(
