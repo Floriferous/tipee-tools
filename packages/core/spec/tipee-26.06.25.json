@@ -1751,7 +1751,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateScheduleCommand"
+                "$ref": "#/components/schemas/CreateScheduleCommand260625"
               }
             }
           }
@@ -1814,7 +1814,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateScheduleCommand"
+                "$ref": "#/components/schemas/UpdateScheduleCommand260625"
               }
             }
           }
@@ -3916,7 +3916,7 @@
         },
         "type": "object"
       },
-      "CreateScheduleCommand": {
+      "CreateScheduleCommand260625": {
         "required": ["resource_id", "team_id", "when", "hour_ranges", "options"],
         "properties": {
           "resource_id": {
@@ -3949,7 +3949,7 @@
             "type": "string"
           },
           "options": {
-            "$ref": "#/components/schemas/ScheduleOptions"
+            "$ref": "#/components/schemas/Options260625"
           }
         },
         "type": "object"
@@ -6883,6 +6883,41 @@
         },
         "type": "object"
       },
+      "Options260625": {
+        "required": [
+          "employee_resident_ratio",
+          "text_color",
+          "special_hour_range",
+          "schedule_on_bank_holidays",
+          "allow_partial"
+        ],
+        "properties": {
+          "employee_resident_ratio": {
+            "type": "boolean"
+          },
+          "text_color": {
+            "type": ["string", "null"]
+          },
+          "special_hour_range": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalTimeInterval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule_on_bank_holidays": {
+            "type": "boolean"
+          },
+          "allow_partial": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "type": "object"
+      },
       "OptionsView": {
         "required": ["employee_resident_ratio", "text_color", "special_time_range"],
         "properties": {
@@ -7704,7 +7739,6 @@
           "employee_resident_ratio",
           "text_color",
           "special_hour_range",
-          "schedule_on_bank_holidays",
           "allow_partial"
         ],
         "properties": {
@@ -7724,8 +7758,11 @@
               }
             ]
           },
-          "schedule_on_bank_holidays": {
-            "type": "boolean"
+          "include_special_day_type_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Snowflake"
+            }
           },
           "allow_partial": {
             "type": "boolean",
@@ -9441,7 +9478,7 @@
         },
         "type": "object"
       },
-      "UpdateScheduleCommand": {
+      "UpdateScheduleCommand260625": {
         "required": ["id"],
         "properties": {
           "id": {
@@ -9495,7 +9532,7 @@
             "type": ["string", "null"]
           },
           "options": {
-            "$ref": "#/components/schemas/ScheduleOptions"
+            "$ref": "#/components/schemas/Options260625"
           }
         },
         "type": "object"

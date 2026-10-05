@@ -16150,7 +16150,7 @@ const TagView = StructWithRest(Struct({
 	"enabled": Boolean.annotate({ "default": false }),
 	"icon": String$2.annotate({ "default": "tag" })
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TagView" });
-const CreateScheduleCommand = Struct({
+const CreateScheduleCommand260625 = Struct({
 	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"team_id": String$2.annotate({ "format": "snowflake" }),
 	"schedule_template_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
@@ -16205,7 +16205,7 @@ const CreateScheduleCommand = Struct({
 		"schedule_on_bank_holidays": Boolean,
 		"allow_partial": Boolean.annotate({ "default": false })
 	})
-}).annotate({ "identifier": "CreateScheduleCommand" });
+}).annotate({ "identifier": "CreateScheduleCommand260625" });
 const OverlappingSchedulesConflictResponseBodyDTO = StructWithRest(Struct({ "conflicting_dates": ArraySchema(StructWithRest(Struct({
 	"resource": String$2.annotate({ "format": "snowflake" }),
 	"date": String$2.annotate({ "format": "local-date" })
@@ -16215,7 +16215,7 @@ const MaskedSectorResponseBodyDTO = StructWithRest(Struct({ "masked_sector": Arr
 	"date_start": String$2,
 	"date_end": Union([String$2, Null])
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "MaskedSectorResponseBodyDTO" });
-const UpdateScheduleCommand = Struct({
+const UpdateScheduleCommand260625 = Struct({
 	"id": String$2.annotate({ "format": "snowflake" }),
 	"schedule_template_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
 	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
@@ -16270,7 +16270,7 @@ const UpdateScheduleCommand = Struct({
 		"schedule_on_bank_holidays": Boolean,
 		"allow_partial": Boolean.annotate({ "default": false })
 	}))
-}).annotate({ "identifier": "UpdateScheduleCommand" });
+}).annotate({ "identifier": "UpdateScheduleCommand260625" });
 const DeleteSchedulesCommand = Struct({
 	"ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
 	"options": Struct({
@@ -16940,7 +16940,7 @@ const PostAppUiApiDirectoryDirectoryqueryResourceactivityratesshowRequestJson = 
 const PostAppUiApiDirectoryDirectoryqueryResourceactivityratesshow200 = ArraySchema(ActivityRateView);
 const PostAppUiApiDirectoryDirectoryqueryListtagsRequestJson = ListTagsQuery;
 const PostAppUiApiDirectoryDirectoryqueryListtags200 = ArraySchema(TagView);
-const PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson = CreateScheduleCommand;
+const PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson = CreateScheduleCommand260625;
 const PostAppUiApiScheduleSchedulecommandCreateschedule409 = Union([StructWithRest(Struct({
 	"error": optionalKey(String$2),
 	"body": optionalKey(OverlappingSchedulesConflictResponseBodyDTO)
@@ -16948,7 +16948,7 @@ const PostAppUiApiScheduleSchedulecommandCreateschedule409 = Union([StructWithRe
 	"error": optionalKey(String$2),
 	"body": optionalKey(MaskedSectorResponseBodyDTO)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])], { mode: "oneOf" });
-const PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson = UpdateScheduleCommand;
+const PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson = UpdateScheduleCommand260625;
 const PostAppUiApiScheduleSchedulecommandUpdateschedule409 = Union([StructWithRest(Struct({
 	"error": optionalKey(String$2),
 	"body": optionalKey(OverlappingSchedulesConflictResponseBodyDTO)
@@ -24881,7 +24881,7 @@ const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "1.0.1";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company Tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In Tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",

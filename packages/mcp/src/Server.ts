@@ -14,7 +14,7 @@ import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '1.0.0';
+export const SERVER_VERSION = '1.0.1';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
