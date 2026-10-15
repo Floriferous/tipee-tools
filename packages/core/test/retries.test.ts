@@ -23,7 +23,7 @@ import {
 import { server } from './server.ts';
 
 layer(TestClient)('retries', (it) => {
-  it.effect('passes on what Tipee says about its rate limit', () =>
+  it.effect('passes on what tipee says about its rate limit', () =>
     Effect.gen(function* () {
       server.use(
         status(HTTP_TOO_MANY_REQUESTS, {
@@ -56,7 +56,7 @@ layer(TestClient)('retries', (it) => {
 
       expect(sent).toBe(1);
       expect(error.message).toMatch(
-        /^Tipee answered with an unexpected error \(HTTP 504\): Gateway timeout /u,
+        /^tipee answered with an unexpected error \(HTTP 504\): Gateway timeout /u,
       );
       expect(error.message).toMatch(/may have applied it/u);
     }),
@@ -119,7 +119,7 @@ layer(TestClient)('retries', (it) => {
     Effect.gen(function* () {
       let sent = 0;
       server.use(
-        // The second attempt falls through to the fake Tipee.
+        // The second attempt falls through to the fake tipee.
         http.post(KINDS_URL, () => {
           sent += 1;
           return sent === 1 ? HttpResponse.error() : undefined;
@@ -145,7 +145,7 @@ layer(TestClient)('retries', (it) => {
 
       expect(sent).toBe(1);
       expect(error.message).toBe(
-        'Tipee could not be reached (Tipee did not answer within 20 s). Check the internet ' +
+        'tipee could not be reached (tipee did not answer within 20 s). Check the internet ' +
           'connection, or ask IT to allow acme.tipee.net, and try again.',
       );
     }),

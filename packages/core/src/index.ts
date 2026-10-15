@@ -1,4 +1,4 @@
-// Public surface of @tipee-tools/core: the generated Tipee API, the client
+// Public surface of @tipee-tools/core: the generated tipee API, the client
 // derived from it, the operation catalogue and how to call it, the errors,
 // and where a user fixes them.
 

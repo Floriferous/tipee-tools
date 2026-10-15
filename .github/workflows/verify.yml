@@ -142,5 +142,5 @@ jobs:
           sha256sum "tipee-$VERSION.mcpb" tipee.mcpb > SHA256SUMS
           gh release create "v$VERSION" "tipee-$VERSION.mcpb" tipee.mcpb SHA256SUMS \
             --target "$GITHUB_SHA" \
-            --title "Tipee for Claude $VERSION" \
+            --title "tipee for Claude $VERSION" \
             --generate-notes

@@ -1,4 +1,4 @@
-# Tipee rights for the tools
+# tipee rights for the tools
 
 What an integration can do is the sum of the rights ticked in its Roles tab,
 reached from `https://<instance>.tipee.net/hr-core/integrations`. The names
@@ -39,7 +39,7 @@ The tools never grant or revoke roles, the integration's own included:
 
 ## Rights that unlock confidential data
 
-With these, Tipee stops redacting what they cover; tick them only when Claude
+With these, tipee stops redacting what they cover; tick them only when Claude
 should see it.
 
 - **Gérer les collaborateurs** and **Avoir accès à l'ensemble des données collaborateurs** (Cœur RH): people's confidential and secret data.

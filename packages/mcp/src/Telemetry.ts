@@ -1,9 +1,9 @@
 // Usage data that helps improve the plugin: which tools run, how long they
-// take, how they fail, and the errors worth a look (Tipee drifting from its
+// take, how they fail, and the errors worth a look (tipee drifting from its
 // document, crashes), as PostHog product analytics and error tracking.
 // Each installation is one PostHog person, identified by a hash of the
-// machine and account, and belongs to the group of its Tipee instance, so
-// companies and people can be told apart. Nothing about the people in Tipee, and
+// machine and account, and belongs to the group of its tipee instance, so
+// companies and people can be told apart. Nothing about the people in tipee, and
 // never the key, leaves the machine; stack frames are cut down to the bundle.
 // Events are batched to PostHog in the background and never delay a tool;
 // every failure of the telemetry itself is swallowed.
@@ -23,7 +23,7 @@ import { channel, installationId } from './Install.ts';
 const POSTHOG_KEY = 'phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y';
 const POSTHOG_HOST = 'https://eu.i.posthog.com';
 
-/** A property value PostHog can store: plain JSON, never a Tipee object. */
+/** A property value PostHog can store: plain JSON, never a tipee object. */
 export type PropertyValue =
   | string
   | number
@@ -72,7 +72,7 @@ const SEND_RETRIES = 2;
 const FRAME_LIMIT = 30;
 
 // Overridable so tests and forks can point elsewhere. The instance is the
-// same value the Tipee client reads, normalized the same way so `acme` and
+// same value the tipee client reads, normalized the same way so `acme` and
 // `acme.tipee.net/` are one company; empty when absent or not an instance.
 const settings = Config.all({
   host: Config.String('TIPEE_POSTHOG_HOST').pipe(Config.withDefault(POSTHOG_HOST)),
@@ -125,7 +125,7 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
     })
     .slice(0, FRAME_LIMIT);
 
-// A Tipee failure told without anything Tipee answered or anyone wrote: its
+// A tipee failure told without anything tipee answered or anyone wrote: its
 // reason, the HTTP status, and where a schema mismatch is (field paths such
 // as [0]["id"], never the values found there).
 const withheld = (reason: TipeeErrorReason): string => {
@@ -196,7 +196,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
         yield* Effect.addFinalizer(() => drain.pipe(Effect.timeout(DRAIN_TIMEOUT), Effect.ignore));
 
         // What describes an installation, kept on its person profile too. The
-        // Tipee API version ties a drifting answer to the document it broke.
+        // tipee API version ties a drifting answer to the document it broke.
         const profile: Properties = {
           arch,
           channel,

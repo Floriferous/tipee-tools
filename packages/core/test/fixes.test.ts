@@ -43,7 +43,7 @@ const InspectedNetwork = TipeeClient.layer(credentials).pipe(
 );
 
 layer(TestClient)('next steps', (it) => {
-  it.effect('a read that cannot reach Tipee asks to check the connection', () =>
+  it.effect('a read that cannot reach tipee asks to check the connection', () =>
     Effect.gen(function* () {
       server.use(http.post(KINDS_URL, () => HttpResponse.error()));
       const error = yield* settled(failure(call('kinds_list', {})));
@@ -55,7 +55,7 @@ layer(TestClient)('next steps', (it) => {
     }),
   );
 
-  it.effect('a read Tipee keeps failing on suggests check_setup', () =>
+  it.effect('a read tipee keeps failing on suggests check_setup', () =>
     Effect.gen(function* () {
       server.use(status(HTTP_SERVER_ERROR, { once: false }));
       const error = yield* settled(failure(call('kinds_list', {})));
@@ -69,7 +69,7 @@ layer(TestClient)('next steps', (it) => {
       server.use(http.post(SCHEDULES_URL, () => HttpResponse.json([{}]), { once: true }));
       const error = yield* failure(call('schedules_list', { date_range: WEEK }));
 
-      expect(error.message).toMatch(/Run check_setup and suggest updating Tipee for Claude\.$/u);
+      expect(error.message).toMatch(/Run check_setup and suggest updating tipee for Claude\.$/u);
     }),
   );
 });
@@ -79,7 +79,7 @@ it.effect('an untrusted certificate says nothing was sent, even for a write', ()
     const error = yield* failure(call('schedules_create', NEW_SCHEDULE));
 
     expect(error.reason._tag).toBe('Unreachable');
-    expect(error.message).toMatch(/Nothing was sent to Tipee/u);
+    expect(error.message).toMatch(/Nothing was sent to tipee/u);
     expect(error.message).toContain('exempt acme.tipee.net');
     expect(error.message).not.toMatch(/may have applied it/u);
   }).pipe(Effect.provide(InspectedNetwork)),

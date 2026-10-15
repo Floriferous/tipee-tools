@@ -1,14 +1,14 @@
 ---
 name: tipee
-description: Working on tipee-tools (Effect 4 core client, MCP server, Claude Code plugin, MSW test kit) — Tipee access rights, API quirks vs. its docs, guardrails. Use whenever a task touches Tipee, shifts, absences, or this repository's packages.
+description: Working on tipee-tools (Effect 4 core client, MCP server, Claude Code plugin, MSW test kit) — tipee access rights, API quirks vs. its docs, guardrails. Use whenever a task touches tipee, shifts, absences, or this repository's packages.
 ---
 
-# Tipee API via tipee-tools
+# tipee API via tipee-tools
 
-Tipee is a Swiss HR tool (employees, shifts, absences, activities). This
+tipee is a Swiss HR tool (employees, shifts, absences, activities). This
 repo exposes its API to agents, every operation but granting and revoking
-roles, for any Tipee instance: `@tipee-tools/core` (the HttpApi generated
-from Tipee's OpenAPI document, the derived client, the operation
+roles, for any tipee instance: `@tipee-tools/core` (the HttpApi generated
+from tipee's OpenAPI document, the derived client, the operation
 catalogue, errors), `@tipee-tools/mcp` (one MCP tool per operation, built
 from the catalogue, plus `check_setup` and `update_plugin`), and the Claude
 Code plugin in `plugins/tipee` that bundles the server. The user-facing
@@ -30,11 +30,11 @@ the repo.
   plannings; never delete or modify them (that rewrites who worked when).
   A new need means a new template.
 - **Personal data.** Schemas are generated from the API document and pass
-  through what Tipee returns; Tipee redacts what the integration may not
+  through what tipee returns; tipee redacts what the integration may not
   see. Never commit real responses — fixtures are anonymised (the fictional
   company "Acme").
 - **The API key is a secret**: only in `packages/mcp/.env` or the Claude
-  app's own settings, never in chat, commits or CI. Rotate it in the Tipee admin
+  app's own settings, never in chat, commits or CI. Rotate it in the tipee admin
   if it leaks.
 
 ## Running the server
@@ -81,7 +81,7 @@ the vendored document's version), `Accept: application/json`.
 - Pagination (`resources.list`): send `pagination: {limit, next_token}`
   explicitly (`next_token: null` first), explicit `orders`
   (`{key: "resource.attribute", attribute: "last_name", direction: "asc"}`),
-  and identical filters/orders on every page or Tipee answers 422. The
+  and identical filters/orders on every page or tipee answers 422. The
   cursor can be non-null on the last full page (the next page is empty).
 - Team filter: `{key: "resource.team", value: {teams: [id], recursive: true}}`.
 - Rate limits are generous (500-token bucket, 4/s). Every operation is a
@@ -93,35 +93,35 @@ the vendored document's version), `Accept: application/json`.
   not sent again.
 - `*.tipee.net` has a wildcard DNS record: a mistyped instance never fails
   with ENOTFOUND but answers HTTP 410 `{"error":"instance_not_found"}`.
-- Error messages quote Tipee's whole answer and the HTTP status: never trim
-  or paraphrase what Tipee said, the agent acts on it.
+- Error messages quote tipee's whole answer and the HTTP status: never trim
+  or paraphrase what tipee said, the agent acts on it.
 - Versions are date-based and supported ≥ 6 months after the next release;
   subscribe to the changelog on https://api.tipee.ch/.
 
 ## Generated code
 
-`packages/core/spec/` holds Tipee's OpenAPI document (one file, the pinned
+`packages/core/spec/` holds tipee's OpenAPI document (one file, the pinned
 version). `pnpm generate` runs `@effect/openapi-generator` on it, through a
 JSON Patch built in `packages/core/scripts/generate.ts`: mark every request
-body required (Tipee wants a JSON body even when empty); add to a few
-descriptions what Tipee's document leaves out (pagination, the `integration`
+body required (tipee wants a JSON body even when empty); add to a few
+descriptions what tipee's document leaves out (pagination, the `integration`
 kind, the timecheck date range, an absence's percentage, a schedule create's
 empty answer) and name tools instead of routes; add `orders` and
 `pagination` to the required keys of `ListResourcesQuery`; let map-typed
 response properties also be `[]` (PHP's empty map); drop `example(s)`; turn
-nested `and`/`or` filters into plain objects Tipee validates; close request
+nested `and`/`or` filters into plain objects tipee validates; close request
 objects with `additionalProperties: false`, which shortens their schemas but
 refuses nothing (decoding drops unknown keys; the tools are `Tool.Strict`,
 which refuses them); turn enums only answers carry into strings listing the
-known values (Tipee adds values within a version; request enums stay
+known values (tipee adds values within a version; request enums stay
 closed); remove the excluded operations. Dropping examples, cutting filters
 and closing objects keep the tool definitions small, since Claude Desktop
 loads all of them into every chat. A description rewrite that no longer
-changes anything fails the generation: Tipee reworded the text, so the patch
+changes anything fails the generation: tipee reworded the text, so the patch
 needs a look. It writes `packages/core/src/generated/TipeeApi.ts` —
 committed, never edited, freshness-checked by `pnpm verify`.
 
-Keeping up with Tipee: `.github/workflows/spec-refresh.yml` runs
+Keeping up with tipee: `.github/workflows/spec-refresh.yml` runs
 `pnpm spec:refresh --bump` every Monday. The script (in
 `packages/core/scripts/refresh.ts`) finds the newest stable version in
 `llms.txt`, downloads its document over the vendored one (or, for a new
@@ -180,7 +180,7 @@ in. Spec-versus-reality fixes belong in the patch, nowhere else.
   workspace packages; `lint:check` and `format:check` are root tasks. Run a
   single package with `pnpm exec turbo run test --filter=@tipee-tools/mcp`.
 - Tests: `@effect/vitest` + MSW. `packages/core/test/handlers.ts` is a fake
-  Tipee that enforces the real rules (401 bad key, 422 bad pagination) —
+  tipee that enforces the real rules (401 bad key, 422 bad pagination) —
   assert on output, not on requests. Other packages import it from
   `@tipee-tools/core/testing`. `it.effect` runs on the test clock: wrap a
   call that retries in `settled` (`test/answers.ts`), which steps the clock
@@ -189,4 +189,4 @@ in. Spec-versus-reality fixes belong in the patch, nowhere else.
 - `pnpm fix` applies the oxlint/oxfmt fixers and rebuilds the bundle;
   `pnpm verify` only checks (CI and the pre-commit hook rely on that split);
   every disabled rule is commented in `oxlint.config.ts` (notably
-  `unicorn/no-null`: Tipee's wire format needs literal `null`).
+  `unicorn/no-null`: tipee's wire format needs literal `null`).

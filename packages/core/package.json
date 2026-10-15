@@ -1,7 +1,7 @@
 {
   "name": "@tipee-tools/core",
   "private": true,
-  "description": "Effect client and schemas for Tipee's HR API",
+  "description": "Effect client and schemas for tipee's HR API",
   "license": "MIT",
   "type": "module",
   "exports": {

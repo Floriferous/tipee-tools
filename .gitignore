@@ -6,7 +6,7 @@ node_modules/
 dist/
 .turbo/
 
-# Tipee API keys live here — local only, never committed
+# tipee API keys live here — local only, never committed
 .env
 
 # logs

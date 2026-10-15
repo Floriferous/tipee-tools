@@ -1,7 +1,7 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
 // `invoke`; `check_setup` runs the probes in Check.ts. Each call is timed
 // and its outcome recorded by the telemetry, which never sees the parameters
-// or the answer. Without a usable setting every Tipee call fails with what
+// or the answer. Without a usable setting every tipee call fails with what
 // to fix.
 
 import { NotConfigured, TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
@@ -31,7 +31,7 @@ const said = (outcome: Installed): string => {
       `Update now. Release notes: ${outcome.url}`
     );
   }
-  return 'Tipee for Claude is already the latest version.';
+  return 'tipee for Claude is already the latest version.';
 };
 
 const update = Effect.map(
@@ -47,7 +47,7 @@ type Handler = (params: unknown) => Effect.Effect<unknown, Failure>;
 const reasonOf = (failure: Failure): string =>
   failure instanceof TipeeError ? failure.reason._tag : failure._tag;
 
-// What else a refusal says about its cause: the HTTP status and Tipee's own
+// What else a refusal says about its cause: the HTTP status and tipee's own
 // constant for it, such as OVERLAPPING. Neither carries anything a user wrote.
 const detailOf = (failure: Failure): Properties => {
   if (!(failure instanceof TipeeError)) {
@@ -60,7 +60,7 @@ const detailOf = (failure: Failure): Properties => {
   return reason._tag === 'UnexpectedStatus' ? { http_status: reason.status } : {};
 };
 
-// Failures that mean a bug here or a change at Tipee, not a user's mistake.
+// Failures that mean a bug here or a change at tipee, not a user's mistake.
 const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest', 'Internal']);
 
 // Which client is calling, for the record: Claude Desktop, Claude Code…
@@ -123,7 +123,7 @@ const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler):
     return yield* Effect.failCause(exit.cause);
   });
 
-// The handlers, given the Tipee client or why the settings give none.
+// The handlers, given the tipee client or why the settings give none.
 const handlersFor = (connection: Result.Result<TipeeClient['Service'], ConfigurationMissing>) =>
   TipeeToolkit.toLayer(
     Effect.gen(function* () {
@@ -188,7 +188,7 @@ export const TipeeToolkitLayer = Layer.unwrap(
 
 /**
  * The handlers over a client configured from the environment. A missing or
- * invalid setting does not stop the server: every tool that calls Tipee,
+ * invalid setting does not stop the server: every tool that calls tipee,
  * check_setup first, then answers with what to fix, where the user sees it
  * rather than in a log.
  */

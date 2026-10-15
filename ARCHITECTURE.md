@@ -1,7 +1,7 @@
 # Architecture
 
 **Status:** describes the code on `main`: an Effect 4 client generated from
-Tipee's OpenAPI document, an MCP server with one tool per operation, and one
+tipee's OpenAPI document, an MCP server with one tool per operation, and one
 bundle of it shipped as a Claude Code plugin and a Claude Desktop extension.
 The [README](README.md) tells the user's side; change both together.
 
@@ -11,7 +11,7 @@ The [README](README.md) tells the user's side; change both together.
 tipee-tools/
 ├── packages/
 │   ├── core/                      # generated HttpApi, TipeeClient, operation catalogue, errors, test kit
-│   │   ├── spec/                  # Tipee's OpenAPI document, one pinned version
+│   │   ├── spec/                  # tipee's OpenAPI document, one pinned version
 │   │   └── scripts/               # generate.ts (patch + generate), refresh.ts (pnpm spec:refresh)
 │   └── mcp/                       # toolkit, handlers, check, updates, telemetry, stdio server
 ├── plugins/
@@ -48,10 +48,10 @@ out of Bash commands, so a CLI would need key storage of its own for no gain.
 `packages/core/src/generated/TipeeApi.ts`, committed and never edited.
 `HttpApi.reflect` yields the operation catalogue, and each operation becomes a
 strict `Tool.dynamic`, plus `check_setup` and `update_plugin`, read-only or
-destructive by its verb. Wherever the document disagrees with Tipee or with
+destructive by its verb. Wherever the document disagrees with tipee or with
 what Claude needs, the fix is a JSON Patch in `packages/core/scripts/generate.ts`,
 nowhere else; granting and revoking roles are left out. Every Monday a
-workflow runs `pnpm spec:refresh --bump`, which fetches Tipee's newest stable
+workflow runs `pnpm spec:refresh --bump`, which fetches tipee's newest stable
 document and regenerates, and opens one PR with what moved and the version
 bumped (a `needs-major` label when an operation disappears).
 
@@ -76,7 +76,7 @@ Desktop; both keep the key as a secret. The server reads `TIPEE_INSTANCE` and
 `https://acme.tipee.net/` give `acme`) and refused unless it is one DNS label,
 so no value sends the key to another host; the key is trimmed and `Redacted`.
 A missing, blank or invalid setting does not stop the server, since Claude
-keeps stderr in logs users never open: every Tipee call, `check_setup`'s
+keeps stderr in logs users never open: every tipee call, `check_setup`'s
 included, fails with what to fix, nothing is sent, and the start writes it on
 stderr and records `server_failed`. An unknown instance or a refused key is a
 tool error naming the setting to fix. `TIPEE_POSTHOG_HOST`, `TIPEE_POSTHOG_KEY`, `TIPEE_RELEASES_URL`,
@@ -98,9 +98,9 @@ default.
 **Telemetry** is always on and disclosed in the README. Events go to PostHog's
 EU cloud in batches that never delay a tool: a session at a launch's first
 tool call, each call's tool, duration and outcome, and the failures that point
-at a bug or at Tipee drifting from its document, by reason, status and field
-paths, never with Tipee's text. An installation is a hash of the machine and
-account names, grouped under its Tipee instance.
+at a bug or at tipee drifting from its document, by reason, status and field
+paths, never with tipee's text. An installation is a hash of the machine and
+account names, grouped under its tipee instance.
 
 ## Platforms and Node
 
@@ -122,8 +122,8 @@ system's certificates where a network inspects HTTPS. Contributors use Node
   types, tests, bundle, pack, freshness of committed files).
 - `.claude/skills/tipee` and `.claude/skills/effect-v4` brief contributors;
   `plugins/tipee/skills/tipee` explains the _product_ to Claude Code users.
-- Every package is tested against the MSW fake of Tipee in
-  `@tipee-tools/core/testing`, which enforces Tipee's real rules.
+- Every package is tested against the MSW fake of tipee in
+  `@tipee-tools/core/testing`, which enforces tipee's real rules.
 - `@effect/tsgo` adds Effect diagnostics to `tsc`, oxlint and the editor;
   Renovate proposes weekly npm and Actions updates, and pnpm refuses versions
   younger than a day, trust downgrades and exotic transitive sources.
@@ -141,7 +141,7 @@ release is fixed by a new patch; [SECURITY.md](SECURITY.md) covers reporting.
 
 ## Not planned, and what would change that
 
-- **A CLI or npm packages**: a user who wants Tipee in a terminal or another
+- **A CLI or npm packages**: a user who wants tipee in a terminal or another
   agent; a CLI on `effect/cli` would share the core.
 - **A hosted connector** (remote MCP with OAuth): a company that wants a
   zero-install rollout, and someone to run the service and hold its keys.
