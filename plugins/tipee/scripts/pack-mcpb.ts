@@ -28,33 +28,33 @@ const manifest = {
     runtimes: { node: '>=22.19.0' },
   },
   description:
-    'Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.',
-  display_name: 'Tipee for Claude',
+    'tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.',
+  display_name: 'tipee for Claude',
   documentation: `${REPOSITORY}#readme`,
   homepage: REPOSITORY,
-  // Tipee's square mark, from the favicon on tipee.ch.
+  // Tipee's app icon, icon-512x512.png from the web manifest on tipee.ch.
   icon: 'icon.png',
   keywords: ['tipee', 'hr', 'planning', 'shifts'],
   license: 'MIT',
   long_description:
-    'Give Claude access to your Tipee: people, teams, shifts, absences, on-calls, ' +
-    'activities and time clock, reading and changing. Every tool that changes Tipee ' +
+    'Give Claude access to your tipee: people, teams, shifts, absences, on-calls, ' +
+    'activities and time clock, reading and changing. Every tool that changes tipee ' +
     'instructs Claude to say exactly what will change and wait for your yes, unless you ' +
     'asked for that exact change, and Claude Desktop asks your permission per tool: choose ' +
     '"Allow once" to approve every change yourself.\n\n' +
-    'The API key belongs to an integration created in the Tipee admin panel. It needs the ' +
+    'The API key belongs to an integration created in the tipee admin panel. It needs the ' +
     'authorization "Se connecter avec des applications externes" plus the module rights ' +
     'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
     'run check_setup: it names the integration, links where its rights are set, and explains ' +
     'anything missing in plain words.\n\n' +
     'The extension sends usage data to PostHog to help improve it: which tools ran, how they ' +
-    "failed (by reason, HTTP status, Tipee's error code and field paths), crash messages and " +
+    "failed (by reason, HTTP status, tipee's error code and field paths), crash messages and " +
     'stack traces, your instance name, your setup (system, Node and Claude versions), the ' +
     'approximate location PostHog derives from your IP address before discarding it, and a ' +
     'pseudonymous installation ID computed from your computer and account names (the names ' +
-    'are never sent); never your key, anything Tipee answered, or anything about your ' +
+    'are never sent); never your key, anything tipee answered, or anything about your ' +
     'people. See the privacy policy.\n\n' +
-    'An independent project, not made or endorsed by Tipee.',
+    'An independent project, not made or endorsed by tipee.',
   manifest_version: '0.3',
   // See `author`.
   name: 'tipee',
@@ -95,19 +95,19 @@ const manifest = {
     [
       'instance',
       {
-        description: 'Your Tipee subdomain: acme for acme.tipee.net',
+        description: 'Your tipee subdomain: acme for acme.tipee.net',
         required: true,
-        title: 'Tipee instance',
+        title: 'tipee instance',
         type: 'string',
       },
     ],
     [
       'api_key',
       {
-        description: 'Integration key from the Tipee admin panel',
+        description: 'Integration key from the tipee admin panel',
         required: true,
         sensitive: true,
-        title: 'Tipee API key',
+        title: 'tipee API key',
         type: 'string',
       },
     ],

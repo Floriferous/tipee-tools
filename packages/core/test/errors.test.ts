@@ -41,7 +41,7 @@ layer(TestClient)('errors', (it) => {
     }),
   );
 
-  it.effect('quotes what Tipee could not find', () =>
+  it.effect('quotes what tipee could not find', () =>
     Effect.gen(function* () {
       const error = yield* failure(
         call('schedules_delete', { ids: ['1'], options: { group_action: 'single' } }),
@@ -49,7 +49,7 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('NotFound');
       expect(error.message).toBe(
-        `Tipee could not find it (HTTP 404): L'élément avec l'id "1" n'a pas été trouvé. ` +
+        `tipee could not find it (HTTP 404): L'élément avec l'id "1" n'a pas été trouvé. ` +
           'Re-read the list the id came from.',
       );
     }),
@@ -67,12 +67,12 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('Rejected');
       expect(error.message).toMatch(
-        /^Tipee rejected the request \(HTTP 400\): Text cannot be parsed to an interval: 01\.11\.2026 Nothing was changed\./u,
+        /^tipee rejected the request \(HTTP 400\): Text cannot be parsed to an interval: 01\.11\.2026 Nothing was changed\./u,
       );
     }),
   );
 
-  it.effect('quotes the overlap Tipee declares for a schedule create', () =>
+  it.effect('quotes the overlap tipee declares for a schedule create', () =>
     Effect.gen(function* () {
       server.use(
         status(HTTP_CONFLICT, {
@@ -87,12 +87,12 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason).toMatchObject({ _tag: 'Rejected', code: 'OVERLAPPING', status: 409 });
       expect(error.message).toMatch(
-        /^Tipee rejected the request \(HTTP 409, OVERLAPPING\): .*2026-10-05/u,
+        /^tipee rejected the request \(HTTP 409, OVERLAPPING\): .*2026-10-05/u,
       );
     }),
   );
 
-  it.effect('quotes the locked schedules Tipee declares for a delete', () =>
+  it.effect('quotes the locked schedules tipee declares for a delete', () =>
     Effect.gen(function* () {
       server.use(
         status(HTTP_CONFLICT, {
@@ -201,7 +201,7 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('Rejected');
       expect(error.message).toMatch(
-        /^Tipee rejected the request \(HTTP 422\): date_range: This value is not a valid date range\. Nothing/u,
+        /^tipee rejected the request \(HTTP 422\): date_range: This value is not a valid date range\. Nothing/u,
       );
     }),
   );
@@ -216,7 +216,7 @@ layer(TestClient)('errors', (it) => {
       const error = yield* failure(call('schedules_list', { date_range: WEEK }));
 
       expect(error.message).toContain(
-        `Tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)} `,
+        `tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)} `,
       );
     }),
   );
@@ -229,20 +229,20 @@ layer(TestClient)('errors', (it) => {
 
       expect(error.reason._tag).toBe('InstanceNotFound');
       expect(error.message).toBe(
-        'Tipee has no instance at this address (HTTP 410): {"error":"instance_not_found"} ' +
+        'tipee has no instance at this address (HTTP 410): {"error":"instance_not_found"} ' +
           `acme.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`,
       );
     }),
   );
 
-  it.effect("quotes Tipee's reason for refusing a key", () =>
+  it.effect("quotes tipee's reason for refusing a key", () =>
     Effect.gen(function* () {
       server.use(status(HTTP_UNAUTHORIZED, { body: { message: 'Token expired on 2026-09-30' } }));
       const error = yield* failure(call('kinds_list', {}));
 
       expect(error.reason._tag).toBe('ApiKeyRejected');
       expect(error.message).toMatch(
-        /^Tipee refused the API key \(HTTP 401\): Token expired on 2026-09-30 /u,
+        /^tipee refused the API key \(HTTP 401\): Token expired on 2026-09-30 /u,
       );
     }),
   );

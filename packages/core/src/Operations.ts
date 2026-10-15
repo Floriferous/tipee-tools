@@ -1,6 +1,6 @@
-// The catalogue of Tipee operations, read off the generated HttpApi: one
+// The catalogue of tipee operations, read off the generated HttpApi: one
 // entry per endpoint with its name, description, request and response
-// schemas, and what it does to Tipee's data. Tools are built from this;
+// schemas, and what it does to tipee's data. Tools are built from this;
 // `invoke` (Invoke.ts) calls any of them.
 
 import { Context, Schema } from 'effect';
@@ -22,7 +22,7 @@ export interface Operation {
   readonly description: string;
   /** The JSON request body. */
   readonly parameters: Schema.Top;
-  /** The JSON response body, or undefined when Tipee answers with no content. */
+  /** The JSON response body, or undefined when tipee answers with no content. */
   readonly success: Schema.Top | undefined;
   /** `*.list` and `*.show*` operations. */
   readonly readOnly: boolean;
@@ -90,7 +90,7 @@ const collect = (): ReadonlyArray<Operation> => {
   });
   const names = new Set(found.map((operation) => operation.name));
   if (names.size !== found.length) {
-    throw new Error('two Tipee operations map to the same name');
+    throw new Error('two tipee operations map to the same name');
   }
   return found;
 };
@@ -105,7 +105,7 @@ export const operations: ReadonlyArray<Operation> = collect();
 export const operation = (name: string): Operation => {
   const found = operations.find((candidate) => candidate.name === name);
   if (found === undefined) {
-    throw new Error(`Tipee has no operation named ${name}`);
+    throw new Error(`tipee has no operation named ${name}`);
   }
   return found;
 };

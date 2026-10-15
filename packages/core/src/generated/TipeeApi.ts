@@ -655,7 +655,7 @@ class ScheduleGroup extends HttpApiGroup.make("Schedule")
   .add(HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandCreateschedule", "/api/schedule/schedules.create", { payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson, success: HttpApiSchema.Empty(201), error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(HttpApiSchema.status(409)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule")
       .annotate(OpenApi.Summary, "Create")
-      .annotate(OpenApi.Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. Tipee answers with no body: read the day back with schedules_list to get the id of what was created."), 
+      .annotate(OpenApi.Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. tipee answers with no body: read the day back with schedules_list to get the id of what was created."), 
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", { payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson, success: HttpApiSchema.Empty(204), error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(HttpApiSchema.status(409)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_updateschedule")
       .annotate(OpenApi.Summary, "Update")
@@ -667,7 +667,7 @@ class ScheduleGroup extends HttpApiGroup.make("Schedule")
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandCreateabsence", "/api/schedule/absences.create", { payload: PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson, success: PostAppUiApiScheduleSchedulecommandCreateabsence201.pipe(HttpApiSchema.status(201)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence")
       .annotate(OpenApi.Summary, "Create")
-      .annotate(OpenApi.Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); Tipee refuses an absence with neither."), 
+      .annotate(OpenApi.Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); tipee refuses an absence with neither."), 
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", { payload: PostAppUiApiScheduleSchedulecommandUpdateabsenceRequestJson, success: PostAppUiApiScheduleSchedulecommandUpdateabsence200 })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_updateabsence")
       .annotate(OpenApi.Summary, "Update")
@@ -726,7 +726,7 @@ class TimeclockGroup extends HttpApiGroup.make("Timeclock")
     HttpApiEndpoint.post("postAppUiApiTimeclockTimeclockqueryListtimechecks", "/api/timeclock/timechecks.list", { payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson, success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200 })
       .annotate(OpenApi.Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks")
       .annotate(OpenApi.Summary, "List timechecks")
-      .annotate(OpenApi.Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507)."))
+      .annotate(OpenApi.Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one tipee runs out of memory (HTTP 507)."))
   .annotate(OpenApi.Description, "Timeclock") {}
 
 export class Tipee extends HttpApi.make("Tipee")

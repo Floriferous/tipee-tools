@@ -1,6 +1,6 @@
 // Calling an operation: `invoke` sends any operation of the catalogue
 // through the client and explains failures as TipeeError, each ending with
-// the next step, with a link into the user's Tipee when the fix is a right
+// the next step, with a link into the user's tipee when the fix is a right
 // to tick.
 
 import { Effect, Option, Schema } from 'effect';
@@ -22,7 +22,7 @@ const call = (
   Effect.gen(function* () {
     const { api } = yield* TipeeClient;
     // Checked against the document before anything is sent, so a schema
-    // error afterwards can only be Tipee's answer.
+    // error afterwards can only be tipee's answer.
     yield* Schema.decodeUnknownEffect(target.parameters as Schema.Codec<unknown>)(params).pipe(
       Effect.mapError(
         (cause) => new TipeeError({ reason: new InvalidRequest({ details: cause.message }) }),
@@ -71,7 +71,7 @@ const integrations: Effect.Effect<ReadonlyArray<Listed>, TipeeError, TipeeClient
 );
 
 export interface IntegrationLink {
-  /** The integration's name in Tipee. */
+  /** The integration's name in tipee. */
   readonly label: string;
   /** Its Roles tab, where rights are ticked. */
   readonly roles_page: string;
@@ -104,9 +104,9 @@ const FIXES: Partial<Record<TipeeErrorReason['_tag'], string>> = {
   InvalidRequest: 'Fix these parameters and call again.',
   NotFound: 'Re-read the list the id came from.',
   Rejected:
-    'Nothing was changed. If a parameter was malformed, fix it and call again; if Tipee ' +
+    'Nothing was changed. If a parameter was malformed, fix it and call again; if tipee ' +
     'refused the change itself, tell the user — a different change needs their yes first.',
-  UnexpectedShape: 'Run check_setup and suggest updating Tipee for Claude.',
+  UnexpectedShape: 'Run check_setup and suggest updating tipee for Claude.',
 };
 
 // Node's names for a certificate it does not trust, which is what a network
@@ -146,7 +146,7 @@ const explain = (
     }
     if (reason._tag === 'Unreachable' && UNTRUSTED_CERTIFICATE.test(reason.description)) {
       return fixed(
-        'Nothing was sent to Tipee: this network intercepts HTTPS with a certificate this ' +
+        'Nothing was sent to tipee: this network intercepts HTTPS with a certificate this ' +
           'computer does not trust. Ask IT to install their root certificate or to exempt ' +
           `${instance}.tipee.net; retrying will not help.`,
       );
@@ -156,7 +156,7 @@ const explain = (
     // have been applied before the failure: only reading it back tells.
     if (!target.readOnly && (reason._tag === 'Unreachable' || serverError)) {
       return fixed(
-        'This write was not retried, and Tipee may have applied it before failing: read it back before trying again.',
+        'This write was not retried, and tipee may have applied it before failing: read it back before trying again.',
       );
     }
     if (reason._tag === 'Unreachable') {
@@ -169,7 +169,7 @@ const explain = (
     }
     if (reason._tag === 'Forbidden') {
       return /not activated/iu.test(reason.body)
-        ? fixed('The module is off on this instance: only a Tipee administrator can turn it on.')
+        ? fixed('The module is off on this instance: only a tipee administrator can turn it on.')
         : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`);
     }
     const fix = FIXES[reason._tag];

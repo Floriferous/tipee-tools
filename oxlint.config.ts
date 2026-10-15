@@ -147,7 +147,7 @@ export default defineConfig({
     'unicorn/no-array-method-this-argument': 'off',
     // Tipee's wire format uses literal null (e.g. the first pagination
     // cursor); the fixer would silently replace it with undefined, which
-    // JSON.stringify drops — and Tipee then rejects the request.
+    // JSON.stringify drops — and tipee then rejects the request.
     'unicorn/no-null': 'off',
     // Still in nursery, but a mature upstream rule; remove once it graduates.
     'unicorn/no-useless-iterator-to-array': 'error',

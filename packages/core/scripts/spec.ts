@@ -46,7 +46,7 @@ export const vendored = (): { readonly file: string; readonly document: Document
 
 // Operations left out of the tools on purpose. Granting and revoking roles
 // would let Claude raise anyone's rights, its own integration's included: an
-// admin does that in Tipee. Listing roles is a read and stays.
+// admin does that in tipee. Listing roles is a read and stays.
 export const EXCLUDED: ReadonlySet<string> = new Set([
   '/api/directory/resources.grant-roles',
   '/api/directory/resources.revoke-roles',

@@ -1,4 +1,4 @@
-// Everything that can go wrong talking to Tipee, as one tagged error with a
+// Everything that can go wrong talking to tipee, as one tagged error with a
 // tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
 // surfaces show `message`, which explains the cause and the fix.
 
@@ -26,7 +26,7 @@ export * from './Reasons.ts';
 // Tipee's error bodies are JSON with a `message`, or RFC 9457 problem details
 // with a `detail`. That line leads, and the whole body follows whenever it
 // says more (field errors, violations, conflicting dates): the agent must see
-// everything Tipee wrote.
+// everything tipee wrote.
 const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 // Keys that only restate the line or the status.
 const RESTATED = new Set(['status', 'title']);
@@ -124,7 +124,7 @@ const statusReason = (
 };
 
 export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
-  /** Where to fix it, with a link into the user's Tipee when one is known. */
+  /** Where to fix it, with a link into the user's tipee when one is known. */
   fix: Schema.optionalKey(Schema.String),
   reason: TipeeErrorReason,
 }) {
@@ -134,7 +134,7 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
 
   // Explains whatever the generated client failed with: an HTTP status, a
   // transport failure, a response that does not match the API description,
-  // or an error Tipee documents for the operation (such as a 409).
+  // or an error tipee documents for the operation (such as a 409).
   public static readonly fromCause = (cause: unknown): Effect.Effect<TipeeError> =>
     Effect.gen(function* () {
       if (cause instanceof TipeeError) {
@@ -167,14 +167,14 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
       // An attempt that outlasted its timeout (see TipeeClient).
       if (Cause.isTimeoutError(cause)) {
         return new TipeeError({
-          reason: new Unreachable({ description: 'Tipee did not answer within 20 s' }),
+          reason: new Unreachable({ description: 'tipee did not answer within 20 s' }),
         });
       }
       if (Schema.isSchemaError(cause)) {
         return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
       }
       // An error the document declares (every one is a 409) arrives decoded,
-      // as the plain object Tipee answered: quote it whole, since it names
+      // as the plain object tipee answered: quote it whole, since it names
       // the conflicting dates or locked schedules.
       if (typeof cause === 'object' && cause !== null && !(cause instanceof Error)) {
         const code = codeOf(Schema.decodeOption(ErrorCode)(cause));
@@ -200,7 +200,7 @@ export class ConfigurationMissing extends Schema.TaggedError<ConfigurationMissin
     const detail =
       this.cause instanceof Config.ConfigError ? this.cause.cause.message : String(this.cause);
     return (
-      'Tipee is not set up: enter your Tipee instance (acme for acme.tipee.net) and an API key ' +
+      'tipee is not set up: enter your tipee instance (acme for acme.tipee.net) and an API key ' +
       `in ${SETTINGS}.\n${detail}`
     );
   }

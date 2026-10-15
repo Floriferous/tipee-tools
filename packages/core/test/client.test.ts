@@ -1,6 +1,6 @@
-// The derived client against the fake Tipee, called through `invoke` the way
+// The derived client against the fake tipee, called through `invoke` the way
 // the tools call it. Every test asserts on what comes back, never on the
-// requests made; the fake enforces Tipee's rules and answers real (anonymised)
+// requests made; the fake enforces tipee's rules and answers real (anonymised)
 // responses, so this is also where the generated schemas meet reality.
 
 import { describe, expect, layer } from '@effect/vitest';
@@ -82,7 +82,7 @@ layer(TestClient)('TipeeClient', (it) => {
       }),
     );
 
-    // Enums a request can carry stay closed: a value Tipee would refuse is
+    // Enums a request can carry stay closed: a value tipee would refuse is
     // caught before sending.
     it.effect('refuses a status the document does not list', () =>
       Effect.gen(function* () {

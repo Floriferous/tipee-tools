@@ -1,4 +1,4 @@
-// Shared by the tool tests: the toolkit wired to the fake Tipee, and a call
+// Shared by the tool tests: the toolkit wired to the fake tipee, and a call
 // that runs a tool the way the MCP server does (decode parameters, strictly
 // for a strict tool, run the handler, encode the result).
 

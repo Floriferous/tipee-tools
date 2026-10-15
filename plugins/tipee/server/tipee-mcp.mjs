@@ -13340,22 +13340,22 @@ const fromLiteral = (literal) => codeByLiteral[literal];
 const saying = (summary, body, otherwise) => body === "" ? `${summary}: ${otherwise}` : `${summary}: ${body}`;
 var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: String$2 }) {
 	get message() {
-		return saying("Tipee refused the API key (HTTP 401)", this.body, "it is mistyped, revoked, or the key of another instance.");
+		return saying("tipee refused the API key (HTTP 401)", this.body, "it is mistyped, revoked, or the key of another instance.");
 	}
 };
 var RightsMissing = class extends TaggedError()("RightsMissing", { body: String$2 }) {
 	get message() {
-		return `The API key works, but its Tipee integration is not allowed to use the API yet (HTTP 401: ${this.body}).`;
+		return `The API key works, but its tipee integration is not allowed to use the API yet (HTTP 401: ${this.body}).`;
 	}
 };
 var Forbidden = class extends TaggedError()("Forbidden", { body: String$2 }) {
 	get message() {
-		return saying("Tipee refused the operation (HTTP 403)", this.body, "the integration lacks the right for it.");
+		return saying("tipee refused the operation (HTTP 403)", this.body, "the integration lacks the right for it.");
 	}
 };
 var NotFound = class extends TaggedError()("NotFound", { body: String$2 }) {
 	get message() {
-		return saying("Tipee could not find it (HTTP 404)", this.body, "no such resource.");
+		return saying("tipee could not find it (HTTP 404)", this.body, "no such resource.");
 	}
 };
 var RateLimited = class extends TaggedError()("RateLimited", {
@@ -13363,7 +13363,7 @@ var RateLimited = class extends TaggedError()("RateLimited", {
 	retryAfter: optionalKey(String$2)
 }) {
 	get message() {
-		return `Tipee's rate limit was still reached after retrying (HTTP 429). ${this.retryAfter === void 0 ? "Wait a moment before trying again." : `Tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`}${this.body === "" ? "" : ` Tipee said: ${this.body}`}`;
+		return `tipee's rate limit was still reached after retrying (HTTP 429). ${this.retryAfter === void 0 ? "Wait a moment before trying again." : `tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`}${this.body === "" ? "" : ` tipee said: ${this.body}`}`;
 	}
 };
 var Rejected = class extends TaggedError()("Rejected", {
@@ -13373,7 +13373,7 @@ var Rejected = class extends TaggedError()("Rejected", {
 }) {
 	get message() {
 		const code = this.code === void 0 ? "" : `, ${this.code}`;
-		return `Tipee rejected the request (HTTP ${this.status}${code}): ${this.body}`;
+		return `tipee rejected the request (HTTP ${this.status}${code}): ${this.body}`;
 	}
 };
 var UnexpectedStatus = class extends TaggedError()("UnexpectedStatus", {
@@ -13381,27 +13381,27 @@ var UnexpectedStatus = class extends TaggedError()("UnexpectedStatus", {
 	status: Int
 }) {
 	get message() {
-		return saying(`Tipee answered with an unexpected error (HTTP ${this.status})`, this.body, "no explanation given.");
+		return saying(`tipee answered with an unexpected error (HTTP ${this.status})`, this.body, "no explanation given.");
 	}
 };
 var UnexpectedShape = class extends TaggedError()("UnexpectedShape", { details: String$2 }) {
 	get message() {
-		return `Tipee accepted the request but answered with a shape that does not match its API description (a write may still have gone through; read it back to be sure):\n${this.details}`;
+		return `tipee accepted the request but answered with a shape that does not match its API description (a write may still have gone through; read it back to be sure):\n${this.details}`;
 	}
 };
 var InvalidRequest$1 = class extends TaggedError()("InvalidRequest", { details: String$2 }) {
 	get message() {
-		return `The request does not match Tipee's API description, so it was not sent:\n${this.details}`;
+		return `The request does not match tipee's API description, so it was not sent:\n${this.details}`;
 	}
 };
 var InstanceNotFound = class extends TaggedError()("InstanceNotFound", { body: String$2 }) {
 	get message() {
-		return saying("Tipee has no instance at this address (HTTP 410)", this.body, "no such instance.");
+		return saying("tipee has no instance at this address (HTTP 410)", this.body, "no such instance.");
 	}
 };
 var Unreachable = class extends TaggedError()("Unreachable", { description: String$2 }) {
 	get message() {
-		return `Tipee could not be reached (${this.description}).`;
+		return `tipee could not be reached (${this.description}).`;
 	}
 };
 var NotConfigured = class extends TaggedError()("NotConfigured", { description: String$2 }) {
@@ -13411,7 +13411,7 @@ var NotConfigured = class extends TaggedError()("NotConfigured", { description: 
 };
 var Internal = class extends TaggedError()("Internal", { description: String$2 }) {
 	get message() {
-		return `tipee-tools failed on its own, not because of anything Tipee answered: ${this.description}`;
+		return `tipee-tools failed on its own, not because of anything tipee answered: ${this.description}`;
 	}
 };
 const TipeeErrorReason = Union([
@@ -13431,7 +13431,7 @@ const TipeeErrorReason = Union([
 ]);
 //#endregion
 //#region ../../packages/core/src/Rights.ts
-const SETTINGS = "the Tipee settings in Claude (Claude Desktop: Settings → Extensions → Tipee for Claude → Configure; Claude Code: /plugin → Installed → tipee)";
+const SETTINGS = "the tipee settings in Claude (Claude Desktop: Settings → Extensions → tipee for Claude → Configure; Claude Code: /plugin → Installed → tipee)";
 const pages = (instance) => {
 	const base = `https://${instance}.tipee.net`;
 	return {
@@ -13559,7 +13559,7 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			const description = [cause.message, chain(reason.cause)].filter((part) => part !== "").join(": ");
 			return new TipeeError({ reason: new Unreachable({ description }) });
 		}
-		if (isTimeoutError(cause)) return new TipeeError({ reason: new Unreachable({ description: "Tipee did not answer within 20 s" }) });
+		if (isTimeoutError(cause)) return new TipeeError({ reason: new Unreachable({ description: "tipee did not answer within 20 s" }) });
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
 		if (typeof cause === "object" && cause !== null && !(cause instanceof Error)) {
 			const code = codeOf(decodeOption(ErrorCode)(cause));
@@ -13576,7 +13576,7 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", { cause: Defect() }) {
 	get message() {
 		const detail = this.cause instanceof ConfigError ? this.cause.cause.message : String(this.cause);
-		return `Tipee is not set up: enter your Tipee instance (acme for acme.tipee.net) and an API key in ${SETTINGS}.\n${detail}`;
+		return `tipee is not set up: enter your tipee instance (acme for acme.tipee.net) and an API key in ${SETTINGS}.\n${detail}`;
 	}
 };
 //#endregion
@@ -17154,7 +17154,7 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 	payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson,
 	success: Empty(201),
 	error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(status(409))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. Tipee answers with no body: read the day back with schedules_list to get the id of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. tipee answers with no body: read the day back with schedules_list to get the id of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson,
 	success: Empty(204),
 	error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(status(409))
@@ -17165,7 +17165,7 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 }).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_deleteschedules").annotate(Summary, "Delete").annotate(Description, "Deletes one or several schedules. If you provide 'all' or 'future' as group action and if you allow it through 'allow_partial=true', only the schedules that come after team's lock date (if it exists) will be deleted."), post("postAppUiApiScheduleSchedulecommandCreateabsence", "/api/schedule/absences.create", {
 	payload: PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandCreateabsence201.pipe(status(201))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence").annotate(Summary, "Create").annotate(Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); Tipee refuses an absence with neither."), post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence").annotate(Summary, "Create").annotate(Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); tipee refuses an absence with neither."), post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdateabsenceRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandUpdateabsence200
 }).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_updateabsence").annotate(Summary, "Update").annotate(Description, "Updates one absence, or an entire group of repeating absences."), post("postAppUiApiScheduleSchedulecommandDeleteabsences", "/api/schedule/absences.delete", {
@@ -17208,7 +17208,7 @@ var TimeclockGroup = class extends make$12("Timeclock").add(post("postAppUiApiTi
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockcommand_deletetimecheck").annotate(Summary, "Delete").annotate(Description, "Deletes a timecheck."), post("postAppUiApiTimeclockTimeclockqueryListtimechecks", "/api/timeclock/timechecks.list", {
 	payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson,
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
-}).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one Tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
+}).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
 var Tipee = class extends make$13("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 //#endregion
 //#region ../../packages/core/src/TipeeClient.ts
@@ -17244,7 +17244,7 @@ const normalizeInstance = (raw) => {
 };
 const invalid = (message) => new ConfigError(new SourceError({ message }));
 const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
-const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The Tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.`))));
+const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a tipee instance: enter the part before .tipee.net, such as acme.`))));
 const apiKeyConfig = Redacted("TIPEE_API_KEY").pipe(withDefault(make$39("")), mapEffect((key) => {
 	const trimmed = value$2(key).trim();
 	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$39(trimmed));
@@ -17303,13 +17303,13 @@ const collect = () => {
 		},
 		onGroup: constVoid
 	});
-	if (new Set(found.map((operation) => operation.name)).size !== found.length) throw new Error("two Tipee operations map to the same name");
+	if (new Set(found.map((operation) => operation.name)).size !== found.length) throw new Error("two tipee operations map to the same name");
 	return found;
 };
 const operations = collect();
 const operation = (name) => {
 	const found = operations.find((candidate) => candidate.name === name);
-	if (found === void 0) throw new Error(`Tipee has no operation named ${name}`);
+	if (found === void 0) throw new Error(`tipee has no operation named ${name}`);
 	return found;
 };
 //#endregion
@@ -17356,8 +17356,8 @@ const FIXES = {
 	Internal: "Please report it at https://github.com/Floriferous/tipee-tools/issues.",
 	InvalidRequest: "Fix these parameters and call again.",
 	NotFound: "Re-read the list the id came from.",
-	Rejected: "Nothing was changed. If a parameter was malformed, fix it and call again; if Tipee refused the change itself, tell the user — a different change needs their yes first.",
-	UnexpectedShape: "Run check_setup and suggest updating Tipee for Claude."
+	Rejected: "Nothing was changed. If a parameter was malformed, fix it and call again; if tipee refused the change itself, tell the user — a different change needs their yes first.",
+	UnexpectedShape: "Run check_setup and suggest updating tipee for Claude."
 };
 const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
 const explain = (error, target) => gen(function* () {
@@ -17370,12 +17370,12 @@ const explain = (error, target) => gen(function* () {
 	if (reason._tag === "RightsMissing") return fixed(`Open ${pages(instance).integrations}, pick the integration whose key you pasted, and tick «Configurations générales → Se connecter avec des applications externes» in its Roles tab. If the API itself is not turned on yet, an admin with the «Responsable API» role does that at ${pages(instance).api}.`);
 	if (reason._tag === "ApiKeyRejected") return fixed(`Check the instance name, then the integration and its key at ${pages(instance).integrations}, and re-enter them in ${SETTINGS}.`);
 	if (reason._tag === "InstanceNotFound" || reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return fixed(`${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`);
-	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to Tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
+	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
 	const serverError = reason._tag === "UnexpectedStatus" && reason.status >= HTTP_SERVER_ERROR;
-	if (!target.readOnly && (reason._tag === "Unreachable" || serverError)) return fixed("This write was not retried, and Tipee may have applied it before failing: read it back before trying again.");
+	if (!target.readOnly && (reason._tag === "Unreachable" || serverError)) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
 	if (reason._tag === "Unreachable") return fixed(`Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`);
 	if (serverError) return fixed("Try again in a moment; run check_setup if it persists.");
-	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a Tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`);
+	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`);
 	const fix = FIXES[reason._tag];
 	return fix === void 0 ? error : fixed(fix);
 });
@@ -24541,7 +24541,7 @@ const probes = fn("check_setup.probes")(function* ({ from, to }) {
 	};
 });
 const offering = (error, update) => new TipeeError({
-	fix: [error.fix, `Version ${update.version} of Tipee for Claude is available: offer to install it with update_plugin.`].filter((part) => part !== void 0).join(" "),
+	fix: [error.fix, `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`].filter((part) => part !== void 0).join(" "),
 	reason: error.reason
 });
 const check = (report) => gen(function* () {
@@ -24567,7 +24567,7 @@ const EndpointReport = Struct({
 		"ok",
 		"failed",
 		"skipped"
-	]).annotate({ description: "ok: the endpoint answered as expected. skipped: the module is off or a right is missing; the error names the right and the page where it is ticked. failed: Tipee answered in a shape this version cannot read." })
+	]).annotate({ description: "ok: the endpoint answered as expected. skipped: the module is off or a right is missing; the error names the right and the page where it is ticked. failed: tipee answered in a shape this version cannot read." })
 });
 const IntegrationReport = Struct({
 	label: String$2,
@@ -24578,7 +24578,7 @@ const UpdateReport = Struct({
 	version: String$2
 });
 const Check = make$10("check_setup", {
-	description: "Call the main read endpoints of Tipee and validate the response shapes. Run it first after installing, or when a tool reports a refused key, a missing right or an unexpected response shape: it names the integration the key belongs to and where its rights are set, explains missing authorizations, detects the day Tipee changes a response shape, and says when a newer version of Tipee for Claude exists. Stores nothing.",
+	description: "Call the main read endpoints of tipee and validate the response shapes. Run it first after installing, or when a tool reports a refused key, a missing right or an unexpected response shape: it names the integration the key belongs to and where its rights are set, explains missing authorizations, detects the day tipee changes a response shape, and says when a newer version of tipee for Claude exists. Stores nothing.",
 	failure: TipeeError,
 	parameters: Struct({
 		from: optionalKey(LocalDate.annotate({ description: "First day of the range, YYYY-MM-DD; without both from and to, the coming week" })),
@@ -24589,19 +24589,19 @@ const Check = make$10("check_setup", {
 		endpoints: ArraySchema(EndpointReport),
 		integration: optionalKey(IntegrationReport.annotate({ description: "The integration the key belongs to and the page where its rights are ticked." })),
 		ok: Boolean.annotate({ description: "False only when an endpoint failed; skipped endpoints keep it true." }),
-		update: optionalKey(UpdateReport.annotate({ description: "A newer version of Tipee for Claude, when one exists, and where to download it." })),
-		version: String$2.annotate({ description: "The version of Tipee for Claude running, to quote when reporting a problem." })
+		update: optionalKey(UpdateReport.annotate({ description: "A newer version of tipee for Claude, when one exists, and where to download it." })),
+		version: String$2.annotate({ description: "The version of tipee for Claude running, to quote when reporting a problem." })
 	})
-}).annotate(Title, "Check Tipee setup").annotate(Strict, true).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
+}).annotate(Title, "Check tipee setup").annotate(Strict, true).annotate(Readonly, true).annotate(Destructive, false).annotate(Idempotent, true);
 const InstallUpdate = make$10("update_plugin", {
-	description: "Installs the newer version of Tipee for Claude that check_setup reported. In Claude Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks the user to confirm; the instance and key are kept. In Claude Code it answers with the commands to run. Call it only after the user agreed to update.",
+	description: "Installs the newer version of tipee for Claude that check_setup reported. In Claude Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks the user to confirm; the instance and key are kept. In Claude Code it answers with the commands to run. Call it only after the user agreed to update.",
 	failure: UpdateFailed,
 	success: Struct({
 		message: String$2,
 		outcome: Installed
 	})
-}).annotate(Title, "Update Tipee for Claude").annotate(Strict, true).annotate(Readonly, false).annotate(Destructive, true).annotate(Idempotent, true);
-const CONFIRM = "Changes Tipee: first tell the user exactly what will change and for whom, and wait for their yes, unless they asked for this precise change.";
+}).annotate(Title, "Update tipee for Claude").annotate(Strict, true).annotate(Readonly, false).annotate(Destructive, true).annotate(Idempotent, true);
+const CONFIRM = "Changes tipee: first tell the user exactly what will change and for whom, and wait for their yes, unless they asked for this precise change.";
 const describe = (operation) => {
 	if (operation.readOnly) return operation.description;
 	const text = operation.description.trimEnd();
@@ -24628,7 +24628,7 @@ const said = (outcome) => {
 	if (outcome.status === "opened") return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
 	if (outcome.status === "downloaded") return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
 	if (outcome.status === "instructions") return `Version ${outcome.version} is available. In a terminal run \`claude plugin update tipee@tipee-tools\` (Claude Code can run it for you), then /reload-plugins, or use /plugin → Installed → tipee → Update now. Release notes: ${outcome.url}`;
-	return "Tipee for Claude is already the latest version.";
+	return "tipee for Claude is already the latest version.";
 };
 const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) => ({
 	message: said(outcome),
@@ -24729,10 +24729,10 @@ const TipeeToolkitLayerConfig = unwrap$3(map$4(service(TipeeClient), (client) =>
 //#endregion
 //#region ../../packages/mcp/src/Prompts.ts
 const SETUP_PROMPT = {
-	description: "Check that the Tipee connection works and explain any missing authorization.",
+	description: "Check that the tipee connection works and explain any missing authorization.",
 	name: "check-tipee-setup",
-	text: `Run the check_setup tool with no arguments, then explain the result to someone who is not technical, and say which version of Tipee for Claude is running. For each endpoint that is not ok, quote its error as is: it names the right to tick and links the page where to tick it. A module the company does not use can stay off: say so rather than asking me to turn it on. If the tool itself fails, quote its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. Tell me to run this check again after changing anything. Then give three examples of questions I can ask, using only endpoints that are ok. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call update_plugin and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there.`,
-	title: "Check Tipee setup"
+	text: `Run the check_setup tool with no arguments, then explain the result to someone who is not technical, and say which version of tipee for Claude is running. For each endpoint that is not ok, quote its error as is: it names the right to tick and links the page where to tick it. A module the company does not use can stay off: say so rather than asking me to turn it on. If the tool itself fails, quote its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. Tell me to run this check again after changing anything. Then give three examples of questions I can ask, using only endpoints that are ok. If the result mentions an update, tell me the new version in one sentence and ask whether I want to install it now. If I say yes, call update_plugin and relay its message: when Claude Desktop asks for confirmation, tell me to click Update there.`,
+	title: "Check tipee setup"
 };
 const SetupPrompt = prompt({
 	content: () => succeed$3(SETUP_PROMPT.text),
@@ -24881,14 +24881,14 @@ const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.1";
+const SERVER_VERSION = "1.0.2";
 const INSTRUCTIONS = [
-	"These tools read and change the user's company Tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In Tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
+	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
 	"Every id in a call comes from an earlier result: kinds_list (the employee kind), then resources_list for people; teams_list for teams; schedule_templates_list for templates.",
-	"Read the current state before writing, and describe the change against it. When Tipee refuses a change, never route around it with a different change without asking the user.",
+	"Read the current state before writing, and describe the change against it. When tipee refuses a change, never route around it with a different change without asking the user.",
 	"Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds (2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).",
-	"{\"redacted\": …} in place of a value means Tipee withheld it from this integration: say so, never guess it.",
+	"{\"redacted\": …} in place of a value means tipee withheld it from this integration: say so, never guess it.",
 	"A failing tool's message names the cause and the fix: follow it, and give the user any link as is."
 ].join("\n\n");
 const TelemetryLive = Telemetry.layer({
@@ -24896,7 +24896,7 @@ const TelemetryLive = Telemetry.layer({
 	server_version: SERVER_VERSION
 });
 const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayerConfig), provide$2(layerStdio({
-	description: "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
+	description: "tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	instructions: INSTRUCTIONS,
 	name: SERVER_NAME,
 	protocols: [
