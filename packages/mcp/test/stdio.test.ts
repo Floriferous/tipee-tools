@@ -94,8 +94,26 @@ const initialize = async ({ request }: Server): Promise<JsonRpcResponse> =>
   request('initialize', {
     capabilities: {},
     clientInfo: { name: 'tipee-tools tests', version: '0' },
-    protocolVersion: '2025-06-18',
+    // The newest version the server speaks, the first to carry its icon.
+    protocolVersion: '2025-11-25',
   });
+
+interface ServerInfo {
+  readonly name: string;
+  readonly websiteUrl?: string;
+  readonly icons?: ReadonlyArray<{ readonly src: string; readonly mimeType?: string }>;
+}
+
+// Who the server says it is, with tipee's mark inline and a link to its docs.
+const expectServerInfo = (serverInfo: unknown): void => {
+  const { icons = [], name, websiteUrl } = serverInfo as ServerInfo;
+  expect(name).toBe('tipee');
+  expect(websiteUrl).toBe('https://github.com/Floriferous/tipee-tools#readme');
+  expect(icons).toHaveLength(1);
+  const [icon] = icons;
+  expect(icon?.mimeType).toBe('image/png');
+  expect(icon?.src).toMatch(/^data:image\/png;base64,iVBORw0KGgo/u);
+};
 
 describe('stdio transport', () => {
   it(
@@ -108,8 +126,7 @@ describe('stdio transport', () => {
         const prompts = await server.request('prompts/list', {});
 
         expect(initialized.error, server.stderr.join('')).toBeUndefined();
-        const serverInfo = initialized.result?.serverInfo as { name: string } | undefined;
-        expect(serverInfo?.name).toBe('tipee');
+        expectServerInfo(initialized.result?.serverInfo);
         const instructions = initialized.result?.instructions as string | undefined;
         expect(instructions).toMatch(/check_setup/u);
         expect(instructions?.length).toBeLessThan(INSTRUCTIONS_LIMIT);
