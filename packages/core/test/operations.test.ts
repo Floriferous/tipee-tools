@@ -1,5 +1,5 @@
 // The operation catalogue is read off the generated API: every endpoint in
-// Tipee's document is there, named after its path, classified by verb.
+// tipee's document is there, named after its path, classified by verb.
 
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -48,7 +48,7 @@ describe('operations', () => {
     expect(operation('teams_list').description).toMatch(/team/iu);
   });
 
-  // An admin changes rights in Tipee; a refresh of the document must not
+  // An admin changes rights in tipee; a refresh of the document must not
   // hand Claude the power to raise anyone's, its own integration's included.
   it('never offers to grant or revoke roles', () => {
     expect(

@@ -1,17 +1,17 @@
-# Tipee for Claude
+# tipee for Claude
 
-Give Claude access to your company's [Tipee](https://tipee.ch): employees,
+Give Claude access to your company's [tipee](https://tipee.ch): employees,
 teams, shifts, absences, on-call duties, activities and time clock. Claude
 can look things up and, when you ask, change them.
 
-Every operation of Tipee's API is available as a tool, except granting and
-revoking roles, which stays with an admin in Tipee. Which tools Claude may
+Every operation of tipee's API is available as a tool, except granting and
+revoking roles, which stays with an admin in tipee. Which tools Claude may
 use, and which need your approval, is up to you in Claude's own settings.
-An independent project, not made or endorsed by Tipee.
+An independent project, not made or endorsed by tipee.
 
-## 1. Get an API key from Tipee
+## 1. Get an API key from tipee
 
-Tipee talks to Claude through an _integration_, a kind of service account.
+tipee talks to Claude through an _integration_, a kind of service account.
 Two admin steps, done once per company:
 
 1. **Turn the API on**, at
@@ -39,14 +39,14 @@ Keep the key somewhere safe; you will paste it once during installation.
    settings → Install Extension…**. Claude Desktop will warn that the
    extension is not verified by Anthropic; that is expected for an extension
    installed from a file.
-3. Click **Configure** and enter your Tipee instance (the part before
+3. Click **Configure** and enter your tipee instance (the part before
    `.tipee.net` in the address you sign in at) and the API key.
 4. Start a new chat, open the **+** menu, pick **check-tipee-setup** (Check
-   Tipee setup), and send it. Claude checks every part of the setup and
+   tipee setup), and send it. Claude checks every part of the setup and
    tells you, in plain words, whether it is complete or what is still
    missing, a mistyped instance or key included.
 
-To change the instance or the key later: **Settings → Extensions → Tipee for
+To change the instance or the key later: **Settings → Extensions → tipee for
 Claude → Configure**. On Team and Enterprise plans, an owner can upload
 `tipee.mcpb` once for the whole organization; each person still enters the
 instance and a key.
@@ -62,8 +62,8 @@ Claude Code needs Node.js 22.19 or newer on its PATH (check with
 ```
 
 It asks for the same two values, and comes with a skill that teaches Claude
-how to work with Tipee. Then run **Check Tipee setup**: type
-`check-tipee-setup` after `/` and pick the Tipee entry, or ask Claude to run
+how to work with tipee. Then run **Check tipee setup**: type
+`check-tipee-setup` after `/` and pick the tipee entry, or ask Claude to run
 `check_setup`. To change the instance or the key later: `/plugin` →
 Installed → tipee.
 
@@ -78,14 +78,14 @@ Some things people ask:
 - Record Chloé's vacation from the 3rd to the 7th.
 - How many hours went into project X this month?
 
-Claude looks things up freely. Every tool that changes Tipee instructs Claude
+Claude looks things up freely. Every tool that changes tipee instructs Claude
 to tell you exactly what will change and to wait for your yes first, unless
 you asked for that exact change. Claude Desktop also asks your permission for
 each tool: choose **Allow once** to approve every change yourself.
 
 ## Updating
 
-When you run Check Tipee setup, Claude tells you whether a newer version
+When you run Check tipee setup, Claude tells you whether a newer version
 exists and offers to install it. Say yes, then:
 
 - **Claude Desktop on a Mac** shows its update dialog: click Update. Your
@@ -101,27 +101,27 @@ exists and offers to install it. Say yes, then:
 ## Removing
 
 1. Uninstall the way you installed: in Claude Desktop, **Settings →
-   Extensions → Tipee for Claude → Uninstall**; in Claude Code,
+   Extensions → tipee for Claude → Uninstall**; in Claude Code,
    `/plugin uninstall tipee@tipee-tools`.
 2. Delete the `.tipee-tools` folder in your home directory, if there is one:
    versions before 1.0 kept update checks there.
-3. Most important: in Tipee, at `https://<instance>.tipee.net/hr-core/integrations`,
+3. Most important: in tipee, at `https://<instance>.tipee.net/hr-core/integrations`,
    delete the integration or regenerate its key, so the key Claude had stops
    working.
 
 ## Compatibility
 
-- Built against Tipee API 26.06.25; a weekly job picks up the documents Tipee
+- Built against tipee API 26.06.25; a weekly job picks up the documents tipee
   publishes, and a new release follows.
 - Claude Desktop on macOS or Windows (the Linux beta is untested), or Claude
   Code with Node.js 22.19 or newer.
 - Versions follow semver. A major version renames or removes a tool, a
-  setting, or the plugin or marketplace name, including when Tipee drops an
+  setting, or the plugin or marketplace name, including when tipee drops an
   operation; new tools make a minor version; fixes make a patch.
 
 ## Help
 
-Run **Check Tipee setup** first: its answer names most problems and how to
+Run **Check tipee setup** first: its answer names most problems and how to
 fix them, and the version you run. If that does not help,
 [open an issue](https://github.com/Floriferous/tipee-tools/issues) with its
 output, the version included. Never paste your API key. Report a security
@@ -134,17 +134,17 @@ help improve it. PostHog discards IP addresses, after deriving an approximate
 location (country and city) from them:
 
 - which tools were called, how long they took and how they ended;
-- errors, by their reason, HTTP status, Tipee's error code (such as
+- errors, by their reason, HTTP status, tipee's error code (such as
   `OVERLAPPING`) and, for an answer that changed shape, the paths of the
-  fields concerned; never with Tipee's text. Crashes carry their message and
+  fields concerned; never with tipee's text. Crashes carry their message and
   stack trace, with file paths cut down to file names;
-- with each event: your Tipee instance name, so companies can be told apart,
+- with each event: your tipee instance name, so companies can be told apart,
   the operating system, CPU architecture, Node.js version, how the plugin was
-  installed, which Claude app and version calls it, the plugin and Tipee API
+  installed, which Claude app and version calls it, the plugin and tipee API
   versions, and a random ID for each time the plugin starts.
 
-It never sends your key, anything Tipee answered, or anything about the
-people in Tipee. Each installation is counted under an ID computed from your
+It never sends your key, anything tipee answered, or anything about the
+people in tipee. Each installation is counted under an ID computed from your
 computer and account names: the names are never sent, but the ID is
 pseudonymous rather than anonymous, since anyone who knows them can compute
 it.
@@ -166,8 +166,8 @@ pnpm verify   # everything CI runs: lint, format, types, tests, bundle
 pnpm fix      # apply the fixers and rebuild the plugin
 ```
 
-The tools are generated from Tipee's OpenAPI document, vendored in
-`packages/core/spec`. Tipee refines that document, sometimes within a
+The tools are generated from tipee's OpenAPI document, vendored in
+`packages/core/spec`. tipee refines that document, sometimes within a
 published version, so a workflow runs `pnpm spec:refresh` every Monday: it
 downloads the newest stable document, regenerates the tools and, when
 anything changed, opens a PR listing the operations and schemas that moved,

@@ -1,4 +1,4 @@
-// Shared by the core tests: a client for the fake Tipee, and one-off answers
+// Shared by the core tests: a client for the fake tipee, and one-off answers
 // to make it fail the way the real one does.
 
 import { setImmediate } from 'node:timers/promises';

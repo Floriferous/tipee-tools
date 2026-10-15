@@ -1,4 +1,4 @@
-// Test kit for packages built on the core: the fake Tipee (MSW handlers that
+// Test kit for packages built on the core: the fake tipee (MSW handlers that
 // enforce the real API's rules over anonymised fixtures) and its server.
 
 export { API_KEY, BASE, FAKE_PAGE_SIZE, handlers } from './handlers.ts';

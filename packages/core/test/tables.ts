@@ -1,4 +1,4 @@
-// The fixtures loaded once as the fake Tipee's tables, decoded only as far
+// The fixtures loaded once as the fake tipee's tables, decoded only as far
 // as the fake needs to filter, sort and paginate; rows are answered raw.
 
 import { Schema } from 'effect';
@@ -6,7 +6,7 @@ import { Schema } from 'effect';
 import { readFixture } from './fixtures.ts';
 import type { FixtureName } from './fixtures.ts';
 
-// Fixtures are raw Tipee JSON and are answered untouched; these schemas only
+// Fixtures are raw tipee JSON and are answered untouched; these schemas only
 // pick what the fake needs to filter, sort and paginate.
 const Row = Schema.Struct({ id: Schema.String });
 const KindRow = Schema.Struct({ ...Row.fields, machine_name: Schema.String });

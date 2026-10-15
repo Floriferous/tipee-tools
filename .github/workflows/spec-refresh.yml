@@ -1,6 +1,6 @@
 name: Spec refresh
 
-# Every Monday morning (UTC), brings Tipee's OpenAPI document up to date with
+# Every Monday morning (UTC), brings tipee's OpenAPI document up to date with
 # `pnpm spec:refresh` and, when anything changed, opens or updates one PR with
 # the summary as its body and the version bumped. That PR is the alert: review
 # the summary and the diff, and merge, which releases it. A broken run is
@@ -22,7 +22,7 @@ env:
 
 jobs:
   refresh:
-    name: Refresh the Tipee API document
+    name: Refresh the tipee API document
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -73,12 +73,12 @@ jobs:
           set -euo pipefail
           report="$RUNNER_TEMP/refresh.json"
           if [ "$(jq -r .changed "$report")" != true ]; then
-            echo "Tipee's document has not changed."
-            # Tipee may have reverted what an earlier run proposed: that PR
+            echo "tipee's document has not changed."
+            # tipee may have reverted what an earlier run proposed: that PR
             # would now replace main's document with a superseded one.
             stale=$(gh pr list --head spec-refresh --state open --json number --jq '.[0].number // empty')
             if [ -n "$stale" ]; then
-              gh pr close "$stale" --delete-branch --comment "Tipee's document matches main again: nothing to refresh."
+              gh pr close "$stale" --delete-branch --comment "tipee's document matches main again: nothing to refresh."
             fi
             exit 0
           fi

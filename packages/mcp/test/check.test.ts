@@ -1,4 +1,4 @@
-// The check_setup tool against the fake Tipee: every probed endpoint reported, and
+// The check_setup tool against the fake tipee: every probed endpoint reported, and
 // what a skipped or failed endpoint tells the user.
 
 import { describe, expect, it, layer } from '@effect/vitest';
@@ -186,7 +186,7 @@ describe('check_setup with a newer release', () => {
 
       expect(String(error)).toMatch(/refused the API key/u);
       expect(String(error)).toMatch(
-        /Version 9\.9\.9 of Tipee for Claude is available: offer to install it with update_plugin\.$/u,
+        /Version 9\.9\.9 of tipee for Claude is available: offer to install it with update_plugin\.$/u,
       );
     }).pipe(Effect.provide(offered('wrong'))),
   );
