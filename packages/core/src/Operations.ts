@@ -11,6 +11,11 @@ import type { HttpApiEndpoint } from 'effect/http-api';
 import { Tipee } from './generated/TipeeApi.ts';
 import { readsOnly } from './TipeeClient.ts';
 
+// The generated schemas are plain JSON codecs that need no services, which
+// `HttpApi.reflect` cannot say: its schemas are `Schema.Top`. Tools built from
+// them must not require services the server never provides.
+type Body = Schema.Codec<unknown, unknown>;
+
 export interface Operation {
   /** `schedules_list` for `/api/schedule/schedules.list`. */
   readonly name: string;
@@ -21,9 +26,9 @@ export interface Operation {
   readonly path: string;
   readonly description: string;
   /** The JSON request body. */
-  readonly parameters: Schema.Top;
+  readonly parameters: Body;
   /** The JSON response body, or undefined when tipee answers with no content. */
-  readonly success: Schema.Top | undefined;
+  readonly success: Body | undefined;
   /** `*.list` and `*.show*` operations. */
   readonly readOnly: boolean;
   /**
@@ -42,11 +47,11 @@ const isBody = (schema: Schema.Top): boolean => !HttpApiSchema.isNoContent(schem
 
 // Without its identifier the body's JSON Schema is inlined at the root (an
 // object), which MCP tool parameters require; with it, the root is a $ref.
-const bodySchema = (endpoint: HttpApiEndpoint.Top): Schema.Top => {
+const bodySchema = (endpoint: HttpApiEndpoint.Top): Body => {
   for (const { schemas } of endpoint.payload.values()) {
     const body = schemas.find((schema) => isBody(schema));
     if (body !== undefined) {
-      return body.annotate({ identifier: undefined });
+      return body.annotate({ identifier: undefined }) as Body;
     }
   }
   return Schema.Struct({});
@@ -54,11 +59,11 @@ const bodySchema = (endpoint: HttpApiEndpoint.Top): Schema.Top => {
 
 const successSchema = (
   successes: ReadonlyMap<number, readonly [Schema.Top, ...Array<Schema.Top>]>,
-): Schema.Top | undefined => {
+): Body | undefined => {
   for (const schemas of successes.values()) {
     const body = schemas.find((schema) => isBody(schema));
     if (body !== undefined) {
-      return body;
+      return body as Body;
     }
   }
   return undefined;
