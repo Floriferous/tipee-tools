@@ -8,13 +8,14 @@ import { McpProtocol, McpServer } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
 import { TipeeToolkitLayerConfig } from './Handlers.ts';
+import { SERVER_ICON } from './Icon.ts';
 import { SetupPrompt } from './Prompts.ts';
 import { Telemetry } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '1.0.3';
+export const SERVER_VERSION = '1.0.4';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
@@ -51,6 +52,7 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
     McpServer.layerStdio({
       description:
         'tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.',
+      icons: [SERVER_ICON],
       instructions: INSTRUCTIONS,
       name: SERVER_NAME,
       protocols: [
@@ -60,6 +62,7 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
         McpProtocol.v2024_11_05,
       ],
       version: SERVER_VERSION,
+      websiteUrl: 'https://github.com/Floriferous/tipee-tools#readme',
     }),
   ),
   Layer.provide(TelemetryLive),
