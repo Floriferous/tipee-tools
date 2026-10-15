@@ -1,6 +1,6 @@
 // The check_setup tool: probes the main read endpoints with real requests,
 // one report line each, so a user learns which rights are missing and the
-// day Tipee changes a response shape, without the check ever aborting on a
+// day tipee changes a response shape, without the check ever aborting on a
 // refusal it can describe.
 
 import type { IntegrationLink, TipeeClient } from '@tipee-tools/core';
@@ -43,7 +43,7 @@ interface Probe {
 }
 
 // One report line per endpoint. Shape mismatches are reported as failures,
-// and to the telemetry, since they mean Tipee changed; a module that is off
+// and to the telemetry, since they mean tipee changed; a module that is off
 // or a missing right is skipped; auth and network errors abort the whole
 // check so the user sees their explanation once.
 const probe = (
@@ -165,7 +165,7 @@ const offering = (error: TipeeError, update: Update): TipeeError =>
   new TipeeError({
     fix: [
       error.fix,
-      `Version ${update.version} of Tipee for Claude is available: offer to install it with update_plugin.`,
+      `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`,
     ]
       .filter((part) => part !== undefined)
       .join(' '),

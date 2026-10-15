@@ -1,4 +1,4 @@
-// The tools against the fake Tipee, called the way the MCP server calls them
+// The tools against the fake tipee, called the way the MCP server calls them
 // (decode parameters, run the handler, encode the result).
 
 import { describe, expect, it, layer } from '@effect/vitest';
@@ -210,9 +210,9 @@ describe('toolkit', () => {
       const description = descriptionOf(target.name);
       expect(description.includes('wait for their yes')).toBe(!target.readOnly);
       expect(description.endsWith('It cannot be undone.')).toBe(/\.delete/u.test(target.path));
-      expect(description).not.toMatch(/[^.!?] Changes Tipee:/u);
+      expect(description).not.toMatch(/[^.!?] Changes tipee:/u);
     }
-    expect(descriptionOf('resources_create')).toContain('. Changes Tipee:');
+    expect(descriptionOf('resources_create')).toContain('. Changes tipee:');
   });
 
   it('makes every tool strict', () => {
@@ -259,7 +259,7 @@ layer(clientFor(API_KEY))('tools', (it) => {
 });
 
 describe('failures', () => {
-  it.effect('refuse a misspelled key before anything reaches Tipee', () =>
+  it.effect('refuse a misspelled key before anything reaches tipee', () =>
     Effect.gen(function* () {
       let sent = 0;
       server.use(
@@ -281,7 +281,7 @@ describe('failures', () => {
     }).pipe(Effect.provide(clientFor(API_KEY))),
   );
 
-  it.effect('surface the Tipee error so the model reads the explanation', () =>
+  it.effect('surface the tipee error so the model reads the explanation', () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(call('teams_list', {}));
 

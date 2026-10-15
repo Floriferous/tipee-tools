@@ -1,6 +1,6 @@
-// Anonymised real Tipee responses (names, ids and remarks replaced; shapes
+// Anonymised real tipee responses (names, ids and remarks replaced; shapes
 // untouched), except day-tasks.json, written from the document's schema.
-// They are the fake Tipee's database and the schemas' test data.
+// They are the fake tipee's database and the schemas' test data.
 
 import { readFileSync } from 'node:fs';
 

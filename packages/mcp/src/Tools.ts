@@ -1,7 +1,7 @@
-// The MCP tools: one per operation in Tipee's API document, built from the
+// The MCP tools: one per operation in tipee's API document, built from the
 // core's operation catalogue, plus `check_setup` and `update_plugin`. Names,
 // descriptions, parameter and result schemas all come from the document; the
-// annotations say what a tool does to Tipee's data, so clients can decide what
+// annotations say what a tool does to tipee's data, so clients can decide what
 // to auto-approve. Every tool is strict: an unknown key is refused, not dropped.
 
 import { TipeeError, operations } from '@tipee-tools/core';
@@ -11,7 +11,7 @@ import { Tool, Toolkit } from 'effect/ai';
 
 import { Installed, UpdateFailed } from './Updates.ts';
 
-/** What a tool returns when Tipee answers with no content (201/204). */
+/** What a tool returns when tipee answers with no content (201/204). */
 export const Done = Schema.Struct({ done: Schema.Literal(true) });
 
 const LocalDate = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/u));
@@ -23,7 +23,7 @@ export const EndpointReport = Schema.Struct({
   status: Schema.Literals(['ok', 'failed', 'skipped']).annotate({
     description:
       'ok: the endpoint answered as expected. skipped: the module is off or a right is ' +
-      'missing; the error names the right and the page where it is ticked. failed: Tipee ' +
+      'missing; the error names the right and the page where it is ticked. failed: tipee ' +
       'answered in a shape this version cannot read.',
   }),
 });
@@ -40,11 +40,11 @@ export const UpdateReport = Schema.Struct({
 
 export const Check = Tool.make('check_setup', {
   description:
-    'Call the main read endpoints of Tipee and validate the response shapes. Run it first ' +
+    'Call the main read endpoints of tipee and validate the response shapes. Run it first ' +
     'after installing, or when a tool reports a refused key, a missing right or an ' +
     'unexpected response shape: it names the integration the key belongs to and where its ' +
-    'rights are set, explains missing authorizations, detects the day Tipee changes a ' +
-    'response shape, and says when a newer version of Tipee for Claude exists. Stores nothing.',
+    'rights are set, explains missing authorizations, detects the day tipee changes a ' +
+    'response shape, and says when a newer version of tipee for Claude exists. Stores nothing.',
   failure: TipeeError,
   parameters: Schema.Struct({
     from: Schema.optionalKey(
@@ -71,15 +71,15 @@ export const Check = Tool.make('check_setup', {
     update: Schema.optionalKey(
       UpdateReport.annotate({
         description:
-          'A newer version of Tipee for Claude, when one exists, and where to download it.',
+          'A newer version of tipee for Claude, when one exists, and where to download it.',
       }),
     ),
     version: Schema.String.annotate({
-      description: 'The version of Tipee for Claude running, to quote when reporting a problem.',
+      description: 'The version of tipee for Claude running, to quote when reporting a problem.',
     }),
   }),
 })
-  .annotate(Tool.Title, 'Check Tipee setup')
+  .annotate(Tool.Title, 'Check tipee setup')
   .annotate(Tool.Strict, true)
   .annotate(Tool.Readonly, true)
   .annotate(Tool.Destructive, false)
@@ -87,7 +87,7 @@ export const Check = Tool.make('check_setup', {
 
 export const InstallUpdate = Tool.make('update_plugin', {
   description:
-    'Installs the newer version of Tipee for Claude that check_setup reported. In Claude ' +
+    'Installs the newer version of tipee for Claude that check_setup reported. In Claude ' +
     'Desktop it downloads the release, verifies it and opens it, and Claude Desktop then asks ' +
     'the user to confirm; the instance and key are kept. In Claude Code it answers with the ' +
     'commands to run. Call it only after the user agreed to update.',
@@ -97,7 +97,7 @@ export const InstallUpdate = Tool.make('update_plugin', {
     outcome: Installed,
   }),
 })
-  .annotate(Tool.Title, 'Update Tipee for Claude')
+  .annotate(Tool.Title, 'Update tipee for Claude')
   .annotate(Tool.Strict, true)
   .annotate(Tool.Readonly, false)
   .annotate(Tool.Destructive, true)
@@ -106,14 +106,14 @@ export const InstallUpdate = Tool.make('update_plugin', {
 // Claude Desktop never loads the plugin's skill: what a write must do first
 // has to travel with the tool itself.
 const CONFIRM =
-  'Changes Tipee: first tell the user exactly what will change and for whom, and wait for ' +
+  'Changes tipee: first tell the user exactly what will change and for whom, and wait for ' +
   'their yes, unless they asked for this precise change.';
 
 const describe = (operation: Operation): string => {
   if (operation.readOnly) {
     return operation.description;
   }
-  // Some Tipee descriptions lack a final period; CONFIRM must not run into them.
+  // Some tipee descriptions lack a final period; CONFIRM must not run into them.
   const text = operation.description.trimEnd();
   const base = /[.!?]$/u.test(text) ? text : `${text}.`;
   const final = /\.delete/u.test(operation.path) ? ' It cannot be undone.' : '';

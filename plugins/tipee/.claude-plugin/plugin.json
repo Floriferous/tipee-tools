@@ -1,8 +1,8 @@
 {
   "name": "tipee",
-  "displayName": "Tipee for Claude",
-  "version": "1.0.1",
-  "description": "Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.",
+  "displayName": "tipee for Claude",
+  "version": "1.0.2",
+  "description": "tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock, reading and changing.",
   "author": {
     "name": "Florian Bienefelt"
   },
@@ -13,14 +13,14 @@
   "userConfig": {
     "instance": {
       "type": "string",
-      "title": "Tipee instance",
-      "description": "Your Tipee subdomain: acme for acme.tipee.net",
+      "title": "tipee instance",
+      "description": "Your tipee subdomain: acme for acme.tipee.net",
       "required": true
     },
     "api_key": {
       "type": "string",
-      "title": "Tipee API key",
-      "description": "Integration key from the Tipee admin panel; the key and its rights: https://github.com/Floriferous/tipee-tools#1-get-an-api-key-from-tipee",
+      "title": "tipee API key",
+      "description": "Integration key from the tipee admin panel; the key and its rights: https://github.com/Floriferous/tipee-tools#1-get-an-api-key-from-tipee",
       "sensitive": true,
       "required": true
     }

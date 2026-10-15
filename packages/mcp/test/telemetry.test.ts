@@ -121,7 +121,7 @@ describe('telemetry', () => {
     }),
   );
 
-  it.effect('reports a Tipee failure by reason, status and paths, never by what Tipee said', () =>
+  it.effect('reports a tipee failure by reason, status and paths, never by what tipee said', () =>
     Effect.gen(function* () {
       const failures = [
         new UnexpectedStatus({ body: 'Alice Martin is on leave', status: 502 }),

@@ -125,7 +125,7 @@ describe('stdio transport', () => {
         expect(titled('day_tasks_submit_for_contributor')?.title).toBe(
           'Day tasks: submit for contributor',
         );
-        expect(titled('check_setup')?.title).toBe('Check Tipee setup');
+        expect(titled('check_setup')?.title).toBe('Check tipee setup');
         expect(titled('check_setup')?.readOnlyHint).toBe(true);
         expect(
           tools.find((tool) => tool.name === 'schedules_delete')?.annotations.destructiveHint,
@@ -153,7 +153,7 @@ describe('stdio transport', () => {
 
         expect(result?.isError).toBe(true);
         expect(result?.content[0]?.text).toContain(
-          '"acme corp" is not a Tipee instance: enter the part before .tipee.net',
+          '"acme corp" is not a tipee instance: enter the part before .tipee.net',
         );
         expect(server.stderr.join('')).toMatch(/not set up/u);
       } finally {

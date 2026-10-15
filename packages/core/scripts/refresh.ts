@@ -1,4 +1,4 @@
-// `pnpm spec:refresh`: brings the vendored OpenAPI document up to Tipee's
+// `pnpm spec:refresh`: brings the vendored OpenAPI document up to tipee's
 // newest stable version, regenerates the client and the plugin bundle, and
 // prints what changed. It only rewrites files of this checkout, so it is safe
 // to run locally; review the diff, or throw it away. With --bump it also moves
@@ -119,7 +119,7 @@ const update = (): string | undefined => {
       `TIPEE_API_VERSION = '${latest}'`,
     );
     // The README's compatibility section names the version too.
-    rewrite(path.join(repository, 'README.md'), `Tipee API ${pinned}`, `Tipee API ${latest}`);
+    rewrite(path.join(repository, 'README.md'), `tipee API ${pinned}`, `tipee API ${latest}`);
   }
   const bumped = options.bump ? bump() : undefined;
   run('pnpm', ['exec', 'oxfmt', specDirectory]);
@@ -131,12 +131,12 @@ const version = changed ? update() : undefined;
 
 const list = (names: ReadonlyArray<string>): string =>
   names.length === 0 ? 'none' : names.map((name) => `\`${name}\``).join(', ');
-const title = moved ? `Move to Tipee API ${latest}` : `Refresh the Tipee API ${latest} document`;
+const title = moved ? `Move to tipee API ${latest}` : `Refresh the tipee API ${latest} document`;
 const body = [
   moved
-    ? `Tipee released API ${latest}; this moves the tools from ${pinned}. Tipee supports ` +
+    ? `tipee released API ${latest}; this moves the tools from ${pinned}. tipee supports ` +
       `${pinned} for at least 6 months after ${latest}'s release: merge within that window.`
-    : `Tipee changed its ${latest} document in place.`,
+    : `tipee changed its ${latest} document in place.`,
   `Changelog: ${DOCS}/changelog/${latest}/changelog.md`,
   ...(removed.length > 0
     ? [
@@ -149,10 +149,10 @@ const body = [
     `- Changed: ${list(schemas.changed)}`,
   ...(version === undefined ? [] : [`### Version\n\n${version}`]),
   'Read the diff of `packages/core/src/generated/TipeeApi.ts`: a patch in ' +
-    '`packages/core/scripts/generate.ts` may need to follow, or to go once Tipee fixed what it worked around.',
+    '`packages/core/scripts/generate.ts` may need to follow, or to go once tipee fixed what it worked around.',
 ].join('\n\n');
 
-process.stdout.write(changed ? `# ${title}\n\n${body}\n` : `Tipee API ${pinned} is current.\n`);
+process.stdout.write(changed ? `# ${title}\n\n${body}\n` : `tipee API ${pinned} is current.\n`);
 if (options.report !== undefined) {
   writeFileSync(
     options.report,

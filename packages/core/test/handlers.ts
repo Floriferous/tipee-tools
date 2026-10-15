@@ -1,6 +1,6 @@
-// The fake Tipee. Happy-path handlers backed by the anonymised fixtures, which
+// The fake tipee. Happy-path handlers backed by the anonymised fixtures, which
 // enforce the real API's rules (bearer key, explicit pagination, identical
-// orders on every page, …) by answering 401/422 the way Tipee does — so tests
+// orders on every page, …) by answering 401/422 the way tipee does — so tests
 // assert on behaviour instead of inspecting requests.
 
 import { Result, Schema } from 'effect';
@@ -101,7 +101,7 @@ const ListTimechecksQuery = Schema.Struct({
   filters: Schema.optionalKey(Schema.Array(TimecheckFilter)),
 });
 
-// Deletes answer like Tipee's PHP: a map of day to ids, and `[]` for an empty map.
+// Deletes answer like tipee's PHP: a map of day to ids, and `[]` for an empty map.
 const deleted = <Row extends { readonly id: string }>(
   items: ReadonlyArray<Loaded<Row>>,
   ids: ReadonlyArray<string>,
@@ -130,7 +130,7 @@ const headersLikeTipee = (request: Request): Response | undefined => {
 const rawOf = <Row>(items: ReadonlyArray<Loaded<Row>>): JsonBodyType =>
   items.map((item) => item.raw);
 
-// Validates auth headers and the body like Tipee, then answers.
+// Validates auth headers and the body like tipee, then answers.
 const endpoint = <S extends Schema.ConstraintDecoder<unknown>>(
   path: string,
   schema: S,
@@ -187,7 +187,7 @@ const byLastName =
   };
 
 // A real cursor is opaque; this one is "<offset>:<signature>" so the fake can
-// refuse a page requested with different filters or orders, like Tipee does.
+// refuse a page requested with different filters or orders, like tipee does.
 const cursor = (offset: number, signature: string): string => `${offset}:${signature}`;
 
 const readCursor = (token: string | null, signature: string): number | undefined => {
@@ -245,7 +245,7 @@ export const handlers = [
   endpoint('/api/schedule/absences.delete', DeleteQuery, ({ ids }) =>
     deleted(absences, ids, '2026-09-07'),
   ),
-  // Without a date filter Tipee scans every timecheck and runs out of memory.
+  // Without a date filter tipee scans every timecheck and runs out of memory.
   endpoint('/api/timeclock/timechecks.list', ListTimechecksQuery, ({ filters }) =>
     (filters ?? []).some((filter) => filter.key === 'timecheck.date_range')
       ? []

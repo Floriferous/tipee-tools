@@ -1,5 +1,5 @@
 // Runs before every test file (here, and in packages that import it as
-// `@tipee-tools/core/testing/setup`): the fake Tipee answers all requests, and
+// `@tipee-tools/core/testing/setup`): the fake tipee answers all requests, and
 // any request it does not know about fails the test instead of hitting the
 // network. Overrides from `server.use` last one test.
 

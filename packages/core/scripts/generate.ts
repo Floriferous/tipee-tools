@@ -1,5 +1,5 @@
 // Regenerates src/generated/TipeeApi.ts from the vendored OpenAPI document
-// with @effect/openapi-generator. Everything the toolkit knows about Tipee's
+// with @effect/openapi-generator. Everything the toolkit knows about tipee's
 // operations and shapes comes from that file; run `pnpm generate` after
 // dropping a new spec version into spec/ (`pnpm spec:refresh` does both).
 
@@ -16,8 +16,8 @@ const output = path.join(root, 'src', 'generated', 'TipeeApi.ts');
 const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
 
 // The document is patched before generation wherever it disagrees with what
-// Tipee does or what the tools need, each patch commented where it is made:
-// request bodies required (Tipee expects one even when empty), descriptions
+// tipee does or what the tools need, each patch commented where it is made:
+// request bodies required (tipee expects one even when empty), descriptions
 // only Claude can learn from, required pagination and orders, empty maps as
 // [], the 900-odd `examples` dropped, recursive filters cut to one level,
 // request objects closed, answer-only enums opened, and the operations the
@@ -44,7 +44,7 @@ for (const route of routes) {
 }
 
 // Rewrites one text of the document. A rewrite that changes nothing means
-// Tipee reworded the text it was written for: fail rather than ship the
+// tipee reworded the text it was written for: fail rather than ship the
 // patch as a silent no-op.
 const reword = (at: ReadonlyArray<string>, rewrite: (current: string) => string): void => {
   let current: unknown = document;
@@ -69,7 +69,7 @@ const swap = (text: string, passage: string, replacement: string): string => {
   return text.replace(passage, replacement);
 };
 
-// What Tipee's document does not say and Claude cannot learn otherwise: the
+// What tipee's document does not say and Claude cannot learn otherwise: the
 // description is the only place a Claude Desktop user's Claude reads. Routes
 // mentioned in a description become the tool names Claude knows.
 const describe = (route: string, rewrite: (current: string) => string): void => {
@@ -115,16 +115,16 @@ describe('/api/directory/kinds.show', (current) =>
   swap(current, "'api/directory/resources.list'", 'resources_list'));
 describe('/api/timeclock/timechecks.list', (current) =>
   `${swap(current, '<br />', ' ')} Always pass a timecheck.date_range filter of a few weeks ` +
-  'at most: without one Tipee runs out of memory (HTTP 507).');
+  'at most: without one tipee runs out of memory (HTTP 507).');
 reword(
   ['components', 'schemas', 'ListDayTasksQuery', 'properties', 'task_ids', 'title'],
   (current) => swap(current, '<br />', ' '),
 );
 describe('/api/schedule/absences.create', (current) =>
   `${current} Pass percentage (100 for a whole day) or time_ranges (for part of a day); ` +
-  'Tipee refuses an absence with neither.');
+  'tipee refuses an absence with neither.');
 describe('/api/schedule/schedules.create', (current) =>
-  `${current} Tipee answers with no body: read the day back with schedules_list to get ` +
+  `${current} tipee answers with no body: read the day back with schedules_list to get ` +
   'the id of what was created.');
 
 // PHP serialises an empty map as [], so every map-typed property in a response
@@ -168,7 +168,7 @@ removeExamples(document.paths, '/paths');
 
 // Composite filters: `and` / `or` take a list of filters of the same shape.
 // In JSON Schema that recursion expands several levels deep in every list
-// tool; nested filters become a plain object instead, which Tipee validates.
+// tool; nested filters become a plain object instead, which tipee validates.
 for (const [name, schema] of Object.entries(document.components.schemas)) {
   const self = `#/components/schemas/${name}`;
   for (const [index, alternative] of (schema.oneOf ?? []).entries()) {

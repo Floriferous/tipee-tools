@@ -1,6 +1,6 @@
-// Why a call to Tipee failed, one class per reason. Each message leads with
-// what happened and the HTTP status, then quotes Tipee, so the agent reads
-// exactly what Tipee answered.
+// Why a call to tipee failed, one class per reason. Each message leads with
+// what happened and the HTTP status, then quotes tipee, so the agent reads
+// exactly what tipee answered.
 
 import { Schema } from 'effect';
 
@@ -8,13 +8,13 @@ import { Schema } from 'effect';
 const saying = (summary: string, body: string, otherwise: string): string =>
   body === '' ? `${summary}: ${otherwise}` : `${summary}: ${body}`;
 
-/** The key is not one Tipee accepts (typo, revoked, expired, or another instance's). */
+/** The key is not one tipee accepts (typo, revoked, expired, or another instance's). */
 export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKeyRejected', {
   body: Schema.String,
 }) {
   public override get message(): string {
     return saying(
-      'Tipee refused the API key (HTTP 401)',
+      'tipee refused the API key (HTTP 401)',
       this.body,
       'it is mistyped, revoked, or the key of another instance.',
     );
@@ -23,14 +23,14 @@ export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKey
 
 /**
  * The key works, but its integration was never granted the authorization that
- * unlocks the API. Tipee answers 401 here (not 403), so only the body tells
+ * unlocks the API. tipee answers 401 here (not 403), so only the body tells
  * this apart from a bad key.
  */
 export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMissing', {
   body: Schema.String,
 }) {
   public override get message(): string {
-    return `The API key works, but its Tipee integration is not allowed to use the API yet (HTTP 401: ${this.body}).`;
+    return `The API key works, but its tipee integration is not allowed to use the API yet (HTTP 401: ${this.body}).`;
   }
 }
 
@@ -39,7 +39,7 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()('Forbidden', {
 }) {
   public override get message(): string {
     return saying(
-      'Tipee refused the operation (HTTP 403)',
+      'tipee refused the operation (HTTP 403)',
       this.body,
       'the integration lacks the right for it.',
     );
@@ -50,7 +50,7 @@ export class NotFound extends Schema.TaggedError<NotFound>()('NotFound', {
   body: Schema.String,
 }) {
   public override get message(): string {
-    return saying('Tipee could not find it (HTTP 404)', this.body, 'no such resource.');
+    return saying('tipee could not find it (HTTP 404)', this.body, 'no such resource.');
   }
 }
 
@@ -63,9 +63,9 @@ export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited'
     const wait =
       this.retryAfter === undefined
         ? 'Wait a moment before trying again.'
-        : `Tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`;
-    const said = this.body === '' ? '' : ` Tipee said: ${this.body}`;
-    return `Tipee's rate limit was still reached after retrying (HTTP 429). ${wait}${said}`;
+        : `tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`;
+    const said = this.body === '' ? '' : ` tipee said: ${this.body}`;
+    return `tipee's rate limit was still reached after retrying (HTTP 429). ${wait}${said}`;
   }
 }
 
@@ -78,7 +78,7 @@ export class Rejected extends Schema.TaggedError<Rejected>()('Rejected', {
 }) {
   public override get message(): string {
     const code = this.code === undefined ? '' : `, ${this.code}`;
-    return `Tipee rejected the request (HTTP ${this.status}${code}): ${this.body}`;
+    return `tipee rejected the request (HTTP ${this.status}${code}): ${this.body}`;
   }
 }
 
@@ -88,7 +88,7 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
 }) {
   public override get message(): string {
     return saying(
-      `Tipee answered with an unexpected error (HTTP ${this.status})`,
+      `tipee answered with an unexpected error (HTTP ${this.status})`,
       this.body,
       'no explanation given.',
     );
@@ -96,8 +96,8 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
 }
 
 /**
- * The response did not match the schema generated from Tipee's OpenAPI
- * document. Tipee did accept the request, so a write may well have gone
+ * The response did not match the schema generated from tipee's OpenAPI
+ * document. tipee did accept the request, so a write may well have gone
  * through: the message says so.
  */
 export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
@@ -105,31 +105,31 @@ export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('Unex
 }) {
   public override get message(): string {
     return (
-      'Tipee accepted the request but answered with a shape that does not match its API ' +
+      'tipee accepted the request but answered with a shape that does not match its API ' +
       `description (a write may still have gone through; read it back to be sure):\n${this.details}`
     );
   }
 }
 
-/** The request body does not match Tipee's API description, so it was never sent. */
+/** The request body does not match tipee's API description, so it was never sent. */
 export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('InvalidRequest', {
   details: Schema.String,
 }) {
   public override get message(): string {
-    return `The request does not match Tipee's API description, so it was not sent:\n${this.details}`;
+    return `The request does not match tipee's API description, so it was not sent:\n${this.details}`;
   }
 }
 
 /**
- * No Tipee instance has this name. `*.tipee.net` resolves for any name, so a
- * typo is not a DNS failure: Tipee answers 410 `instance_not_found`.
+ * No tipee instance has this name. `*.tipee.net` resolves for any name, so a
+ * typo is not a DNS failure: tipee answers 410 `instance_not_found`.
  */
 export class InstanceNotFound extends Schema.TaggedError<InstanceNotFound>()('InstanceNotFound', {
   body: Schema.String,
 }) {
   public override get message(): string {
     return saying(
-      'Tipee has no instance at this address (HTTP 410)',
+      'tipee has no instance at this address (HTTP 410)',
       this.body,
       'no such instance.',
     );
@@ -141,7 +141,7 @@ export class Unreachable extends Schema.TaggedError<Unreachable>()('Unreachable'
   description: Schema.String,
 }) {
   public override get message(): string {
-    return `Tipee could not be reached (${this.description}).`;
+    return `tipee could not be reached (${this.description}).`;
   }
 }
 
@@ -157,12 +157,12 @@ export class NotConfigured extends Schema.TaggedError<NotConfigured>()('NotConfi
   }
 }
 
-/** A failure in tipee-tools itself, not an answer from Tipee: a bug to report. */
+/** A failure in tipee-tools itself, not an answer from tipee: a bug to report. */
 export class Internal extends Schema.TaggedError<Internal>()('Internal', {
   description: Schema.String,
 }) {
   public override get message(): string {
-    return `tipee-tools failed on its own, not because of anything Tipee answered: ${this.description}`;
+    return `tipee-tools failed on its own, not because of anything tipee answered: ${this.description}`;
   }
 }
 

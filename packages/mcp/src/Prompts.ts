@@ -6,11 +6,11 @@ import { Effect } from 'effect';
 import { McpServer } from 'effect/ai';
 
 export const SETUP_PROMPT = {
-  description: 'Check that the Tipee connection works and explain any missing authorization.',
+  description: 'Check that the tipee connection works and explain any missing authorization.',
   name: 'check-tipee-setup',
   text:
     'Run the check_setup tool with no arguments, then explain the result to someone who is ' +
-    'not technical, and say which version of Tipee for Claude is running. For each endpoint that is not ok, quote its error as is: it names the ' +
+    'not technical, and say which version of tipee for Claude is running. For each endpoint that is not ok, quote its error as is: it names the ' +
     'right to tick and links the page where to tick it. A module the company does not use can ' +
     'stay off: say so rather than asking me to turn it on. If the tool itself fails, quote ' +
     `its message and follow the fix it gives; the instance and the key are in ${SETTINGS}. ` +
@@ -19,7 +19,7 @@ export const SETUP_PROMPT = {
     'tell me the new version in one sentence and ask whether I want to install it now. If I ' +
     'say yes, call update_plugin and relay its message: when Claude Desktop asks for ' +
     'confirmation, tell me to click Update there.',
-  title: 'Check Tipee setup',
+  title: 'Check tipee setup',
 };
 
 export const SetupPrompt = McpServer.prompt({

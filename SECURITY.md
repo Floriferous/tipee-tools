@@ -4,14 +4,14 @@
 
 Report it privately, through **Security → Report a vulnerability** on
 [this repository](https://github.com/Floriferous/tipee-tools/security/advisories/new),
-never in a public issue. Include the version Check Tipee setup reports and
+never in a public issue. Include the version Check tipee setup reports and
 how to reproduce it, and never your API key or anything from your company's
-Tipee.
+tipee.
 
 ## Supported versions
 
 Only the latest release is supported. A fix ships as a new release, which
-Check Tipee setup offers to every installation.
+Check tipee setup offers to every installation.
 
 ## Scope
 
@@ -23,7 +23,7 @@ Check Tipee setup offers to every installation.
   `SHA256SUMS` before opening it.
 - **The telemetry payload:** what the plugin sends to PostHog, described in
   the [README](README.md#privacy-and-telemetry). Anything beyond it, such as
-  Tipee's answers or details about people, is a vulnerability.
+  tipee's answers or details about people, is a vulnerability.
 
-Tipee itself, its API and the rights an integration is granted there are
-out of scope: report those to Tipee.
+tipee itself, its API and the rights an integration is granted there are
+out of scope: report those to tipee.

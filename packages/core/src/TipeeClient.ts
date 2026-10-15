@@ -1,7 +1,7 @@
-// The typed Tipee client, derived from the generated HttpApi: one method per
+// The typed tipee client, derived from the generated HttpApi: one method per
 // operation, requests encoded and responses decoded with the schemas from
-// Tipee's OpenAPI document. This file only adds what the document cannot
-// say: the base URL, the headers Tipee insists on, a timeout, and retries.
+// tipee's OpenAPI document. This file only adds what the document cannot
+// say: the base URL, the headers tipee insists on, a timeout, and retries.
 
 import {
   Config,
@@ -38,10 +38,10 @@ const REQUEST_TIMEOUT = '20 seconds';
 export const readsOnly = (path: string): boolean =>
   /^(?:list|show)/u.test(path.slice(path.lastIndexOf('.') + 1));
 
-// Whether a failed request may be sent again. Every Tipee operation is a
+// Whether a failed request may be sent again. Every tipee operation is a
 // POST, and a write that timed out or lost its connection may already have
 // been applied: sending it again could create it twice. Only reads are
-// retried, plus a 429 for anything, since Tipee then did nothing.
+// retried, plus a 429 for anything, since tipee then did nothing.
 const resendable = (request: HttpClientRequest.HttpClientRequest, status?: number): boolean =>
   status === HTTP_TOO_MANY_REQUESTS ||
   (readsOnly(new URL(request.url).pathname) &&
@@ -99,10 +99,10 @@ const instanceConfig = Config.String('TIPEE_INSTANCE').pipe(
   Config.withDefault(''),
   Config.mapEffect((raw) =>
     unset(raw)
-      ? Effect.fail(invalid('The Tipee instance is empty: enter the part before .tipee.net.'))
+      ? Effect.fail(invalid('The tipee instance is empty: enter the part before .tipee.net.'))
       : Effect.mapError(Effect.fromOption(normalizeInstance(raw)), () =>
           invalid(
-            `"${raw}" is not a Tipee instance: enter the part before .tipee.net, such as acme.`,
+            `"${raw}" is not a tipee instance: enter the part before .tipee.net, such as acme.`,
           ),
         ),
   ),
@@ -121,9 +121,9 @@ const apiKeyConfig = Config.Redacted('TIPEE_API_KEY').pipe(
 );
 
 export interface TipeeCredentials {
-  /** The Tipee subdomain, e.g. "acme" for acme.tipee.net. */
+  /** The tipee subdomain, e.g. "acme" for acme.tipee.net. */
   readonly instance: string;
-  /** The API key of an integration created in the Tipee admin panel. */
+  /** The API key of an integration created in the tipee admin panel. */
   readonly apiKey: Redacted.Redacted;
 }
 

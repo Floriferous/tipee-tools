@@ -14,24 +14,24 @@ import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '1.0.1';
+export const SERVER_VERSION = '1.0.2';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
 // the plugin's skill. Clients may cut them past 2,048 characters.
 export const INSTRUCTIONS = [
-  "These tools read and change the user's company Tipee, a Swiss HR software, one tool per " +
-    'API operation (<resource>_<verb>). In Tipee, people are resources, shifts are schedules, ' +
+  "These tools read and change the user's company tipee, a Swiss HR software, one tool per " +
+    'API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, ' +
     'and the time clock is timechecks and day tasks.',
   'Run check_setup on a new install, or after a tool reports a refused key or a missing ' +
     'right: it names what to tick and where.',
   'Every id in a call comes from an earlier result: kinds_list (the employee kind), then ' +
     'resources_list for people; teams_list for teams; schedule_templates_list for templates.',
-  'Read the current state before writing, and describe the change against it. When Tipee ' +
+  'Read the current state before writing, and describe the change against it. When tipee ' +
     'refuses a change, never route around it with a different change without asking the user.',
   'Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds ' +
     '(2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).',
-  '{"redacted": …} in place of a value means Tipee withheld it from this integration: say ' +
+  '{"redacted": …} in place of a value means tipee withheld it from this integration: say ' +
     'so, never guess it.',
   "A failing tool's message names the cause and the fix: follow it, and give the user any " +
     'link as is.',
@@ -50,7 +50,7 @@ export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), Setup
   Layer.provide(
     McpServer.layerStdio({
       description:
-        'Tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.',
+        'tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.',
       instructions: INSTRUCTIONS,
       name: SERVER_NAME,
       protocols: [
