@@ -23,7 +23,7 @@ const call = (
     const { api } = yield* TipeeClient;
     // Checked against the document before anything is sent, so a schema
     // error afterwards can only be tipee's answer.
-    yield* Schema.decodeUnknownEffect(target.parameters as Schema.Codec<unknown>)(params).pipe(
+    yield* Schema.decodeUnknownEffect(target.parameters)(params).pipe(
       Effect.mapError(
         (cause) => new TipeeError({ reason: new InvalidRequest({ details: cause.message }) }),
       ),
