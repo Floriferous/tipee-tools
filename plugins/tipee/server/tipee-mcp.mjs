@@ -15491,8 +15491,8 @@ const ActivityDetailedView = StructWithRest(Struct({
 		"tags": ArraySchema(StructWithRest(Struct({
 			"id": String$2.annotate({ "format": "snowflake" }),
 			"name": String$2,
-			"enabled": Boolean$1.annotate({ "default": false }),
-			"icon": String$2.annotate({ "default": "tag" })
+			"enabled": Boolean$1,
+			"icon": String$2
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityDetailedView" });
@@ -15660,7 +15660,7 @@ const DayTaskView = StructWithRest(Struct({
 	"virtual": Boolean$1.annotate({ "title": "True when the day task has no record of its own and carries the status of its day." }),
 	"enabled_transitions": ArraySchema(String$2.annotate({ "description": "Known values: submit, submit-for-contributor, cancel-submission, submit-correction, validate, cancel-validation, reject, cancel-rejection." }))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DayTaskView" });
-const ListWorkRegimesQuery = Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "identifier": "ListWorkRegimesQuery" });
+const ListWorkRegimesQuery = Record(String$2, Never).annotate({ "identifier": "ListWorkRegimesQuery" });
 const WorkRegimesView = StructWithRest(Struct({ "work_regimes": ArraySchema(StructWithRest(Struct({
 	"id": String$2.annotate({ "format": "snowflake" }),
 	"label": Struct({
@@ -15721,16 +15721,16 @@ const CreateResourceCommand = Struct({
 		})),
 		"built_in_type_payload": optionalKey(Union([Struct({
 			"location": optionalKey(Union([Struct({
-				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
+				"latitude": optionalKey(Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
 					"default": null,
 					"format": "float"
-				}),
-				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
+				})),
+				"longitude": optionalKey(Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
 					"default": null,
 					"format": "float"
-				}),
-				"address": Union([String$2, Null]),
-				"remark": Union([String$2, Null]).annotate({ "default": null })
+				})),
+				"address": optionalKey(Union([String$2, Null]).annotate({ "default": null })),
+				"remark": optionalKey(Union([String$2, Null]).annotate({ "default": null }))
 			}), Null], { mode: "oneOf" })),
 			"date": optionalKey(Union([String$2.annotate({ "format": "local-date" }), Null], { mode: "oneOf" })),
 			"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
@@ -15767,12 +15767,12 @@ const ResourceTeamAssignWarningDetails = StructWithRest(Struct({
 		"team_id": String$2.annotate({ "format": "snowflake" }),
 		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] }),
+	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"deletions": ArraySchema(StructWithRest(Struct({
 		"team_id": String$2.annotate({ "format": "snowflake" }),
 		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] })
+	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamAssignWarningDetails" });
 const UnassignResourceTeamsCommand = Struct({
 	"resource_id": String$2.annotate({ "format": "snowflake" }),
@@ -15789,12 +15789,12 @@ const ResourceTeamUnassignWarningDetails = StructWithRest(Struct({
 		"team_id": String$2.annotate({ "format": "snowflake" }),
 		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] }),
+	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"deletions": ArraySchema(StructWithRest(Struct({
 		"team_id": String$2.annotate({ "format": "snowflake" }),
 		"date_range": String$2.annotate({ "format": "local-date-interval" }),
 		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "default": [] }),
+	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
 	"has_related_schedules": Boolean$1,
 	"has_related_on_calls": Boolean$1,
 	"has_locked_dates": Boolean$1
@@ -16100,7 +16100,7 @@ const ResourceListView = StructWithRest(Struct({
 	"total_count": optionalKey(Number$1.annotate({ "description": "Total number of resources matching filters in the request; only present if parameter \"with_total_count\" is set to \"true\"." }).check(isInt().annotate({ "expected": "an integer" }))),
 	"total_count_approximate": optionalKey(Boolean$1.annotate({ "description": "TRUE if the returned number of resources is exact, FALSE if it is only an approximation; only present if parameter \"with_total_count\" is set to \"true\"." }))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceListView" });
-const ListKindsQuery = Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "identifier": "ListKindsQuery" });
+const ListKindsQuery = Record(String$2, Never).annotate({ "identifier": "ListKindsQuery" });
 const KindSummaryView = StructWithRest(Struct({
 	"id": String$2.annotate({ "format": "snowflake" }),
 	"machine_name": String$2
@@ -16294,9 +16294,9 @@ const ListTagsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
 const TagView = StructWithRest(Struct({
 	"id": String$2.annotate({ "format": "snowflake" }),
 	"name": String$2,
-	"external_id": Union([String$2, Null]).annotate({ "default": null }),
-	"enabled": Boolean$1.annotate({ "default": false }),
-	"icon": String$2.annotate({ "default": "tag" })
+	"external_id": Union([String$2, Null]),
+	"enabled": Boolean$1,
+	"icon": String$2
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TagView" });
 const CreateScheduleCommand260625 = Struct({
 	"resource_id": String$2.annotate({ "format": "snowflake" }),
@@ -16351,7 +16351,7 @@ const CreateScheduleCommand260625 = Struct({
 		"text_color": Union([String$2, Null]),
 		"special_hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" }),
 		"schedule_on_bank_holidays": Boolean$1,
-		"allow_partial": Boolean$1.annotate({ "default": false })
+		"allow_partial": optionalKey(Boolean$1.annotate({ "default": false }))
 	})
 }).annotate({ "identifier": "CreateScheduleCommand260625" });
 const OverlappingSchedulesConflictResponseBodyDTO = StructWithRest(Struct({ "conflicting_dates": ArraySchema(StructWithRest(Struct({
@@ -16416,7 +16416,7 @@ const UpdateScheduleCommand260625 = Struct({
 		"text_color": Union([String$2, Null]),
 		"special_hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" }),
 		"schedule_on_bank_holidays": Boolean$1,
-		"allow_partial": Boolean$1.annotate({ "default": false })
+		"allow_partial": optionalKey(Boolean$1.annotate({ "default": false }))
 	}))
 }).annotate({ "identifier": "UpdateScheduleCommand260625" });
 const DeleteSchedulesCommand = Struct({
@@ -16448,7 +16448,7 @@ const DeleteSchedulesWarningDetails = StructWithRest(Struct({
 		"locked_date": String$2.annotate({ "format": "local-date" })
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteSchedulesWarningDetails" });
-const CreateAbsenceCommand = Struct({
+const CreateAbsenceCommand260625 = Struct({
 	"resource_id": String$2.annotate({ "format": "snowflake" }),
 	"absence_type_id": String$2.annotate({ "format": "snowflake" }),
 	"percentage": optionalKey(Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))),
@@ -16460,13 +16460,13 @@ const CreateAbsenceCommand = Struct({
 	"repetition_id": optionalKey(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])),
 	"remark": optionalKey(Union([String$2, Null])),
 	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })
-}).annotate({ "identifier": "CreateAbsenceCommand" });
+}).annotate({ "identifier": "CreateAbsenceCommand260625" });
 const CreateAbsenceResult = StructWithRest(Struct({
 	"created": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
 	"repetition_id": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
-	"created_count": Number$1.annotate({ "default": 0 }).check(isInt().annotate({ "expected": "an integer" })),
-	"failed_count": Number$1.annotate({ "default": 0 }).check(isInt().annotate({ "expected": "an integer" })),
-	"failed": ArraySchema(String$2).annotate({ "default": [] })
+	"created_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
+	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
+	"failed": ArraySchema(String$2)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
 	"description": "Result of creating absence(s).",
 	"identifier": "CreateAbsenceResult"
@@ -16700,10 +16700,10 @@ const CreateScheduleTemplateCommand260625 = Struct({
 		"hour_range": String$2.annotate({ "format": "local-time-interval" })
 	})),
 	"options": optionalKey(Struct({
-		"counts_in_balances": Boolean$1.annotate({ "default": true }),
-		"timecheck_counted": Boolean$1.annotate({ "default": true }),
-		"employee_resident_ratio": Boolean$1.annotate({ "default": false }),
-		"auto_completable": Boolean$1.annotate({ "default": true })
+		"counts_in_balances": optionalKey(Boolean$1.annotate({ "default": true })),
+		"timecheck_counted": optionalKey(Boolean$1.annotate({ "default": true })),
+		"employee_resident_ratio": optionalKey(Boolean$1.annotate({ "default": false })),
+		"auto_completable": optionalKey(Boolean$1.annotate({ "default": true }))
 	}))
 }).annotate({ "identifier": "CreateScheduleTemplateCommand260625" });
 const UpdateScheduleTemplateCommand260625 = Struct({
@@ -16939,18 +16939,9 @@ const TimecheckView = StructWithRest(Struct({
 			"autocorrection": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 			"autocorrection_source": Union([String$2, Null]),
 			"geolocation": Union([StructWithRest(Struct({
-				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				}),
-				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				}),
-				"accuracy": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				})
+				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
+				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
+				"accuracy": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" })
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 			"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
@@ -16961,18 +16952,9 @@ const TimecheckView = StructWithRest(Struct({
 			"autocorrection": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 			"autocorrection_source": Union([String$2, Null]),
 			"geolocation": Union([StructWithRest(Struct({
-				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				}),
-				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				}),
-				"accuracy": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				})
+				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
+				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
+				"accuracy": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" })
 			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 			"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" })
 		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
@@ -16982,14 +16964,14 @@ const TimecheckView = StructWithRest(Struct({
 		"in": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 		"out": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 		"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
-		"comment": Union([String$2, Null]).annotate({ "default": null })
+		"comment": Union([String$2, Null])
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"validation": Union([StructWithRest(Struct({
 		"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
 		"in": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 		"out": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
 		"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
-		"comment": Union([String$2, Null]).annotate({ "default": null })
+		"comment": Union([String$2, Null])
 	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
 	"is_adjusted": Boolean$1,
 	"matched_schedule_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
@@ -17112,7 +17094,7 @@ const PostAppUiApiScheduleSchedulecommandDeleteschedules409 = StructWithRest(Str
 	"details": optionalKey(DeleteSchedulesWarningDetails),
 	"required_action": optionalKey(String$2)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]);
-const PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson = CreateAbsenceCommand;
+const PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson = CreateAbsenceCommand260625;
 const PostAppUiApiScheduleSchedulecommandCreateabsence201 = CreateAbsenceResult;
 const PostAppUiApiScheduleSchedulecommandUpdateabsenceRequestJson = UpdateAbsenceCommand;
 const PostAppUiApiScheduleSchedulecommandUpdateabsence200 = UpdateAbsenceResult;
@@ -17306,7 +17288,7 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 	payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson,
 	success: Empty(204),
 	error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(status(409))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_updateschedule").annotate(Summary, "Update").annotate(Description, "Updates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided."), post("postAppUiApiScheduleSchedulecommandDeleteschedules", "/api/schedule/schedules.delete", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_updateschedule").annotate(Summary, "Update").annotate(Description, "Updates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. An on-call schedule keeps its date: only `schedule_template_id` (another on-call template), `team_id`, `hour_ranges` and `remark` apply to it."), post("postAppUiApiScheduleSchedulecommandDeleteschedules", "/api/schedule/schedules.delete", {
 	payload: PostAppUiApiScheduleSchedulecommandDeleteschedulesRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandDeleteschedules200,
 	error: PostAppUiApiScheduleSchedulecommandDeleteschedules409.pipe(status(409))
@@ -25126,7 +25108,7 @@ const SERVER_ICON = new Icon$1({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.4";
+const SERVER_VERSION = "1.0.5";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
