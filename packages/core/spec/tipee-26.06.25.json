@@ -1808,7 +1808,7 @@
       "post": {
         "tags": ["Schedule"],
         "summary": "Update",
-        "description": "Updates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided.",
+        "description": "Updates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. An on-call schedule keeps its date: only `schedule_template_id` (another on-call template), `team_id`, `hour_ranges` and `remark` apply to it.",
         "operationId": "post_app_ui_api_schedule_schedulecommand_updateschedule",
         "requestBody": {
           "content": {
@@ -1937,7 +1937,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateAbsenceCommand"
+                "$ref": "#/components/schemas/CreateAbsenceCommand260625"
               }
             }
           }
@@ -2474,6 +2474,18 @@
   },
   "components": {
     "schemas": {
+      "AbsenceCreateOptions260625": {
+        "properties": {
+          "schedule_on_bank_holidays": {
+            "type": "boolean"
+          },
+          "allow_partial": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "additionalProperties": false
+      },
       "AbsenceTypeSummary250901": {
         "required": ["id", "name", "short_name", "machine_name", "color"],
         "properties": {
@@ -2761,7 +2773,8 @@
             "default": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ActivityRatePatternView": {
         "required": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
@@ -2910,7 +2923,8 @@
         "required": ["status", "editable"],
         "properties": {
           "status": {
-            "$ref": "#/components/schemas/DayTaskStatus"
+            "$ref": "#/components/schemas/DayTaskStatus",
+            "title": "Status of the DayTask on the activity's start day."
           },
           "editable": {
             "title": "True only if every DayTask covered by the activity is editable.",
@@ -3029,10 +3043,12 @@
             "$ref": "#/components/schemas/ResourceSecurity"
           },
           "language": {
-            "$ref": "#/components/schemas/Locale"
+            "$ref": "#/components/schemas/Locale",
+            "title": "Language the resource will use tipee in (also drives the welcome email), stored<br />as its \"language\" user preference."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "AdjustmentView": {
         "required": ["value", "time"],
@@ -3069,7 +3085,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "AssignProjectTeamCommand": {
         "required": ["project_id", "team_id", "access_rights"],
@@ -3087,7 +3104,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "AssignResourceActivityRateCommand260625": {
         "required": ["resource_id", "date_range", "average_rate"],
@@ -3134,7 +3152,8 @@
             "default": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "AssignResourceTeamCommand": {
         "required": ["resource_id", "team_id", "head", "date_range"],
@@ -3166,7 +3185,8 @@
             "default": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "AttributeChoices": {
         "required": ["values", "strict", "input_type"],
@@ -3330,7 +3350,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "BooleanFilterValue": {
         "required": ["attribute", "operator"],
@@ -3346,7 +3367,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "BooleanOperator": {
         "type": "string",
@@ -3499,7 +3521,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CancelSubmissionCommand": {
         "required": ["date_range", "resource_ids"],
@@ -3525,7 +3548,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CancelValidationCommand": {
         "required": ["date_range", "resource_ids"],
@@ -3551,7 +3575,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ChoiceFilterValue": {
         "required": ["attribute", "operator"],
@@ -3577,7 +3602,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ChoicesInputType": {
         "type": "string",
@@ -3631,7 +3657,7 @@
           "Text"
         ]
       },
-      "CreateAbsenceCommand": {
+      "CreateAbsenceCommand260625": {
         "required": ["resource_id", "absence_type_id", "when"],
         "properties": {
           "resource_id": {
@@ -3650,7 +3676,7 @@
             }
           },
           "options": {
-            "$ref": "#/components/schemas/CreateOptions"
+            "$ref": "#/components/schemas/AbsenceCreateOptions260625"
           },
           "repetition_id": {
             "type": ["integer", "null"]
@@ -3664,7 +3690,8 @@
             "example": "RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;DTSTART=20260101T120000;UNTIL=20260105T120000"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateAbsenceResult": {
         "description": "Result of creating absence(s).",
@@ -3683,19 +3710,16 @@
             "type": ["integer", "null"]
           },
           "created_count": {
-            "type": "integer",
-            "default": 0
+            "type": "integer"
           },
           "failed_count": {
-            "type": "integer",
-            "default": 0
+            "type": "integer"
           },
           "failed": {
             "type": "array",
             "items": {
               "type": "string"
-            },
-            "default": []
+            }
           }
         },
         "type": "object"
@@ -3756,26 +3780,10 @@
             "description": "Required when type is `range`, but can be omitted for open (running) activity."
           }
         },
-        "type": "object"
-      },
-      "CreateOptions": {
-        "properties": {
-          "schedule_on_bank_holidays": {
-            "type": "boolean"
-          },
-          "allow_partial": {
-            "type": "boolean"
-          }
-        },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateOptions260625": {
-        "required": [
-          "counts_in_balances",
-          "timecheck_counted",
-          "employee_resident_ratio",
-          "auto_completable"
-        ],
         "properties": {
           "counts_in_balances": {
             "type": "boolean",
@@ -3794,7 +3802,8 @@
             "default": true
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateProjectCommand": {
         "required": ["name"],
@@ -3813,7 +3822,8 @@
             "minLength": 1
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateProjectTaskCommand": {
         "required": ["project_id", "name", "color", "billable"],
@@ -3864,7 +3874,8 @@
             "default": []
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateResourceCommand": {
         "required": ["kind_id", "attributes"],
@@ -3902,7 +3913,8 @@
             "$ref": "#/components/schemas/HrProcessInstantiationDTO"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateResourceCommandRelation": {
         "required": ["relation_type_id", "related_id"],
@@ -3914,7 +3926,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateScheduleCommand260625": {
         "required": ["resource_id", "team_id", "when", "hour_ranges", "options"],
@@ -3952,7 +3965,8 @@
             "$ref": "#/components/schemas/Options260625"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateScheduleTemplateCommand260625": {
         "required": [
@@ -4022,7 +4036,8 @@
             "$ref": "#/components/schemas/CreateOptions260625"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "CreateTeamCommand": {
         "required": ["parent_id", "name"],
@@ -4048,7 +4063,8 @@
             "type": "string"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DateRangeFilterValue": {
         "required": ["attribute", "operator"],
@@ -4071,7 +4087,8 @@
             "description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DateTimeOperator": {
         "type": "string",
@@ -4180,7 +4197,8 @@
             "type": "string"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteAbsenceCommand": {
         "required": ["ids", "options"],
@@ -4195,7 +4213,8 @@
             "$ref": "#/components/schemas/DeleteOptions"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteAbsenceResult": {
         "description": "Result of deleting absence(s).",
@@ -4235,7 +4254,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteOptions": {
         "required": ["group_action"],
@@ -4249,7 +4269,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteProjectCommand": {
         "required": ["id"],
@@ -4258,7 +4279,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteProjectMemberCommand": {
         "required": ["member_id", "project_id"],
@@ -4270,7 +4292,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteProjectTaskCommand": {
         "required": ["id"],
@@ -4279,7 +4302,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteScheduleResult": {
         "description": "Result of deleting schedule(s).",
@@ -4325,7 +4349,8 @@
             "$ref": "#/components/schemas/DeleteOptions"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeleteSchedulesWarningDetails": {
         "required": [
@@ -4360,7 +4385,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "DeviceClockView": {
         "required": [
@@ -4425,7 +4451,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "Duration": {
         "description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
@@ -4447,7 +4474,8 @@
             "description": "Property can be omitted with 'none' operator. It is required for all other operators."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "EnableTeamCommand": {
         "required": ["id"],
@@ -4456,7 +4484,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "FulltextFilterValue": {
         "required": ["operator"],
@@ -4477,25 +4506,23 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "Geolocation": {
         "required": ["latitude", "longitude", "accuracy"],
         "properties": {
           "latitude": {
             "type": ["number", "null"],
-            "format": "float",
-            "default": null
+            "format": "float"
           },
           "longitude": {
             "type": ["number", "null"],
-            "format": "float",
-            "default": null
+            "format": "float"
           },
           "accuracy": {
             "type": ["number", "null"],
-            "format": "float",
-            "default": null
+            "format": "float"
           }
         },
         "type": "object"
@@ -4521,7 +4548,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "GrantProjectTeamCommand": {
         "required": ["project_id", "team_id", "access_rights"],
@@ -4539,7 +4567,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "GrantResourcesRolesCommand": {
         "required": ["resource_ids", "role_ids"],
@@ -4561,7 +4590,8 @@
             "description": "Omitting it, or sending an empty array, grants a bare role (on no team) on a new assignment and leaves the teams of an existing one untouched. Sending \"*\" scopes the role to every team, which supersedes the teams already granted. A disabled team is rejected: it is no target for a role."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "GroupAction": {
         "type": "string",
@@ -4595,7 +4625,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "HrProcessInstantiationDTO": {
         "required": ["template_id", "personas_mapping", "milestones_mapping"],
@@ -4626,7 +4657,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "Instant": {
         "type": "string",
@@ -4647,7 +4679,8 @@
             "type": "integer"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "IntervalOperator": {
         "type": "string",
@@ -4803,7 +4836,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListAbsencesQuery250901": {
         "required": ["date_range"],
@@ -4819,7 +4853,8 @@
             "$ref": "#/components/schemas/LocalDateInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListActivitiesQuery": {
         "properties": {
@@ -4830,7 +4865,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListActivitiesQueryFilter": {
         "discriminator": {
@@ -4849,7 +4885,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -4866,7 +4903,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -4883,7 +4921,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -4900,7 +4939,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -4914,7 +4954,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -4931,7 +4972,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -4948,7 +4990,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -4975,7 +5018,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListDetailedActivitiesQuery": {
         "required": ["select"],
@@ -5005,7 +5049,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5019,7 +5064,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5033,7 +5079,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5047,7 +5094,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5061,7 +5109,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5075,7 +5124,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5089,7 +5139,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5103,7 +5154,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5117,7 +5169,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5131,7 +5184,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5145,7 +5199,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 }
               ]
             }
@@ -5162,10 +5217,12 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListDetailedActivitiesQueryFilter": {
         "discriminator": {
@@ -5184,7 +5241,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5198,7 +5256,8 @@
                 "$ref": "#/components/schemas/TagsFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5215,7 +5274,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5229,7 +5289,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5246,7 +5307,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5260,7 +5322,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5274,7 +5337,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5298,7 +5362,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5315,7 +5380,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5332,7 +5398,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5346,7 +5413,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5360,7 +5428,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5377,7 +5446,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5394,12 +5464,14 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
       "ListKindsQuery": {
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListOnCallsQuery": {
         "required": ["date_range"],
@@ -5420,7 +5492,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListOperator": {
         "type": "string",
@@ -5436,7 +5509,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListProjectHourlyBudgetStatsQueryFilter": {
         "discriminator": {
@@ -5458,7 +5532,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5475,7 +5550,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5492,7 +5568,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -5505,7 +5582,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListProjectTasksQueryFilter": {
         "discriminator": {
@@ -5527,7 +5605,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5544,7 +5623,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5561,7 +5641,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5578,7 +5659,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5592,7 +5674,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5606,7 +5689,8 @@
                 "$ref": "#/components/schemas/ResourceDateRangeValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5620,7 +5704,8 @@
                 "$ref": "#/components/schemas/ResourceDateRangeValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5634,7 +5719,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5648,7 +5734,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5662,7 +5749,8 @@
                 "$ref": "#/components/schemas/TaskTagsFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5679,7 +5767,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5696,7 +5785,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5713,7 +5803,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -5748,7 +5839,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5762,7 +5854,8 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 },
                 {
                   "required": ["key"],
@@ -5776,13 +5869,15 @@
                       "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 }
               ]
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListProjectsQueryFilter": {
         "discriminator": {
@@ -5804,7 +5899,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5821,7 +5917,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5835,7 +5932,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5852,7 +5950,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5866,7 +5965,8 @@
                 "$ref": "#/components/schemas/ProjectAccessRightsValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5880,7 +5980,8 @@
                 "$ref": "#/components/schemas/Snowflake"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5894,7 +5995,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5908,7 +6010,8 @@
                 "$ref": "#/components/schemas/LocalDateTimeInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5922,7 +6025,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5939,7 +6043,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5956,7 +6061,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -5973,7 +6079,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -6009,7 +6116,8 @@
             "default": false
           },
           "counting_mode": {
-            "$ref": "#/components/schemas/ResourceCountingMode"
+            "$ref": "#/components/schemas/ResourceCountingMode",
+            "default": "strict"
           },
           "filters": {
             "type": "array",
@@ -6039,7 +6147,8 @@
                       "type": "string"
                     }
                   },
-                  "type": "object"
+                  "type": "object",
+                  "additionalProperties": false
                 }
               ]
             }
@@ -6048,7 +6157,8 @@
             "$ref": "#/components/schemas/Pagination"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListResourcesQueryFilter": {
         "discriminator": {
@@ -6070,7 +6180,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`.",
@@ -6085,7 +6196,8 @@
                 "$ref": "#/components/schemas/BooleanFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics).",
@@ -6100,7 +6212,8 @@
                 "$ref": "#/components/schemas/ChoiceFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6114,7 +6227,8 @@
                 "$ref": "#/components/schemas/DateRangeFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between).",
@@ -6129,7 +6243,8 @@
                 "$ref": "#/components/schemas/DecimalFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators.",
@@ -6144,7 +6259,8 @@
                 "$ref": "#/components/schemas/DurationFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between).",
@@ -6159,7 +6275,8 @@
                 "$ref": "#/components/schemas/IntegerFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic).",
@@ -6174,7 +6291,8 @@
                 "$ref": "#/components/schemas/MonthDayRangeFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern.",
@@ -6189,7 +6307,8 @@
                 "$ref": "#/components/schemas/ResolveRegrouping"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6203,7 +6322,8 @@
                 "$ref": "#/components/schemas/FulltextFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a text attribute by exact or substring match (depending on operator).",
@@ -6218,7 +6338,8 @@
                 "$ref": "#/components/schemas/TextFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range.",
@@ -6233,7 +6354,8 @@
                 "$ref": "#/components/schemas/TeamFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval.",
@@ -6248,7 +6370,8 @@
                 "$ref": "#/components/schemas/TimeRangeFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6265,7 +6388,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6282,7 +6406,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -6302,7 +6427,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListScheduleTemplateTypesQuery260625": {
         "properties": {
@@ -6319,7 +6445,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListScheduleTemplatesQuery260625": {
         "properties": {
@@ -6350,7 +6477,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListSchedulesQuery": {
         "required": ["date_range"],
@@ -6372,7 +6500,8 @@
             "$ref": "#/components/schemas/LocalDateInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListTagsQuery": {
         "properties": {
@@ -6383,7 +6512,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListTagsQueryFilter": {
         "discriminator": {
@@ -6405,7 +6535,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "description": "Case-insensitive substring match on the tag name (any locale).",
@@ -6420,7 +6551,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6434,7 +6566,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6448,7 +6581,8 @@
                 "$ref": "#/components/schemas/LocalDateTime"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6462,7 +6596,8 @@
                 "$ref": "#/components/schemas/LocalDateTime"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6479,7 +6614,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6496,7 +6632,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -6518,7 +6655,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListTimechecksQuery": {
         "properties": {
@@ -6529,7 +6667,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ListTimechecksQueryFilter": {
         "discriminator": {
@@ -6551,7 +6690,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6568,7 +6708,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6582,7 +6723,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6596,7 +6738,8 @@
                 "$ref": "#/components/schemas/LocalDateTimeInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6610,7 +6753,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6627,7 +6771,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -6644,12 +6789,14 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
       "ListWorkRegimesQuery": {
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "LocalDate": {
         "type": "string",
@@ -6687,7 +6834,6 @@
         "enum": ["en", "fr", "de"]
       },
       "Location": {
-        "required": ["latitude", "longitude", "address", "remark"],
         "properties": {
           "latitude": {
             "type": ["number", "null"],
@@ -6700,14 +6846,16 @@
             "default": null
           },
           "address": {
-            "type": ["string", "null"]
+            "type": ["string", "null"],
+            "default": null
           },
           "remark": {
             "type": ["string", "null"],
             "default": null
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "LockedTeamInfo": {
         "required": ["team_id", "locked_date"],
@@ -6781,7 +6929,8 @@
             "$ref": "#/components/schemas/LocalDate"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "MonthDayInterval": {
         "type": "string",
@@ -6802,7 +6951,8 @@
             "description": "Property can be omitted with 'none' operator. It is required for all other operators."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "NumericOperator": {
         "type": "string",
@@ -6881,15 +7031,15 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "Options260625": {
         "required": [
           "employee_resident_ratio",
           "text_color",
           "special_hour_range",
-          "schedule_on_bank_holidays",
-          "allow_partial"
+          "schedule_on_bank_holidays"
         ],
         "properties": {
           "employee_resident_ratio": {
@@ -6916,7 +7066,8 @@
             "default": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "OptionsView": {
         "required": ["employee_resident_ratio", "text_color", "special_time_range"],
@@ -6997,7 +7148,8 @@
             "type": ["string", "null"]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ParameterType": {
         "type": "string",
@@ -7028,7 +7180,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "PictureShape": {
         "type": "string",
@@ -7053,7 +7206,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ProjectHourlyBudgetMode": {
         "type": "string",
@@ -7271,7 +7425,8 @@
             "type": ["string", "null"]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "QueryOrderDirection": {
         "type": "string",
@@ -7319,7 +7474,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ResolveRegrouping": {
         "properties": {
@@ -7333,7 +7489,8 @@
             "type": "string"
           },
           "operator": {
-            "$ref": "#/components/schemas/ListOperator"
+            "$ref": "#/components/schemas/ListOperator",
+            "default": "in_list"
           },
           "sources": {
             "type": "array",
@@ -7342,7 +7499,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ResourceCountingMode": {
         "type": "string",
@@ -7359,7 +7517,8 @@
             "$ref": "#/components/schemas/LocalDateInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ResourceListView": {
         "required": ["data", "next_token"],
@@ -7454,7 +7613,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ResourceSummaryView": {
         "required": ["id", "kind_id", "label", "short_label", "sort_label", "gender", "picture"],
@@ -7490,15 +7650,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResourceTeamWarningDetailsInfo"
-            },
-            "default": []
+            }
           },
           "deletions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResourceTeamWarningDetailsInfo"
-            },
-            "default": []
+            }
           }
         },
         "type": "object"
@@ -7531,15 +7689,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResourceTeamWarningDetailsInfo"
-            },
-            "default": []
+            }
           },
           "deletions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResourceTeamWarningDetailsInfo"
-            },
-            "default": []
+            }
           },
           "has_related_schedules": {
             "type": "boolean"
@@ -7701,7 +7857,8 @@
             "description": "Teams to revoke from the role. Omitting it removes the role from the resources entirely. Sending \"*\" revokes every team and keeps the role assigned on no team, as does revoking its last remaining teams. Revoking specific teams from a role held on \"*\" turns it into the explicit list of the remaining enabled teams, which no longer follows the teams created afterwards. An empty array is rejected."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ScheduleAdjustment": {
         "required": ["value", "time"],
@@ -7735,12 +7892,7 @@
         "type": "object"
       },
       "ScheduleOptions": {
-        "required": [
-          "employee_resident_ratio",
-          "text_color",
-          "special_hour_range",
-          "allow_partial"
-        ],
+        "required": ["employee_resident_ratio", "text_color", "special_hour_range"],
         "properties": {
           "employee_resident_ratio": {
             "type": "boolean"
@@ -7800,7 +7952,8 @@
             "$ref": "#/components/schemas/LocalTime"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ScheduleTemplateCreateBreakTime": {
         "required": ["min_duration", "hour_range"],
@@ -7812,15 +7965,10 @@
             "$ref": "#/components/schemas/LocalTimeInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ScheduleTemplateCreateOptions": {
-        "required": [
-          "counts_schedules",
-          "counts_matched_timechecks",
-          "employee_resident_ratio",
-          "auto_completable"
-        ],
         "properties": {
           "counts_schedules": {
             "type": ["boolean", "null"],
@@ -7858,7 +8006,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ScheduleTemplateSummary": {
         "required": ["id", "name", "description", "color"],
@@ -7920,7 +8069,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ScheduleTemplateUpdateBreakTime": {
         "properties": {
@@ -7931,7 +8081,8 @@
             "$ref": "#/components/schemas/LocalTimeInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ScheduleTemplateUpdateOptions": {
         "properties": {
@@ -8119,7 +8270,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ShowActivitiesTotalsQueryFilter": {
         "discriminator": {
@@ -8138,7 +8290,8 @@
                 "$ref": "#/components/schemas/LocalDateInterval"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8152,7 +8305,8 @@
                 "$ref": "#/components/schemas/TagsFilterValue"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8169,7 +8323,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8183,7 +8338,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8200,7 +8356,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8214,7 +8371,8 @@
                 "type": "string"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8228,7 +8386,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8252,7 +8411,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8269,7 +8429,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8286,7 +8447,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8300,7 +8462,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8314,7 +8477,8 @@
                 "type": "boolean"
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8331,7 +8495,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           },
           {
             "required": ["key", "value"],
@@ -8348,7 +8513,8 @@
                 }
               }
             },
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
           }
         ]
       },
@@ -8359,7 +8525,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ShowProjectQuery": {
         "required": ["id"],
@@ -8368,7 +8535,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ShowResourceActivityRatesQuery": {
         "required": ["resource_id"],
@@ -8380,7 +8548,8 @@
             "$ref": "#/components/schemas/LocalDateInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ShowResourceTeamsQuery": {
         "required": ["resource_id"],
@@ -8401,7 +8570,8 @@
             "$ref": "#/components/schemas/LocalDateInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ShowTeamQuery": {
         "required": ["id"],
@@ -8410,7 +8580,8 @@
             "$ref": "#/components/schemas/Snowflake"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "Snowflake": {
         "type": "string",
@@ -8454,7 +8625,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "SubmitCorrectionCommand": {
         "required": ["date_range", "resource_ids"],
@@ -8480,7 +8652,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "SubmitForContributorCommand": {
         "required": ["date_range", "resource_ids"],
@@ -8506,7 +8679,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TagSummaryView": {
         "required": ["id", "name", "enabled", "icon"],
@@ -8518,12 +8692,10 @@
             "type": "string"
           },
           "enabled": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
           },
           "icon": {
-            "type": "string",
-            "default": "tag"
+            "type": "string"
           }
         },
         "type": "object"
@@ -8538,16 +8710,13 @@
             "type": "string"
           },
           "external_id": {
-            "type": ["string", "null"],
-            "default": null
+            "type": ["string", "null"]
           },
           "enabled": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
           },
           "icon": {
-            "type": "string",
-            "default": "tag"
+            "type": "string"
           }
         },
         "type": "object"
@@ -8572,7 +8741,8 @@
             "$ref": "#/components/schemas/LogicalOperator"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TaskSummaryView": {
         "required": ["id", "project_id", "name", "color", "billable", "remark_required"],
@@ -8611,7 +8781,8 @@
             "$ref": "#/components/schemas/LogicalOperator"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TaskView": {
         "required": [
@@ -8694,7 +8865,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TeamFilterValue": {
         "properties": {
@@ -8726,7 +8898,8 @@
             "type": ["boolean", "null"]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TeamList": {
         "oneOf": [
@@ -8873,7 +9046,8 @@
             "type": "string"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TimeRange": {
         "required": ["time_range", "auto_correct", "paid_break"],
@@ -8925,7 +9099,8 @@
             "description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "TimecheckDeviceView": {
         "required": ["in", "out"],
@@ -9039,8 +9214,7 @@
             ]
           },
           "comment": {
-            "type": ["string", "null"],
-            "default": null
+            "type": ["string", "null"]
           }
         },
         "type": "object"
@@ -9157,7 +9331,8 @@
           "en": "Hello",
           "fr": "Bonjour",
           "de": "Guten Tag"
-        }
+        },
+        "additionalProperties": false
       },
       "UnassignResourceActivityRateCommand": {
         "required": ["resource_id", "date_range"],
@@ -9169,7 +9344,8 @@
             "$ref": "#/components/schemas/LocalDateInterval"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UnassignResourceTeamsCommand": {
         "required": ["resource_id", "date_range"],
@@ -9195,7 +9371,8 @@
             "default": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateAbsenceCommand": {
         "required": ["id", "options"],
@@ -9225,7 +9402,8 @@
             "type": ["string", "null"]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateAbsenceResult": {
         "description": "Result of updating absence(s).",
@@ -9316,7 +9494,8 @@
             "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open."
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateOptions": {
         "required": ["group_action"],
@@ -9328,7 +9507,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateOptions260625": {
         "properties": {
@@ -9345,7 +9525,8 @@
             "type": "boolean"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateProjectCommand": {
         "required": ["id"],
@@ -9389,7 +9570,8 @@
             "$ref": "#/components/schemas/Duration"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateProjectStatusCommand": {
         "required": ["id", "status"],
@@ -9401,7 +9583,8 @@
             "$ref": "#/components/schemas/ProjectStatus"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateProjectTaskCommand": {
         "required": ["id"],
@@ -9437,7 +9620,8 @@
             "$ref": "#/components/schemas/Duration"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateResourceCommand": {
         "required": ["id"],
@@ -9456,7 +9640,8 @@
             }
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateResourceCommandRelation": {
         "required": ["relation_type_id"],
@@ -9476,7 +9661,8 @@
             ]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateScheduleCommand260625": {
         "required": ["id"],
@@ -9535,7 +9721,8 @@
             "$ref": "#/components/schemas/Options260625"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateScheduleTemplateCommand260625": {
         "required": ["id"],
@@ -9618,7 +9805,8 @@
             "default": false
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "UpdateTeamCommand": {
         "required": ["id"],
@@ -9642,7 +9830,8 @@
             "type": "string"
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ValidateCommand": {
         "required": ["date_range", "resource_ids"],
@@ -9668,7 +9857,8 @@
             "maxLength": 255
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "ValidateTimecheckCommand": {
         "properties": {
@@ -9702,7 +9892,8 @@
             "type": ["string", "null"]
           }
         },
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "WorkRegimeSummaryView": {
         "required": ["id", "label", "weekly_worked_hours", "weekly_worked_days"],
