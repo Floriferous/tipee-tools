@@ -7,8 +7,9 @@ import * as OS from "node:os";
 import { hostname, userInfo } from "node:os";
 import { spawn } from "node:child_process";
 import * as NFS from "node:fs";
+import { finished } from "node:stream";
 import tls from "node:tls";
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Pipeable.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pipeable.js
 const pipeArguments = (self, args) => {
 	switch (args.length) {
 		case 0: return self;
@@ -37,7 +38,7 @@ const Class$3 = /*#__PURE__*/ function() {
 	return PipeableBase;
 }();
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Function.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Function.js
 const dual = function(arity, body) {
 	if (typeof arity === "function") return function() {
 		return arity(arguments) ? body.apply(this, arguments) : (self) => body(self, ...arguments);
@@ -126,7 +127,7 @@ function memoizeIdempotent(f) {
 	};
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/equal.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/equal.js
 const getAllObjectKeys = (obj) => {
 	const keys = new Set(Reflect.ownKeys(obj));
 	if (obj.constructor === Object) return keys;
@@ -143,15 +144,23 @@ const getAllObjectKeys = (obj) => {
 };
 const byReferenceInstances = /*#__PURE__*/ new WeakSet();
 const viewBytes = (view) => new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+const isArrayBufferLike = (u) => u instanceof ArrayBuffer || typeof SharedArrayBuffer !== "undefined" && u instanceof SharedArrayBuffer;
+const bufferBytes = (buffer) => {
+	try {
+		return new Uint8Array(buffer);
+	} catch {
+		return;
+	}
+};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/hash.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/hash.js
 let backEdges = 0;
 const addBackEdge = () => {
 	backEdges++;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Predicate.js
-function isString(input) {
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Predicate.js
+function isString$1(input) {
 	return typeof input === "string";
 }
 function isNumber(input) {
@@ -167,7 +176,7 @@ function isSymbol(input) {
 	return typeof input === "symbol";
 }
 function isPropertyKey(u) {
-	return isString(u) || isNumber(u) || isSymbol(u);
+	return isString$1(u) || isNumber(u) || isSymbol(u);
 }
 function isFunction(input) {
 	return typeof input === "function";
@@ -190,11 +199,11 @@ function isNever$1(_) {
 function isUnknown(_) {
 	return true;
 }
-function isObject(input) {
+function isObject$2(input) {
 	return typeof input === "object" && input !== null && !Array.isArray(input);
 }
 function isReadonlyObject(input) {
-	return isObject(input);
+	return isObject$2(input);
 }
 function isObjectKeyword(input) {
 	return typeof input === "object" && input !== null || isFunction(input);
@@ -205,11 +214,11 @@ function isError(input) {
 	return input instanceof Error;
 }
 function isIterable(input) {
-	return hasProperty(input, Symbol.iterator) || isString(input);
+	return hasProperty(input, Symbol.iterator) || isString$1(input);
 }
 const or = /*#__PURE__*/ dual(2, (self, that) => (a) => self(a) || that(a));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Hash.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Hash.js
 const symbol$3 = "~effect/Hash";
 const hash = (self) => {
 	switch (typeof self) {
@@ -236,7 +245,10 @@ const hash = (self) => {
 			try {
 				if ("~effect/Hash" in self) h = self[symbol$3]();
 				else if (typeof self === "function") h = random$1(self);
-				else if (self instanceof DataView) h = array(viewBytes(self));
+				else if (isArrayBufferLike(self)) {
+					const bytes = bufferBytes(self);
+					h = bytes === void 0 ? random$1(self) : array(bytes);
+				} else if (self instanceof DataView) h = array(viewBytes(self));
 				else if (Array.isArray(self) || ArrayBuffer.isView(self)) h = array(self);
 				else if (self instanceof Map) h = hashMap(self);
 				else if (self instanceof Set) h = hashSet(self);
@@ -298,7 +310,7 @@ const randomHashCache = /*#__PURE__*/ new WeakMap();
 const hashCache = /*#__PURE__*/ new WeakMap();
 const visitedObjects = /*#__PURE__*/ new WeakSet();
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Equal.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equal.js
 const symbol$2 = "~effect/Equal";
 function equals$1() {
 	if (arguments.length === 1) return (self) => compareBoth(self, arguments[0]);
@@ -351,6 +363,11 @@ function compareStructure(self, that) {
 	else if (Array.isArray(self)) {
 		if (!Array.isArray(that) || self.length !== that.length) return false;
 		return compareArrays(self, that);
+	} else if (isArrayBufferLike(self)) {
+		if (!isArrayBufferLike(that) || self instanceof ArrayBuffer !== that instanceof ArrayBuffer) return false;
+		const selfBytes = bufferBytes(self);
+		const thatBytes = bufferBytes(that);
+		return selfBytes !== void 0 && thatBytes !== void 0 && compareTypedArrays(selfBytes, thatBytes);
 	} else if (ArrayBuffer.isView(self)) {
 		const selfIsDataView = self instanceof DataView;
 		if (!ArrayBuffer.isView(that) || self.byteLength !== that.byteLength || selfIsDataView !== that instanceof DataView) return false;
@@ -408,11 +425,12 @@ function compareHashed(self, that, hashOf, equivalent) {
 const entryHash = (entry) => hash(entry[0]);
 const equalEntries = (self, that) => compareBoth(self[0], that[0]) && compareBoth(self[1], that[1]);
 const isEqual = (u) => hasProperty(u, symbol$2);
+const asEquivalence = () => equals$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Redactable.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redactable.js
 const symbolRedactable = /*#__PURE__*/ Symbol.for("~effect/Redactable");
 const isRedactable = (u) => hasProperty(u, symbolRedactable);
-function redact$1(u) {
+function redact$2(u) {
 	if (isRedactable(u)) return getRedacted(u);
 	return u;
 }
@@ -431,7 +449,7 @@ const emptyContext$1 = {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Formatter.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Formatter.js
 function format$2(input, options) {
 	const space = options?.space ?? 0;
 	const ancestors = /* @__PURE__ */ new WeakSet();
@@ -519,9 +537,10 @@ function safeGet(input, key) {
 }
 function formatJson(input, options) {
 	const ancestors = [];
+	const sources = /* @__PURE__ */ new WeakMap();
 	return JSON.stringify(input, function(key, value) {
-		const original = Object.getOwnPropertyDescriptor(this, key)?.value;
-		const redacted = hasProperty(original, symbolRedactable) ? redact$1(original) : redact$1(value);
+		const original = Object.getOwnPropertyDescriptor(sources.get(this) ?? this, key)?.value;
+		const redacted = hasProperty(original, symbolRedactable) ? redact$2(original) : redact$2(value);
 		if (typeof redacted === "bigint") return format$2(redacted);
 		if (typeof redacted !== "object" || redacted === null) return redacted;
 		const current = redacted instanceof Error && !hasProperty(redacted, "toJSON") ? {
@@ -534,17 +553,27 @@ function formatJson(input, options) {
 		ancestors.push(redacted);
 		if (current !== redacted) ancestors.push(current);
 		if (!hasGetter(current) || isJsonPrimitiveWrapper(current)) return current;
-		const serialized = new Proxy(current, { get(target, key) {
-			const value = Reflect.get(target, key, target);
-			return Object.getOwnPropertyDescriptor(target, key)?.get !== void 0 ? redact$1(value) : value;
-		} });
-		ancestors.push(serialized);
-		return serialized;
+		const view = redactingView(current);
+		sources.set(view, current);
+		ancestors.push(view);
+		return view;
 	}, options?.space) ?? "null";
 }
 function hasGetter(object) {
 	for (const key of Object.getOwnPropertyNames(object)) if (Object.getOwnPropertyDescriptor(object, key)?.get !== void 0) return true;
 	return false;
+}
+function redactingView(object) {
+	const view = Array.isArray(object) ? [] : {};
+	const keys = Array.isArray(object) ? Array.from({ length: object.length }, (_, i) => String(i)) : Object.keys(object);
+	for (const key of keys) Object.defineProperty(view, key, {
+		enumerable: true,
+		get: () => {
+			const value = Reflect.get(object, key);
+			return Object.getOwnPropertyDescriptor(object, key)?.get !== void 0 ? redact$2(value) : value;
+		}
+	});
+	return view;
 }
 function isJsonPrimitiveWrapper(object) {
 	for (const valueOf of [
@@ -558,11 +587,11 @@ function isJsonPrimitiveWrapper(object) {
 	return false;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Inspectable.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Inspectable.js
 const NodeInspectSymbol = /*#__PURE__*/ Symbol.for("nodejs.util.inspect.custom");
 const toJson = (input) => {
 	try {
-		input = redact$1(input);
+		input = redact$2(input);
 		if (hasProperty(input, "toJSON") && isFunction(input["toJSON"]) && input["toJSON"].length === 0) return input.toJSON();
 		else if (Array.isArray(input)) return input.map(toJson);
 		return input;
@@ -598,7 +627,7 @@ var Class$2 = class {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/stackTraceLimit.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stackTraceLimit.js
 const isStackTraceLimitWritable = () => {
 	const desc = Object.getOwnPropertyDescriptor(Error, "stackTraceLimit");
 	if (desc === void 0) return Object.isExtensible(Error);
@@ -610,7 +639,7 @@ const setStackTraceLimit = (value) => {
 	if (canWriteStackTraceLimit) Error.stackTraceLimit = value;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Utils.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Utils.js
 var SingleShotGen = class {
 	constructor(self) {
 		this.value = self;
@@ -638,11 +667,16 @@ const pickInternalCall = () => {
 			return body();
 		} finally {}
 	} };
-	return getStackTraceLimit() !== 0 && standard[InternalTypeId](() => (/* @__PURE__ */ new Error()).stack)?.includes(InternalTypeId) === true ? standard[InternalTypeId] : forced[InternalTypeId];
+	const limit = getStackTraceLimit();
+	if (limit === 0) return forced[InternalTypeId];
+	setStackTraceLimit(2);
+	const error = standard[InternalTypeId](() => /* @__PURE__ */ new Error());
+	setStackTraceLimit(limit);
+	return error.stack?.includes(InternalTypeId) === true ? standard[InternalTypeId] : forced[InternalTypeId];
 };
 const internalCall = /*#__PURE__*/ pickInternalCall();
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/record.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/record.js
 function assignProperty(self, key, value) {
 	if (key === "__proto__") Object.defineProperty(self, key, {
 		value,
@@ -653,10 +687,14 @@ function assignProperty(self, key, value) {
 	else self[key] = value;
 }
 function assignProperties(self, source) {
+	if (!Object.hasOwn(source, "__proto__")) {
+		Object.assign(self, source);
+		return;
+	}
 	for (const key of Reflect.ownKeys(source)) if (Object.prototype.propertyIsEnumerable.call(source, key)) assignProperty(self, key, source[key]);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/core.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/core.js
 const EffectTypeId = `~effect/Effect`;
 const ExitTypeId = `~effect/Exit`;
 const effectVariance = {
@@ -719,7 +757,7 @@ var CauseImpl = class {
 	toJSON() {
 		return {
 			_id: "Cause",
-			failures: this.reasons.map((f) => f.toJSON())
+			reasons: this.reasons.map((f) => f.toJSON())
 		};
 	}
 	toString() {
@@ -757,6 +795,7 @@ var ReasonBase = class {
 			if (options?.overwrite !== true && newAnnotations.has(key)) return;
 			newAnnotations.set(key, value);
 		});
+		if (options?.overwrite !== true && newAnnotations.size === this.annotations.size) return this;
 		const self = Object.assign(Object.create(Object.getPrototypeOf(this)), this);
 		self.annotations = newAnnotations;
 		return self;
@@ -813,6 +852,11 @@ const causeCombine = /*#__PURE__*/ dual(2, (self, that) => {
 	const newCause = new CauseImpl(dedupeReasons(self.reasons, that.reasons));
 	return equals$1(self, newCause) ? self : newCause;
 });
+const causeAddInterrupts = (self, interrupts) => {
+	const reasons = self.reasons.slice();
+	for (const reason of interrupts.reasons) if (isInterruptReason(reason) && !reasons.some((r) => isInterruptReason(r) && r.fiberId === reason.fiberId && r.annotations === reason.annotations)) reasons.push(reason);
+	return reasons.length === self.reasons.length ? self : new CauseImpl(reasons);
+};
 const causeEmpty = /*#__PURE__*/ new CauseImpl([]);
 const causeFail = (error) => new CauseImpl([new Fail(error)]);
 var Die = class extends ReasonBase {
@@ -927,7 +971,7 @@ const exitFailCause = /*#__PURE__*/ makeExit({
 				cont = fiber.getCont(contE);
 			}
 			if (skippedHandler) cause = causeFromReasons(cause.reasons.filter((reason) => reason._tag !== "Fail"));
-			cause = causeCombine(cause, interruptedCause);
+			cause = causeAddInterrupts(cause, interruptedCause);
 			annotated = true;
 		}
 		return cont ? cont[contE](cause, fiber, annotated ? void 0 : this) : fiber.yieldWith(annotated ? exitFailCause(cause) : this);
@@ -1009,13 +1053,13 @@ const done$2 = (value) => {
 	return exitFail(Done$2(value));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Effectable.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effectable.js
 const Prototype = (options) => makePrimitiveProto({
 	op: options.label,
 	[evaluate]: options.evaluate
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Equivalence.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equivalence.js
 const make$50 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 const strictEqual = () => isStrictEquivalent;
@@ -1034,10 +1078,10 @@ function Array_(item) {
 	});
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/option.js
-const TypeId$49 = "~effect/Option";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/option.js
+const TypeId$52 = "~effect/Option";
 const CommonProto$1 = {
-	[TypeId$49]: { _A: (_) => _ },
+	[TypeId$52]: { _A: (_) => _ },
 	...PipeInspectableProto,
 	[Symbol.iterator]() {
 		return new SingleShotGen(this);
@@ -1086,7 +1130,7 @@ const NoneProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Common
 		};
 	}
 });
-const isOption$1 = (input) => hasProperty(input, TypeId$49);
+const isOption$1 = (input) => hasProperty(input, TypeId$52);
 const isNone$1 = (fa) => fa._tag === "None";
 const isSome$1 = (fa) => fa._tag === "Some";
 const none$1 = /*#__PURE__*/ Object.create(NoneProto);
@@ -1096,10 +1140,10 @@ const SomeImpl = function(value) {
 SomeImpl.prototype = SomeProto;
 const some$1 = (value) => new SomeImpl(value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/result.js
-const TypeId$48 = "~effect/Result";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/result.js
+const TypeId$51 = "~effect/Result";
 const CommonProto = {
-	[TypeId$48]: {
+	[TypeId$51]: {
 		/* v8 ignore next 2 */
 		_A: (_) => _,
 		_E: (_) => _
@@ -1149,7 +1193,7 @@ const FailureProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Com
 		};
 	}
 });
-const isResult$1 = (input) => hasProperty(input, TypeId$48);
+const isResult$1 = (input) => hasProperty(input, TypeId$51);
 const isFailure$2 = (result) => result._tag === "Failure";
 const isSuccess$2 = (result) => result._tag === "Success";
 const FailureImpl = function(failure) {
@@ -1163,7 +1207,7 @@ const SuccessImpl = function(success) {
 SuccessImpl.prototype = SuccessProto;
 const succeed$9 = (success) => new SuccessImpl(success);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Order.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Order.js
 function make$49(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
@@ -1179,8 +1223,9 @@ const isLessThan$1 = (O) => dual(2, (self, that) => O(self, that) === -1);
 const isGreaterThan$1 = (O) => dual(2, (self, that) => O(self, that) === 1);
 const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1);
 const isGreaterThanOrEqualTo$2 = (O) => dual(2, (self, that) => O(self, that) !== -1);
+const max$1 = (O) => dual(2, (self, that) => self === that || O(self, that) > -1 ? self : that);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Option.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Option.js
 const none = () => none$1;
 const some = some$1;
 const isOption = isOption$1;
@@ -1188,6 +1233,7 @@ const isNone = isNone$1;
 const isSome = isSome$1;
 const match$3 = /*#__PURE__*/ dual(2, (self, { onNone, onSome }) => isNone(self) ? onNone() : onSome(self.value));
 const getOrElse = /*#__PURE__*/ dual(2, (self, onNone) => isNone(self) ? onNone() : self.value);
+const orElse = /*#__PURE__*/ dual(2, (self, that) => isNone(self) ? that() : self);
 const fromNullishOr = (a) => a == null ? none() : some(a);
 const fromUndefinedOr = (a) => a === void 0 ? none() : some(a);
 const getOrUndefined$1 = /*#__PURE__*/ getOrElse(constUndefined);
@@ -1198,11 +1244,15 @@ const liftThrowable = (f) => (...a) => {
 		return none();
 	}
 };
+const getOrThrowWith$1 = /*#__PURE__*/ dual(2, (self, onNone) => {
+	if (isSome(self)) return self.value;
+	throw onNone();
+});
 const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
-const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
+const flatMap$4 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
 const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Context.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Context.js
 const ServiceTypeId = "~effect/Context/Service";
 const Service$1 = function() {
 	function KeyClass() {}
@@ -1249,7 +1299,7 @@ const ServiceProto = {
 };
 const cacheKeys = /*#__PURE__*/ new Set();
 const ReferenceTypeId = "~effect/Context/Reference";
-const TypeId$47 = "~effect/Context";
+const TypeId$50 = "~effect/Context";
 const MaxDepth = 8;
 const FlattenAfterBaseHits = 8;
 const makeImpl = (cacheRoot, base, overlay, depth) => {
@@ -1298,7 +1348,7 @@ const Proto$18 = {
 		return flatten$2(this);
 	},
 	...PipeInspectableProto,
-	[TypeId$47]: { _Services: (_) => _ },
+	[TypeId$50]: { _Services: (_) => _ },
 	toJSON() {
 		return {
 			_id: "Context",
@@ -1321,7 +1371,7 @@ const Proto$18 = {
 	}
 };
 const hasSameCache = (self, that) => self.cacheRoot === that.cacheRoot;
-const isContext = (u) => hasProperty(u, TypeId$47);
+const isContext = (u) => hasProperty(u, TypeId$50);
 const isReference = (u) => !!u[ReferenceTypeId];
 const empty$10 = () => emptyContext;
 const emptyContext = /*#__PURE__*/ makeUnsafe$7(/*#__PURE__*/ new Map());
@@ -1331,7 +1381,8 @@ const addUnsafe = (self, key, service) => {
 	const impl = self;
 	const cacheRoot = cacheKeys.has(key) ? void 0 : impl.cacheRoot;
 	if (impl.depth >= MaxDepth) {
-		const map = new Map(impl.mapUnsafe);
+		const map = new Map(impl._flat ?? impl.base);
+		if (!impl._flat) applyOverlays(map, impl.overlay);
 		map.set(key, service);
 		return makeImpl(cacheRoot, map, void 0, 0);
 	}
@@ -1374,7 +1425,7 @@ const getOption = /*#__PURE__*/ dual(2, (self, service) => {
 	if (value !== notFound) return some(value);
 	return isReference(service) ? some(getDefaultValue(service)) : none();
 });
-const merge$1 = /*#__PURE__*/ dual(2, (self, that) => {
+const merge$2 = /*#__PURE__*/ dual(2, (self, that) => {
 	if (self.mapUnsafe.size === 0) return that;
 	if (that.mapUnsafe.size === 0) return self;
 	return withFlat(self, (map) => that.mapUnsafe.forEach((value, key) => map.set(key, value)));
@@ -1391,13 +1442,13 @@ const omit$2 = (...keys) => (self) => withFlat(self, (map) => {
 });
 const Reference = Service$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/array.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/array.js
 const isArrayNonEmpty$1 = (self) => self.length > 0;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/count.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/count.js
 const normalize$2 = (n) => n > 0 ? Math.floor(n) : 0;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Result.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Result.js
 const succeed$8 = succeed$9;
 const fail$7 = fail$8;
 const try_$2 = (evaluate) => {
@@ -1436,10 +1487,10 @@ const all$3 = (input) => {
 	return succeed$8(out);
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Tuple.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tuple.js
 const makeEquivalence$3 = Tuple$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Record.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Record.js
 const has = /*#__PURE__*/ dual(2, (self, key) => Object.hasOwn(self, key));
 const map$8 = /*#__PURE__*/ dual(2, (self, f) => {
 	const out = { ...self };
@@ -1456,7 +1507,7 @@ const makeEquivalence$2 = (equivalence) => {
 	return (self, that) => is(self, that) && is(that, self);
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Array.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Array.js
 const Array$1 = globalThis.Array;
 const fromIterable$2 = (collection) => Array$1.isArray(collection) ? collection : Array$1.from(collection);
 const ensure = (self) => Array$1.isArray(self) ? self : [self];
@@ -1480,8 +1531,8 @@ const of = (a) => [a];
 const map$7 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
 const makeEquivalence$1 = Array_;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Duration.js
-const TypeId$46 = "~effect/Duration";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Duration.js
+const TypeId$49 = "~effect/Duration";
 const bigint0$3 = /*#__PURE__*/ BigInt(0);
 const bigint1$2 = /*#__PURE__*/ BigInt(1);
 const bigint2 = /*#__PURE__*/ BigInt(2);
@@ -1490,8 +1541,20 @@ const bigint24 = /*#__PURE__*/ BigInt(24);
 const bigint60 = /*#__PURE__*/ BigInt(60);
 const bigint1e3 = /*#__PURE__*/ BigInt(1e3);
 const bigint1e6 = /*#__PURE__*/ BigInt(1e6);
-const roundTiesAwayFromZero = (input) => BigInt(input < 0 ? Math.ceil(input - .5) : Math.floor(input + .5));
-const roundMillisToNanos = (millis) => roundTiesAwayFromZero(millis * 1e6);
+const bigint1e9 = /*#__PURE__*/ BigInt(1e9);
+const bigintNanosPerMinute = /*#__PURE__*/ BigInt(6e10);
+const bigintNanosPerHour = /*#__PURE__*/ BigInt(36e11);
+const bigintNanosPerDay = /*#__PURE__*/ BigInt(864e11);
+const bigintNanosPerWeek = /*#__PURE__*/ BigInt(6048e11);
+const roundTiesAwayFromZero = (input) => BigInt(Math.sign(input) * Math.round(Math.abs(input)));
+const roundMillisToNanos = (millis) => Number.isInteger(millis) ? BigInt(millis) * bigint1e6 : roundTiesAwayFromZero(millis * 1e6);
+const fromNanosNumber = (nanos) => make$47(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
+const nanosToUnit = (nanos, divisor) => {
+	const value = Number(nanos);
+	if (Number.isFinite(value)) return value / divisor;
+	const scale = BigInt(divisor);
+	return Number(nanos / scale) + Number(nanos % scale) / divisor;
+};
 const parseNanos = (input, scale) => {
 	const decimalIndex = input.indexOf(".");
 	if (decimalIndex === -1) return BigInt(input) * scale;
@@ -1499,8 +1562,18 @@ const parseNanos = (input, scale) => {
 	const fractional = input.slice(decimalIndex + 1);
 	const fractionalScale = bigint10$1 ** BigInt(fractional.length);
 	const scaled = (BigInt(input.slice(isNegative ? 1 : 0, decimalIndex)) * fractionalScale + BigInt(fractional)) * scale;
-	const rounded = scaled / fractionalScale + (scaled % fractionalScale * bigint2 >= fractionalScale ? bigint1$2 : bigint0$3);
-	return isNegative ? -rounded : rounded;
+	return divideTiesAwayFromZero(isNegative ? -scaled : scaled, fractionalScale);
+};
+const divideTiesAwayFromZero = (numerator, denominator) => {
+	const absolute = numerator < bigint0$3 ? -numerator : numerator;
+	const rounded = absolute / denominator + (absolute % denominator * bigint2 >= denominator ? bigint1$2 : bigint0$3);
+	return numerator < bigint0$3 ? -rounded : rounded;
+};
+const fromMillisString = (input, scale) => {
+	const millis = Number(input) * scale;
+	if (!Number.isFinite(millis)) return make$47(millis);
+	const nanos = parseNanos(input, BigInt(scale) * bigint1e6);
+	return make$47(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
 };
 const DURATION_REGEXP = /^(-?\d+(?:\.\d+)?)\s+(nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?)$/;
 const fromInputUnsafe$1 = (input) => {
@@ -1515,32 +1588,32 @@ const fromInputUnsafe$1 = (input) => {
 			const [_, valueStr, unit] = match;
 			if (unit === "nano" || unit === "nanos") return nanos(parseNanos(valueStr, bigint1$2));
 			if (unit === "micro" || unit === "micros") return nanos(parseNanos(valueStr, bigint1e3));
-			const value = Number(valueStr);
 			switch (unit) {
 				case "milli":
-				case "millis": return millis(value);
+				case "millis": return fromMillisString(valueStr, 1);
 				case "second":
-				case "seconds": return seconds(value);
+				case "seconds": return fromMillisString(valueStr, 1e3);
 				case "minute":
-				case "minutes": return minutes(value);
+				case "minutes": return fromMillisString(valueStr, 6e4);
 				case "hour":
-				case "hours": return hours(value);
+				case "hours": return fromMillisString(valueStr, 36e5);
 				case "day":
-				case "days": return days(value);
+				case "days": return fromMillisString(valueStr, 864e5);
 				case "week":
-				case "weeks": return weeks(value);
+				case "weeks": return fromMillisString(valueStr, 6048e5);
 			}
 			break;
 		}
 		case "object": {
 			if (input === null) break;
-			if (TypeId$46 in input) return input;
+			if (TypeId$49 in input) return input;
 			if (Array.isArray(input)) {
 				if (input.length !== 2 || !input.every(isNumber)) return invalid$3(input);
 				if (Number.isNaN(input[0]) || Number.isNaN(input[1])) return zero$1;
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
-				return make$47(roundTiesAwayFromZero(input[0] * 1e9 + input[1]));
+				const nanos = input[0] * 1e9 + input[1];
+				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$47(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
 			}
 			const obj = input;
 			let millis = 0;
@@ -1550,11 +1623,31 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.minutes) millis += obj.minutes * 6e4;
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
-			if (!obj.microseconds && !obj.nanoseconds) return make$47(millis);
-			return make$47(roundTiesAwayFromZero(millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0)));
+			if (!obj.microseconds && !obj.nanoseconds) {
+				if (!Number.isFinite(millis)) return make$47(millis);
+				const exact = sumObjectNanos(obj);
+				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$47(millis) : make$47(exact);
+			}
+			const nanos = millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0);
+			const exact = Number.isFinite(nanos) ? sumObjectNanos(obj) : void 0;
+			return exact === void 0 ? fromNanosNumber(nanos) : make$47(exact);
 		}
 	}
 	return invalid$3(input);
+};
+const isIntegerOrUnset = (n) => !n || Number.isInteger(n);
+const sumObjectNanos = (obj) => {
+	if (!isIntegerOrUnset(obj.weeks) || !isIntegerOrUnset(obj.days) || !isIntegerOrUnset(obj.hours) || !isIntegerOrUnset(obj.minutes) || !isIntegerOrUnset(obj.seconds) || !isIntegerOrUnset(obj.milliseconds) || !isIntegerOrUnset(obj.microseconds) || !isIntegerOrUnset(obj.nanoseconds)) return void 0;
+	let nanos = bigint0$3;
+	if (obj.weeks) nanos += BigInt(obj.weeks) * bigintNanosPerWeek;
+	if (obj.days) nanos += BigInt(obj.days) * bigintNanosPerDay;
+	if (obj.hours) nanos += BigInt(obj.hours) * bigintNanosPerHour;
+	if (obj.minutes) nanos += BigInt(obj.minutes) * bigintNanosPerMinute;
+	if (obj.seconds) nanos += BigInt(obj.seconds) * bigint1e9;
+	if (obj.milliseconds) nanos += BigInt(obj.milliseconds) * bigint1e6;
+	if (obj.microseconds) nanos += BigInt(obj.microseconds) * bigint1e3;
+	if (obj.nanoseconds) nanos += BigInt(obj.nanoseconds);
+	return nanos;
 };
 const invalid$3 = (input) => {
 	throw new Error(`Invalid Input: ${input}`);
@@ -1566,13 +1659,10 @@ const zeroDurationValue = {
 const infinityDurationValue = { _tag: "Infinity" };
 const negativeInfinityDurationValue = { _tag: "NegativeInfinity" };
 const DurationProto = {
-	[TypeId$46]: TypeId$46,
+	[TypeId$49]: TypeId$49,
 	[symbol$3]() {
 		switch (this.value._tag) {
-			case "Millis": {
-				const nanos = this.value.millis * 1e6;
-				return Number.isFinite(nanos) ? hash(roundTiesAwayFromZero(nanos)) : number$1(this.value.millis);
-			}
+			case "Millis": return hash(roundMillisToNanos(this.value.millis));
 			case "Nanos": return hash(this.value.nanos);
 			default: return structure(this.value);
 		}
@@ -1637,7 +1727,7 @@ const make$47 = (input) => {
 	};
 	return duration;
 };
-const isDuration = (u) => hasProperty(u, TypeId$46);
+const isDuration = (u) => hasProperty(u, TypeId$49);
 const isFinite$2 = (self) => self.value._tag !== "Infinity" && self.value._tag !== "NegativeInfinity";
 const isZero$1 = (self) => {
 	switch (self.value._tag) {
@@ -1669,13 +1759,9 @@ const negativeInfinity = /*#__PURE__*/ make$47(-Infinity);
 const nanos = (nanos) => make$47(nanos);
 const millis = (millis) => make$47(millis);
 const seconds = (seconds) => make$47(seconds * 1e3);
-const minutes = (minutes) => make$47(minutes * 6e4);
-const hours = (hours) => make$47(hours * 36e5);
-const days = (days) => make$47(days * 864e5);
-const weeks = (weeks) => make$47(weeks * 6048e5);
 const toMillis = (self) => match$1(fromInputUnsafe$1(self), {
 	onMillis: identity,
-	onNanos: (nanos) => Number(nanos) / 1e6,
+	onNanos: (nanos) => nanosToUnit(nanos, 1e6),
 	onInfinity: () => Infinity,
 	onNegativeInfinity: () => -Infinity
 });
@@ -1701,12 +1787,24 @@ const matchPair = /*#__PURE__*/ dual(3, (self, that, options) => {
 	if (self.value._tag === "Millis") return that.value._tag === "Millis" ? options.onMillis(self.value.millis, that.value.millis) : options.onNanos(toNanosUnsafe(self), that.value.nanos);
 	else return options.onNanos(self.value.nanos, toNanosUnsafe(that));
 });
-const Equivalence$2 = (self, that) => matchPair(self, that, {
+const Order$2 = /*#__PURE__*/ make$49((self, that) => matchPair(self, that, {
+	onMillis: (self, that) => self < that ? -1 : self > that ? 1 : 0,
+	onNanos: (self, that) => self < that ? -1 : self > that ? 1 : 0,
+	onInfinity: (self, that) => {
+		if (self.value._tag === that.value._tag) return 0;
+		if (self.value._tag === "Infinity") return 1;
+		if (self.value._tag === "NegativeInfinity") return -1;
+		if (that.value._tag === "Infinity") return -1;
+		return 1;
+	}
+}));
+const Equivalence$3 = (self, that) => matchPair(self, that, {
 	onMillis: (self, that) => self === that,
 	onNanos: (self, that) => self === that,
 	onInfinity: (self, that) => self.value._tag === that.value._tag
 });
-const equals = /*#__PURE__*/ dual(2, (self, that) => Equivalence$2(self, that));
+const max = /*#__PURE__*/ max$1(Order$2);
+const equals = /*#__PURE__*/ dual(2, (self, that) => Equivalence$3(self, that));
 const parts = (self) => {
 	if (self.value._tag === "Infinity") return {
 		days: Infinity,
@@ -1758,7 +1856,7 @@ const format$1 = (self) => {
 	return pieces.join(" ");
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Scheduler.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scheduler.js
 const Scheduler = /*#__PURE__*/ Reference("effect/Scheduler", {
 	fiberCached: true,
 	defaultValue: () => new MixedScheduler()
@@ -1779,7 +1877,7 @@ const setTimer = "setImmediate" in globalThis ? (f) => {
 	const timer = setTimeout(f, 0);
 	return () => clearTimeout(timer);
 };
-const setImmediate = (f) => {
+const setImmediate$1 = (f) => {
 	try {
 		return setTimer(f);
 	} catch {
@@ -1812,7 +1910,7 @@ var MixedScheduler = class {
 	setImmediate;
 	constructor(executionMode = "async", setImmediateFn) {
 		this.executionMode = executionMode;
-		this.setImmediate = setImmediateFn ?? (executionMode === "sync" ? setMicrotask : setImmediate);
+		this.setImmediate = setImmediateFn ?? (executionMode === "sync" ? setMicrotask : setImmediate$1);
 	}
 	shouldYield(fiber) {
 		return fiber.currentOpCount >= fiber.cache.maxOpsBeforeYield;
@@ -1825,7 +1923,7 @@ var MixedSchedulerDispatcher = class {
 	tasks = /*#__PURE__*/ new PriorityBuckets();
 	running = void 0;
 	setImmediate;
-	constructor(setImmediateFn = setImmediate) {
+	constructor(setImmediateFn = setImmediate$1) {
 		this.setImmediate = setImmediateFn;
 	}
 	scheduleTask(task, priority) {
@@ -1862,7 +1960,7 @@ const PreventSchedulerYield = /*#__PURE__*/ Reference("effect/Scheduler/PreventS
 	defaultValue: () => false
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Data.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Data.js
 const Class$1 = class extends Class$3 {
 	constructor(props) {
 		super();
@@ -1893,13 +1991,11 @@ function taggedMatch() {
 const Error$2 = Error$3;
 const TaggedError$1 = TaggedError$2;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/encoding/EncodingError.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/EncodingError.js
 const EncodingErrorTypeId = "~effect/encoding/EncodingError";
 var EncodingError = class extends (/*#__PURE__*/ TaggedError$1("EncodingError")) {
 	[EncodingErrorTypeId] = EncodingErrorTypeId;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/encoding/Hex.js
 const random = (length) => {
 	switch (length) {
 		case 16: return random16();
@@ -1930,7 +2026,7 @@ const random32 = () => {
 	return String.fromCharCode(hexCharCodes[a >>> 28], hexCharCodes[a >>> 24 & 15], hexCharCodes[a >>> 20 & 15], hexCharCodes[a >>> 16 & 15], hexCharCodes[a >>> 12 & 15], hexCharCodes[a >>> 8 & 15], hexCharCodes[a >>> 4 & 15], hexCharCodes[a & 15], hexCharCodes[b >>> 28], hexCharCodes[b >>> 24 & 15], hexCharCodes[b >>> 20 & 15], hexCharCodes[b >>> 16 & 15], hexCharCodes[b >>> 12 & 15], hexCharCodes[b >>> 8 & 15], hexCharCodes[b >>> 4 & 15], hexCharCodes[b & 15], hexCharCodes[c >>> 28], hexCharCodes[c >>> 24 & 15], hexCharCodes[c >>> 20 & 15], hexCharCodes[c >>> 16 & 15], hexCharCodes[c >>> 12 & 15], hexCharCodes[c >>> 8 & 15], hexCharCodes[c >>> 4 & 15], hexCharCodes[c & 15], hexCharCodes[d >>> 28], hexCharCodes[d >>> 24 & 15], hexCharCodes[d >>> 20 & 15], hexCharCodes[d >>> 16 & 15], hexCharCodes[d >>> 12 & 15], hexCharCodes[d >>> 8 & 15], hexCharCodes[d >>> 4 & 15], hexCharCodes[d & 15]);
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Tracer.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tracer.js
 const ParentSpanKey = "effect/Tracer/ParentSpan";
 var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiberCached: true })) {};
 const make$46 = (options) => options;
@@ -1986,6 +2082,7 @@ var NativeSpan = class {
 		return this._events ??= [];
 	}
 	end(endTime, exit) {
+		if (this.status._tag === "Ended") return;
 		this.status = {
 			_tag: "Ended",
 			endTime,
@@ -1994,9 +2091,11 @@ var NativeSpan = class {
 		};
 	}
 	attribute(key, value) {
+		if (this.status._tag === "Ended") return;
 		this.attributes.set(key, value);
 	}
 	event(name, startTime, attributes) {
+		if (this.status._tag === "Ended") return;
 		this.events.push([
 			name,
 			startTime,
@@ -2004,14 +2103,15 @@ var NativeSpan = class {
 		]);
 	}
 	addLinks(links) {
+		if (this.status._tag === "Ended") return;
 		this.links.push(...links);
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/metric.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/metric.js
 const FiberRuntimeMetricsKey = "effect/Metric/FiberRuntimeMetrics";
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/references.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/references.js
 const CurrentErrorReporters = /*#__PURE__*/ Reference("effect/ErrorReporter/CurrentErrorReporters", { defaultValue: () => /* @__PURE__ */ new Set() });
 const CurrentStackFrame = /*#__PURE__*/ Reference("effect/References/CurrentStackFrame", {
 	fiberCached: true,
@@ -2035,7 +2135,7 @@ const MinimumLogLevel = /*#__PURE__*/ Reference("effect/References/MinimumLogLev
 });
 const CurrentLogSpans = /*#__PURE__*/ Reference("effect/References/CurrentLogSpans", { defaultValue: () => [] });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/tracer.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/tracer.js
 const addSpanStackTrace = (options) => {
 	if (options?.captureStackTrace === false) return options;
 	else if (options?.captureStackTrace !== void 0 && typeof options.captureStackTrace !== "boolean") return options;
@@ -2067,7 +2167,7 @@ const makeStackCleaner = (line) => (stack) => {
 };
 const spanCleaner = /*#__PURE__*/ makeStackCleaner(3);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/effect.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/effect.js
 var Interrupt = class extends ReasonBase {
 	constructor(fiberId, annotations = constEmptyAnnotations) {
 		super("Interrupt", annotations, "Interrupted");
@@ -2086,11 +2186,12 @@ var Interrupt = class extends ReasonBase {
 		return isInterruptReason(that) && this.fiberId === that.fiberId && this.annotations === that.annotations;
 	}
 	[symbol$3]() {
-		return combine$1(string$1(`${this._tag}:${this.fiberId}`))(random$1(this.annotations));
+		return string$1(`${this._tag}:${this.fiberId}`);
 	}
 };
 const makeInterruptReason$1 = (fiberId) => new Interrupt(fiberId);
 const causeInterrupt = (fiberId) => new CauseImpl([new Interrupt(fiberId)]);
+const hasFails = (self) => self.reasons.some(isFailReason$1);
 const findFail$1 = (self) => {
 	const reason = self.reasons.find(isFailReason$1);
 	return reason ? succeed$8(reason) : fail$7(self);
@@ -2103,6 +2204,8 @@ const findError$1 = (self) => {
 	return fail$7(self);
 };
 const hasDies$1 = (self) => self.reasons.some(isDieReason$1);
+const causeElectDefects = (self) => hasDies$1(self) && hasFails(self) ? causeFromReasons(self.reasons.map((reason) => reason._tag === "Fail" && !isDone$1(reason.error) ? new Die(reason.error, reason.annotations) : reason)) : self;
+const findRecoverableError = (self) => hasDies$1(self) ? fail$7(causeElectDefects(self)) : findError$1(self);
 const findDefect = (self) => {
 	const reason = self.reasons.find(isDieReason$1);
 	return reason ? succeed$8(reason.defect) : fail$7(self);
@@ -2174,11 +2277,13 @@ const causePrettyErrors = (self, options) => {
 	}
 	return errors;
 };
-const causePrettyError = (original, annotations, options) => {
+const causePrettyError = (original, annotations, options, seen = /* @__PURE__ */ new Set()) => {
 	const kind = typeof original;
 	let error;
 	if (original && kind === "object") {
-		error = new globalThis.Error(causePrettyMessage(original), { cause: original.cause ? causePrettyError(original.cause) : void 0 });
+		seen.add(original);
+		const cause = original.cause;
+		error = new globalThis.Error(causePrettyMessage(original), { cause: cause !== void 0 && !seen.has(cause) ? causePrettyError(cause, void 0, void 0, seen) : void 0 });
 		if (typeof original.name === "string") error.name = original.name;
 		if (typeof original.stack === "string") error.stack = cleanErrorStack(original.stack, error, annotations);
 		else {
@@ -2317,7 +2422,7 @@ var FiberImpl = class {
 		let cause = causeInterrupt(fiberId);
 		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$48(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
-		this._interruptedCause = this._interruptedCause ? causeCombine(this._interruptedCause, cause) : cause;
+		this._interruptedCause = this._interruptedCause ? causeAddInterrupts(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
 			if (this._running) this._deferredInterrupt = true;
 			else this.evaluate(failCause$6(this._interruptedCause));
@@ -2331,7 +2436,11 @@ var FiberImpl = class {
 		else if (this._asyncContext !== void 0) {
 			const asyncContext = this._asyncContext;
 			this._asyncContext = void 0;
-			return asyncContext.runInAsyncScope(this.evaluate, this, effect);
+			try {
+				return asyncContext.runInAsyncScope(this.evaluate, this, effect);
+			} finally {
+				asyncContext.emitDestroy();
+			}
 		} else if (this._yielded !== void 0) {
 			const yielded = this._yielded;
 			this._yielded = void 0;
@@ -2529,7 +2638,7 @@ const fiberJoin = (self) => {
 const fiberInterrupt = (self) => withFiber$1((fiber) => fiberInterruptAs(self, fiber.id));
 const fiberInterruptAs = /*#__PURE__*/ dual((args) => hasProperty(args[0], FiberTypeId), (self, fiberId, annotations) => withFiber$1((parent) => {
 	let ann = fiberStackAnnotations(parent);
-	ann = ann && annotations ? merge$1(ann, annotations) : ann ?? annotations;
+	ann = ann && annotations ? merge$2(ann, annotations) : ann ?? annotations;
 	self.interruptUnsafe(fiberId, ann);
 	return asVoid$1(fiberAwait(self));
 }));
@@ -2548,18 +2657,20 @@ const fail$6 = exitFail;
 const sync$1 = /*#__PURE__*/ makePrimitive({
 	op: "Sync",
 	[evaluate](fiber) {
-		const value = this[args]();
+		const thunk = this[args];
+		const value = thunk();
 		const cont = fiber.getCont(contA);
 		return cont ? cont[contA](value, fiber) : fiber.yieldWith(exitSucceed(value));
 	}
 });
-const suspend$3 = /*#__PURE__*/ makePrimitive({
+const suspend$4 = /*#__PURE__*/ makePrimitive({
 	op: "Suspend",
 	[evaluate](_fiber) {
-		return this[args]();
+		const thunk = this[args];
+		return thunk();
 	}
 });
-const fromOption$1 = /*#__PURE__*/ dual((args) => args.length >= 2 || isOption(args[0]), (option, onNone) => isNone(option) ? fail$6(onNone ? onNone() : new NoSuchElementError("Effect.fromOption: Option.none")) : succeed$7(option.value));
+const fromOption$1 = /*#__PURE__*/ dual((args) => args.length >= 2 || isOption(args[0]), (option, onNone) => isNone(option) ? onNone ? failSync$1(onNone) : fail$6(new NoSuchElementError("Effect.fromOption: Option.none")) : succeed$7(option.value));
 const fromResult$1 = /*#__PURE__*/ match$2({
 	onFailure: fail$6,
 	onSuccess: succeed$7
@@ -2579,14 +2690,14 @@ const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 }))(0);
 const succeedSome$1 = (a) => succeed$7(some(a));
 const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none());
-const failCauseSync$1 = (evaluate) => suspend$3(() => failCause$6(evaluate()));
-const die$3 = (defect) => exitDie(defect);
-const failSync = (error) => suspend$3(() => fail$6(error()));
+const failCauseSync$1 = (evaluate) => suspend$4(() => failCause$6(evaluate()));
+const die$5 = (defect) => exitDie(defect);
+const failSync$1 = (error) => suspend$4(() => fail$6(error()));
 const void_$3 = /*#__PURE__*/ succeed$7(void 0);
 const try_$1 = (options) => {
 	const evaluate = typeof options === "function" ? options : options.try;
 	const catcher = typeof options === "function" ? (cause) => new UnknownError$2(cause, "An error occurred in Effect.try") : options.catch;
-	return suspend$3(() => {
+	return suspend$4(() => {
 		try {
 			return succeed$7(evaluate());
 		} catch (err) {
@@ -2595,17 +2706,17 @@ const try_$1 = (options) => {
 	});
 };
 const promise$1 = (evaluate) => callbackOptions(function(resume, signal) {
-	evaluate(signal).then((a) => resume(succeed$7(a)), (e) => resume(die$3(e)));
+	evaluate(signal).then((a) => resume(succeed$7(a)), (e) => resume(die$5(e)));
 }, evaluate.length !== 0);
 const tryPromise$1 = (options) => {
 	const f = typeof options === "function" ? options : options.try;
 	const catcher = typeof options === "function" ? (cause) => new UnknownError$2(cause, "An error occurred in Effect.tryPromise") : options.catch;
 	return callbackOptions(function(resume, signal) {
-		const failWithCatch = (cause) => suspend$3(() => {
+		const failWithCatch = (cause) => suspend$4(() => {
 			try {
 				return fail$6(internalCall(() => catcher(cause)));
 			} catch (err) {
-				return die$3(err);
+				return die$5(err);
 			}
 		});
 		try {
@@ -2615,7 +2726,6 @@ const tryPromise$1 = (options) => {
 		}
 	}, f.length !== 0);
 };
-const withFiberId = (f) => withFiber$1((fiber) => f(fiber.id));
 const callbackOptions = /*#__PURE__*/ function() {
 	const Proto = /*#__PURE__*/ makePrimitiveProto({
 		op: "Async",
@@ -2631,9 +2741,9 @@ const callbackOptions = /*#__PURE__*/ function() {
 			}, controller?.signal);
 			if (yielded !== false) return yielded;
 			yielded = true;
-			fiber._yielded = () => {
+			fiber.yieldWith(() => {
 				resumed = true;
-			};
+			});
 			if (controller === void 0 && onCancel === void 0) return Yield;
 			fiber._stack.push(asyncFinalizer(() => {
 				resumed = true;
@@ -2669,16 +2779,16 @@ const never$2 = /*#__PURE__*/ callback$2(constVoid);
 const gen$1 = (...args) => {
 	if (args.length === 1) {
 		const body = args[0];
-		return suspend$3(() => fromIteratorUnsafe(body()));
+		return suspend$4(() => fromIteratorUnsafe(body()));
 	}
 	const [options, body] = args;
-	return suspend$3(() => fromIteratorUnsafe(body.call(options.self)));
+	return suspend$4(() => fromIteratorUnsafe(body.call(options.self)));
 };
 const fnUntraced$1 = (body, ...pipeables) => {
 	const fn = pipeables.length === 0 ? function() {
-		return suspend$3(() => fromIteratorUnsafe(body.apply(this, arguments)));
+		return suspend$4(() => fromIteratorUnsafe(body.apply(this, arguments)));
 	} : function() {
-		let effect = suspend$3(() => fromIteratorUnsafe(body.apply(this, arguments)));
+		let effect = suspend$4(() => fromIteratorUnsafe(body.apply(this, arguments)));
 		for (let i = 0; i < pipeables.length; i++) effect = pipeables[i](effect, ...arguments);
 		return effect;
 	};
@@ -2707,8 +2817,17 @@ const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) 
 	const body = typeof bodyOrOptions === "function" ? bodyOrOptions : pipeables.shift().bind(bodyOrOptions.self);
 	const definitionName = `${name} (definition)`;
 	const definitionStack = defError ? fnStackCleaner(() => defError.stack) : constUndefined;
+	const makeCallFrame = (callError) => (prev) => ({
+		name,
+		stack: callError ? fnStackCleaner(() => callError.stack) : constUndefined,
+		parent: {
+			name: definitionName,
+			stack: definitionStack,
+			parent: prev
+		}
+	});
 	return defineFunctionLength(body.length, function(...args) {
-		let result = suspend$3(() => {
+		let result = suspend$4(() => {
 			const iter = body.apply(this, arguments);
 			return isEffect$1(iter) ? iter : fromIteratorUnsafe(iter);
 		});
@@ -2721,15 +2840,7 @@ const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) 
 			callError = new globalThis.Error();
 			setStackTraceLimit(prevLimit);
 		}
-		return updateService(addSpan ? useSpan$1(name, spanOptions, (span) => provideParentSpan(result, span)) : result, CurrentStackFrame, (prev) => ({
-			name,
-			stack: callError ? fnStackCleaner(() => callError.stack) : constUndefined,
-			parent: {
-				name: definitionName,
-				stack: definitionStack,
-				parent: prev
-			}
-		}));
+		return updateService(addSpan ? useSpan$1(name, spanOptions, (span) => provideParentSpan(result, span)) : result, CurrentStackFrame, makeCallFrame(callError));
 	});
 };
 const fnUntracedEager$1 = (body, ...pipeables) => defineFunctionLength(body.length, pipeables.length === 0 ? function() {
@@ -2753,16 +2864,16 @@ const fromIteratorEagerUnsafe = (evaluate) => {
 			} else if (primitive && primitive._tag === "Failure") return state.value;
 			else {
 				let isFirstExecution = true;
-				return suspend$3(() => {
+				return suspend$4(() => {
 					if (isFirstExecution) {
 						isFirstExecution = false;
 						return flatMap$2(state.value, (value) => fromIteratorUnsafe(iterator, value));
-					} else return suspend$3(() => fromIteratorUnsafe(evaluate()));
+					} else return suspend$4(() => fromIteratorUnsafe(evaluate()));
 				});
 			}
 		}
 	} catch (error) {
-		return die$3(error);
+		return die$5(error);
 	}
 };
 const fromIteratorUnsafe = /*#__PURE__*/ function() {
@@ -2815,10 +2926,16 @@ const succeedPayload = function(_value, fiber) {
 	return fiber.succeedWith(this.payload);
 };
 const continuationMarksStack = /*#__PURE__*/ (() => {
+	const limit = /*#__PURE__*/ getStackTraceLimit();
+	if (limit === 0) return false;
 	const marker = "~effect/Effect/stackProbe";
-	return { [marker]: function stackProbe() {
-		return (/* @__PURE__ */ new Error()).stack;
-	} }[marker]()?.includes("[as " + marker + "]") === true;
+	const probe = { [marker]: function stackProbe() {
+		return /* @__PURE__ */ new Error();
+	} };
+	setStackTraceLimit(1);
+	const error = /*#__PURE__*/ probe[marker]();
+	setStackTraceLimit(limit);
+	return error.stack?.includes("[as " + marker + "]") === true;
 })();
 const mapCont = function(value, fiber) {
 	const f = this.payload;
@@ -2839,7 +2956,7 @@ const asSome = (self) => map$6(self, some);
 const andThen$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? returnPayload : andThenCont, f));
 const tap$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? tapEffectCont : tapCont, f));
 const asVoid$1 = (self) => new ContImpl(self, returnPayload, exitVoid);
-const sandbox$1 = (self) => catchCause$2(self, fail$6);
+const sandbox$1 = (self) => catchCause$3(self, fail$6);
 const raceAllFirst = (all, options) => withFiber$1((parent) => {
 	const fibers = /* @__PURE__ */ new Set();
 	onExitUnsafe(parent, () => fibers.size === 0 ? void 0 : fiberInterruptAll(fibers));
@@ -2880,8 +2997,8 @@ const mapBothEager$1 = /*#__PURE__*/ dual(2, (self, options) => effectIsExit(sel
 const catchEager$1 = /*#__PURE__*/ dual(2, (self, f) => {
 	if (effectIsExit(self)) {
 		if (self._tag === "Success") return self;
-		const error = findError$1(self.cause);
-		if (isFailure$1(error)) return self;
+		const error = findRecoverableError(self.cause);
+		if (isFailure$1(error)) return exitFailCause(error.failure);
 		return f(error.success);
 	}
 	return catch_$3(self, f);
@@ -2895,15 +3012,11 @@ const exitVoid = /*#__PURE__*/ exitSucceed(void 0);
 const exitMap = /*#__PURE__*/ dual(2, (self, f) => self._tag === "Success" ? exitSucceed(f(self.value)) : self);
 const exitMapError = /*#__PURE__*/ dual(2, (self, f) => {
 	if (self._tag === "Success") return self;
-	const error = findError$1(self.cause);
-	if (isFailure$1(error)) return self;
-	return exitFail(f(error.success));
+	return exitFailCause(causeMap(self.cause, f));
 });
 const exitMapBoth = /*#__PURE__*/ dual(2, (self, options) => {
 	if (self._tag === "Success") return exitSucceed(options.onSuccess(self.value));
-	const error = findError$1(self.cause);
-	if (isFailure$1(error)) return self;
-	return exitFail(options.onFailure(error.success));
+	return exitFailCause(causeMap(self.cause, options.onFailure));
 });
 const exitZipRight = /*#__PURE__*/ dual(2, (self, that) => exitIsSuccess(self) ? that : self);
 const exitAsVoidAll = (exits) => {
@@ -2934,7 +3047,7 @@ const getContext = /*#__PURE__*/ withFiber$1((fiber) => succeed$7(fiber.context)
 const contextWith$1 = (f) => withFiber$1((fiber) => f(fiber.context));
 const provideContext$3 = /*#__PURE__*/ dual(2, (self, context) => {
 	if (effectIsExit(self)) return self;
-	return updateContext$1(self, merge$1(context));
+	return updateContext$1(self, merge$2(context));
 });
 const provideService$1 = function() {
 	if (arguments.length === 1) return dual(2, (self, impl) => provideServiceImpl(self, arguments[0], impl));
@@ -2947,7 +3060,7 @@ const forever$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, optio
 	body: constant(options?.disableYield ? self : flatMap$2(self, (_) => yieldNow)),
 	step: constVoid
 }));
-const catchCause$2 = /*#__PURE__*/ dual(2, (self, f) => new OnFailureImpl(self, f.length !== 1 ? (cause) => f(cause) : f));
+const catchCause$3 = /*#__PURE__*/ dual(2, (self, f) => new OnFailureImpl(self, f.length !== 1 ? (cause) => f(cause) : f));
 const OnFailureProto = /*#__PURE__*/ makePrimitiveProto({
 	op: "OnFailure",
 	[evaluate]: evaluateCont
@@ -2957,31 +3070,31 @@ const OnFailureImpl = function(self, f) {
 	this[contE] = f;
 };
 OnFailureImpl.prototype = OnFailureProto;
-const catchCauseIf$1 = /*#__PURE__*/ dual(3, (self, predicate, f) => catchCause$2(self, (cause) => {
+const catchCauseIf$1 = /*#__PURE__*/ dual(3, (self, predicate, f) => catchCause$3(self, (cause) => {
 	if (!predicate(cause)) return failCause$6(cause);
 	return f(cause);
 }));
-const catchCauseFilter$1 = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$2(self, (cause) => {
+const catchCauseFilter$1 = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$3(self, (cause) => {
 	const eb = filter(cause);
 	return isFailure$1(eb) ? failCause$6(eb.failure) : f(eb.success, cause);
 }));
-const catch_$3 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter$1(self, findError$1, (e) => f(e)));
+const catch_$3 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter$1(self, findRecoverableError, (e) => f(e)));
 const catchDefect$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter$1(self, findDefect, f));
-const tapCause$1 = /*#__PURE__*/ dual(2, (self, f) => catchCause$2(self, (cause) => andThen$1(f(cause), failCause$6(cause))));
-const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$2(self, (cause) => {
+const tapCause$1 = /*#__PURE__*/ dual(2, (self, f) => catchCause$3(self, (cause) => andThen$1(f(cause), failCause$6(cause))));
+const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$3(self, (cause) => {
 	const result = filter(cause);
 	if (isFailure$1(result)) return failCause$6(cause);
 	return andThen$1(f(result.success, cause), failCause$6(cause));
 }));
 const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
-const catchIf = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$2(self, (cause) => {
-	const error = findError$1(cause);
+const catchIf$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$3(self, (cause) => {
+	const error = findRecoverableError(cause);
 	if (isFailure$1(error)) return failCause$6(error.failure);
 	if (!predicate(error.success)) return orElse ? orElse(error.success) : failCause$6(cause);
 	return f(error.success);
 }));
-const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, filter, f, orElse) => catchCause$2(self, (cause) => {
-	const error = findError$1(cause);
+const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, filter, f, orElse) => catchCause$3(self, (cause) => {
+	const error = findRecoverableError(cause);
 	if (isFailure$1(error)) return failCause$6(error.failure);
 	const result = filter(error.success);
 	if (isFailure$1(result)) return orElse ? orElse(result.failure) : failCause$6(cause);
@@ -2989,26 +3102,26 @@ const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, fil
 }));
 const catchTag$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
 	const pred = Array.isArray(k) ? (e) => hasProperty(e, "_tag") && k.includes(e._tag) : isTagged(k);
-	return catchIf(self, pred, f, orElse);
+	return catchIf$2(self, pred, f, orElse);
 });
 const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cases, orElse) => {
 	let keys;
 	return catchFilter(self, (e) => {
 		keys ??= Object.keys(cases);
-		return hasProperty(e, "_tag") && isString(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$7(e);
+		return hasProperty(e, "_tag") && isString$1(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$7(e);
 	}, (e) => cases[e["_tag"]](e), orElse);
 });
-const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
+const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$2(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
 	const reason = e.reason;
 	if (isTagged(reason, reasonTag)) return f(reason, e);
 	return orElse ? orElse(reason, e) : fail$6(e);
 }));
-const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => failSync(() => f(error))));
-const mapBoth = /*#__PURE__*/ dual(2, (self, options) => matchEffect$2(self, {
-	onFailure: (e) => failSync(() => options.onFailure(e)),
+const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catchCause$3(self, (cause) => failCause$6(causeMap(cause, f))));
+const mapBoth = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self, {
+	onFailure: (cause) => failCause$6(causeMap(cause, options.onFailure)),
 	onSuccess: (a) => sync$1(() => options.onSuccess(a))
 }));
-const orDie$1 = (self) => catch_$3(self, die$3);
+const orDie$1 = (self) => catch_$3(self, die$5);
 const orElseSucceed$1 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => sync$1(() => f(error))));
 const ignore$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => {
 	if (!options?.log) return matchEffect$2(self, {
@@ -3018,8 +3131,8 @@ const ignore$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, option
 	const logEffect = logWithLevel(options.log === true ? void 0 : options.log);
 	return matchCauseEffect$1(self, {
 		onFailure(cause) {
-			const failure = findFail$1(cause);
-			return isFailure$1(failure) ? failCause$6(failure.failure) : options.message === void 0 ? logEffect(cause) : logEffect(options.message, cause);
+			const error = findRecoverableError(cause);
+			return isFailure$1(error) ? failCause$6(error.failure) : options.message === void 0 ? logEffect(cause) : logEffect(options.message, cause);
 		},
 		onSuccess: (_) => void_$3
 	});
@@ -3073,15 +3186,15 @@ const makeMatch = (op, onFailure) => {
 	return MatchImpl;
 };
 const MatchImpl = /*#__PURE__*/ makeMatch("Match", function(cause, fiber) {
-	const fail = cause.reasons.find(isFailReason$1);
-	if (fail === void 0) return failCause$6(cause);
+	const error = findRecoverableError(cause);
+	if (isFailure$1(error)) return failCause$6(error.failure);
 	const handlers = this.payload;
-	return fiber.succeedWith(continuationMarksStack ? handlers.onFailure(fail.error) : internalCall(() => handlers.onFailure(fail.error)));
+	return fiber.succeedWith(continuationMarksStack ? handlers.onFailure(error.success) : internalCall(() => handlers.onFailure(error.success)));
 });
 const matchEffect$2 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self, {
 	onFailure: (cause) => {
-		const fail = cause.reasons.find(isFailReason$1);
-		return fail ? options.onFailure(fail.error) : failCause$6(cause);
+		const error = findRecoverableError(cause);
+		return isFailure$1(error) ? failCause$6(error.failure) : options.onFailure(error.success);
 	},
 	onSuccess: options.onSuccess
 }));
@@ -3089,8 +3202,8 @@ const match = /*#__PURE__*/ dual(2, (self, options) => new MatchImpl(self, optio
 const matchEager = /*#__PURE__*/ dual(2, (self, options) => {
 	if (effectIsExit(self)) {
 		if (self._tag === "Success") return exitSucceed(options.onSuccess(self.value));
-		const error = findError$1(self.cause);
-		if (isFailure$1(error)) return self;
+		const error = findRecoverableError(self.cause);
+		if (isFailure$1(error)) return exitFailCause(error.failure);
 		return exitSucceed(options.onFailure(error.success));
 	}
 	return match(self, options);
@@ -3151,16 +3264,16 @@ const runFinalizer = (finalizer, exit_) => {
 		return exitDie(defect);
 	}
 };
-const combineFinalizerCause = (exit_, finalizer) => exitIsSuccess(exit_) ? finalizer : catchCause$2(finalizer, (cause) => failCause$6(causeCombine(exit_.cause, cause)));
+const combineFinalizerCause = (exit_, finalizer) => exitIsSuccess(exit_) ? finalizer : catchCause$3(finalizer, (cause) => failCause$6(causeElectDefects(causeCombine(exit_.cause, cause))));
 const scopeCloseFinalizers = /*#__PURE__*/ fnUntraced$1(function* (self, finalizers, exit_) {
 	let exits = [];
 	const fibers = [];
-	const arr = Array.from(finalizers.values());
+	const arr = Array.from(finalizers);
 	const parent = getCurrentFiber();
 	for (let i = arr.length - 1; i >= 0; i--) {
-		const finalizer = arr[i];
+		const [key, finalizer] = arr[i];
 		if (self.strategy === "sequential") exits.push(yield* exit$1(runFinalizer(finalizer, exit_)));
-		else fibers.push(forkUnsafe$1(parent, runFinalizer(finalizer, exit_), true, true, "inherit"));
+		else if (key !== parent) fibers.push(forkUnsafe$1(parent, runFinalizer(finalizer, exit_), true, true, "inherit"));
 	}
 	if (fibers.length > 0) exits = yield* fiberAwaitAll(fibers);
 	return yield* exitAsVoidAll(exits);
@@ -3175,7 +3288,7 @@ const scopeForkUnsafe = (scope, finalizerStrategy) => {
 	return child;
 };
 const scopeAddFinalizerExit = (scope, finalizer) => {
-	return suspend$3(() => {
+	return suspend$4(() => {
 		if (scope.state._tag === "Closed") return finalizer(scope.state.exit);
 		scopeAddFinalizerUnsafe(scope, {}, finalizer);
 		return void_$3;
@@ -3230,9 +3343,9 @@ const scoped$1 = (self) => withFiber$1((fiber) => {
 	});
 	return self;
 });
-const scopedWith$1 = (f) => suspend$3(() => {
+const scopedWith$1 = (f) => suspend$4(() => {
 	const scope = scopeMakeUnsafe();
-	return onExit$2(f(scope), (exit) => suspend$3(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
+	return onExit$2(f(scope), (exit) => suspend$4(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
 });
 const acquireRelease$1 = (acquire, release, options) => contextWith$1((context) => uninterruptibleMask$1((restore) => flatMap$2(scope, (scope) => tap$1(options?.interruptible ? restore(acquire) : acquire, (a) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(release(a, exit), context))))));
 const addFinalizer$2 = (finalizer) => flatMap$2(scope, (scope) => contextWith$1((context) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(finalizer(exit), context))));
@@ -3278,11 +3391,11 @@ const OnExitImpl = /*#__PURE__*/ function() {
 	OnExitImpl.prototype = Proto;
 	return OnExitImpl;
 }();
-const onExitPrimitive = (effect, onExit, interruptible) => new OnExitImpl(effect, onExit, interruptible);
+const onExitPrimitive$1 = (effect, onExit, interruptible) => new OnExitImpl(effect, onExit, interruptible);
 const onExitUnsafe = (fiber, f) => {
 	fiber._stack.push(new OnExitImpl(void 0, f, void 0));
 };
-const onExit$2 = /*#__PURE__*/ dual(2, onExitPrimitive);
+const onExit$2 = /*#__PURE__*/ dual(2, onExitPrimitive$1);
 const ensuring$3 = /*#__PURE__*/ dual(2, (self, finalizer) => onExit$2(self, (_) => finalizer));
 const onExitFilter = /*#__PURE__*/ dual(3, (self, filter, f) => onExit$2(self, (exit) => {
 	const b = filter(exit);
@@ -3303,32 +3416,36 @@ const makeCachedUnsafe = (self, ttlMillis) => {
 	const join = (fiber, run) => {
 		run.awaiters++;
 		onExitUnsafe(fiber, () => {
-			if (--run.awaiters > 0 || current !== run) return;
-			current = void 0;
+			if (--run.awaiters > 0 || run.done) return;
+			if (current === run) current = void 0;
 			return fiberInterrupt(run.fiber);
 		});
 		return fiberJoin(run.fiber);
 	};
 	return [withFiber$1((fiber) => {
-		if (current !== void 0) return join(fiber, current);
+		if (current !== void 0) return fiber === current.fiber ? fiberJoin(current.fiber) : join(fiber, current);
 		if (exit !== void 0 && (expiresAt === Infinity || fiber.getRef(ClockRef).currentTimeMillisUnsafe() < expiresAt)) return exit;
 		exit = void 0;
 		const clock = fiber.getRef(ClockRef);
 		const run = {
-			fiber: void 0,
-			awaiters: 0
+			fiber: new FiberImpl(fiber.context),
+			awaiters: 0,
+			done: false
 		};
 		current = run;
-		run.fiber = forkUnsafe$1(fiber, onExitPrimitive(self, (exit_) => {
+		const joined = join(fiber, run);
+		run.fiber.evaluate(onExitPrimitive$1(self, (exit_) => {
+			run.done = true;
 			if (current !== run) return;
 			current = void 0;
 			if (exitHasInterrupts(exit_)) return;
 			const duration = ttlMillis(exit_);
 			expiresAt = duration === Infinity ? Infinity : clock.currentTimeMillisUnsafe() + duration;
 			exit = exit_;
-		}), true, true);
-		return run.fiber._exit ?? join(fiber, run);
+		}));
+		return run.fiber._exit ?? joined;
 	}), sync$1(() => {
+		current = void 0;
 		exit = void 0;
 	})];
 };
@@ -3373,15 +3490,7 @@ const uninterruptibleMask$1 = (f) => withFiber$1((fiber) => {
 const all$2 = (arg, options) => {
 	if (isIterable(arg)) return options?.mode === "result" ? forEach$2(arg, result$2, options) : forEach$2(arg, identity, options);
 	else if (options?.discard) return options.mode === "result" ? forEach$2(Object.values(arg), result$2, options) : forEach$2(Object.values(arg), identity, options);
-	return suspend$3(() => {
-		const out = {};
-		return as$1(forEach$2(Object.entries(arg), ([key, effect]) => map$6(options?.mode === "result" ? result$2(effect) : effect, (value) => {
-			assignProperty(out, key, value);
-		}), {
-			discard: true,
-			concurrency: options?.concurrency
-		}), out);
-	});
+	return suspend$4(() => map$6(forEach$2(Object.entries(arg), ([key, effect]) => map$6(options?.mode === "result" ? result$2(effect) : effect, (value) => [key, value]), { concurrency: options?.concurrency }), Object.fromEntries));
 };
 const whileLoop$1 = /*#__PURE__*/ makePrimitive({
 	op: "While",
@@ -3401,7 +3510,7 @@ const whileLoop$1 = /*#__PURE__*/ makePrimitive({
 		return exitVoid;
 	}
 });
-const forEach$2 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (iterable, f, options) => suspend$3(() => {
+const forEach$2 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (iterable, f, options) => suspend$4(() => {
 	const concurrency = resolveConcurrency(options?.concurrency);
 	if (concurrency === 1) return forEachSequential(iterable, f, options);
 	const items = fromIterable$2(iterable);
@@ -3414,7 +3523,7 @@ const forEach$2 = /*#__PURE__*/ dual((args) => typeof args[1] === "function", (i
 	}, items, { concurrency });
 	return eff ? as$1(eff, out) : succeed$7(out);
 }));
-const forEachSequential = (iterable, f, options) => suspend$3(() => {
+const forEachSequential = (iterable, f, options) => suspend$4(() => {
 	const out = options?.discard ? void 0 : [];
 	const iterator = iterable[Symbol.iterator]();
 	let state = iterator.next();
@@ -3483,7 +3592,7 @@ const iterateConcurrentImpl = (options) => {
 						return cb(failDefect(error));
 					}
 					if (result) return cb(result);
-					return suspend$3(() => {
+					return suspend$4(() => {
 						terminal ??= exitVoid;
 						return flatMap$2(fibers ? fiberInterruptAll(fibers) : void_$3, () => terminal?._tag === "Failure" ? terminal : void_$3);
 					});
@@ -3506,7 +3615,7 @@ const iterateConcurrentImpl = (options) => {
 									const reasons = exit.cause.reasons.filter((reason) => reason._tag !== "Interrupt");
 									if (reasons.length > 0) {
 										const cause = causeFromReasons(reasons);
-										terminal = exitFailCause(terminal._tag === "Failure" ? causeCombine(terminal.cause, cause) : cause);
+										terminal = exitFailCause(terminal._tag === "Failure" ? causeElectDefects(causeCombine(terminal.cause, cause)) : cause);
 									}
 								}
 							} else {
@@ -3576,14 +3685,13 @@ const forkUnsafe$1 = (parent, effect, immediate = false, daemon = false, uninter
 	return child;
 };
 const forkDetach$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => succeed$7(forkUnsafe$1(fiber, self, options?.startImmediately, true, options?.uninterruptible))));
+const fiberScopeFinalizer = (fiber) => () => withFiber$1((current) => current === fiber ? void_$3 : fiberInterrupt(fiber));
 const forkIn$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, scope, options) => withFiber$1((parent) => {
-	const fiber = forkUnsafe$1(parent, self, options?.startImmediately, true, options?.uninterruptible);
+	const fiber = scope.state._tag === "Closed" ? new FiberImpl(parent.context) : forkUnsafe$1(parent, self, options?.startImmediately, true, options?.uninterruptible);
 	if (!fiber._exit) {
 		if (scope.state._tag !== "Closed") {
-			const key = {};
-			const finalizer = () => withFiberId((interruptor) => interruptor === fiber.id ? void_$3 : fiberInterrupt(fiber));
-			scopeAddFinalizerUnsafe(scope, key, finalizer);
-			fiber.addObserver(() => scopeRemoveFinalizerUnsafe(scope, key));
+			scopeAddFinalizerUnsafe(scope, fiber, fiberScopeFinalizer(fiber));
+			fiber.addObserver(() => scopeRemoveFinalizerUnsafe(scope, fiber));
 		} else fiber.interruptUnsafe(parent.id, fiberStackAnnotations(parent));
 	}
 	return succeed$7(fiber);
@@ -3611,7 +3719,7 @@ const fiberRunIn = /*#__PURE__*/ dual(2, (self, scope) => {
 		return self;
 	}
 	scopeRemoveFinalizerUnsafe(scope, self);
-	scopeAddFinalizerUnsafe(scope, self, () => fiberInterrupt(self));
+	scopeAddFinalizerUnsafe(scope, self, fiberScopeFinalizer(self));
 	self.addObserver(() => scopeRemoveFinalizerUnsafe(scope, self));
 	return self;
 });
@@ -3833,7 +3941,7 @@ const withSpan$1 = function() {
 };
 const annotateCurrentSpan$1 = (...args) => withFiber$1((fiber) => {
 	const span = fiber.currentSpanLocal;
-	if (span) {
+	if (span && span.status._tag !== "Ended") {
 		if (args.length === 1) for (const [key, value] of Object.entries(args[0])) span.attribute(key, value);
 		else span.attribute(args[0], args[1]);
 	}
@@ -4033,7 +4141,7 @@ const tracerLogger = /*#__PURE__*/ loggerMake(({ cause, fiber, logLevel, message
 	const clock = fiber.getRef(ClockRef);
 	const annotations = fiber.getRef(CurrentLogAnnotations$1);
 	const span = fiber.cache.span;
-	if (span === void 0 || span._tag === "ExternalSpan") return;
+	if (span === void 0 || span._tag === "ExternalSpan" || span.status._tag === "Ended") return;
 	const attributes = {};
 	for (const [key, value] of Object.entries(annotations)) assignProperty(attributes, key, value);
 	attributes["effect.fiberId"] = fiber.id;
@@ -4056,14 +4164,14 @@ const reportCauseUnsafe = (fiber, cause, defectsOnly) => {
 	reporters.forEach((reporter) => reporter.report(opts));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Cause.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Cause.js
 const isCause = isCause$1;
 const isReason = isCauseReason;
 const isFailReason = isFailReason$1;
 const isDieReason = isDieReason$1;
 const fromReasons = causeFromReasons;
 const fail$5 = causeFail;
-const die$2 = causeDie;
+const die$4 = causeDie;
 const makeFailReason = (error) => new Fail(error);
 const makeDieReason = (defect) => new Die(defect);
 const makeInterruptReason = makeInterruptReason$1;
@@ -4088,23 +4196,24 @@ const annotate$1 = causeAnnotate;
 const reasonAnnotations = reasonAnnotations$1;
 var StackTrace = class extends (/*#__PURE__*/ Service$1()("effect/Cause/StackTrace")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Exit.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Exit.js
 const isExit = isExit$1;
 const succeed$6 = exitSucceed;
 const failCause$5 = exitFailCause;
 const fail$4 = exitFail;
-const die$1 = exitDie;
+const die$3 = exitDie;
 const interrupt$2 = exitInterrupt$1;
 const void_$2 = exitVoid;
 const isSuccess = exitIsSuccess;
 const isFailure = exitIsFailure;
 const hasInterrupts = exitHasInterrupts;
+const asVoidAll = exitAsVoidAll;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Deferred.js
-const TypeId$45 = "~effect/Deferred";
-const isDeferred = (u) => hasProperty(u, TypeId$45);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Deferred.js
+const TypeId$48 = "~effect/Deferred";
+const isDeferred = (u) => hasProperty(u, TypeId$48);
 const DeferredProto = {
-	[TypeId$45]: {
+	[TypeId$48]: {
 		_A: identity,
 		_E: identity
 	},
@@ -4133,6 +4242,7 @@ const _await = (self) => callback$2((resume) => {
 const done = /* @__PURE__ */ dual(2, (self, effect) => sync$1(() => doneUnsafe(self, effect)));
 const failCause$4 = /*#__PURE__*/ dual(2, (self, cause) => done(self, exitFailCause(cause)));
 const interruptWith = /*#__PURE__*/ dual(2, (self, fiberId) => failCause$4(self, causeInterrupt(fiberId)));
+const isDoneUnsafe = (self) => self.effect !== void 0;
 const succeed$5 = /*#__PURE__*/ dual(2, (self, value) => done(self, exitSucceed(value)));
 const doneUnsafe = (self, effect) => {
 	if (self.effect) return false;
@@ -4145,12 +4255,12 @@ const doneUnsafe = (self, effect) => {
 	return true;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/References.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/References.js
 const CurrentLogAnnotations = CurrentLogAnnotations$1;
 const CurrentLogLevel = CurrentLogLevel$1;
 const TracerTimingEnabled = TracerTimingEnabled$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Scope.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scope.js
 const Scope = scopeTag;
 const make$44 = scopeMake;
 const makeUnsafe$5 = scopeMakeUnsafe;
@@ -4161,15 +4271,15 @@ const forkUnsafe = scopeForkUnsafe;
 const close = scopeClose;
 const closeUnsafe = scopeCloseUnsafe;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Layer.js
-const TypeId$44 = "~effect/Layer";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Layer.js
+const TypeId$47 = "~effect/Layer";
 const MemoMapTypeId = "~effect/Layer/MemoMap";
 const makeMemoMapEntry = (memoMap, layer) => {
 	const entry = {
 		observers: 0,
 		deferred: makeUnsafe$6(),
 		scope: makeUnsafe$5(),
-		finalizer: (exit) => suspend$3(() => {
+		finalizer: (exit) => suspend$4(() => {
 			if (--entry.observers > 0) return void_$3;
 			memoMap.map.delete(layer);
 			return close(entry.scope, exit);
@@ -4184,7 +4294,7 @@ const memoMapObserve = (entry, scope) => {
 	return true;
 };
 const LayerProto = {
-	[TypeId$44]: {
+	[TypeId$47]: {
 		_ROut: identity,
 		_E: identity,
 		_RIn: identity
@@ -4224,9 +4334,9 @@ var MemoMapImpl = class {
 		return this.parent?.get(layer, scope);
 	}
 	getOrElseMemoize(layer, scope, build) {
-		return suspend$3(() => {
+		return suspend$4(() => {
 			let deferred;
-			return onExitPrimitive(suspend$3(() => {
+			return onExitPrimitive$1(suspend$4(() => {
 				const existing = this.get(layer, scope);
 				if (existing) return existing;
 				const entry = makeMemoMapEntry(this, layer);
@@ -4248,7 +4358,7 @@ var CurrentMemoMap = class CurrentMemoMap extends (/*#__PURE__*/ Service$1()("ef
 		return current ? forkMemoMapUnsafe(current) : makeMemoMapUnsafe();
 	}
 };
-const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provideService$1(map$6(suspend$3(() => self.build(memoMap, scope)), add$2(CurrentMemoMap, memoMap)), CurrentMemoMap, memoMap));
+const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provideService$1(map$6(suspend$4(() => self.build(memoMap, scope)), add$2(CurrentMemoMap, memoMap)), CurrentMemoMap, memoMap));
 const build = (self) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), getUnsafe(fiber.context, Scope)));
 const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), scope)));
 const succeed$4 = function() {
@@ -4264,28 +4374,28 @@ const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => m
 const effectContext = (effect) => fromBuildMemo((_, scope) => provide$3(effect, scope));
 const effectDiscard = (effect) => effectContext(as$1(effect, empty$10()));
 const unwrapKey = /*#__PURE__*/ Service$1("effect/Layer/unwrap");
-const unwrap$3 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
+const unwrap$4 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
 const mergeAllEffect = (layers, memoMap, scope) => {
 	const parentScope = forkUnsafe(scope, "parallel");
 	return forEach$2(layers, (layer) => layer.build(memoMap, forkUnsafe(parentScope, "sequential")), { concurrency: layers.length }).pipe(map$6((context) => mergeAll$1(...context)));
 };
-const mergeAll = (...layers) => fromBuild((memoMap, scope) => mergeAllEffect(layers, memoMap, scope));
-const provideWith = (self, that, f) => fromBuild((memoMap, scope) => flatMap$2(Array.isArray(that) ? mergeAllEffect(that, memoMap, scope) : that.build(memoMap, scope), (context) => self.build(memoMap, scope).pipe(provideContext$3(context), map$6((merged) => f(merged, context)))));
+const mergeAll = (...layers) => fromBuildMemo((memoMap, scope) => mergeAllEffect(layers, memoMap, scope));
+const provideWith = (self, that, f) => fromBuildMemo((memoMap, scope) => flatMap$2(Array.isArray(that) ? mergeAllEffect(that, memoMap, scope) : that.build(memoMap, scope), (context) => self.build(memoMap, scope).pipe(provideContext$3(context), map$6((merged) => f(merged, context)))));
 const provide$2 = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, identity));
-const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, (self, that) => merge$1(that, self)));
+const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, (self, that) => merge$2(that, self)));
 const flatMap$1 = /*#__PURE__*/ dual(2, (self, f) => fromBuild((memoMap, scope) => flatMap$2(self.build(memoMap, scope), (context) => f(context).build(memoMap, scope))));
 const catchTag$1 = /*#__PURE__*/ dual(3, (self, k, f) => fromBuildUnsafe((memoMap, scope) => catchTag$2(self.build(memoMap, scope), k, (error) => f(error).build(memoMap, scope))));
 const launch = (self) => scoped$1(andThen$1(build(self), never$2));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Clock.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Clock.js
 const Clock = ClockRef;
 const currentTimeMillis = currentTimeMillis$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/dateTime.js
-const TypeId$43 = "~effect/DateTime";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/dateTime.js
+const TypeId$46 = "~effect/DateTime";
 const TimeZoneTypeId = "~effect/DateTime/TimeZone";
 const Proto$17 = {
-	[TypeId$43]: TypeId$43,
+	[TypeId$46]: TypeId$46,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -4351,7 +4461,7 @@ const makeZonedProto = (epochMillis, zone, partsUtc) => {
 	});
 	return self;
 };
-const isDateTime$1 = (u) => hasProperty(u, TypeId$43);
+const isDateTime$1 = (u) => hasProperty(u, TypeId$46);
 const isDateTimeArgs = (args) => isDateTime$1(args[0]);
 const isUtc$1 = (self) => self._tag === "Utc";
 const makeUtc = (epochMillis) => {
@@ -4380,7 +4490,7 @@ const makeUnsafe$4 = (input) => {
 	} else if (typeof input === "string" && !hasZone(input)) return fromDateUnsafe(/* @__PURE__ */ new Date(input + "Z"));
 	return fromDateUnsafe(new Date(input));
 };
-const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input);
+const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input) || /z$|gmt$/i.test(input);
 const make$43 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
 const now$1 = /*#__PURE__*/ map$6(currentTimeMillis, makeUtc);
 const toUtc$1 = (self) => makeUtc(self.epochMilliseconds);
@@ -4389,9 +4499,17 @@ const toDate = (self) => {
 	if (self._tag === "Utc") return new Date(self.epochMilliseconds);
 	else if (self.zone._tag === "Offset") return new Date(self.epochMilliseconds + self.zone.offset);
 	else if (self.adjustedEpochMilliseconds !== void 0) return new Date(self.adjustedEpochMilliseconds);
-	const parts = self.zone.format.formatToParts(self.epochMilliseconds).filter((_) => _.type !== "literal");
+	let bc = false;
+	const parts = self.zone.format.formatToParts(self.epochMilliseconds).filter((_) => {
+		if (_.type === "era") {
+			bc = _.value === "BC";
+			return false;
+		}
+		return _.type !== "literal";
+	});
+	const year = Number(parts[2].value);
 	const date = /* @__PURE__ */ new Date(0);
-	date.setUTCFullYear(Number(parts[2].value), Number(parts[0].value) - 1, Number(parts[1].value));
+	date.setUTCFullYear(bc ? 1 - year : year, Number(parts[0].value) - 1, Number(parts[1].value));
 	date.setUTCHours(Number(parts[3].value), Number(parts[4].value), Number(parts[5].value), parts[6]?.type === "fractionalSecond" ? Number(parts[6].value) : (self.epochMilliseconds % 1e3 + 1e3) % 1e3);
 	self.adjustedEpochMilliseconds = date.getTime();
 	return date;
@@ -4454,7 +4572,7 @@ const makeZonedFromAdjusted = (adjustedMillis, zone, disambiguation) => {
 	}
 	return makeZonedProto(adjustedMillis - afterOffset, zone);
 };
-const offsetRegExp = /([+-])(\d{2}):(\d{2})$/;
+const offsetRegExp = /([+-])(\d{2}):?(\d{2})$/;
 const parseOffset = (offset) => {
 	const match = offsetRegExp.exec(offset);
 	if (match === null) return null;
@@ -4479,37 +4597,48 @@ const mutate = /*#__PURE__*/ dual(isDateTimeArgs, (self, f, options) => {
 	f(newAdjustedDate);
 	return makeZonedFromAdjusted(newAdjustedDate.getTime(), self.zone, options?.disambiguation ?? "compatible");
 });
-const addMillis = (date, amount) => {
-	date.setTime(date.getTime() + amount);
-};
-const add$1 = /*#__PURE__*/ dual(2, (self, parts) => mutate(self, (date) => {
-	if (parts.milliseconds) addMillis(date, parts.milliseconds);
-	if (parts.seconds) addMillis(date, parts.seconds * 1e3);
-	if (parts.minutes) addMillis(date, parts.minutes * 60 * 1e3);
-	if (parts.hours) addMillis(date, parts.hours * 60 * 60 * 1e3);
-	if (parts.days) date.setUTCDate(date.getUTCDate() + parts.days);
-	if (parts.weeks) date.setUTCDate(date.getUTCDate() + parts.weeks * 7);
-	if (parts.months) {
-		const day = date.getUTCDate();
-		date.setUTCMonth(date.getUTCMonth() + parts.months + 1, 0);
-		if (day < date.getUTCDate()) date.setUTCDate(day);
-	}
-	if (parts.years) {
-		const day = date.getUTCDate();
-		const month = date.getUTCMonth();
-		date.setUTCFullYear(date.getUTCFullYear() + parts.years, month + 1, 0);
-		if (day < date.getUTCDate()) date.setUTCDate(day);
-	}
+const mutateUtc = /*#__PURE__*/ dual(2, (self, f) => mapEpochMillis(self, (millis) => {
+	const date = new Date(millis);
+	f(date);
+	return date.getTime();
 }));
+const mapEpochMillis = /*#__PURE__*/ dual(2, (self, f) => {
+	const millis = f(toEpochMillis$1(self));
+	return self._tag === "Utc" ? makeUtc(millis) : makeZonedProto(millis, self.zone);
+});
+const add$1 = /*#__PURE__*/ dual(2, (self, parts) => {
+	const shifted = mutateUtc(self, (date) => {
+		if (parts.milliseconds) date.setTime(date.getTime() + parts.milliseconds);
+		if (parts.seconds) date.setTime(date.getTime() + parts.seconds * 1e3);
+		if (parts.minutes) date.setTime(date.getTime() + parts.minutes * 60 * 1e3);
+		if (parts.hours) date.setTime(date.getTime() + parts.hours * 60 * 60 * 1e3);
+	});
+	if (!parts.days && !parts.weeks && !parts.months && !parts.years) return shifted;
+	return mutate(shifted, (date) => {
+		if (parts.days) date.setUTCDate(date.getUTCDate() + parts.days);
+		if (parts.weeks) date.setUTCDate(date.getUTCDate() + parts.weeks * 7);
+		if (parts.months) {
+			const day = date.getUTCDate();
+			date.setUTCMonth(date.getUTCMonth() + parts.months + 1, 0);
+			if (day < date.getUTCDate()) date.setUTCDate(day);
+		}
+		if (parts.years) {
+			const day = date.getUTCDate();
+			const month = date.getUTCMonth();
+			date.setUTCFullYear(date.getUTCFullYear() + parts.years, month + 1, 0);
+			if (day < date.getUTCDate()) date.setUTCDate(day);
+		}
+	});
+});
 const formatIso$1 = (self) => toDateUtc$1(self).toISOString();
-const formatIsoDate$1 = (self) => toDate(self).toISOString().slice(0, 10);
+const formatIsoDate$1 = (self) => toDate(self).toISOString().split("T")[0];
 const formatIsoOffset = (self) => {
 	const date = toDate(self);
 	return self._tag === "Utc" ? date.toISOString() : `${date.toISOString().slice(0, -1)}${zonedOffsetIso(self)}`;
 };
 const formatIsoZoned = (self) => self.zone._tag === "Offset" ? formatIsoOffset(self) : `${formatIsoOffset(self)}[${self.zone.id}]`;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Pull.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pull.js
 const catchDone = /*#__PURE__*/ dual(2, (effect, f) => catchCauseFilter$1(effect, filterDoneLeftover, (l) => f(l)));
 const isDoneCause = (cause) => cause.reasons.some(isDoneFailure);
 const isDoneFailure = (failure) => failure._tag === "Fail" && isDone(failure.error);
@@ -4537,8 +4666,8 @@ const matchEffect$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 	}
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Schedule.js
-const TypeId$42 = "~effect/Schedule";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schedule.js
+const TypeId$45 = "~effect/Schedule";
 const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata", { defaultValue: /*#__PURE__*/ constant({
 	input: void 0,
 	output: void 0,
@@ -4550,7 +4679,7 @@ const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata
 	elapsedSincePrevious: 0
 }) });
 const ScheduleProto = {
-	[TypeId$42]: {
+	[TypeId$45]: {
 		_Out: identity,
 		_In: identity,
 		_Env: identity
@@ -4559,7 +4688,7 @@ const ScheduleProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const isSchedule = (u) => hasProperty(u, TypeId$42);
+const isSchedule = (u) => hasProperty(u, TypeId$45);
 const fromStep = (step) => {
 	const self = Object.create(ScheduleProto);
 	self.step = step;
@@ -4588,10 +4717,10 @@ const fromStepWithMetadata = (step) => fromStep(map$6(step, (f) => {
 	const meta = metadataFn();
 	return (now, input) => f(meta(now, input));
 }));
-const toStep = (schedule) => catchCause$2(schedule.step, (cause) => succeed$7(() => failCause$6(cause)));
+const toStep = (schedule) => catchCause$3(schedule.step, (cause) => succeed$7(() => failCause$6(cause)));
 const toStepWithMetadata = (schedule) => clockWith((clock) => map$6(toStep(schedule), (step) => {
 	const metaFn = metadataFn();
-	return (input) => suspend$3(() => {
+	return (input) => suspend$4(() => {
 		const now = clock.currentTimeMillisUnsafe();
 		return flatMap$2(step(now, input), ([output, duration]) => {
 			const meta = metaFn(now, input);
@@ -4631,22 +4760,27 @@ const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$6(toStep(
 })));
 const forever$1 = /*#__PURE__*/ spaced(zero$1);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/layer.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/layer.js
 const provideLayer = (self, layer, options) => scopedWith$1((scope) => flatMap$2(options?.local ? buildWithMemoMap(layer, makeMemoMapUnsafe(), scope) : buildWithScope(layer, scope), (context) => provideContext$3(self, context)));
 const provide$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, source, options) => isContext(source) ? provideContext$3(self, source) : provideLayer(self, Array.isArray(source) ? mergeAll(...source) : source, options));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schedule.js
-const findErrorOnly = (cause) => cause.reasons.every(isFailReason$1) ? findError$1(cause) : fail$7(cause);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schedule.js
 const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2(toStepWithMetadata(schedule), (step) => {
 	let meta = CurrentMetadata.defaultValue();
-	return catchCauseFilter$1(catchDone(forever$2(tap$1(flatMap$2(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), step), (meta_) => sync$1(() => {
-		meta = meta_;
-	})), { disableYield: true }), (out) => succeed$7(out)), findErrorOnly, (error) => orElse(error, meta.attempt === 0 ? none() : some(meta)));
+	const loop = (input) => matchEffect$1(step(input), {
+		onSuccess(meta_) {
+			meta = meta_;
+			return flatMap$2(provideService$1(self, CurrentMetadata, meta), loop);
+		},
+		onFailure: failCause$6,
+		onDone: succeed$7
+	});
+	return catchCauseFilter$1(flatMap$2(provideService$1(self, CurrentMetadata, meta), loop), findRecoverableError, (error) => orElse(error, meta.attempt === 0 ? none() : some(meta)));
 }));
 const retryOrElse = /*#__PURE__*/ dual(3, (self, policy, orElse) => flatMap$2(toStepWithMetadata(policy), (step) => {
 	let meta = CurrentMetadata.defaultValue();
 	let lastError;
-	const loop = catchCauseFilter$1(suspend$3(() => provideService$1(self, CurrentMetadata, meta)), findErrorOnly, (error) => {
+	const loop = catchCauseFilter$1(suspend$4(() => provideService$1(self, CurrentMetadata, meta)), findRecoverableError, (error) => {
 		lastError = error;
 		return flatMap$2(step(error), (meta_) => {
 			meta = meta_;
@@ -4678,7 +4812,101 @@ const buildFromOptions = (options) => {
 	return schedule;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Effect.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableHashMap.js
+const TypeId$44 = "~effect/MutableHashMap";
+const MutableHashMapProto = {
+	[TypeId$44]: TypeId$44,
+	[Symbol.iterator]() {
+		return this.backing[Symbol.iterator]();
+	},
+	toString() {
+		return `MutableHashMap(${format$2(Array.from(this))})`;
+	},
+	toJSON() {
+		return {
+			_id: "MutableHashMap",
+			values: toJson(Array.from(this))
+		};
+	},
+	[NodeInspectSymbol]() {
+		return this.toJSON();
+	},
+	pipe() {
+		return pipeArguments(this, arguments);
+	}
+};
+const empty$8 = () => {
+	const self = Object.create(MutableHashMapProto);
+	self.backing = /* @__PURE__ */ new Map();
+	self.buckets = /* @__PURE__ */ new Map();
+	return self;
+};
+const get$1 = /*#__PURE__*/ dual(2, (self, key) => {
+	if (self.backing.has(key)) return some(self.backing.get(key));
+	else if (isSimpleKey(key)) return none();
+	const hash$2 = hash(key);
+	const bucket = self.buckets.get(hash$2);
+	if (bucket === void 0) return none();
+	return getFromBucket(self, bucket, key);
+});
+const isSimpleKey = (u) => typeof u !== "object" && typeof u !== "function";
+const getFromBucket = (self, bucket, key) => {
+	for (let i = 0, len = bucket.length; i < len; i++) if (equals$1(key, bucket[i])) {
+		const refKey = bucket[i];
+		return some(self.backing.get(refKey));
+	}
+	return none();
+};
+const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
+	if (self.backing.has(key) || isSimpleKey(key)) {
+		self.backing.set(key, value);
+		return self;
+	}
+	const hash$4 = hash(key);
+	const bucket = self.buckets.get(hash$4);
+	if (bucket === void 0) {
+		self.buckets.set(hash$4, [key]);
+		self.backing.set(key, value);
+		return self;
+	}
+	let refKey = getRefKey(bucket, key);
+	if (refKey === void 0) {
+		bucket.push(key);
+		refKey = key;
+	}
+	self.backing.set(refKey, value);
+	return self;
+});
+const getRefKey = (bucket, key) => {
+	for (let i = 0, len = bucket.length; i < len; i++) if (equals$1(key, bucket[i])) return bucket[i];
+};
+const remove$2 = /*#__PURE__*/ dual(2, (self, key_) => {
+	if (isSimpleKey(key_)) {
+		self.backing.delete(key_);
+		return self;
+	}
+	const hash$1 = hash(key_);
+	const bucket = self.buckets.get(hash$1);
+	if (bucket === void 0) return self;
+	for (let i = 0, len = bucket.length; i < len; i++) {
+		const bkey = bucket[i];
+		if (bkey === key_ || equals$1(key_, bkey)) {
+			self.backing.delete(bkey);
+			bucket.splice(i, 1);
+			break;
+		}
+	}
+	if (bucket.length === 0) self.buckets.delete(hash$1);
+	return self;
+});
+const clear$2 = (self) => {
+	self.backing.clear();
+	self.buckets.clear();
+	return self;
+};
+const size = (self) => self.backing.size;
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effect.js
 const isEffect = isEffect$1;
 const all$1 = all$2;
 const forEach$1 = forEach$2;
@@ -4688,16 +4916,17 @@ const tryPromise = tryPromise$1;
 const succeed$3 = succeed$7;
 const succeedNone = succeedNone$1;
 const succeedSome = succeedSome$1;
-const suspend$2 = suspend$3;
+const suspend$3 = suspend$4;
 const sync = sync$1;
 const void_$1 = void_$3;
 const callback$1 = callback$2;
 const never$1 = never$2;
 const gen = gen$1;
 const fail$3 = fail$6;
+const failSync = failSync$1;
 const failCause$3 = failCause$6;
 const failCauseSync = failCauseSync$1;
-const die = die$3;
+const die$2 = die$5;
 const try_ = try_$1;
 const withFiber = withFiber$1;
 const fromResult = fromResult$1;
@@ -4716,7 +4945,7 @@ const catch_$2 = catch_$3;
 const catchTag = catchTag$2;
 const catchTags = catchTags$1;
 const catchReason = catchReason$1;
-const catchCause$1 = catchCause$2;
+const catchCause$2 = catchCause$3;
 const catchDefect = catchDefect$1;
 const catchCauseIf = catchCauseIf$1;
 const mapError$2 = mapError$3;
@@ -4749,6 +4978,7 @@ const acquireRelease = acquireRelease$1;
 const addFinalizer = addFinalizer$2;
 const ensuring$2 = ensuring$3;
 const onError = onError$1;
+const onExitPrimitive = onExitPrimitive$1;
 const onExit$1 = onExit$2;
 const cached = cached$1;
 const interrupt$1 = interrupt$3;
@@ -4787,14 +5017,19 @@ const annotateLogs = /*#__PURE__*/ dual((args) => isEffect(args[0]), (effect, ..
 	return newAnnotations;
 }));
 const effectify = (fn, onError, onSyncError) => (...args) => callback$1((resume) => {
+	let synchronous = true;
+	let pending;
 	try {
 		fn(...args, (err, result) => {
-			if (err) resume(onError ? suspend$2(() => fail$3(onError(err, args))) : fail$3(err));
-			else resume(succeed$3(result));
+			const effect = err ? onError ? suspend$3(() => fail$3(onError(err, args))) : fail$3(err) : succeed$3(result);
+			if (synchronous) pending ??= effect;
+			else resume(effect);
 		});
 	} catch (err) {
-		resume(onSyncError ? fail$3(onSyncError(err, args)) : die(err));
+		pending = onSyncError ? fail$3(onSyncError(err, args)) : die$2(err);
 	}
+	synchronous = false;
+	if (pending) resume(pending);
 });
 const mapEager = mapEager$1;
 const mapErrorEager = mapErrorEager$1;
@@ -4803,10 +5038,491 @@ const flatMapEager = flatMapEager$1;
 const catchEager = catchEager$1;
 const fnUntracedEager = fnUntracedEager$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/BigDecimal.js
-const TypeId$41 = "~effect/BigDecimal";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Fiber.js
+const join = fiberJoin;
+const interrupt = fiberInterrupt;
+const getCurrent = getCurrentFiber;
+const runIn = fiberRunIn;
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableList.js
+const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
+const make$42 = () => ({
+	head: void 0,
+	tail: void 0,
+	length: 0
+});
+const compactHead = (self) => {
+	const head = self.head;
+	if (head.offset >= 1024 && head === self.tail && head.mutable && (head.array.length - head.offset) * 8 <= head.offset) self.head = self.tail = {
+		array: head.array.slice(head.offset),
+		mutable: true,
+		offset: 0,
+		next: void 0
+	};
+};
+const emptyBucket = () => ({
+	array: [],
+	mutable: true,
+	offset: 0,
+	next: void 0
+});
+const append = (self, message) => {
+	if (!self.tail) self.head = self.tail = emptyBucket();
+	else if (!self.tail.mutable) {
+		self.tail.next = emptyBucket();
+		self.tail = self.tail.next;
+	}
+	self.tail.array.push(message);
+	self.length++;
+};
+const prepend = (self, message) => {
+	self.head = {
+		array: [message],
+		mutable: true,
+		offset: 0,
+		next: self.head
+	};
+	if (!self.tail) self.tail = self.head;
+	self.length++;
+};
+const appendAll$1 = (self, messages) => appendAllUnsafe(self, Array.from(messages), true);
+const appendAllUnsafe = (self, messages, mutable = false) => {
+	if (messages.length === 0) return 0;
+	const chunk = {
+		array: messages,
+		mutable,
+		offset: 0,
+		next: void 0
+	};
+	if (self.head) self.tail = self.tail.next = chunk;
+	else self.head = self.tail = chunk;
+	self.length += messages.length;
+	return messages.length;
+};
+const clear$1 = (self) => {
+	self.head = self.tail = void 0;
+	self.length = 0;
+};
+const takeN = (self, n) => {
+	n = normalize$2(n);
+	if (n <= 0 || !self.head) return [];
+	n = Math.min(n, self.length);
+	if (n === self.length && self.head?.offset === 0 && !self.head.next) {
+		const array = self.head.array;
+		clear$1(self);
+		return array;
+	}
+	const array = new Array(n);
+	let index = 0;
+	let chunk = self.head;
+	while (chunk) {
+		while (chunk.offset < chunk.array.length) {
+			array[index++] = chunk.array[chunk.offset];
+			if (chunk.mutable) chunk.array[chunk.offset] = void 0;
+			chunk.offset++;
+			if (index === n) {
+				self.head = chunk.offset === chunk.array.length && chunk.next ? chunk.next : chunk;
+				self.length -= n;
+				if (self.length === 0) clear$1(self);
+				else compactHead(self);
+				return array;
+			}
+		}
+		chunk = chunk.next;
+	}
+	clear$1(self);
+	return array;
+};
+const takeAll$1 = (self) => takeN(self, self.length);
+const take$1 = (self) => {
+	if (!self.head) return Empty$3;
+	const message = self.head.array[self.head.offset];
+	if (self.head.mutable) self.head.array[self.head.offset] = void 0;
+	self.head.offset++;
+	self.length--;
+	if (self.head.offset === self.head.array.length) {
+		if (self.head.next) self.head = self.head.next;
+		else clear$1(self);
+	} else compactHead(self);
+	return message;
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Queue.js
+const TypeId$43 = "~effect/Queue";
+const EnqueueTypeId = "~effect/Queue/Enqueue";
+const DequeueTypeId = "~effect/Queue/Dequeue";
+const variance = {
+	_A: identity,
+	_E: identity
+};
+const QueueProto = {
+	[TypeId$43]: variance,
+	[EnqueueTypeId]: variance,
+	[DequeueTypeId]: variance,
+	...PipeInspectableProto,
+	toJSON() {
+		return {
+			_id: "effect/Queue",
+			state: this.state._tag,
+			size: sizeUnsafe(this)
+		};
+	}
+};
+const make$41 = (options) => withFiber$1((fiber) => {
+	const self = Object.create(QueueProto);
+	self.dispatcher = fiber.currentDispatcher;
+	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
+	self.strategy = options?.strategy ?? "suspend";
+	self.messages = make$42();
+	self.scheduleRunning = false;
+	self.state = {
+		_tag: "Open",
+		takers: /* @__PURE__ */ new Set(),
+		offers: /* @__PURE__ */ new Set(),
+		awaiters: /* @__PURE__ */ new Set()
+	};
+	return succeed$7(self);
+});
+const bounded = (capacity) => make$41({ capacity });
+const unbounded$1 = () => make$41();
+const offer = /*#__PURE__*/ dual(2, (self, message) => suspend$4(() => offerUnsafe(self, message) ? exitTrue : self.state._tag === "Open" && self.strategy === "suspend" ? offerOrWait(self, message) : exitFalse));
+const offerUnsafe = (self, message) => {
+	if (self.state._tag !== "Open") return false;
+	else if (self.messages.length >= self.capacity) {
+		if (self.strategy === "sliding") {
+			take$1(self.messages);
+			append(self.messages, message);
+			return true;
+		} else if (self.capacity <= 0 && self.state.takers.size > 0) {
+			append(self.messages, message);
+			releaseTakers(self);
+			return true;
+		}
+		return false;
+	}
+	append(self.messages, message);
+	scheduleReleaseTaker(self);
+	return true;
+};
+const offerAll = /*#__PURE__*/ dual(2, (self, messages) => callback$2((resume) => {
+	const remaining = offerAllUnsafe(self, messages);
+	if (remaining.length === 0 || self.strategy === "dropping") return resume(exitSucceed(remaining));
+	return waitToOffer(self, {
+		_tag: "Array",
+		remaining,
+		offset: 0,
+		resume
+	});
+}));
+const offerAllUnsafe = (self, messages) => {
+	if (self.state._tag !== "Open") return fromIterable$2(messages);
+	else if (self.capacity === Number.POSITIVE_INFINITY || self.strategy === "sliding") {
+		appendAll$1(self.messages, messages);
+		if (self.strategy === "sliding") takeN(self.messages, self.messages.length - self.capacity);
+		scheduleReleaseTaker(self);
+		return [];
+	}
+	const free = self.capacity <= 0 ? self.state.takers.size : self.capacity - self.messages.length;
+	if (free === 0) return fromIterable$2(messages);
+	const remaining = [];
+	let i = 0;
+	for (const message of messages) {
+		if (i < free) append(self.messages, message);
+		else remaining.push(message);
+		i++;
+	}
+	scheduleReleaseTaker(self);
+	return remaining;
+};
+const failCause$2 = /*#__PURE__*/ dual(2, (self, cause) => sync$1(() => failCauseUnsafe(self, cause)));
+const failCauseUnsafe = (self, cause) => {
+	if (self.state._tag !== "Open") return false;
+	const exit = exitFailCause(cause);
+	const fail = exitZipRight(exit, exitFailDone);
+	if (self.state.offers.size === 0 && self.messages.length === 0) {
+		finalize(self, fail);
+		return true;
+	}
+	self.state = {
+		...self.state,
+		_tag: "Closing",
+		exit: fail
+	};
+	scheduleReleaseTaker(self);
+	return true;
+};
+const end = (self) => failCause$2(self, causeFail(Done$2()));
+const endUnsafe = (self) => failCauseUnsafe(self, causeFail(Done$2()));
+const shutdown = (self) => sync$1(() => shutdownUnsafe(self));
+const shutdownUnsafe = (self) => {
+	if (self.state._tag === "Done") return false;
+	clear$1(self.messages);
+	const offers = self.state.offers;
+	finalize(self, self.state._tag === "Open" ? exitInterrupt : self.state.exit);
+	for (const entry of offers) resumeUnoffered(entry);
+	return true;
+};
+const clear = (self) => suspendTake(() => {
+	if (self.state._tag === "Done") return catchDone(self.state.exit, () => succeed$7([]));
+	const messages = takeAllUnsafe(self);
+	releaseCapacity(self);
+	return succeed$7(messages);
+});
+const takeAll = (self) => takeBetween(self, 1, Number.POSITIVE_INFINITY);
+const takeBetween = /*#__PURE__*/ dual(3, (self, min, max) => {
+	min = normalize$2(min);
+	max = normalize$2(max);
+	return suspendTake(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self, () => canTake(self, min)), takeBetween(self, min, max)));
+});
+const take = (self) => suspendTake(() => takeUnsafe(self) ?? andThen$1(awaitTake(self, () => canTake(self, 1)), take(self)));
+const takeUnsafe = (self) => {
+	if (self.state._tag === "Done") return self.state.exit;
+	if (self.messages.length > 0) {
+		const message = take$1(self.messages);
+		releaseCapacity(self);
+		return exitSucceed(message);
+	} else if (self.capacity <= 0 && self.state.offers.size > 0) {
+		const message = takeOfferUnsafe(self.state.offers);
+		releaseCapacity(self);
+		return exitSucceed(message);
+	}
+};
+const sizeUnsafe = (self) => self.state._tag === "Done" ? 0 : self.messages.length;
+const exitFalse = /*#__PURE__*/ exitSucceed(false);
+const exitTrue = /*#__PURE__*/ exitSucceed(true);
+const exitFailDone = /*#__PURE__*/ exitFail(/*#__PURE__*/ Done$2());
+const exitInterrupt = /*#__PURE__*/ exitInterrupt$1();
+const releaseTakers = (self) => {
+	if (self.state._tag === "Done" || self.state.takers.size === 0) return;
+	for (const taker of self.state.takers) {
+		if (!taker.ready()) continue;
+		self.state.takers.delete(taker);
+		taker.resume(exitVoid);
+		if (self.messages.length === 0) break;
+	}
+};
+const scheduleReleaseTaker = (self) => {
+	if (self.scheduleRunning || self.state._tag === "Done" || self.state.takers.size === 0) return;
+	self.scheduleRunning = true;
+	self.dispatcher.scheduleTask(() => {
+		self.scheduleRunning = false;
+		releaseTakers(self);
+	}, 0);
+};
+const takeBetweenUnsafe = (self, min, max) => {
+	if (self.state._tag === "Done") return self.state.exit;
+	else if (max <= 0 || min <= 0) return exitSucceed([]);
+	else if (!canTake(self, min)) return;
+	const messages = self.messages.length > 0 ? takeN(self.messages, max) : [takeOfferUnsafe(self.state.offers)];
+	releaseCapacity(self);
+	return exitSucceed(messages);
+};
+const suspendTake = /*#__PURE__*/ makePrimitive({
+	op: "QueueTake",
+	[evaluate](fiber) {
+		const effect = this[args]();
+		return isExit$1(effect) ? effect[evaluate](fiber) : effect;
+	}
+});
+const canTake = (self, min) => self.messages.length >= (self.state._tag === "Closing" ? 1 : Math.min(min, self.capacity || 1)) || self.capacity <= 0 && self.state._tag !== "Done" && self.state.offers.size > 0;
+const awaitTake = (self, ready) => callback$2((resume) => {
+	if (self.state._tag === "Done") return resume(self.state.exit);
+	if (ready()) return resume(exitVoid);
+	const taker = {
+		ready,
+		resume
+	};
+	self.state.takers.add(taker);
+	return sync$1(() => {
+		if (self.state._tag !== "Done") self.state.takers.delete(taker);
+	});
+});
+const offerOrWait = (self, message) => callback$2((resume) => offerUnsafe(self, message) ? resume(exitTrue) : waitToOffer(self, {
+	_tag: "Single",
+	message,
+	resume
+}));
+const waitToOffer = (self, entry) => {
+	if (self.state._tag !== "Open") return resumeUnoffered(entry);
+	const offers = self.state.offers;
+	offers.add(entry);
+	return sync$1(() => {
+		if (self.state._tag === "Done") return;
+		offers.delete(entry);
+		if (self.state._tag === "Closing" && offers.size === 0 && self.messages.length === 0) finalize(self, self.state.exit);
+	});
+};
+const resumeUnoffered = (entry) => entry._tag === "Single" ? entry.resume(exitFalse) : entry.resume(exitSucceed(entry.remaining.slice(entry.offset)));
+const takeOfferUnsafe = (offers) => {
+	const entry = offers.values().next().value;
+	if (entry._tag === "Single") {
+		offers.delete(entry);
+		entry.resume(exitTrue);
+		return entry.message;
+	}
+	const message = entry.remaining[entry.offset++];
+	if (entry.offset === entry.remaining.length) {
+		offers.delete(entry);
+		entry.resume(exitSucceed([]));
+	}
+	return message;
+};
+const releaseCapacity = (self) => {
+	if (self.state._tag === "Done") return isDoneCause(self.state.exit.cause);
+	else if (self.state.offers.size === 0) {
+		if (self.state._tag === "Closing" && self.messages.length === 0) {
+			finalize(self, self.state.exit);
+			return isDoneCause(self.state.exit.cause);
+		}
+		return false;
+	}
+	for (const entry of self.state.offers) {
+		let n = self.capacity - self.messages.length;
+		if (n <= 0) break;
+		else if (entry._tag === "Single") {
+			append(self.messages, entry.message);
+			self.state.offers.delete(entry);
+			entry.resume(exitTrue);
+		} else {
+			for (; entry.offset < entry.remaining.length; entry.offset++) {
+				if (n === 0) return false;
+				append(self.messages, entry.remaining[entry.offset]);
+				n--;
+			}
+			self.state.offers.delete(entry);
+			entry.resume(exitSucceed([]));
+		}
+		const state = self.state;
+		if (state._tag === "Done") return isDoneCause(state.exit.cause);
+	}
+	return false;
+};
+const takeAllUnsafe = (self) => {
+	if (self.messages.length > 0) {
+		const messages = takeAll$1(self.messages);
+		releaseCapacity(self);
+		return messages;
+	} else if (self.state._tag !== "Done" && self.state.offers.size > 0) {
+		const messages = [takeOfferUnsafe(self.state.offers)];
+		releaseCapacity(self);
+		return messages;
+	}
+	return [];
+};
+const finalize = (self, exit) => {
+	if (self.state._tag === "Done") return;
+	const openState = self.state;
+	self.state = {
+		_tag: "Done",
+		exit
+	};
+	for (const taker of openState.takers) taker.resume(exit);
+	openState.takers.clear();
+	for (const awaiter of openState.awaiters) awaiter(exit);
+	openState.awaiters.clear();
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Semaphore.js
+const makeUnsafe$3 = (permits) => new SemaphoreImpl(permits);
+const firstAvailableWaiter = (self) => {
+	for (const waiter of self.waiters) if (waiter.permits <= self.free) return waiter;
+};
+const takePermits = (self, n, onAcquire, restore = identity) => withFiber$1((fiber) => {
+	if (self.free >= n && firstAvailableWaiter(self) === void 0) {
+		self.taken += n;
+		return onAcquire();
+	}
+	const waiter = {
+		permits: n,
+		resume: void 0
+	};
+	const remove = () => {
+		if (self.waiters.delete(waiter)) self.releaseUnsafe(fiber, 0);
+	};
+	self.waiters.add(waiter);
+	onExitUnsafe(fiber, remove);
+	const wait = restore(callback$2((resume) => {
+		if (firstAvailableWaiter(self) === waiter) resume(void_$3);
+		else waiter.resume = resume;
+	}));
+	const loop = flatMap$2(wait, () => {
+		if (firstAvailableWaiter(self) !== waiter) return loop;
+		self.taken += n;
+		remove();
+		return onAcquire();
+	});
+	return loop;
+});
+var SemaphoreImpl = class {
+	waiters = /*#__PURE__*/ new Set();
+	taken = 0;
+	permits;
+	constructor(permits) {
+		this.permits = permits;
+	}
+	get free() {
+		return this.permits - this.taken;
+	}
+	take(n) {
+		return takePermits(this, n, () => succeed$7(n));
+	}
+	takeIfAvailable(n) {
+		return suspend$4(() => {
+			if (this.free < n) return succeed$7(false);
+			this.taken += n;
+			return succeed$7(true);
+		});
+	}
+	releaseUnsafe(fiber, n) {
+		this.taken -= n;
+		if (this.waiters.size > 0) fiber.currentDispatcher.scheduleTask(() => {
+			let remaining = this.free;
+			for (const waiter of Array.from(this.waiters)) {
+				if (!this.waiters.has(waiter) || waiter.permits > remaining) continue;
+				remaining -= waiter.permits;
+				const resume = waiter.resume;
+				waiter.resume = void 0;
+				resume?.(void_$3);
+			}
+		}, 0);
+		return this.free;
+	}
+	resize(permits) {
+		return withFiber$1((fiber) => {
+			this.permits = permits;
+			if (this.free < 0) return void_$3;
+			this.releaseUnsafe(fiber, 0);
+			return void_$3;
+		});
+	}
+	release(n) {
+		return withFiber$1((fiber) => succeed$7(this.releaseUnsafe(fiber, n)));
+	}
+	get releaseAll() {
+		return withFiber$1((fiber) => succeed$7(this.releaseUnsafe(fiber, this.taken)));
+	}
+	withPermits(n) {
+		return (self) => uninterruptibleMask$1((restore) => takePermits(this, n, () => onExitPrimitive$1(restore(self), () => {
+			this.releaseUnsafe(getCurrentFiber(), n);
+		}, true), restore));
+	}
+	withPermit = /*#__PURE__*/ this.withPermits(1);
+	withPermitsIfAvailable(n) {
+		return (self) => uninterruptibleMask$1((restore) => {
+			if (this.free < n) return succeedNone$1;
+			this.taken += n;
+			return onExitPrimitive$1(restore(asSome(self)), () => {
+				this.releaseUnsafe(getCurrentFiber(), n);
+			}, true);
+		});
+	}
+};
+const make$40 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigDecimal.js
+const TypeId$42 = "~effect/BigDecimal";
 const BigDecimalProto = {
-	[TypeId$41]: TypeId$41,
+	[TypeId$42]: TypeId$42,
 	[symbol$3]() {
 		const normalized = normalize$1(this);
 		return combine$1(string$1(String(normalized.value)), number$1(normalized.scale));
@@ -4831,8 +5547,8 @@ const BigDecimalProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const isBigDecimal = (u) => hasProperty(u, TypeId$41);
-const make$42 = (value, scale) => {
+const isBigDecimal = (u) => hasProperty(u, TypeId$42);
+const make$39 = (value, scale) => {
 	if (!Number.isSafeInteger(scale)) throw new RangeError(`Scale must be a safe integer, got ${scale}`);
 	const o = Object.create(BigDecimalProto);
 	o.value = value;
@@ -4840,7 +5556,7 @@ const make$42 = (value, scale) => {
 	return o;
 };
 const makeNormalized = (value, scale) => {
-	const o = make$42(value, scale);
+	const o = make$39(value, scale);
 	o.normalized = o;
 	return o;
 };
@@ -4906,14 +5622,14 @@ const toExponential = (n) => {
 };
 const isZero = (n) => n.value === bigint0$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/BigInt.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigInt.js
 const BigInt$4 = globalThis.BigInt;
-const toNumber = (b) => {
+const toNumber$1 = (b) => {
 	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none();
 	return some(Number(b));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ByteSize.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ByteSize.js
 const bigint0 = /*#__PURE__*/ BigInt(0);
 const bigint1 = /*#__PURE__*/ BigInt(1);
 const decimalBase = /*#__PURE__*/ BigInt(1e3);
@@ -5096,13 +5812,13 @@ const binaryUnits = [
 ];
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
-const make$41 = (value) => value;
+const make$38 = (value) => value;
 const invalid$2 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
 	if (!Number.isSafeInteger(input) || input < 0) return invalid$2(`expected a non-negative safe integer, received ${input}`);
-	return make$41(BigInt(input));
+	return make$38(BigInt(input));
 };
 const fromStringUnsafe = (input) => {
 	const match = /^\s*(\d+)(?:\.(\d+))?\s*([A-Za-z]+)\s*$/.exec(input);
@@ -5113,34 +5829,37 @@ const fromStringUnsafe = (input) => {
 	const scale = BigInt(10) ** BigInt(fraction.length);
 	const numerator = BigInt(match[1] + fraction) * unit.factor;
 	if (numerator % scale !== bigint0) return invalid$2(`${JSON.stringify(input)} does not represent an integral number of bytes`);
-	return make$41(numerator / scale);
+	return make$38(numerator / scale);
 };
 const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
 			if (input < bigint0) return invalid$2(`expected a non-negative bigint, received ${input}`);
-			return make$41(input);
+			return make$38(input);
 		case "number": return fromNumber(input);
 		case "string": return fromStringUnsafe(input);
 	}
 	return invalid$2(`unsupported input ${input}`);
 };
 const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fromNumber(value);
+const toNumber = toNumber$1;
+const toNumberUnsafe = (self) => getOrThrowWith$1(toNumber(self), () => /* @__PURE__ */ new Error(`ByteSize exceeds Number.MAX_SAFE_INTEGER: ${self}`));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/DateTime.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/DateTime.js
 const isDateTime = isDateTime$1;
 const isUtc = isUtc$1;
-const makeUnsafe$3 = makeUnsafe$4;
-const make$40 = make$43;
+const makeUnsafe$2 = makeUnsafe$4;
+const make$37 = make$43;
 const now = now$1;
 const toUtc = toUtc$1;
+const toEpochMillis = toEpochMillis$1;
 const add = add$1;
 const formatIso = formatIso$1;
 const formatIsoDate = formatIsoDate$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/encoding/Base64.js
-const encode = (input) => encodeBytes(typeof input === "string" ? encoder$1.encode(input) : input);
-const decode$3 = (str) => {
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Base64.js
+const encode$1 = (input) => encodeBytes(typeof input === "string" ? encoder$3.encode(input) : input);
+const decode$4 = (str) => {
 	const stripped = stripCrlf(str);
 	const length = stripped.length;
 	if (length % 4 !== 0) return fail$7(new EncodingError({
@@ -5177,6 +5896,12 @@ const decode$3 = (str) => {
 };
 const encodeBytes = (bytes) => {
 	const length = bytes.length;
+	const toBase64 = Uint8Array.prototype.toBase64;
+	if (length >= 32 && typeof toBase64 === "function") return toBase64.call(bytes);
+	return length < 128 ? encodeShort(bytes) : encodeLong(bytes);
+};
+const encodeShort = (bytes) => {
+	const length = bytes.length;
 	let result = "";
 	let i = 2;
 	for (; i < length; i += 3) {
@@ -5198,9 +5923,37 @@ const encodeBytes = (bytes) => {
 	}
 	return result;
 };
-const encoder$1 = /*#__PURE__*/ new TextEncoder();
+const encodeLong = (bytes) => {
+	const length = bytes.length;
+	const result = new Uint8Array(Math.ceil(length / 3) * 4);
+	let i;
+	let j = 0;
+	for (i = 2; i < length; i += 3, j += 4) {
+		result[j] = alphabetCodes[bytes[i - 2] >> 2];
+		result[j + 1] = alphabetCodes[(bytes[i - 2] & 3) << 4 | bytes[i - 1] >> 4];
+		result[j + 2] = alphabetCodes[(bytes[i - 1] & 15) << 2 | bytes[i] >> 6];
+		result[j + 3] = alphabetCodes[bytes[i] & 63];
+	}
+	if (i === length + 1) {
+		result[j] = alphabetCodes[bytes[i - 2] >> 2];
+		result[j + 1] = alphabetCodes[(bytes[i - 2] & 3) << 4];
+		result[j + 2] = paddingCode;
+		result[j + 3] = paddingCode;
+	}
+	if (i === length) {
+		result[j] = alphabetCodes[bytes[i - 2] >> 2];
+		result[j + 1] = alphabetCodes[(bytes[i - 2] & 3) << 4 | bytes[i - 1] >> 4];
+		result[j + 2] = alphabetCodes[(bytes[i - 1] & 15) << 2];
+		result[j + 3] = paddingCode;
+	}
+	return decoder.decode(result);
+};
+const encoder$3 = /*#__PURE__*/ new TextEncoder();
+const decoder = /*#__PURE__*/ new TextDecoder();
 const stripCrlf = (str) => str.replace(/[\n\r]/g, "");
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const alphabetCodes = /*#__PURE__*/ encoder$3.encode(alphabet);
+const paddingCode = /*#__PURE__*/ "=".charCodeAt(0);
 const codes = /*#__PURE__*/ (/* @__PURE__ */ new Uint8Array(123)).fill(255);
 for (let i = 0; i < 64; i++) codes[/*#__PURE__*/ alphabet.charCodeAt(i)] = i;
 codes[/*#__PURE__*/ "=".charCodeAt(0)] = 0;
@@ -5209,11 +5962,11 @@ const getCode = (charCode) => {
 	return codes[charCode];
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/Cookies.js
-const TypeId$40 = "~effect/http/Cookies";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Cookies.js
+const TypeId$41 = "~effect/http/Cookies";
 const CookieTypeId = "~effect/http/Cookies/Cookie";
 const Proto$16 = {
-	[TypeId$40]: TypeId$40,
+	[TypeId$41]: TypeId$41,
 	...BaseProto,
 	toJSON() {
 		return {
@@ -5249,9 +6002,9 @@ function parseSetCookie(header) {
 	if (parts.length === 0) return;
 	const firstEqual = parts[0].indexOf("=");
 	if (firstEqual === -1) return;
-	const name = parts[0].slice(0, firstEqual);
+	const name = parts[0].slice(0, firstEqual).replace(cookieWhitespaceRegExp, "");
 	if (!cookieNameRegExp.test(name)) return;
-	const valueEncoded = parts[0].slice(firstEqual + 1);
+	const valueEncoded = parts[0].slice(firstEqual + 1).replace(cookieWhitespaceRegExp, "");
 	const value = tryDecodeURIComponent(valueEncoded);
 	if (parts.length === 1) return Object.assign(Object.create(CookieProto), {
 		name,
@@ -5277,12 +6030,10 @@ function parseSetCookie(header) {
 				if (!isNaN(date.getTime())) options.expires = date;
 				break;
 			}
-			case "max-age": {
-				if (value === void 0) break;
-				const maxAge = parseInt(value, 10);
-				if (!isNaN(maxAge)) options.maxAge = seconds(maxAge);
+			case "max-age":
+				if (value === void 0 || !maxAgeRegExp.test(value)) break;
+				options.maxAge = seconds(parseInt(value, 10));
 				break;
-			}
 			case "path":
 				if (value === void 0) break;
 				if (value[0] === "/") options.path = value;
@@ -5328,8 +6079,10 @@ function parseSetCookie(header) {
 		options: Object.keys(options).length > 0 ? options : void 0
 	});
 }
-const empty$8 = /*#__PURE__*/ fromIterable$1([]);
+const empty$7 = /*#__PURE__*/ fromIterable$1([]);
 const cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const cookieWhitespaceRegExp = /^[\t ]+|[\t ]+$/g;
+const maxAgeRegExp = /^-?[0-9]+$/;
 const CookieProto = {
 	[CookieTypeId]: CookieTypeId,
 	...BaseProto,
@@ -5350,7 +6103,7 @@ const tryDecodeURIComponent = (str) => {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/redacted.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/redacted.js
 const redactedRegistry = /*#__PURE__*/ new WeakMap();
 const value$3 = (self) => {
 	if (redactedRegistry.has(self)) return redactedRegistry.get(self);
@@ -5358,24 +6111,24 @@ const value$3 = (self) => {
 };
 const stringOrRedacted = (val) => typeof val === "string" ? val : value$3(val);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Redacted.js
-const TypeId$39 = "~effect/Redacted";
-const isRedacted = (u) => hasProperty(u, TypeId$39);
-const make$39 = (value, options) => {
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redacted.js
+const TypeId$40 = "~effect/Redacted";
+const isRedacted = (u) => hasProperty(u, TypeId$40);
+const make$36 = (value, options) => {
 	const self = Object.create(Proto$15);
 	if (options?.label) self.label = options.label;
 	redactedRegistry.set(self, value);
 	return self;
 };
 const Proto$15 = {
-	[TypeId$39]: { _A: (_) => _ },
+	[TypeId$40]: { _A: (_) => _ },
 	label: void 0,
 	...PipeInspectableProto,
 	toJSON() {
 		return this.toString();
 	},
 	toString() {
-		return `<redacted${isString(this.label) ? ":" + this.label : ""}>`;
+		return `<redacted${isString$1(this.label) ? ":" + this.label : ""}>`;
 	},
 	[symbol$3]() {
 		return hash(redactedRegistry.get(this));
@@ -5387,18 +6140,18 @@ const Proto$15 = {
 const value$2 = value$3;
 const makeEquivalence = (isEquivalent) => make$50((x, y) => isEquivalent(value$2(x), value$2(y)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/Headers.js
-const TypeId$38 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Headers.js
+const TypeId$39 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
 const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.create(null), {
-	[TypeId$38]: { value: TypeId$38 },
+	[TypeId$39]: { value: TypeId$39 },
 	[symbolRedactable]: { value(context) {
-		return redact(this, get$2(context, CurrentRedactedNames));
+		return redact$1(this, get$2(context, CurrentRedactedNames$1));
 	} },
 	toJSON: { value() {
-		return redact$1(this);
+		return redact$2(this);
 	} },
 	[symbol$2]: { value(that) {
-		return Equivalence$1(this, that);
+		return Equivalence$2(this, that);
 	} },
 	[symbol$3]: { value() {
 		return structure(this);
@@ -5406,11 +6159,11 @@ const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.crea
 	toString: { value: BaseProto.toString },
 	[NodeInspectSymbol]: { value: BaseProto[NodeInspectSymbol] }
 });
-const make$38 = (input) => Object.assign(Object.create(Proto$14), input);
-const Equivalence$1 = /*#__PURE__*/ makeEquivalence$2(/*#__PURE__*/ strictEqual());
-const empty$7 = /*#__PURE__*/ Object.create(Proto$14);
+const make$35 = (input) => Object.assign(Object.create(Proto$14), input);
+const Equivalence$2 = /*#__PURE__*/ makeEquivalence$2(/*#__PURE__*/ strictEqual());
+const empty$6 = /*#__PURE__*/ Object.create(Proto$14);
 const fromInput$1 = (input) => {
-	if (input === void 0) return empty$7;
+	if (input === void 0) return empty$6;
 	else if (Symbol.iterator in input) {
 		const out = Object.create(Proto$14);
 		for (const [k, v] of input) out[k.toLowerCase()] = v;
@@ -5422,80 +6175,154 @@ const fromInput$1 = (input) => {
 	return out;
 };
 const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$14);
-const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
-	const out = make$38(self);
+const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
+	const out = make$35(self);
 	out[key.toLowerCase()] = value;
 	return out;
 });
-const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$38({
+const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$35({
 	...self,
 	...fromInput$1(headers)
 }));
-const merge = /*#__PURE__*/ dual(2, (self, headers) => {
-	const out = make$38(self);
+const merge$1 = /*#__PURE__*/ dual(2, (self, headers) => {
+	const out = make$35(self);
 	Object.assign(out, headers);
 	return out;
 });
-const remove$2 = /*#__PURE__*/ dual(2, (self, key) => {
-	const out = make$38(self);
+const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
+	const out = make$35(self);
 	delete out[key.toLowerCase()];
 	return out;
 });
-const redact = /*#__PURE__*/ dual(2, (self, key) => {
+const redact$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	const out = { ...self };
 	const modify = (key) => {
 		if (typeof key === "string") {
 			const k = key.toLowerCase();
-			if (k in self) out[k] = make$39(self[k]);
-		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$39(self[name]);
+			if (k in self) out[k] = make$36(self[k]);
+		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$36(self[name]);
 	};
 	if (Array.isArray(key)) for (let i = 0; i < key.length; i++) modify(key[i]);
 	else modify(key);
 	return out;
 });
-const isRedactedName = (name, patterns) => {
+const isRedactedName$1 = (name, patterns) => {
+	const lowerName = name.toLowerCase();
 	for (let i = 0; i < patterns.length; i++) {
 		const pattern = patterns[i];
 		if (typeof pattern === "string") {
-			if (pattern.toLowerCase() === name.toLowerCase()) return true;
+			if (pattern.toLowerCase() === lowerName) return true;
 		} else if (name.search(pattern) !== -1) return true;
 	}
 	return false;
 };
-const CurrentRedactedNames = /*#__PURE__*/ Reference("effect/Headers/CurrentRedactedNames", { defaultValue: () => [
+const CurrentRedactedNames$1 = /*#__PURE__*/ Reference("effect/Headers/CurrentRedactedNames", { defaultValue: () => [
 	"authorization",
 	"cookie",
 	"set-cookie",
-	"x-api-key",
-	"AWSAccessKeyId",
-	"Signature",
-	"sig",
-	"X-Goog-Signature"
+	"x-api-key"
 ] });
+const HeaderParseErrorTypeId = "~effect/http/Headers/HeaderParseError";
+var HeaderParseErrorReason = class extends Error$2 {};
+var HeaderParseError = class HeaderParseError extends (/*#__PURE__*/ TaggedError$1("HeaderParseError")) {
+	static fromReason(reason, input) {
+		return new HeaderParseError({ reason: new HeaderParseErrorReason({
+			_tag: reason,
+			input
+		}) });
+	}
+	[HeaderParseErrorTypeId] = HeaderParseErrorTypeId;
+	get message() {
+		return `${this.reason._tag}: ${JSON.stringify(this.reason.input)}`;
+	}
+};
+const monthNames = [
+	"jan",
+	"feb",
+	"mar",
+	"apr",
+	"may",
+	"jun",
+	"jul",
+	"aug",
+	"sep",
+	"oct",
+	"nov",
+	"dec"
+];
+const httpDateFormats = [
+	/^(?:mon|tue|wed|thu|fri|sat|sun), (?<day>\d{2}) (?<month>[a-z]{3}) (?<year>\d{4}) (?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}) gmt$/i,
+	/^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday), (?<day>\d{2})-(?<month>[a-z]{3})-(?<year>\d{2}) (?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}) gmt$/i,
+	/^(?:mon|tue|wed|thu|fri|sat|sun) (?<month>[a-z]{3}) (?<day> \d|\d{2}) (?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2}) (?<year>\d{4})$/i
+];
+const httpDateToMillis = (input) => {
+	for (const format of httpDateFormats) {
+		const groups = format.exec(input)?.groups;
+		if (groups === void 0) continue;
+		const month = monthNames.indexOf(groups.month.toLowerCase());
+		const hour = Number(groups.hour);
+		const minute = Number(groups.minute);
+		const second = Number(groups.second);
+		if (month === -1 || hour > 23 || minute > 59 || second > 60) return;
+		let year = Number(groups.year);
+		if (groups.year.length === 2) year += year < 70 ? 2e3 : 1900;
+		const day = Number(groups.day);
+		const date = /* @__PURE__ */ new Date(0);
+		date.setUTCFullYear(year, month, day);
+		if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) return;
+		return date.getTime() + ((hour * 60 + minute) * 60 + second) * 1e3;
+	}
+};
+const retryAfterDateTime = (dateTime) => ({
+	_tag: "DateTime",
+	dateTime
+});
+const wholeSeconds = /^\d+$/;
+const nanosPerSecond = /*#__PURE__*/ BigInt(1e9);
+const parseRetryAfter$1 = (input) => {
+	const trimmed = input.trim();
+	if (wholeSeconds.test(trimmed)) {
+		const seconds$1 = Number(trimmed);
+		const duration = Number.isSafeInteger(seconds$1 * 1e3) ? seconds(seconds$1) : nanos(BigInt(trimmed) * nanosPerSecond);
+		return succeed$8({
+			_tag: "Duration",
+			duration
+		});
+	}
+	const millis = httpDateToMillis(trimmed);
+	return millis === void 0 ? fail$7(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$2(millis)));
+};
+const retryAfterDelay = (self, now) => self._tag === "Duration" ? self.duration : millis(Math.max(0, toEpochMillis(self.dateTime) - now));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/UrlParams.js
-const TypeId$37 = "~effect/http/UrlParams";
-const isUrlParams = (u) => hasProperty(u, TypeId$37);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/urlParams.js
+const unwrap$3 = (value) => typeof value === "string" ? value : value$2(value);
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/UrlParams.js
+const TypeId$38 = "~effect/http/UrlParams";
+const isUrlParams = (u) => hasProperty(u, TypeId$38);
 const Proto$13 = {
 	...PipeInspectableProto,
-	[TypeId$37]: TypeId$37,
+	[TypeId$38]: TypeId$38,
 	[Symbol.iterator]() {
 		return this.params[Symbol.iterator]();
 	},
-	toJSON() {
+	[symbolRedactable](context) {
 		return {
 			_id: "UrlParams",
-			params: Object.fromEntries(this.params)
+			params: Object.fromEntries(redact(this, get$2(context, CurrentRedactedNames)))
 		};
 	},
+	toJSON() {
+		return redact$2(this);
+	},
 	[symbol$2](that) {
-		return Equivalence(this, that);
+		return Equivalence$1(this, that);
 	},
 	[symbol$3]() {
 		return array(this.params.flat());
 	}
 };
-const make$37 = (params) => {
+const make$34 = (params) => {
 	const self = Object.create(Proto$13);
 	self.params = params;
 	return self;
@@ -5508,23 +6335,24 @@ const fromInput = (input) => {
 		const [keys, value] = parsed[i];
 		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
 	} else out.push(parsed[i]);
-	return make$37(out);
+	return make$34(out);
 };
 const fromInputNested = (input) => {
 	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
 	const out = [];
 	for (const [key, value] of entries) if (Array.isArray(value)) {
-		for (let i = 0; i < value.length; i++) if (value[i] !== void 0) out.push([key, String(value[i])]);
-	} else if (value !== null && typeof value === "object") {
+		for (let i = 0; i < value.length; i++) if (value[i] !== void 0) out.push([key, coerce(value[i])]);
+	} else if (value !== null && typeof value === "object" && !isRedacted(value)) {
 		const nested = fromInputNested(value);
 		for (const [k, v] of nested) out.push([[key, ...typeof k === "string" ? [k] : k], v]);
-	} else if (value !== void 0) out.push([key, String(value)]);
+	} else if (value !== void 0) out.push([key, coerce(value)]);
 	return out;
 };
-const Equivalence = /*#__PURE__*/ make$50((a, b) => arrayEquivalence(a.params, b.params));
-const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ strictEqual()]));
-const empty$6 = /*#__PURE__*/ make$37([]);
-const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$37(f(self.params)));
+const coerce = (value) => isRedacted(value) ? value : String(value);
+const Equivalence$1 = /*#__PURE__*/ make$50((a, b) => arrayEquivalence(a.params, b.params));
+const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ asEquivalence()]));
+const empty$5 = /*#__PURE__*/ make$34([]);
+const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$34(f(self.params)));
 const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 	const params = fromInput(input).params.slice();
 	const keys = /* @__PURE__ */ new Set();
@@ -5533,23 +6361,83 @@ const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 		if (keys.has(self.params[i][0])) continue;
 		params.push(self.params[i]);
 	}
-	return make$37(params);
+	return make$34(params);
 });
-const appendAll$1 = /*#__PURE__*/ dual(2, (self, input) => transform$2(self, appendAll$2(fromInput(input).params)));
-const toString = (input) => new URLSearchParams(fromInput(input).params).toString();
+const appendAll = /*#__PURE__*/ dual(2, (self, input) => transform$2(self, appendAll$2(fromInput(input).params)));
+const toString = (input) => new URLSearchParams(fromInput(input).params.map(([key, value]) => [key, unwrap$3(value)])).toString();
 const toRecord = (self) => {
 	const out = {};
-	for (const [k, value] of self.params) if (!Object.hasOwn(out, k)) assignProperty(out, k, value);
-	else {
-		const current = out[k];
-		if (typeof current === "string") assignProperty(out, k, [current, value]);
-		else current.push(value);
+	for (const [k, v] of self.params) {
+		const value = unwrap$3(v);
+		if (!Object.hasOwn(out, k)) assignProperty(out, k, value);
+		else {
+			const current = out[k];
+			if (typeof current === "string") assignProperty(out, k, [current, value]);
+			else current.push(value);
+		}
 	}
 	return out;
 };
 const toReadonlyRecord = toRecord;
+const redact = /*#__PURE__*/ dual(2, (self, key) => {
+	const patterns = Array.isArray(key) ? key : [key];
+	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$36(value) : value]);
+});
+const isRedactedName = isRedactedName$1;
+const redactUrl = (url, redactedNames = currentRedactedNames()) => {
+	if (url.includes("@")) url = redactUserinfo(url);
+	const queryStart = url.indexOf("?");
+	if (queryStart === -1 || redactedNames.length === 0) return url;
+	const hashStart = url.indexOf("#");
+	if (hashStart !== -1 && hashStart < queryStart) return url;
+	const queryEnd = hashStart === -1 ? url.length : hashStart;
+	return url.slice(0, queryStart + 1) + redactQuery(url.slice(queryStart + 1, queryEnd), redactedNames) + url.slice(queryEnd);
+};
+const authorityStart = /^(?:(https?|ftp|wss?):[/\\]*|[a-z][a-z\d+.-]*:\/\/|[/\\]{2,})/i;
+const specialAuthorityEnd = /[/\\?#]/;
+const authorityEnd = /[/?#]/;
+const redactUserinfo = (url) => {
+	let normalized = "";
+	const offsets = [];
+	for (let i = 0; i < url.length; i++) {
+		const code = url.charCodeAt(i);
+		if (code === 9 || code === 10 || code === 13 || normalized === "" && code <= 32) continue;
+		normalized += url[i];
+		offsets.push(i);
+	}
+	const authority = authorityStart.exec(normalized);
+	if (authority === null) return url;
+	const start = authority[0].length;
+	const special = authority[1] !== void 0 || !authority[0].includes(":");
+	const rest = normalized.slice(start);
+	const end = rest.search(special ? specialAuthorityEnd : authorityEnd);
+	const userinfoEnd = (end === -1 ? rest : rest.slice(0, end)).lastIndexOf("@");
+	return userinfoEnd === -1 ? url : url.slice(0, offsets[start]) + "REDACTED:REDACTED" + url.slice(offsets[start + userinfoEnd]);
+};
+const redactQuery = (query, redactedNames) => query.split("&").map((part) => {
+	const index = part.indexOf("=");
+	return index !== -1 && isRedactedName(decodeQueryKey(part.slice(0, index)), redactedNames) ? part.slice(0, index + 1) + "REDACTED" : part;
+}).join("&");
+const decodeQueryKey = (key) => {
+	if (!key.includes("%") && !key.includes("+")) return key;
+	try {
+		return decodeURIComponent(key.replace(/\+/g, " "));
+	} catch {
+		return key;
+	}
+};
+const currentRedactedNames = () => get$2(globalThis["~effect/Fiber/currentFiber"]?.context ?? empty$10(), CurrentRedactedNames);
+const CurrentRedactedNames = /*#__PURE__*/ Reference("effect/http/UrlParams/CurrentRedactedNames", { defaultValue: () => [
+	"X-Amz-Signature",
+	"X-Amz-Credential",
+	"X-Amz-Security-Token",
+	"AWSAccessKeyId",
+	"Signature",
+	"sig",
+	"X-Goog-Signature"
+] });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/annotations.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/annotations.js
 function resolve$1(ast) {
 	return ast.checks ? ast.checks[ast.checks.length - 1].annotations : ast.annotations;
 }
@@ -5596,7 +6484,7 @@ const annotationExcludedKeys = /*#__PURE__*/ new Set([
 	"toCodecArbitrary"
 ]);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/parser.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/parser.js
 const missing = /*#__PURE__*/ Symbol();
 const succeed$2 = succeed$6;
 const missingExit = /*#__PURE__*/ succeed$2(missing);
@@ -5604,16 +6492,16 @@ const sameExit = /*#__PURE__*/ succeed$2(missing);
 const toOption = (value) => value === missing ? none() : some(value);
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed$2(option.value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/SchemaIssue.js
-const TypeId$36 = "~effect/SchemaIssue/Issue";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaIssue.js
+const TypeId$37 = "~effect/SchemaIssue/Issue";
 function isIssue(u) {
-	return hasProperty(u, TypeId$36) && u[TypeId$36] === TypeId$36;
+	return hasProperty(u, TypeId$37) && u[TypeId$37] === TypeId$37;
 }
 function hasInput(issue) {
 	return Object.hasOwn(issue, "input");
 }
 var IssueNodeImpl = class {
-	[TypeId$36] = TypeId$36;
+	[TypeId$37] = TypeId$37;
 	constructor(input, options) {
 		if (options?.reportInput === true && input !== missing) this.input = input;
 	}
@@ -5762,7 +6650,7 @@ const defaultLeafHook = (issue) => {
 		}
 	}
 };
-const defaultCheckHook = (issue) => findMessage(issue.issue) ?? findMessage(issue);
+const defaultCheckHook = (issue) => findMessage(issue) ?? findMessage(issue.issue);
 function formatInput(issue) {
 	return hasInput(issue) ? format$2(issue.input) : void 0;
 }
@@ -5773,6 +6661,12 @@ function findExpected(issue) {
 function getExpectedMessage(expected, issue) {
 	const input = formatInput(issue);
 	return input === void 0 ? `Expected ${expected}` : `Expected ${expected}, got ${input}`;
+}
+function getFilterMessage(issue, checkHook) {
+	const message = checkHook(issue);
+	if (message !== void 0 || issue.issue._tag !== "InvalidValue") return message;
+	const expected = findExpected(issue.issue);
+	return expected === void 0 ? getExpectedMessage(formatCheck(issue.filter), issue) : getExpectedMessage(expected, issue.issue);
 }
 function formatCheck(check) {
 	const expected = check.annotations?.expected;
@@ -5786,38 +6680,29 @@ function makeFormatterDefault() {
 	return (issue) => formatIssue(issue, "");
 }
 const defaultFormatter = /*#__PURE__*/ makeFormatterDefault();
-function formatIssue(issue, path) {
+function formatIssue(issue, path, messageOverride) {
 	let message;
 	switch (issue._tag) {
-		case "Filter": {
-			const annotated = defaultCheckHook(issue);
-			if (annotated !== void 0) message = annotated;
-			else {
-				if (issue.issue._tag !== "InvalidValue") return formatIssue(issue.issue, path);
-				const expected = findExpected(issue.issue);
-				message = expected === void 0 ? getExpectedMessage(formatCheck(issue.filter), issue) : getExpectedMessage(expected, issue.issue);
-			}
-			break;
-		}
-		case "Encoding": return formatIssue(issue.issue, path);
-		case "Pointer": return formatIssue(issue.issue, path + formatPath(issue.path));
+		case "Filter": return formatIssue(issue.issue, path, messageOverride ?? getFilterMessage(issue, defaultCheckHook));
+		case "Encoding": return formatIssue(issue.issue, path, messageOverride);
+		case "Pointer": return formatIssue(issue.issue, path + formatPath(issue.path), messageOverride);
 		case "Composite":
 		case "AnyOf":
-			if (issue._tag === "Composite" || issue.issues.length > 0) return issue.issues.map((issue) => formatIssue(issue, path)).join("\n");
-			message = findMessage(issue) ?? getExpectedMessage(getExpected(issue.ast), issue);
+			if (issue._tag === "Composite" || issue.issues.length > 0) return issue.issues.map((issue) => formatIssue(issue, path, messageOverride)).join("\n");
+			message = messageOverride ?? findMessage(issue) ?? getExpectedMessage(getExpected(issue.ast), issue);
 			break;
-		default: message = defaultLeafHook(issue);
+		default: message = messageOverride ?? defaultLeafHook(issue);
 	}
 	return path ? `${message}\n  at ${path}` : message;
 }
 function findMessage(issue) {
-	if (issue._tag === "Pointer") return;
+	if (issue._tag === "Pointer" || issue._tag === "Composite") return;
 	if (issue._tag === "Encoding") return findMessage(issue.issue);
 	const message = (issue._tag === "Filter" ? issue.filter.annotations : "annotations" in issue ? issue.annotations : issue.ast.annotations)?.[issue._tag === "MissingKey" ? "messageMissingKey" : issue._tag === "UnexpectedKey" ? "messageUnexpectedKey" : "message"];
 	if (typeof message === "string") return message;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/cause.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/cause.js
 function getSchemaIssue(cause) {
 	let issue;
 	for (const reason of cause.reasons) {
@@ -5832,7 +6717,7 @@ function getSchemaIssueOrThrow(cause, message) {
 	return issue;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/SchemaGetter.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaGetter.js
 const makeGetter = (fields) => Object.assign(Object.create(Prototype$1), fields);
 function fail$2(f) {
 	return transformOptionalEffect((oe, options) => fail$3(f(oe, options)));
@@ -5888,7 +6773,13 @@ function Number$3() {
 	return transform$1(globalThis.Number);
 }
 function BigInt$3() {
-	return transform$1(globalThis.BigInt);
+	return transformEffect$1((input, options) => {
+		try {
+			return succeed$3(globalThis.BigInt(input));
+		} catch {
+			return fail$3(new InvalidValue({ expected: "a value that can be converted to a bigint" }, input, options));
+		}
+	});
 }
 function parseJson(options) {
 	return transformEffect$1((input, parseOptions) => try_({
@@ -5907,13 +6798,23 @@ function stringifyJson(options) {
 	}));
 }
 function encodeBase64() {
-	return transform$1(encode);
+	return transform$1(encode$1);
 }
 function decodeBase64() {
-	return transformEffect$1((input, options) => mapErrorEager(fromResult(decode$3(input)), () => new InvalidValue({ expected: "a valid Base64 string" }, input, options)));
+	return transformEffect$1((input, options) => mapErrorEager(fromResult(decode$4(input)), () => new InvalidValue({ expected: "a valid Base64 string" }, input, options)));
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/SchemaTransformation.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/content.js
+const ContentTypeId = /*#__PURE__*/ Symbol.for("~effect/Schema/content");
+function setContent(operation, content) {
+	Object.defineProperty(operation, ContentTypeId, { value: content });
+	return operation;
+}
+function getContent(operation) {
+	return operation[ContentTypeId];
+}
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaTransformation.js
 const Middleware = class extends Class$3 {
 	_tag = "Middleware";
 	decode;
@@ -5927,9 +6828,9 @@ const Middleware = class extends Class$3 {
 		return new Middleware(this.encode, this.decode);
 	}
 };
-const TypeId$35 = "~effect/SchemaTransformation/Transformation";
+const TypeId$36 = "~effect/SchemaTransformation/Transformation";
 const Transformation = class extends Class$3 {
-	[TypeId$35] = TypeId$35;
+	[TypeId$36] = TypeId$36;
 	_tag = "Transformation";
 	decode;
 	encode;
@@ -5943,7 +6844,7 @@ const Transformation = class extends Class$3 {
 	}
 };
 function isTransformation(u) {
-	return hasProperty(u, TypeId$35) && u[TypeId$35] === TypeId$35;
+	return hasProperty(u, TypeId$36) && u[TypeId$36] === TypeId$36;
 }
 const makeTransformation = (options) => {
 	if (isTransformation(options)) return options;
@@ -5961,7 +6862,7 @@ function passthrough() {
 }
 const numberFromString = /*#__PURE__*/ new Transformation(/*#__PURE__*/ Number$3(), /*#__PURE__*/ String$4());
 const bigintFromString = /*#__PURE__*/ new Transformation(/*#__PURE__*/ BigInt$3(), /*#__PURE__*/ String$4());
-const isJsonError = (input) => isObject(input) && typeof input["message"] === "string";
+const isJsonError = (input) => isObject$2(input) && typeof input["message"] === "string";
 const decodeJsonError = (input) => {
 	const err = Object.hasOwn(input, "cause") ? new Error(input.message, { cause: decodeDefect(input.cause) }) : new Error(input.message);
 	if (typeof input.name === "string" && input.name !== "Error") err.name = input.name;
@@ -6006,10 +6907,13 @@ const defectFromJson = (options) => transform({
 });
 const uint8ArrayFromBase64String = /*#__PURE__*/ new Transformation(/*#__PURE__*/ decodeBase64(), /*#__PURE__*/ encodeBase64());
 function fromJsonString$1(options) {
-	return new Transformation(parseJson(options ?? {}), stringifyJson(options));
+	return new Transformation(parseJson(options ?? {}), setContent(stringifyJson(options), {
+		mediaType: "application/json",
+		preserveSchema: options?.reviver === void 0 && options?.replacer === void 0
+	}));
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/SchemaAST.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaAST.js
 function makeGuard(tag) {
 	return (ast) => ast._tag === tag;
 }
@@ -6044,9 +6948,9 @@ const Context = class {
 		this.annotations = annotations;
 	}
 };
-const TypeId$34 = "~effect/Schema";
+const TypeId$35 = "~effect/Schema";
 var ASTNodeImpl = class {
-	[TypeId$34] = TypeId$34;
+	[TypeId$35] = TypeId$35;
 	annotations;
 	checks;
 	encoding;
@@ -6078,7 +6982,12 @@ const Declaration = class extends ASTNodeImpl {
 		let run;
 		return (input, options) => {
 			if (input === missing) return missingExit;
-			return (run ??= this.run(this.typeParameters))(input, this, options);
+			run ??= this.run(this.typeParameters);
+			try {
+				return run(input, this, options);
+			} catch (error) {
+				return die$2(error);
+			}
 		};
 	}
 	_rebuild(recur, checks, encodingChecks, run, encodingRun) {
@@ -6279,7 +7188,7 @@ function literalToString(ast) {
 const String$3 = class extends ASTNodeImpl {
 	_tag = "String";
 	getParser() {
-		return fromRefinement(this, isString);
+		return fromRefinement(this, isString$1);
 	}
 	matchPart(s, options) {
 		const checks = this.checks;
@@ -6402,7 +7311,7 @@ const Arrays = class extends ASTNodeImpl {
 				input,
 				len,
 				tailThreshold: Math.max(elementLen, len - tailLen),
-				output: new globalThis.Array(len),
+				output: [],
 				issues: void 0,
 				options
 			};
@@ -6415,7 +7324,7 @@ const Arrays = class extends ASTNodeImpl {
 			if (!eff) return finish(state);
 			if (effectIsExit(eff)) return flatMapEager(eff, () => finish(state));
 			let first = true;
-			return suspend$2(() => {
+			return suspend$3(() => {
 				if (!first) return parse(input, options);
 				first = false;
 				return flatMap(eff, () => finish(state));
@@ -6437,7 +7346,7 @@ const Arrays = class extends ASTNodeImpl {
 				}
 				return parse(input, options);
 			} catch (error) {
-				return die(error);
+				return die$2(error);
 			}
 		};
 	}
@@ -6489,7 +7398,7 @@ const wrapPropertyKeyIssue = (s, ast, key, exit) => {
 		else s.issues = [pointer];
 	} else return fail$4(new Composite(ast, [pointer], s.input, s.options));
 };
-const FINITE_PATTERN = "[+-]?\\d*\\.?\\d+(?:[Ee][+-]?\\d+)?";
+const FINITE_PATTERN = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[Ee][+-]?\\d+)?";
 function getIndexSignatureKeys(input, parameter, options = defaultParseOptions) {
 	let stringKeys;
 	let symbolKeys;
@@ -6544,7 +7453,7 @@ const IndexSignature = class {
 		if (!isIndexSignatureParameter(parameter)) throw new Error(`Invalid index signature parameter ${parameter._tag}`);
 		this.parameter = parameter;
 		this.type = type;
-		if (isOptional(type) && !containsUndefined(type)) throw new Error("Cannot use `Schema.optionalKey` with index signatures, use `Schema.optional` instead.");
+		if (isOptional(type) || type.encoding !== void 0 && isOptional(toEncoded$1(type))) throw new Error("Cannot use `Schema.optionalKey` or `Schema.optional` with index signatures. Index signatures already allow keys to be absent; use `Schema.UndefinedOr` to allow `undefined` values.");
 	}
 };
 const Objects = class extends ASTNodeImpl {
@@ -6676,9 +7585,13 @@ const Objects = class extends ASTNodeImpl {
 		};
 		if (indexCount) return makeFallback();
 		let fallback;
-		const resume = (state, index, pending) => {
+		const resume = (snapshot, index, pending) => {
 			const property = properties[index];
 			return flatMap(exit(pending), (exit) => {
+				const state = {
+					...snapshot,
+					out: { ...snapshot.out }
+				};
 				const terminal = stepProperty(state, property, exit);
 				if (terminal) return terminal;
 				const done = () => succeed$2(state.out);
@@ -6716,7 +7629,7 @@ const Objects = class extends ASTNodeImpl {
 					if (terminal) return terminal;
 				}
 			} catch (error) {
-				return die(error);
+				return die$2(error);
 			}
 			return succeed$2(out);
 		};
@@ -7080,7 +7993,7 @@ function failSingleUnionCandidate(ast, cause, input, options) {
 	return fail$4(new AnyOf(ast, [issue], input, options));
 }
 function catchSingleUnionCandidate(ast, result, input, options) {
-	return catchCause$1(result, (cause) => failSingleUnionCandidate(ast, cause, input, options));
+	return catchCause$2(result, (cause) => failSingleUnionCandidate(ast, cause, input, options));
 }
 function parseUnionCandidates(ast, parser, candidates, input, options) {
 	const state = {
@@ -7099,7 +8012,7 @@ function parseUnionCandidates(ast, parser, candidates, input, options) {
 	}
 	if (effectIsExit(eff)) return resumeUnion(eff, state);
 	let first = true;
-	return suspend$2(() => {
+	return suspend$3(() => {
 		if (!first) return parseUnionCandidates(ast, parser, candidates, input, options);
 		first = false;
 		return resumeUnion(eff, state);
@@ -7144,6 +8057,26 @@ function formatIsMutable(isMutable) {
 function formatIsOptional(isOptional) {
 	return isOptional ? "?" : "";
 }
+const Suspend = class extends ASTNodeImpl {
+	_tag = "Suspend";
+	thunk;
+	constructor(thunk, annotations, checks, encoding, context) {
+		if (checks) throw new Error("Cannot add checks to Suspend");
+		super(annotations, void 0, encoding, context);
+		let ast;
+		this.thunk = () => ast ??= thunk();
+	}
+	getParser(compile) {
+		let parser;
+		return (input, options) => (parser ??= compile(this.thunk()))(input, options);
+	}
+	recur(recur) {
+		return new Suspend(() => recur(this.thunk()), this.annotations, void 0, void 0, this.context);
+	}
+	getExpected(getExpected) {
+		return getExpected(this.thunk());
+	}
+};
 const Filter = class extends Class$3 {
 	_tag = "Filter";
 	run;
@@ -7340,13 +8273,19 @@ function decodeTo$1(from, to, transformation) {
 function parseParameter(ast) {
 	const literals = [];
 	const parameters = [];
+	function addLiteral(literal) {
+		if (!literals.includes(literal)) literals.push(literal);
+	}
 	function go(ast) {
 		switch (ast._tag) {
 			case "Literal":
-				if (isPropertyKey(ast.literal) && !literals.includes(ast.literal)) literals.push(ast.literal);
+				if (isPropertyKey(ast.literal)) addLiteral(ast.literal);
 				return;
 			case "UniqueSymbol":
-				if (!literals.includes(ast.symbol)) literals.push(ast.symbol);
+				addLiteral(ast.symbol);
+				return;
+			case "Enum":
+				for (const [, value] of ast.enums) addLiteral(value);
 				return;
 			case "Never": return;
 			case "Union":
@@ -7430,13 +8369,6 @@ const flip = /*#__PURE__*/ memoize((ast) => {
 	}
 	return "flip" in ast ? ast.flip(flip) : "recur" in ast ? ast.recur(flip) : ast;
 });
-function containsUndefined(ast) {
-	switch (ast._tag) {
-		case "Undefined": return true;
-		case "Union": return ast.types.some(containsUndefined);
-		default: return false;
-	}
-}
 function fromConst(ast, value) {
 	const succeed = value === 0 ? sameExit : succeed$2(value);
 	return (input, options) => {
@@ -7652,9 +8584,19 @@ const unknownToStringTree = /*#__PURE__*/ new Link(/* @__PURE__ */ new Declarati
 	toCodecStringTree: () => void 0
 }), /*#__PURE__*/ passthrough());
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/interpreter.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/interpreter.js
 const flatMapTransformation = (result, current, f) => result === sameExit ? f(current) : flatMapEager(result, f);
 function compileTransformation(transformation) {
+	const apply = compileTransformationUnsafe(transformation);
+	return (result, current, options) => {
+		try {
+			return apply(result, current, options);
+		} catch (error) {
+			return die$2(error);
+		}
+	};
+}
+function compileTransformationUnsafe(transformation) {
 	if (transformation._tag === "Middleware") return (result, current, options) => {
 		const transformed = result === sameExit ? transformation.decode(succeed$2(toOption(current)), options) : transformation.decode(mapEager(result, toOption), options);
 		return fromOptionalEffect(transformed);
@@ -7675,7 +8617,7 @@ function compileTransformation(transformation) {
 	}
 }
 const fromOptionalEffect = (effect) => flatMapEager(effect, fromOptionExit);
-const wrapEncoding = (ast, input, options, effect) => catchCause$1(effect, (cause) => failCauseSync(() => map$5(cause, (issue) => new Encoding(ast, issue, input, options))));
+const wrapEncoding = (ast, input, options, effect) => catchCause$2(effect, (cause) => failCauseSync(() => map$5(cause, (issue) => new Encoding(ast, issue, input, options))));
 function makeConstructorParser(descriptor, compile) {
 	const transform = compileTransformation(descriptor.link.transformation);
 	let sourceParser;
@@ -7717,40 +8659,44 @@ function compile(ast, compile, compileField, base, specialize) {
 	let encodingParsers;
 	const parseChecks = (input, options) => {
 		let result = parser(input, options);
-		if (encodingChecks && !options.disableChecks) {
-			if (effectIsExit(result)) {
-				if (result._tag === "Success") {
-					const output = result === sameExit ? input : result[args];
-					if (input !== missing && output !== missing) {
-						const issues = collectIssues(encodingChecks, input, void 0, ast, options);
-						if (issues) result = fail$3(new Composite(ast, issues, input, options));
+		try {
+			if (encodingChecks && !options.disableChecks) {
+				if (effectIsExit(result)) {
+					if (result._tag === "Success") {
+						const output = result === sameExit ? input : result[args];
+						if (input !== missing && output !== missing) {
+							const issues = collectIssues(encodingChecks, input, void 0, ast, options);
+							if (issues) result = fail$3(new Composite(ast, issues, input, options));
+						}
 					}
-				}
-			} else result = flatMap(result, (value) => {
-				if (input !== missing && value !== missing) {
-					const issues = collectIssues(encodingChecks, input, void 0, ast, options);
-					if (issues) return fail$3(new Composite(ast, issues, input, options));
-				}
-				return succeed$3(value);
-			});
+				} else result = flatMap(result, (value) => {
+					if (input !== missing && value !== missing) {
+						const issues = collectIssues(encodingChecks, input, void 0, ast, options);
+						if (issues) return fail$3(new Composite(ast, issues, input, options));
+					}
+					return succeed$3(value);
+				});
+			}
+			if (checks && !options.disableChecks) {
+				if (effectIsExit(result)) {
+					if (result._tag === "Success") {
+						const value = result === sameExit ? input : result[args];
+						if (value === missing) return result;
+						const issues = collectIssues(checks, value, void 0, ast, options);
+						if (issues) result = fail$3(new Composite(ast, issues, value, options));
+					}
+				} else result = flatMap(result, (value) => {
+					if (value !== missing) {
+						const issues = collectIssues(checks, value, void 0, ast, options);
+						if (issues) return fail$3(new Composite(ast, issues, value, options));
+					}
+					return succeed$3(value);
+				});
+			}
+			return result;
+		} catch (error) {
+			return die$2(error);
 		}
-		if (checks && !options.disableChecks) {
-			if (effectIsExit(result)) {
-				if (result._tag === "Success") {
-					const value = result === sameExit ? input : result[args];
-					if (value === missing) return result;
-					const issues = collectIssues(checks, value, void 0, ast, options);
-					if (issues) result = fail$3(new Composite(ast, issues, value, options));
-				}
-			} else result = flatMap(result, (value) => {
-				if (value !== missing) {
-					const issues = collectIssues(checks, value, void 0, ast, options);
-					if (issues) return fail$3(new Composite(ast, issues, value, options));
-				}
-				return succeed$3(value);
-			});
-		}
-		return result;
 	};
 	const parseLocal = specialize === void 0 ? parseChecks : specialize(parseChecks);
 	if (!links) return parseLocal;
@@ -7784,7 +8730,7 @@ function compile(ast, compile, compileField, base, specialize) {
 	};
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/compilerRegistry.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/compilerRegistry.js
 const invalid$1 = /*#__PURE__*/ Symbol();
 const cache = /*#__PURE__*/ new WeakMap();
 const decodeChild = (ast) => resolve(ast).parser;
@@ -7813,7 +8759,7 @@ function resolve(ast) {
 	return entry;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/SchemaParser.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaParser.js
 function makeEffect(schema) {
 	const ast = schema.ast;
 	let parser;
@@ -7833,7 +8779,7 @@ function makeOption(schema) {
 		return none();
 	};
 }
-function make$36(schema) {
+function make$33(schema) {
 	return makeConstructorSync(toType$1(schema.ast));
 }
 function is$3(schema) {
@@ -7926,39 +8872,53 @@ function runSync(effect, message) {
 	const issue = getSchemaIssueOrThrow(exit.cause, message);
 	throw new Error("Schema validation failed", { cause: issue });
 }
+const constructorDefectMessage = "Constructor adapter can only throw schema issues";
+function throwConstructorDefect(error) {
+	throw new Error(constructorDefectMessage, { cause: die$4(error) });
+}
 function makeConstructorSync(ast) {
 	let entry;
-	let parser;
-	return (input, options) => {
-		entry ??= resolve(ast);
-		const parseOptions = options?.disableChecks ? options.parseOptions ? {
-			...options.parseOptions,
-			disableChecks: true
-		} : { disableChecks: true } : options?.parseOptions ?? defaultParseOptions;
-		const make = entry.make;
-		if (make !== void 0 && input !== missing) {
-			let output;
-			try {
-				output = make(input, parseOptions);
-			} catch (error) {
-				getSchemaIssueOrThrow(die$2(error), "Constructor adapter can only throw schema issues");
-				throw error;
-			}
-			if (output !== invalid$1 && output !== missing) return output;
+	return (input, options) => constructSync(entry ??= resolve(ast), input, options);
+}
+function constructSync(entry, input, options) {
+	const parseOptions = options?.disableChecks ? options.parseOptions ? {
+		...options.parseOptions,
+		disableChecks: true
+	} : { disableChecks: true } : options?.parseOptions ?? defaultParseOptions;
+	const make = entry.make;
+	if (make !== void 0 && input !== missing) {
+		let output;
+		try {
+			output = make(input, parseOptions);
+		} catch (error) {
+			throwConstructorDefect(error);
 		}
-		return runSync(parserResult((parser ??= entry.makeEffect)(input, parseOptions), input), "Constructor adapter can only throw schema issues");
-	};
+		if (output !== invalid$1 && output !== missing) return output;
+	}
+	return runSync(parserResult(entry.makeEffect(input, parseOptions), input), constructorDefectMessage);
+}
+function makeClassSync(ast, input, options, construct) {
+	const entry = resolve(ast);
+	const descriptor = getConstructorDescriptor(ast);
+	if (descriptor === void 0 || entry.make !== void 0 || entry.compiledMakeEffect !== void 0) return constructSync(entry, input, options);
+	if (descriptor.isConstructed(input)) return input;
+	const fields = constructSync((entry.resolve ?? resolve)(descriptor.link.to), input, options);
+	try {
+		return construct(fields);
+	} catch (error) {
+		throwConstructorDefect(error);
+	}
 }
 const normalCompiler = (ast) => resolve(ast).parser;
 const constructorCompiler = (ast) => resolve(ast).makeEffect;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/make.js
-const TypeId$33 = "~effect/Schema/Schema";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/make.js
+const TypeId$34 = "~effect/Schema/Schema";
 const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
-	[TypeId$33]: TypeId$33,
+	[TypeId$34]: TypeId$34,
 	get make() {
-		const value = make$36(this);
+		const value = make$33(this);
 		Object.defineProperty(this, "make", {
 			value,
 			enumerable: true
@@ -7994,10 +8954,10 @@ const SchemaProto = {
 		return this.rebuild(appendChecks(this.ast, checks));
 	},
 	rebuild(ast) {
-		return make$35(ast, this[RebuildOptions]);
+		return make$32(ast, this[RebuildOptions]);
 	}
 };
-function make$35(ast, options) {
+function make$32(ast, options) {
 	function Schema() {}
 	const self = Object.setPrototypeOf(Schema, SchemaProto);
 	if (options && (Object.hasOwn(options, "name") || Object.hasOwn(options, "length") || Object.hasOwn(options, "__proto__"))) Object.defineProperties(self, Object.getOwnPropertyDescriptors({ ...options }));
@@ -8007,7 +8967,32 @@ function make$35(ast, options) {
 	return self;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/JsonPointer.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/jsonSchema.js
+function getSubschemaKind(keyword) {
+	switch (keyword) {
+		case "$defs":
+		case "properties":
+		case "patternProperties":
+		case "dependentSchemas": return "map";
+		case "allOf":
+		case "anyOf":
+		case "oneOf":
+		case "prefixItems": return "array";
+		case "not":
+		case "additionalProperties":
+		case "propertyNames":
+		case "unevaluatedProperties":
+		case "items":
+		case "contains":
+		case "unevaluatedItems":
+		case "if":
+		case "then":
+		case "else":
+		case "contentSchema": return "schema";
+	}
+}
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonPointer.js
 function escapeToken(token) {
 	return token.replace(/~/g, "~0").replace(/\//g, "~1");
 }
@@ -8034,7 +9019,7 @@ function parseUriFragment(fragment) {
 	return pointer === void 0 ? void 0 : pointer.length === 0 ? [] : pointer.slice(1).split("/").map(unescapeToken);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/JsonSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonSchema.js
 function getReferenceKey($ref) {
 	const path = $ref.startsWith("#") ? parseUriFragment($ref) : void 0;
 	return path !== void 0 && path.length === 2 && path[0] === "$defs" ? path[1] : void 0;
@@ -8042,36 +9027,20 @@ function getReferenceKey($ref) {
 function transformSchema(node, transform) {
 	return walk(node, false, true);
 	function walk(node, inheritedResource, isRoot = false) {
-		if (!isObject(node)) return node;
+		if (!isObject$2(node)) return node;
 		const inEmbeddedResource = inheritedResource || !isRoot && createsResource(node.$id);
 		const out = {};
 		for (const key of Object.keys(node)) {
 			const value = node[key];
 			let transformed = value;
-			switch (key) {
-				case "$defs":
-				case "properties":
-				case "patternProperties":
-				case "dependentSchemas":
+			switch (getSubschemaKind(key)) {
+				case "map":
 					transformed = mapObject(value, (value) => walk(value, inEmbeddedResource)) ?? value;
 					break;
-				case "allOf":
-				case "anyOf":
-				case "oneOf":
-				case "prefixItems":
+				case "array":
 					transformed = Array.isArray(value) ? value.map((value) => walk(value, inEmbeddedResource)) : value;
 					break;
-				case "not":
-				case "additionalProperties":
-				case "propertyNames":
-				case "unevaluatedProperties":
-				case "items":
-				case "contains":
-				case "unevaluatedItems":
-				case "if":
-				case "then":
-				case "else":
-				case "contentSchema": transformed = walk(value, inEmbeddedResource);
+				case "schema": transformed = walk(value, inEmbeddedResource);
 			}
 			assignProperty(out, key, transformed);
 		}
@@ -8089,7 +9058,7 @@ function rewriteSchemaRef(schema, rewrite) {
 	if (typeof schema.$dynamicRef === "string") assignProperty(schema, "$dynamicRef", rewrite(schema.$dynamicRef, "$dynamicRef"));
 }
 function mapObject(value, f) {
-	if (!isObject(value)) return void 0;
+	if (!isObject$2(value)) return void 0;
 	const out = {};
 	for (const key of Object.keys(value)) assignProperty(out, key, f(value[key], key));
 	return out;
@@ -8115,16 +9084,25 @@ const PRE_2020_TO_2020_COLLISIONS = [
 [...PRE_2020_TO_2020_COLLISIONS];
 [...PRE_2020_TO_2020_COLLISIONS];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/toCodec.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toCodec.js
 function toCodecJson$1(schema) {
-	return make$35(toCodecJsonAST(schema.ast), { schema });
+	return make$32(toCodecJsonAST(schema.ast), { schema });
 }
-const toCodecJsonAST = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempotent((ast) => {
-	const out = toCodecJsonASTStep(ast, toCodecJsonAST);
-	const context = ast.context;
-	if (out === ast || context === void 0) return out;
-	return replaceContextLastLink(out, withoutConstructorDefault(context));
-});
+const toCodecJsonAST = /*#__PURE__*/ makeCodecDerivation(toCodecJsonASTStep);
+function makeCodecDerivation(step, options) {
+	const deriveBody = memoize((owner) => {
+		const body = replaceContext(owner, void 0);
+		const out = step(body, recur);
+		return out === body ? null : out;
+	});
+	const recur = applyToSelfOrLastLinkEncodingIdempotent((ast) => {
+		const derived = deriveBody(getContextOwner(ast));
+		if (derived === null) return ast;
+		const out = replaceContext(derived, ast.context);
+		return ast.context === void 0 ? out : replaceContextLastLink(out, withoutConstructorDefault(ast.context));
+	}, options);
+	return recur;
+}
 function withoutConstructorDefault(context) {
 	return context.constructorDefault === void 0 ? context : new Context(context.isOptional, context.isMutable, void 0, context.annotations);
 }
@@ -8151,7 +9129,7 @@ function toCodecJsonASTStep(ast, recur) {
 		case "Declaration": {
 			const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec;
 			if (!isFunction(getLink)) return replaceEncoding(ast, [unknownToJson]);
-			const link = getLink(ast.typeParameters.map((tp) => make$35(toEncoded$1(tp))));
+			const link = getLink(ast.typeParameters.map((tp) => make$32(toEncoded$1(tp))));
 			return link === void 0 ? ast : replaceEncoding(ast, [mapLink(link, recur)]);
 		}
 		case "Unknown": return replaceEncoding(ast, [unknownToJson]);
@@ -8177,7 +9155,7 @@ function toCodecJsonASTStep(ast, recur) {
 	return ast;
 }
 function toCodecStringTree$1(schema) {
-	return make$35(toCodecStringTreeAST(schema.ast), { schema });
+	return make$32(toCodecStringTreeAST(schema.ast), { schema });
 }
 const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 	switch (ast._tag) {
@@ -8193,7 +9171,7 @@ const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 function toCodecStringTreeASTStep(ast, recur, onMissingAnnotation) {
 	switch (ast._tag) {
 		case "Declaration": {
-			const typeParameters = ast.typeParameters.map((tp) => make$35(recur(toEncoded$1(tp))));
+			const typeParameters = ast.typeParameters.map((tp) => make$32(recur(toEncoded$1(tp))));
 			const getStringTreeLink = ast.annotations?.toCodecStringTree;
 			if (isFunction(getStringTreeLink)) {
 				const link = getStringTreeLink(typeParameters);
@@ -8233,23 +9211,19 @@ const nullToString = /*#__PURE__*/ new Link(/*#__PURE__*/ new Literal$1("null"),
 const booleanToString = /*#__PURE__*/ new Link(/*#__PURE__*/ new Union$1([/*#__PURE__*/ new Literal$1("true"), /*#__PURE__*/ new Literal$1("false")]), /*#__PURE__*/ new Transformation(/*#__PURE__*/ transform$1((s) => s === "true"), /*#__PURE__*/ String$4()));
 const arrayFromSingleTransformation = /*#__PURE__*/ new Transformation(/*#__PURE__*/ transform$1((input) => typeof input === "string" ? [input] : input), /*#__PURE__*/ passthrough$1());
 const isCodecArrayFromSingleLink = (link) => link.transformation === arrayFromSingleTransformation;
-const toCodecStringTreeAST = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempotent((ast) => {
-	const out = toCodecStringTreeASTStep(ast, toCodecStringTreeAST, (ast) => {
-		throw new globalThis.Error("Missing structural codec for StringTree", { cause: ast });
-	});
-	if (out !== ast && ast.context !== void 0) return replaceContextLastLink(out, withoutConstructorDefault(ast.context));
-	return out;
-}, { stopAt: isCodecArrayFromSingleLink });
+const toCodecStringTreeAST = /*#__PURE__*/ makeCodecDerivation((ast, recur) => toCodecStringTreeASTStep(ast, recur, (ast) => {
+	throw new globalThis.Error("Missing structural codec for StringTree", { cause: ast });
+}), { stopAt: isCodecArrayFromSingleLink });
 globalThis.RegExp;
 const escape = (string) => string.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/errors.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/errors.js
 function errorWithPath(message, path) {
 	if (path.length > 0) message += `\n  at ${formatPath(path)}`;
 	return new Error(message);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
 function formatDefinitionReference(key) {
 	return `#/$defs/${formatUriFragmentToken(key)}`;
 }
@@ -8261,26 +9235,26 @@ const jsonSchemaAnnotationExcludedKeys = /*#__PURE__*/ new Set([
 function collectJsonSchemaAnnotations(annotations, options) {
 	if (annotations === void 0) return void 0;
 	const out = {};
-	const title = annotations.title;
-	if (typeof title === "string") out.title = title;
-	const description = annotations.description;
+	for (const key of [
+		"title",
+		"description",
+		"format",
+		"contentEncoding",
+		"contentMediaType"
+	]) {
+		const value = annotations[key];
+		if (typeof value === "string") out[key] = value;
+	}
+	for (const key of ["readOnly", "writeOnly"]) {
+		const value = annotations[key];
+		if (typeof value === "boolean") out[key] = value;
+	}
 	const expected = annotations.expected;
-	if (typeof description === "string") out.description = description;
-	else if (options?.generateDescriptions === true && typeof expected === "string") out.description = expected;
+	if (out.description === void 0 && options?.generateDescriptions === true && typeof expected === "string") out.description = expected;
 	const defaultValue = annotations.default;
 	if (isJson(defaultValue)) out.default = defaultValue;
 	const examples = annotations.examples;
 	if (Array.isArray(examples) && isJson(examples)) out.examples = examples;
-	const readOnly = annotations.readOnly;
-	if (typeof readOnly === "boolean") out.readOnly = readOnly;
-	const writeOnly = annotations.writeOnly;
-	if (typeof writeOnly === "boolean") out.writeOnly = writeOnly;
-	const format = annotations.format;
-	if (typeof format === "string") out.format = format;
-	const contentEncoding = annotations.contentEncoding;
-	if (typeof contentEncoding === "string") out.contentEncoding = contentEncoding;
-	const contentMediaType = annotations.contentMediaType;
-	if (typeof contentMediaType === "string") out.contentMediaType = contentMediaType;
 	const contentSchema = annotations.contentSchema;
 	if (isJson(contentSchema)) out.contentSchema = contentSchema;
 	if (options?.includeAnnotationKey !== void 0) for (const [key, value] of Object.entries(annotations)) {
@@ -8332,6 +9306,27 @@ function hasOnlyKeywords(schema, allowed) {
 function hasNoCollisions(left, rightKeys) {
 	return typeof left.$ref !== "string" && rightKeys.every((key) => !Object.hasOwn(left, key));
 }
+const lowerBoundKeywords = "|minimum|exclusiveMinimum|minLength|minItems|minProperties|";
+const upperBoundKeywords = "|maximum|exclusiveMaximum|maxLength|maxItems|maxProperties|";
+function mergeInlineCheck(left, right, rightKeys) {
+	if (typeof left.$ref === "string") return void 0;
+	const out = {
+		...left,
+		...right
+	};
+	for (const key of rightKeys) {
+		if (!Object.hasOwn(left, key)) continue;
+		const a = left[key];
+		const b = right[key];
+		if (typeof a !== "number" || typeof b !== "number") return void 0;
+		if (lowerBoundKeywords.includes(`|${key}|`)) out[key] = Math.max(a, b);
+		else if (upperBoundKeywords.includes(`|${key}|`)) out[key] = Math.min(a, b);
+		else return void 0;
+	}
+	if (typeof out.minimum === "number" && typeof out.exclusiveMinimum === "number") delete out[out.exclusiveMinimum >= out.minimum ? "minimum" : "exclusiveMinimum"];
+	if (typeof out.maximum === "number" && typeof out.exclusiveMaximum === "number") delete out[out.exclusiveMaximum <= out.maximum ? "maximum" : "exclusiveMaximum"];
+	return out;
+}
 const promotableAnnotationKeywords = "|title|description|default|examples|readOnly|writeOnly|";
 const inlineableAnnotatedCheckKeywords = inlineableCheckKeywords + promotableAnnotationKeywords;
 function appendJsonSchema(left, right, inlineCheck) {
@@ -8357,10 +9352,10 @@ function appendJsonSchema(left, right, inlineCheck) {
 			} : appendJsonSchema(base, extracted.schema, inlineCheck);
 		}
 	}
-	if (inlineCheck && hasNoCollisions(left, rightKeys)) return {
-		...left,
-		...right
-	};
+	if (inlineCheck) {
+		const merged = mergeInlineCheck(left, right, rightKeys);
+		if (merged !== void 0) return merged;
+	}
 	const members = Array.isArray(right.allOf) && rightKeys.length === 1 ? right.allOf : [right];
 	if (Array.isArray(left.allOf)) return {
 		...left,
@@ -8382,6 +9377,7 @@ function isApproximateCheckOutput(output) {
 	return Array.isArray(output);
 }
 function compileJsonSchema(representations, rootPaths, references, options) {
+	const numberKeyPattern = `^(?:${FINITE_PATTERN}|Infinity|-Infinity|NaN)$`;
 	const compiledDefinitions = /* @__PURE__ */ new Map();
 	const definitionAliases = /* @__PURE__ */ new Map();
 	const compiledRepresentations = /* @__PURE__ */ new WeakMap();
@@ -8390,7 +9386,7 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 	const referenceKeys = Object.keys(references);
 	for (const key of referenceKeys) compileDefinition(key, ["references", key]);
 	const compiledSchemas = map$7(representations, (representation, index) => recur(representation, rootPaths[index], []));
-	for (const [branches, schemas] of pendingOneOf.values()) if (!isExact(branches)) {
+	for (const { branches, schemas } of pendingOneOf.values()) if (!isExact(branches)) {
 		for (const schema of schemas) if (Array.isArray(schema.oneOf)) {
 			schema.anyOf = schema.oneOf;
 			delete schema.oneOf;
@@ -8400,9 +9396,9 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 		const representation = references[key];
 		const fallback = getIdentifierFallback(representation);
 		if (fallback === void 0) continue;
-		const schema = compiledDefinitions.get(key)[0];
+		const schema = compiledDefinitions.get(key).schema;
 		const candidates = fallbackDefinitions.get(fallback);
-		const match = candidates?.find((candidate) => equals$1(compiledDefinitions.get(candidate)[0], schema));
+		const match = candidates?.find((candidate) => equals$1(compiledDefinitions.get(candidate).schema, schema));
 		if (match === void 0) {
 			if (candidates === void 0) fallbackDefinitions.set(fallback, [key]);
 			else candidates.push(key);
@@ -8410,23 +9406,31 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 	}
 	const schemas = map$7(compiledSchemas, finalizeJsonSchema);
 	const definitions = {};
-	for (const key of referenceKeys) if (!definitionAliases.has(key)) assignProperty(definitions, key, finalizeJsonSchema(compiledDefinitions.get(key)[0]));
+	for (const key of referenceKeys) if (!definitionAliases.has(key)) assignProperty(definitions, key, finalizeJsonSchema(compiledDefinitions.get(key).schema));
 	return {
 		dialect: "draft-2020-12",
 		schemas,
 		definitions
 	};
 	function registerPendingOneOf(schema) {
-		if (Array.isArray(schema.oneOf)) pendingOneOf.get(schema.oneOf)?.[1].push(schema);
+		if (Array.isArray(schema.oneOf)) pendingOneOf.get(schema.oneOf)?.schemas.push(schema);
 		return schema;
+	}
+	function compileAnnotatedMember(member, path, dependencies) {
+		const schema = recur(member.type, [...path, "type"], dependencies);
+		const annotations = collectJsonSchemaAnnotations(member.annotations, options);
+		return annotations === void 0 ? schema : registerPendingOneOf(appendJsonSchema(schema, annotations));
 	}
 	function compileDefinition(key, path) {
 		if (!Object.hasOwn(references, key)) throw errorWithPath(`Invalid reference ${key}`, [...path, "$ref"]);
 		const cached = compiledDefinitions.get(key);
 		if (cached !== void 0) return cached;
-		const result = [{}, []];
+		const result = {
+			schema: {},
+			dependencies: []
+		};
 		compiledDefinitions.set(key, result);
-		result[0] = recur(references[key], ["references", key], result[1]);
+		result.schema = recur(references[key], ["references", key], result.dependencies);
 		return result;
 	}
 	function finalizeJsonSchema(schema) {
@@ -8494,22 +9498,30 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 	}
 	function recur(representation, path, dependencies) {
 		if (representation._tag === "Reference") {
-			dependencies.push(compileDefinition(representation.$ref, path)[1]);
+			dependencies.push(compileDefinition(representation.$ref, path).dependencies);
 			return { $ref: formatDefinitionReference(representation.$ref) };
 		}
 		const cached = compiledRepresentations.get(representation);
 		if (cached !== void 0) {
-			dependencies.push(cached[1]);
-			return cached[0];
+			dependencies.push(cached.dependencies);
+			return cached.schema;
 		}
 		const local = [];
 		dependencies.push(local);
-		let output = on(representation, path, local);
-		const ordinary = collectJsonSchemaAnnotations(representation.annotations, options);
-		if (ordinary !== void 0) output = {
-			...output,
-			...ordinary
+		let output = {
+			...on(representation, path, local),
+			...collectJsonSchemaAnnotations(representation.annotations, options)
 		};
+		if (representation._tag === "String" && representation.content !== void 0) {
+			const content = representation.content;
+			output.contentMediaType = content.mediaType;
+			delete output.contentSchema;
+			if (content.schema !== void 0) output.contentSchema = recur(content.schema, [
+				...path,
+				"content",
+				"schema"
+			], []);
+		}
 		for (let index = 0; index < representation.checks.length; index++) {
 			const type = typeof output.type === "string" && isJsonSchemaType(output.type) ? output.type : void 0;
 			const check = compileCheck(representation.checks[index], type, [
@@ -8519,7 +9531,10 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 			], local);
 			if (check !== void 0) output = appendJsonSchema(output, ...check);
 		}
-		compiledRepresentations.set(representation, [output, local]);
+		compiledRepresentations.set(representation, {
+			schema: output,
+			dependencies: local
+		});
 		return registerPendingOneOf(output);
 	}
 	function on(representation, path, dependencies) {
@@ -8568,39 +9583,31 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				};
 			}
 			case "Enum": {
-				const types = representation.enums.map(([title, literal], index) => {
-					if (typeof literal === "number" && !globalThis.Number.isFinite(literal)) throw errorWithPath(`Invalid numeric enum value ${globalThis.String(literal)}`, [
-						...path,
-						"enums",
-						index,
-						1
-					]);
-					return {
-						type: typeof literal,
-						enum: [literal],
-						title
-					};
-				});
+				const types = representation.enums.map(([title, literal]) => ({
+					type: typeof literal,
+					enum: [literal],
+					title
+				}));
 				return types.length === 0 ? { not: {} } : { anyOf: types };
 			}
-			case "TemplateLiteral": return {
-				type: "string",
-				pattern: `^${representation.parts.map(getPartPattern).join("")}$`
-			};
+			case "TemplateLiteral": {
+				const { exact, pattern } = getTemplateLiteralPattern(representation.parts);
+				if (!exact) dependencies.push(false);
+				return {
+					type: "string",
+					pattern
+				};
+			}
 			case "Arrays": {
-				if (representation.rest.length > 1) throw errorWithPath("Invalid schema representation document", [...path, "rest"]);
 				const out = { type: "array" };
 				let minItems = representation.elements.length;
 				const prefixItems = representation.elements.map((element, index) => {
 					if (element.isOptional) minItems--;
-					const schema = recur(element.type, [
+					return compileAnnotatedMember(element, [
 						...path,
 						"elements",
-						index,
-						"type"
+						index
 					], dependencies);
-					const annotations = collectJsonSchemaAnnotations(element.annotations, options);
-					return annotations === void 0 ? schema : registerPendingOneOf(appendJsonSchema(schema, annotations));
 				});
 				if (prefixItems.length > 0) {
 					out.prefixItems = prefixItems;
@@ -8616,92 +9623,15 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 					], dependencies);
 					if (Object.keys(rest).length > 0) out.items = rest;
 					else delete out.items;
+				} else if (representation.rest.length > 1) {
+					delete out.maxItems;
+					delete out.items;
+					out.minItems = minItems + representation.rest.length - 1;
+					dependencies.push(false);
 				}
 				return out;
 			}
-			case "Objects": {
-				if (representation.propertySignatures.length === 0 && representation.indexSignatures.length === 0) return { not: { type: "null" } };
-				const out = { type: "object" };
-				const properties = {};
-				const required = [];
-				for (let index = 0; index < representation.propertySignatures.length; index++) {
-					const property = representation.propertySignatures[index];
-					if (typeof property.name !== "string") throw errorWithPath("Invalid schema representation document", [
-						...path,
-						"propertySignatures",
-						index,
-						"name"
-					]);
-					const name = property.name;
-					const schema = recur(property.type, [
-						...path,
-						"propertySignatures",
-						index,
-						"type"
-					], dependencies);
-					const annotations = collectJsonSchemaAnnotations(property.annotations, options);
-					assignProperty(properties, name, annotations === void 0 ? schema : registerPendingOneOf(appendJsonSchema(schema, annotations)));
-					if (!property.isOptional) required.push(name);
-				}
-				if (representation.propertySignatures.length > 0) out.properties = properties;
-				if (required.length > 0) out.required = required;
-				const patternProperties = {};
-				const additionalPropertySchemas = [];
-				const indexValueSchemas = [];
-				let hasUnrepresentableIndexPattern = false;
-				for (let index = 0; index < representation.indexSignatures.length; index++) {
-					const signature = representation.indexSignatures[index];
-					let type = recur(signature.type, [
-						...path,
-						"indexSignatures",
-						index,
-						"type"
-					], dependencies);
-					if (equals$1(type, { not: {} })) type = false;
-					indexValueSchemas.push(type);
-					const patterns = getParameterPatterns(signature.parameter, [
-						...path,
-						"indexSignatures",
-						index,
-						"parameter"
-					], /* @__PURE__ */ new Set());
-					if (patterns === void 0) {
-						hasUnrepresentableIndexPattern = true;
-						dependencies.push(false);
-						continue;
-					}
-					if (patterns.length === 0) additionalPropertySchemas.push(type);
-					else for (const pattern of patterns) {
-						const previous = patternProperties[pattern];
-						assignProperty(patternProperties, pattern, previous === void 0 ? type : previous === false || type === false ? false : registerPendingOneOf(appendJsonSchema(previous, type)));
-					}
-				}
-				const hasPatternProperties = Object.keys(patternProperties).length > 0;
-				if (hasPatternProperties) out.patternProperties = patternProperties;
-				if (hasUnrepresentableIndexPattern && options?.onExcessProperty === "error") {
-					const propertyNames = [];
-					if (representation.propertySignatures.length > 0) propertyNames.push({ enum: Object.keys(properties) });
-					for (let index = 0; index < representation.indexSignatures.length; index++) propertyNames.push(recur(representation.indexSignatures[index].parameter, [
-						...path,
-						"indexSignatures",
-						index,
-						"parameter"
-					], dependencies));
-					out.propertyNames = propertyNames.length === 1 ? propertyNames[0] : { anyOf: propertyNames };
-					out.additionalProperties = indexValueSchemas.length === 1 ? indexValueSchemas[0] : { anyOf: indexValueSchemas };
-					if (additionalPropertySchemas.length > 0) out.allOf = additionalPropertySchemas.map((type) => ({
-						type: "object",
-						additionalProperties: type
-					}));
-				} else if (additionalPropertySchemas.length === 0) out.additionalProperties = hasUnrepresentableIndexPattern || options?.onExcessProperty !== "error";
-				else if (additionalPropertySchemas.length === 1 && representation.propertySignatures.length === 0 && !hasPatternProperties) out.additionalProperties = additionalPropertySchemas[0];
-				else if (additionalPropertySchemas.length > 0) out.allOf = additionalPropertySchemas.map((type) => ({
-					type: "object",
-					additionalProperties: type
-				}));
-				if (typeof out.additionalProperties === "object" && out.additionalProperties !== null && Object.keys(out.additionalProperties).length === 0) delete out.additionalProperties;
-				return out;
-			}
+			case "Objects": return compileObjects(representation, path, dependencies);
 			case "Union": {
 				const branches = [];
 				const types = representation.types.map((type, index) => recur(type, [
@@ -8711,20 +9641,104 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				], branches));
 				dependencies.push(branches);
 				if (types.length === 0) return { not: {} };
-				const mode = representation.options?.mode ?? "anyOf";
-				if (mode === "anyOf" && types.length > 1) {
+				if (representation.options?.mode === "oneOf") {
+					pendingOneOf.set(types, {
+						branches,
+						schemas: []
+					});
+					return { oneOf: types };
+				}
+				if (types.length > 1) {
 					const compacted = compactEnums(types);
 					if (compacted !== void 0) return compacted;
 				}
-				if (mode === "oneOf") pendingOneOf.set(types, [branches, []]);
-				return { [mode]: types };
+				return { anyOf: types.flatMap((type) => Array.isArray(type.anyOf) && Object.keys(type).length === 1 ? type.anyOf : [type]) };
 			}
+		}
+	}
+	function compileObjects(representation, path, dependencies) {
+		const { indexSignatures, propertySignatures } = representation;
+		if (propertySignatures.length === 0 && indexSignatures.length === 0) return { not: { type: "null" } };
+		const out = { type: "object" };
+		const properties = {};
+		const required = [];
+		for (const [index, property] of propertySignatures.entries()) {
+			const propertyPath = [
+				...path,
+				"propertySignatures",
+				index
+			];
+			if (typeof property.name !== "string") throw errorWithPath("Objects property names must be strings", [...propertyPath, "name"]);
+			assignProperty(properties, property.name, compileAnnotatedMember(property, propertyPath, dependencies));
+			if (!property.isOptional) required.push(property.name);
+		}
+		if (propertySignatures.length > 0) out.properties = properties;
+		if (required.length > 0) out.required = required;
+		const indexes = indexSignatures.map((signature, index) => {
+			const indexPath = [
+				...path,
+				"indexSignatures",
+				index
+			];
+			const schema = recur(signature.type, [...indexPath, "type"], dependencies);
+			const type = equals$1(schema, { not: {} }) ? false : schema;
+			const patterns = getParameterPatterns(signature.parameter, [...indexPath, "parameter"], /* @__PURE__ */ new Set());
+			if (patterns === void 0) dependencies.push(false);
+			return {
+				type,
+				patterns
+			};
+		});
+		const patternProperties = {};
+		for (const { patterns, type } of indexes) for (const pattern of patterns ?? []) {
+			const previous = patternProperties[pattern];
+			assignProperty(patternProperties, pattern, previous === void 0 ? type : previous === false || type === false ? false : registerPendingOneOf(appendJsonSchema(previous, type)));
+		}
+		const hasPatternProperties = Object.keys(patternProperties).length > 0;
+		if (hasPatternProperties) out.patternProperties = patternProperties;
+		const additionalPropertySchemas = indexes.filter(({ patterns }) => patterns?.length === 0).map(({ type }) => type);
+		const hasUnrepresentableIndexPattern = indexes.some(({ patterns }) => patterns === void 0);
+		if (hasUnrepresentableIndexPattern && options?.onExcessProperty === "error") {
+			const propertyNames = [];
+			if (propertySignatures.length > 0) propertyNames.push({ enum: Object.keys(properties) });
+			for (const [index, signature] of indexSignatures.entries()) propertyNames.push(getPropertyNameSchema(signature.parameter, [
+				...path,
+				"indexSignatures",
+				index,
+				"parameter"
+			], dependencies, /* @__PURE__ */ new Set()));
+			out.propertyNames = propertyNames.length === 1 ? propertyNames[0] : { anyOf: propertyNames };
+			const values = indexes.map(({ type }) => type);
+			out.additionalProperties = values.length === 1 ? values[0] : { anyOf: values };
+			if (additionalPropertySchemas.length > 0) out.allOf = additionalPropertySchemas.map((type) => ({
+				type: "object",
+				additionalProperties: type
+			}));
+		} else if (additionalPropertySchemas.length === 0) out.additionalProperties = hasUnrepresentableIndexPattern || options?.onExcessProperty !== "error";
+		else if (additionalPropertySchemas.length === 1 && propertySignatures.length === 0 && !hasPatternProperties) out.additionalProperties = additionalPropertySchemas[0];
+		else out.allOf = additionalPropertySchemas.map((type) => ({
+			type: "object",
+			additionalProperties: type
+		}));
+		if (typeof out.additionalProperties === "object" && out.additionalProperties !== null && Object.keys(out.additionalProperties).length === 0) delete out.additionalProperties;
+		return out;
+	}
+	function getPropertyNameSchema(parameter, path, dependencies, seenReferences) {
+		switch (parameter._tag) {
+			case "Number": return {
+				type: "string",
+				pattern: numberKeyPattern
+			};
+			case "Reference":
+				if (seenReferences.has(parameter.$ref)) return { type: "string" };
+				return getPropertyNameSchema(references[parameter.$ref], ["references", parameter.$ref], dependencies, new Set(seenReferences).add(parameter.$ref));
+			case "Union": return { anyOf: parameter.types.map((type) => getPropertyNameSchema(type, path, dependencies, seenReferences)) };
+			default: return recur(parameter, path, dependencies);
 		}
 	}
 	function getParameterPatterns(parameter, path, seenReferences) {
 		switch (parameter._tag) {
 			case "Reference": {
-				if (!Object.hasOwn(references, parameter.$ref)) throw errorWithPath(`Invalid reference ${parameter.$ref}`, [...path, "$ref"]);
 				compileDefinition(parameter.$ref, path);
 				if (seenReferences.has(parameter.$ref)) return void 0;
 				const next = new Set(seenReferences).add(parameter.$ref);
@@ -8738,7 +9752,11 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				if (!isExact(dependencies)) return void 0;
 				return schema.type === "string" && typeof schema.pattern === "string" && hasOnlyKeywords(schema, "|type|pattern|title|description|default|examples|readOnly|writeOnly|") ? [schema.pattern] : void 0;
 			}
-			case "TemplateLiteral": return parameter.checks.length === 0 ? [`^${parameter.parts.map(getPartPattern).join("")}$`] : void 0;
+			case "TemplateLiteral": {
+				if (parameter.checks.length > 0) return void 0;
+				const { exact, pattern } = getTemplateLiteralPattern(parameter.parts);
+				return exact ? [pattern] : void 0;
+			}
 			case "Union": {
 				if (parameter.types.length === 0 || parameter.checks.length > 0 || parameter.options?.mode === "oneOf") return;
 				const patterns = [];
@@ -8754,7 +9772,39 @@ function compileJsonSchema(representations, rootPaths, references, options) {
 				}
 				return patterns;
 			}
-			default: throw errorWithPath("Invalid schema representation document", path);
+			case "Number": return parameter.checks.length === 0 ? [numberKeyPattern] : void 0;
+			default: throw errorWithPath(`Invalid index signature parameter ${parameter._tag}`, path);
+		}
+	}
+	function getTemplateLiteralPattern(parts) {
+		const activeReferences = /* @__PURE__ */ new Set();
+		let exact = true;
+		return {
+			pattern: `^${parts.map(getPartPattern).join("")}$`,
+			exact
+		};
+		function getPartPattern(part) {
+			if (part._tag !== "Reference" && part.checks.length > 0) exact = false;
+			switch (part._tag) {
+				case "Reference": {
+					if (!Object.hasOwn(references, part.$ref)) throw errorWithPath(`Invalid reference ${part.$ref}`, []);
+					if (activeReferences.has(part.$ref)) throw errorWithPath(`Invalid recursive TemplateLiteral part ${part.$ref}`, []);
+					activeReferences.add(part.$ref);
+					const pattern = getPartPattern(references[part.$ref]);
+					activeReferences.delete(part.$ref);
+					return pattern;
+				}
+				case "Literal": return escape(globalThis.String(part.literal));
+				case "String": return STRING_PATTERN;
+				case "Number": return FINITE_PATTERN;
+				case "BigInt": return "-?\\d+";
+				case "TemplateLiteral": return part.parts.map(getPartPattern).join("");
+				case "Union":
+					if (part.types.length === 0) return "(?!)";
+					if (part.options?.mode === "oneOf") exact = false;
+					return `(?:${part.types.map(getPartPattern).join("|")})`;
+				default: throw errorWithPath(`Invalid TemplateLiteral part ${part._tag}`, []);
+			}
 		}
 	}
 }
@@ -8778,16 +9828,6 @@ function compactEnums(schemas) {
 		enum: values
 	};
 }
-function getPartPattern(part) {
-	switch (part._tag) {
-		case "Literal": return escape(globalThis.String(part.literal));
-		case "String": return STRING_PATTERN;
-		case "Number": return FINITE_PATTERN;
-		case "TemplateLiteral": return part.parts.map(getPartPattern).join("");
-		case "Union": return `(?:${part.types.map(getPartPattern).join("|")})`;
-		default: throw errorWithPath("Invalid schema representation document", []);
-	}
-}
 function toJsonSchemaDocument$1(document, options) {
 	const output = compileJsonSchema([document.representation], [["representation"]], document.references, options);
 	return {
@@ -8797,7 +9837,7 @@ function toJsonSchemaDocument$1(document, options) {
 	};
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schema/toRepresentation.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toRepresentation.js
 const defaultReferencePolicy = ({ identifier }) => identifier;
 function annotationsField(annotations) {
 	return annotations === void 0 ? void 0 : { annotations };
@@ -8811,33 +9851,28 @@ function toRepresentation(ast, options) {
 }
 function toRepresentations(asts, options) {
 	const references = {};
-	const referenceOwners = /* @__PURE__ */ new Map();
-	const buildingReferences = /* @__PURE__ */ new Set();
+	const usedReferences = /* @__PURE__ */ new Set();
 	const candidates = /* @__PURE__ */ new Map();
-	const visitingCandidates = /* @__PURE__ */ new Set();
 	for (const ast of asts) visit(ast);
 	const referencePolicy = options?.referencePolicy ?? defaultReferencePolicy;
-	for (const candidatesByIdentifier of candidates.values()) for (const candidate of candidatesByIdentifier.values()) {
+	for (const variants of candidates.values()) for (const candidate of variants) {
 		const requestedReference = referencePolicy({
 			ast: candidate.ast,
 			occurrences: candidate.occurrences,
 			identifier: candidate.identifier
 		});
-		if (requestedReference !== void 0) candidate.reference = getReference(requestedReference, candidate, requestedReference === candidate.identifier || !requestedReference.endsWith("_") ? "_" : "");
-		else if (candidate.isRecursive) candidate.reference = getReference(`${candidate.ast._tag}_`, candidate, "");
+		if (requestedReference !== void 0) candidate.reference = getReference(requestedReference, requestedReference === candidate.identifier || !requestedReference.endsWith("_") ? "_" : "");
+		else if (candidate.isRecursive) candidate.reference = getReference(`${candidate.ast._tag}_`, "");
 	}
 	return {
-		representations: map$7(asts, (ast) => recur(ast)),
+		representations: map$7(asts, recur),
 		references
 	};
-	function getReference(prefix, owner, separator = "_") {
+	function getReference(prefix, separator) {
 		let candidate = prefix;
 		let suffix = 0;
-		while (referenceOwners.has(candidate)) {
-			if (referenceOwners.get(candidate) === owner) return candidate;
-			candidate = `${prefix}${separator}${++suffix}`;
-		}
-		referenceOwners.set(candidate, owner);
+		while (usedReferences.has(candidate)) candidate = `${prefix}${separator}${++suffix}`;
+		usedReferences.add(candidate);
 		return candidate;
 	}
 	function annotateReference(ast, candidate, reference) {
@@ -8845,70 +9880,68 @@ function toRepresentations(asts, options) {
 		if (fallback !== void 0) return resolveIdentifierFallback(ast) === fallback ? ast : annotate(ast, { [IDENTIFIER_FALLBACK_KEY]: fallback });
 		return reference === candidate.identifier ? ast : annotate(ast, { identifier: reference });
 	}
-	function makeReference(reference, ast) {
-		if (!Object.hasOwn(references, reference) && !buildingReferences.has(reference)) {
-			buildingReferences.add(reference);
-			const representation = on(ast);
-			buildingReferences.delete(reference);
-			assignProperty(references, reference, representation);
+	function getCandidate(input, encodingLength = input.encoding?.length ?? 0) {
+		let ast = input;
+		let content;
+		while (ast.encoding !== void 0 && encodingLength > 0) {
+			const last = ast.encoding[encodingLength - 1];
+			if (last.to.encoding === void 0 && last.to._tag === "String") {
+				const metadata = getContent(last.transformation.encode);
+				if (metadata !== void 0) content = {
+					mediaType: metadata.mediaType,
+					schema: metadata.preserveSchema ? getCandidate(ast, encodingLength - 1) : void 0
+				};
+			}
+			ast = last.to;
+			encodingLength = ast.encoding?.length ?? 0;
 		}
-		return {
-			_tag: "Reference",
-			$ref: reference
-		};
-	}
-	function getCandidate(input) {
-		const ast = getLastEncoding(input);
 		const owner = getContextOwner(ast);
 		let identifier = resolveIdentifier(ast);
 		const fallback = identifier === void 0 ? (ast !== input ? resolveIdentifier(input) : void 0) ?? resolveIdentifierFallback(ast) : void 0;
 		if (fallback !== void 0) identifier = `${fallback}Encoded`;
-		let candidatesByIdentifier = candidates.get(owner);
-		if (candidatesByIdentifier === void 0) {
-			candidatesByIdentifier = /* @__PURE__ */ new Map();
-			candidates.set(owner, candidatesByIdentifier);
+		let variants = candidates.get(owner);
+		if (variants === void 0) {
+			variants = [];
+			candidates.set(owner, variants);
 		}
-		let candidate = candidatesByIdentifier.get(identifier);
+		let candidate = variants.find((candidate) => candidate.identifier === identifier && candidate.content?.mediaType === content?.mediaType && candidate.content?.schema === content?.schema);
 		if (candidate === void 0) {
 			candidate = {
 				ast: owner,
 				identifier,
 				fallback,
-				occurrences: 0,
-				isRecursive: false,
-				reference: void 0
+				content,
+				occurrences: 0
 			};
-			candidatesByIdentifier.set(identifier, candidate);
+			variants.push(candidate);
 		}
 		return candidate;
 	}
 	function visit(input) {
-		const candidate = getCandidate(input);
+		visitCandidate(getCandidate(input));
+		return input;
+	}
+	function visitCandidate(candidate) {
 		const ast = candidate.ast;
 		candidate.occurrences++;
-		if (visitingCandidates.has(candidate)) {
+		if (candidate.visiting) {
 			candidate.isRecursive = true;
 			return;
 		}
 		if (candidate.occurrences > 1) return;
-		visitingCandidates.add(candidate);
+		candidate.visiting = true;
+		if (candidate.content?.schema !== void 0) visitCandidate(candidate.content.schema);
 		visitChecks(ast.checks);
 		switch (ast._tag) {
-			case "Declaration":
-			case "Arrays":
-			case "Objects":
-			case "Union":
-				ast.recur((child) => {
-					visit(child);
-					return child;
-				});
+			default:
+				if ("recur" in ast) ast.recur(visit);
 				break;
 			case "TemplateLiteral":
 				ast.parts.forEach(visit);
 				break;
 			case "Suspend": visit(ast.thunk());
 		}
-		visitingCandidates.delete(candidate);
+		candidate.visiting = false;
 	}
 	function visitChecks(checks) {
 		checks?.forEach((check) => {
@@ -8917,63 +9950,65 @@ function toRepresentations(asts, options) {
 		});
 	}
 	function recur(input) {
-		const candidate = getCandidate(input);
+		return recurCandidate(getCandidate(input));
+	}
+	function recurCandidate(candidate) {
 		const ast = candidate.ast;
 		const reference = candidate.reference;
-		if (reference !== void 0) return makeReference(reference, candidate.identifier === void 0 ? ast : annotateReference(ast, candidate, reference));
-		return on(ast);
+		if (reference !== void 0) {
+			if (!candidate.emitted) {
+				candidate.emitted = true;
+				const representation = on(candidate.identifier === void 0 ? ast : annotateReference(ast, candidate, reference), candidate.content);
+				assignProperty(references, reference, representation);
+			}
+			return {
+				_tag: "Reference",
+				$ref: reference
+			};
+		}
+		return on(ast, candidate.content);
 	}
-	function on(ast) {
-		const checks = fromChecks(ast.checks);
+	function on(ast, content) {
+		const common = {
+			checks: ast.checks?.map(fromCheck) ?? [],
+			...ast._tag === "Declaration" ? fromAnnotations(ast.annotations) : annotationsField(ast.annotations)
+		};
 		switch (ast._tag) {
 			case "Declaration": return {
-				_tag: "Declaration",
-				typeParameters: ast.typeParameters.map((ast) => recur(ast)),
-				checks,
-				...fromDeclarationAnnotations(ast.annotations)
-			};
-			case "Null":
-			case "Undefined":
-			case "Void":
-			case "Never":
-			case "Unknown":
-			case "Any":
-			case "String":
-			case "Boolean":
-			case "Number":
-			case "BigInt":
-			case "Symbol":
-			case "ObjectKeyword": return {
 				_tag: ast._tag,
-				checks,
-				...annotationsField(ast.annotations)
+				typeParameters: ast.typeParameters.map(recur),
+				...common
+			};
+			default: return {
+				_tag: ast._tag,
+				...content === void 0 ? void 0 : { content: {
+					mediaType: content.mediaType,
+					...content.schema === void 0 ? void 0 : { schema: recurCandidate(content.schema) }
+				} },
+				...common
 			};
 			case "Literal": return {
-				_tag: "Literal",
+				_tag: ast._tag,
 				literal: ast.literal,
-				checks,
-				...annotationsField(ast.annotations)
+				...common
 			};
 			case "UniqueSymbol": return {
-				_tag: "UniqueSymbol",
+				_tag: ast._tag,
 				symbol: ast.symbol,
-				checks,
-				...annotationsField(ast.annotations)
+				...common
 			};
 			case "Enum": return {
-				_tag: "Enum",
+				_tag: ast._tag,
 				enums: ast.enums,
-				checks,
-				...annotationsField(ast.annotations)
+				...common
 			};
 			case "TemplateLiteral": return {
-				_tag: "TemplateLiteral",
-				parts: ast.parts.map((ast) => recur(ast)),
-				checks,
-				...annotationsField(ast.annotations)
+				_tag: ast._tag,
+				parts: ast.parts.map(recur),
+				...common
 			};
 			case "Arrays": return {
-				_tag: "Arrays",
+				_tag: ast._tag,
 				elements: ast.elements.map((element) => {
 					const projected = getLastEncoding(element);
 					const annotations = projected.context?.annotations;
@@ -8983,12 +10018,11 @@ function toRepresentations(asts, options) {
 						...annotationsField(annotations)
 					};
 				}),
-				rest: ast.rest.map((ast) => recur(ast)),
-				checks,
-				...annotationsField(ast.annotations)
+				rest: ast.rest.map(recur),
+				...common
 			};
 			case "Objects": return {
-				_tag: "Objects",
+				_tag: ast._tag,
 				propertySignatures: ast.propertySignatures.map((property) => {
 					const projected = getLastEncoding(property.type);
 					const annotations = projected.context?.annotations;
@@ -9004,56 +10038,41 @@ function toRepresentations(asts, options) {
 					parameter: recur(index.parameter),
 					type: recur(index.type)
 				})),
-				checks,
-				...annotationsField(ast.annotations)
+				...common
 			};
 			case "Union": return {
-				_tag: "Union",
-				types: ast.types.map((ast) => recur(ast)),
+				_tag: ast._tag,
+				types: ast.types.map(recur),
 				...ast.options === void 0 ? {} : { options: ast.options },
-				checks,
-				...annotationsField(ast.annotations)
+				...common
 			};
 			case "Suspend": return {
-				_tag: "Suspend",
+				_tag: ast._tag,
+				...common,
 				checks: [],
-				thunk: recur(ast.thunk()),
-				...annotationsField(ast.annotations)
+				thunk: recur(ast.thunk())
 			};
 		}
-	}
-	function fromChecks(checks) {
-		return checks?.map(fromCheck) ?? [];
 	}
 	function fromCheck(check) {
-		switch (check._tag) {
-			case "Filter": return {
-				_tag: "Filter",
-				aborted: check.aborted,
-				...fromCheckAnnotations(check.annotations)
-			};
-			case "FilterGroup": return {
-				_tag: "FilterGroup",
-				checks: map$7(check.checks, fromCheck),
-				...fromCheckAnnotations(check.annotations)
-			};
-		}
-	}
-	function fromDeclarationAnnotations(annotations) {
-		if (annotations === void 0) return void 0;
-		const { representation, ...ordinary } = annotations;
 		return {
-			...representation === void 0 ? void 0 : { representation },
-			...Object.keys(ordinary).length === 0 ? void 0 : { annotations: ordinary }
+			...check._tag === "Filter" ? {
+				_tag: check._tag,
+				aborted: check.aborted
+			} : {
+				_tag: check._tag,
+				checks: map$7(check.checks, fromCheck)
+			},
+			...fromAnnotations(check.annotations, true)
 		};
 	}
-	function fromCheckAnnotations(annotations) {
+	function fromAnnotations(annotations, projectSchemas = false) {
 		if (annotations === void 0) return void 0;
 		const { representation, ...ordinary } = annotations;
-		const projected = representation === void 0 ? void 0 : representation.schemas === void 0 ? representation : {
+		const projected = projectSchemas && representation?.schemas !== void 0 ? {
 			...representation,
 			schemas: representation.schemas.map((schema) => recur(toType$1(schema)))
-		};
+		} : representation;
 		return {
 			...projected === void 0 ? void 0 : { representation: projected },
 			...Object.keys(ordinary).length === 0 ? void 0 : { annotations: ordinary }
@@ -9061,7 +10080,7 @@ function toRepresentations(asts, options) {
 	}
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Struct.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Struct.js
 const omit = /*#__PURE__*/ dual(2, (self, keys) => {
 	return buildStruct(self, (k, v) => !hasPropertyKey(keys, k) ? [k, v] : void 0);
 });
@@ -9082,17 +10101,25 @@ function buildStruct(source, f) {
 	return out;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/schemaError.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schemaError.js
 const SchemaErrorTypeId = "~effect/Schema/SchemaError";
 function isSchemaError$1(u) {
 	return hasProperty(u, "~effect/Schema/SchemaError") && u["~effect/Schema/SchemaError"] === "~effect/Schema/SchemaError";
 }
+({ ...BaseProto });
+({ ...BaseProto });
+({ ...BaseProto });
+({ ...BaseProto });
+({ ...BaseProto });
+({ ...BaseProto });
+({ ...BaseProto });
+({ ...BaseProto });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Schema.js
-const TypeId$32 = TypeId$33;
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schema.js
+const TypeId$31 = TypeId$34;
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
-		return make$34(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$34(ast))), annotations));
+		return make$31(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$31(ast))), annotations));
 	};
 }
 function declare(is, annotations) {
@@ -9112,6 +10139,15 @@ var SchemaError = class extends (/*#__PURE__*/ TaggedError$1("SchemaError")) {
 	get message() {
 		return defaultFormatter(this.issue);
 	}
+	toJSON() {
+		return {
+			_tag: this._tag,
+			message: this.message
+		};
+	}
+	[NodeInspectSymbol]() {
+		return this.toJSON();
+	}
 	toString() {
 		return `SchemaError(${this.message})`;
 	}
@@ -9121,7 +10157,7 @@ function isSchemaError(u) {
 }
 function fromIssueEffect(self) {
 	if (effectIsExit(self)) return fromIssueExit(self);
-	return catchCause$1(self, (cause) => failCauseSync(() => map$5(cause, (issue) => new SchemaError(issue))));
+	return catchCause$2(self, (cause) => failCauseSync(() => map$5(cause, (issue) => new SchemaError(issue))));
 }
 function fromIssueExit(exit) {
 	return isSuccess(exit) ? exit : failCause$5(map$5(exit.cause, (issue) => new SchemaError(issue)));
@@ -9176,19 +10212,19 @@ function encodeUnknownSync(schema, options) {
 	};
 }
 const encodeSync = encodeUnknownSync;
-const make$34 = make$35;
+const make$31 = make$32;
 function isSchema(u) {
-	return hasProperty(u, TypeId$32) && u[TypeId$32] === TypeId$32;
+	return hasProperty(u, TypeId$31) && u[TypeId$31] === TypeId$31;
 }
-const optionalKey = /*#__PURE__*/ lambda((schema) => make$34(optionalKey$1(schema.ast), { schema }));
+const optionalKey = /*#__PURE__*/ lambda((schema) => make$31(optionalKey$1(schema.ast), { schema }));
 const optional$5 = /*#__PURE__*/ lambda((self) => {
 	const schema = UndefinedOr(self);
-	return make$34(optional$6(self.ast), { schema });
+	return make$31(optional$6(self.ast), { schema });
 });
-const toType = /*#__PURE__*/ lambda((schema) => make$34(toType$1(schema.ast), { schema }));
-const toEncoded = /*#__PURE__*/ lambda((schema) => make$34(toEncoded$1(schema.ast), { schema }));
+const toType = /*#__PURE__*/ lambda((schema) => make$31(toType$1(schema.ast), { schema }));
+const toEncoded = /*#__PURE__*/ lambda((schema) => make$31(toEncoded$1(schema.ast), { schema }));
 function Literal(literal) {
-	const out = make$34(new Literal$1(literal), {
+	const out = make$31(new Literal$1(literal), {
 		literal,
 		transform(to) {
 			return out.pipe(decodeTo(Literal(to), {
@@ -9203,20 +10239,20 @@ function templateLiteralParts(parts) {
 	return parts.map((part) => isSchema(part) ? part.ast : new Literal$1(part));
 }
 function TemplateLiteral(parts) {
-	return make$34(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
+	return make$31(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
 }
-const Never = /*#__PURE__*/ make$34(never);
-const Any = /*#__PURE__*/ make$34(any);
-const Unknown = /*#__PURE__*/ make$34(unknown);
-const Null = /*#__PURE__*/ make$34(null_);
-const Undefined = /*#__PURE__*/ make$34(undefined_);
-const String$2 = /*#__PURE__*/ make$34(string);
-const Number$1 = /*#__PURE__*/ make$34(number);
-const Boolean$1 = /*#__PURE__*/ make$34(boolean);
-const BigInt$1 = /*#__PURE__*/ make$34(bigInt);
-const Void = /*#__PURE__*/ make$34(void_);
+const Never = /*#__PURE__*/ make$31(never);
+const Any = /*#__PURE__*/ make$31(any);
+const Unknown = /*#__PURE__*/ make$31(unknown);
+const Null = /*#__PURE__*/ make$31(null_);
+const Undefined = /*#__PURE__*/ make$31(undefined_);
+const String$2 = /*#__PURE__*/ make$31(string);
+const Number$1 = /*#__PURE__*/ make$31(number);
+const Boolean$1 = /*#__PURE__*/ make$31(boolean);
+const BigInt$1 = /*#__PURE__*/ make$31(bigInt);
+const Void = /*#__PURE__*/ make$31(void_);
 function makeStruct(ast, fields) {
-	return make$34(ast, {
+	return make$31(ast, {
 		fields,
 		mapFields(f, options) {
 			const fields = f(this.fields);
@@ -9228,19 +10264,19 @@ function Struct(fields) {
 	return makeStruct(struct(fields, void 0), fields);
 }
 function Record(key, value) {
-	return make$34(record(key.ast, value.ast), {
+	return make$31(record(key.ast, value.ast), {
 		key,
 		value
 	});
 }
 function StructWithRest(schema, records) {
-	return make$34(structWithRest(schema.ast, records.map(getAST)), {
+	return make$31(structWithRest(schema.ast, records.map(getAST)), {
 		schema,
 		records
 	});
 }
 function makeTuple(ast, elements) {
-	return make$34(ast, {
+	return make$31(ast, {
 		elements,
 		mapElements(f, options) {
 			const elements = f(this.elements);
@@ -9251,10 +10287,10 @@ function makeTuple(ast, elements) {
 function Tuple(elements) {
 	return makeTuple(tuple(elements), elements);
 }
-const ArraySchema = /*#__PURE__*/ lambda((schema) => make$34(new Arrays(false, [], [schema.ast]), { value: schema }));
-const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$34(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
+const ArraySchema = /*#__PURE__*/ lambda((schema) => make$31(new Arrays(false, [], [schema.ast]), { value: schema }));
+const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$31(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
 function makeUnion(ast, members) {
-	return make$34(ast, {
+	return make$31(ast, {
 		members,
 		mapMembers(f, options) {
 			const members = f(this.members);
@@ -9267,7 +10303,7 @@ function Union(members, options) {
 }
 function Literals(literals) {
 	const members = literals.map(Literal);
-	return make$34(union(members, void 0, void 0), {
+	return make$31(union(members, void 0, void 0), {
 		literals,
 		members,
 		mapMembers(f) {
@@ -9283,9 +10319,12 @@ function Literals(literals) {
 }
 const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
+function suspend$2(f) {
+	return make$31(new Suspend(() => f().ast));
+}
 function decodeTo(to, transformation) {
 	return (from) => {
-		return make$34(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
+		return make$31(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
 			from,
 			to
 		});
@@ -9297,16 +10336,17 @@ function linkDecoding() {
 		encode: forbiddenEncoding
 	});
 }
-function decode$2(transformation) {
+function decode$3(transformation) {
 	return (self) => {
 		return decodeTo(toType(self), transformation)(self);
 	};
 }
 function withConstructorDefault(defaultValue) {
-	return (schema) => make$34(withConstructorDefault$1(schema.ast, defaultValue), { schema });
+	return (schema) => make$31(withConstructorDefault$1(schema.ast, defaultValue), { schema });
 }
 function toIssueEffect(self) {
-	return catchCause$1(self, (cause) => failCauseSync(() => map$5(cause, (error) => error.issue)));
+	if (effectIsExit(self) && self._tag === "Success") return self;
+	return catchCause$2(self, (cause) => failCauseSync(() => map$5(cause, (error) => error.issue)));
 }
 function withDecodingDefault(defaultValue, options) {
 	const encode = options?.encodingStrategy === "omit" ? omit$1() : passthrough$1();
@@ -9342,14 +10382,14 @@ function isPattern(regExp, annotations) {
 	const source = regExp.source;
 	const flags = regExp.flags;
 	const canExport = /^[dg]*uy?$/.test(flags);
-	const runtimeRegExp = flags === "" ? `new RegExp(${format$2(source)})` : `new RegExp(${format$2(source)}, ${format$2(flags)})`;
+	const runtimeRegExp = flags === "" ? `new globalThis.RegExp(${format$2(source)})` : `new globalThis.RegExp(${format$2(source)}, ${format$2(flags)})`;
 	return isPattern$1(regExp, {
 		toJsonSchema: () => canExport ? { pattern: flags.endsWith("y") ? `^(?:${source})` : source } : [{}, true],
 		toCode: () => ({ runtime: `Schema.isPattern(${runtimeRegExp})` }),
 		...annotations
 	});
 }
-const Finite = /*#__PURE__*/ make$34(finite);
+const Finite = /*#__PURE__*/ make$31(finite);
 const isFinite = isFinite$1;
 function makeIsBetween(deriveOptions) {
 	const greaterThanOrEqualTo = isGreaterThanOrEqualTo$2(deriveOptions.order);
@@ -9408,7 +10448,11 @@ function isInt(annotations) {
 			id: "effect/schema/isInt",
 			payload: null
 		},
-		toJsonSchema: () => [{ type: "integer" }, true],
+		toJsonSchema: () => ({
+			type: "integer",
+			minimum: globalThis.Number.MIN_SAFE_INTEGER,
+			maximum: globalThis.Number.MAX_SAFE_INTEGER
+		}),
 		toCode: () => ({ runtime: "Schema.isInt()" }),
 		arbitraryConstraint: { number: "integer" },
 		...annotations
@@ -9501,16 +10545,12 @@ function Defect(options) {
 }
 globalThis.RegExp;
 globalThis.URL;
-const JsonString = /*#__PURE__*/ String$2.annotate({
-	expected: "a string that will be decoded as JSON",
-	contentMediaType: "application/json"
-});
+const JsonString = /*#__PURE__*/ String$2.annotate({ expected: "a string that will be decoded as JSON" });
 function fromJsonString(schema, options) {
 	return JsonString.pipe(decodeTo(schema, fromJsonString$1(options)));
 }
 const UnknownFromJsonString = /*#__PURE__*/ fromJsonString(Unknown);
 globalThis.File;
-globalThis.FormData;
 globalThis.URLSearchParams;
 const Base64String = /*#__PURE__*/ String$2.annotate({
 	expected: "a base64 encoded string that will be decoded as Uint8Array",
@@ -9594,7 +10634,7 @@ function CauseReason(error, defect) {
 			}
 		}))
 	});
-	return make$34(schema.ast, {
+	return make$31(schema.ast, {
 		error,
 		defect
 	});
@@ -9606,7 +10646,7 @@ function Cause(error, defect) {
 			if (!isCause(input)) return fail$3(new InvalidType(ast, input, options));
 			return mapBothEager(decodeUnknownEffect$1(failures)(input.reasons, options), {
 				onSuccess: fromReasons,
-				onFailure: (issue) => makeCompositeAtKey(ast, "failures", issue, input, options)
+				onFailure: (issue) => makeCompositeAtKey(ast, "reasons", issue, input, options)
 			});
 		};
 	}, {
@@ -9625,14 +10665,14 @@ function Cause(error, defect) {
 			encode: ({ reasons: failures }) => failures
 		}))
 	});
-	return make$34(schema.ast, {
+	return make$31(schema.ast, {
 		error,
 		defect
 	});
 }
 const dateTimeUtcFromString = /*#__PURE__*/ transformEffect({
 	decode: (s, options) => {
-		return match$3(make$40(s), {
+		return match$3(make$37(s), {
 			onNone: () => fail$3(new InvalidValue({ expected: "a valid UTC DateTime string" }, s, options)),
 			onSome: (result) => succeed$3(toUtc(result))
 		});
@@ -9665,12 +10705,12 @@ const DateTimeUtc = /*#__PURE__*/ declare((u) => isDateTime(u) && isUtc(u), {
 	expected: "DateTime.Utc",
 	toCodecArbitrary: ({ constraint }) => {
 		const [minimum, maximum] = dateTimeArbitraryBounds(constraint, arbitraryMinimumDateTimestamp, arbitraryMaximumDateTimestamp);
-		return linkDecoding()(dateTimeArbitraryInteger(minimum, maximum), transform$1(makeUnsafe$3));
+		return linkDecoding()(dateTimeArbitraryInteger(minimum, maximum), transform$1(makeUnsafe$2));
 	},
 	toCodecJson: () => link$1()(String$2, dateTimeUtcFromString),
 	toFormatter: () => (utc) => utc.toString()
 });
-const Duration = /*#__PURE__*/ declare(isDuration, {
+const Duration$1 = /*#__PURE__*/ declare(isDuration, {
 	representation: {
 		id: "effect/schema/Duration",
 		payload: null
@@ -9765,7 +10805,7 @@ function Exit(value, error, defect) {
 			}
 		}))
 	});
-	return make$34(schema.ast, {
+	return make$31(schema.ast, {
 		value,
 		error,
 		defect
@@ -9782,16 +10822,16 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 		importDeclarations: [`import * as UrlParams from "effect/http/UrlParams"`]
 	}),
 	expected: "UrlParams",
-	toEquivalence: () => Equivalence,
+	toEquivalence: () => Equivalence$1,
 	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform({
-		decode: make$37,
-		encode: (self) => self.params
+		decode: make$34,
+		encode: (self) => self.params.map(([key, value]) => [key, unwrap$3(value)])
 	}))
 })).pipe(/*#__PURE__*/ decodeTo(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([String$2, /*#__PURE__*/ NonEmptyArray(String$2)])), /*#__PURE__*/ transform({
 	decode: toReadonlyRecord,
 	encode: fromInput
 })));
-function Redacted$1(value, options) {
+function Redacted$2(value, options) {
 	const label = typeof options?.label === "string" ? options.label : void 0;
 	const disallowJsonEncode = options?.disallowJsonEncode === true;
 	const normalizedOptions = label !== void 0 ? disallowJsonEncode ? {
@@ -9803,7 +10843,7 @@ function Redacted$1(value, options) {
 		if (isRedacted(input)) {
 			const label = decodeLabel !== void 0 ? mapErrorEager(decodeLabel(input.label, poptions), (issue) => new Pointer(["label"], issue)) : void_$1;
 			return flatMapEager(label, () => mapBothEager(decodeUnknownEffect$1(value)(value$2(input), poptions), {
-				onSuccess: (value) => make$39(value, { label: input.label }),
+				onSuccess: (value) => make$36(value, { label: input.label }),
 				onFailure: () => {
 					return new Composite(ast, [new Pointer(["value"], new InvalidValue(void 0, input, poptions))], input, poptions);
 				}
@@ -9822,12 +10862,12 @@ function Redacted$1(value, options) {
 		}),
 		expected: "Redacted",
 		toCodecJson: ([value]) => link$1()(value, {
-			decode: transform$1((e) => make$39(e, { label })),
+			decode: transform$1((e) => make$36(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$1(value$2)
 		}),
 		toEquivalence: ([value]) => makeEquivalence(value)
 	});
-	return make$34(schema.ast, { value });
+	return make$31(schema.ast, { value });
 }
 const immerable = /*#__PURE__*/ globalThis.Symbol.for("immer-draftable");
 const payloadToken = {};
@@ -9847,7 +10887,7 @@ function makeClass(Inherited, identifier, struct$1, annotations, proto) {
 				}
 			});
 		}
-		static [TypeId$32] = TypeId$32;
+		static [TypeId$31] = TypeId$31;
 		get [ClassTypeId]() {
 			return ClassTypeId;
 		}
@@ -9864,7 +10904,7 @@ function makeClass(Inherited, identifier, struct$1, annotations, proto) {
 			return getClassSchema(this).rebuild(ast);
 		}
 		static make(input, options) {
-			return make$36(getClassSchema(this))(input ?? {}, options);
+			return makeClassSync(toType$1(getClassSchema(this).ast), input ?? {}, options, (fields) => makeClassTrusted(this, fields));
 		}
 		static makeOption(input, options) {
 			return makeOption(getClassSchema(this))(input ?? {}, options);
@@ -9899,11 +10939,14 @@ function makeClass(Inherited, identifier, struct$1, annotations, proto) {
 	if (proto !== void 0) Object.assign(out.prototype, proto(identifier));
 	return out;
 }
-function getClassTransformation(self) {
-	return new Transformation(transform$1((input) => new self(input, { "~payload": {
+function makeClassTrusted(self, fields) {
+	return new self(fields, { "~payload": {
 		token: payloadToken,
-		value: input
-	} })), passthrough$1());
+		value: fields
+	} });
+}
+function getClassTransformation(self) {
+	return new Transformation(transform$1((input) => makeClassTrusted(self, input)), passthrough$1());
 }
 function getClassTypeId(identifier) {
 	return `~effect/Schema/Class/${identifier}`;
@@ -9915,7 +10958,7 @@ function getClassSchemaFactory(from, identifier, annotations) {
 		const ClassTypeId = getClassTypeId(identifier);
 		const isClassValue = (input) => input instanceof self || hasProperty(input, ClassTypeId);
 		const transformation = getClassTransformation(self);
-		return memo = decodeTo(make$34(new Declaration([from.ast], () => (input, ast, options) => {
+		return memo = decodeTo(make$31(new Declaration([from.ast], () => (input, ast, options) => {
 			return isClassValue(input) ? succeed$3(input) : fail$3(new InvalidType(ast, input, options));
 		}, {
 			identifier,
@@ -9958,124 +11001,29 @@ function toJsonSchemaDocument(schema, options) {
 }
 const toCodecJson = toCodecJson$1;
 const toCodecStringTree = toCodecStringTree$1;
-const Json = /*#__PURE__*/ make$34(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
+const Json = /*#__PURE__*/ make$31(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
 	runtime: "Schema.Json",
 	Type: "Schema.Json"
 }) }));
-const JsonObject$4 = /*#__PURE__*/ Record(String$2, Json);
-const MutableJson = /*#__PURE__*/ make$34(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
+const MutableJson = /*#__PURE__*/ make$31(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/MutableHashMap.js
-const TypeId$31 = "~effect/MutableHashMap";
-const MutableHashMapProto = {
-	[TypeId$31]: TypeId$31,
-	[Symbol.iterator]() {
-		return this.backing[Symbol.iterator]();
-	},
-	toString() {
-		return `MutableHashMap(${format$2(Array.from(this))})`;
-	},
-	toJSON() {
-		return {
-			_id: "MutableHashMap",
-			values: toJson(Array.from(this))
-		};
-	},
-	[NodeInspectSymbol]() {
-		return this.toJSON();
-	},
-	pipe() {
-		return pipeArguments(this, arguments);
-	}
-};
-const empty$5 = () => {
-	const self = Object.create(MutableHashMapProto);
-	self.backing = /* @__PURE__ */ new Map();
-	self.buckets = /* @__PURE__ */ new Map();
-	return self;
-};
-const get$1 = /*#__PURE__*/ dual(2, (self, key) => {
-	if (self.backing.has(key)) return some(self.backing.get(key));
-	else if (isSimpleKey(key)) return none();
-	const hash$2 = hash(key);
-	const bucket = self.buckets.get(hash$2);
-	if (bucket === void 0) return none();
-	return getFromBucket(self, bucket, key);
-});
-const isSimpleKey = (u) => typeof u !== "object" && typeof u !== "function";
-const getFromBucket = (self, bucket, key) => {
-	for (let i = 0, len = bucket.length; i < len; i++) if (equals$1(key, bucket[i])) {
-		const refKey = bucket[i];
-		return some(self.backing.get(refKey));
-	}
-	return none();
-};
-const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
-	if (self.backing.has(key) || isSimpleKey(key)) {
-		self.backing.set(key, value);
-		return self;
-	}
-	const hash$4 = hash(key);
-	const bucket = self.buckets.get(hash$4);
-	if (bucket === void 0) {
-		self.buckets.set(hash$4, [key]);
-		self.backing.set(key, value);
-		return self;
-	}
-	let refKey = getRefKey(bucket, key);
-	if (refKey === void 0) {
-		bucket.push(key);
-		refKey = key;
-	}
-	self.backing.set(refKey, value);
-	return self;
-});
-const getRefKey = (bucket, key) => {
-	for (let i = 0, len = bucket.length; i < len; i++) if (equals$1(key, bucket[i])) return bucket[i];
-};
-const remove$1 = /*#__PURE__*/ dual(2, (self, key_) => {
-	if (isSimpleKey(key_)) {
-		self.backing.delete(key_);
-		return self;
-	}
-	const hash$1 = hash(key_);
-	const bucket = self.buckets.get(hash$1);
-	if (bucket === void 0) return self;
-	for (let i = 0, len = bucket.length; i < len; i++) {
-		const bkey = bucket[i];
-		if (bkey === key_ || equals$1(key_, bkey)) {
-			self.backing.delete(bkey);
-			bucket.splice(i, 1);
-			break;
-		}
-	}
-	if (bucket.length === 0) self.buckets.delete(hash$1);
-	return self;
-});
-const clear$2 = (self) => {
-	self.backing.clear();
-	self.buckets.clear();
-	return self;
-};
-const size = (self) => self.backing.size;
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Latch.js
+const makeUnsafe$1 = makeLatchUnsafe;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Fiber.js
-const join = fiberJoin;
-const interrupt = fiberInterrupt;
-const getCurrent = getCurrentFiber;
-const runIn = fiberRunIn;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Latch.js
-const makeUnsafe$2 = makeLatchUnsafe;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/MutableRef.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableRef.js
 const TypeId$30 = "~effect/MutableRef";
 const MutableRefProto = {
 	[TypeId$30]: TypeId$30,
 	...PipeInspectableProto,
+	[symbol$2](that) {
+		return this === that;
+	},
+	[symbol$3]() {
+		return random$1(this);
+	},
 	toJSON() {
 		return {
 			_id: "MutableRef",
@@ -10083,7 +11031,7 @@ const MutableRefProto = {
 		};
 	}
 };
-const make$33 = (value) => {
+const make$30 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
@@ -10093,114 +11041,11 @@ const set = /*#__PURE__*/ dual(2, (self, value) => {
 	return self;
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/MutableList.js
-const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
-const make$32 = () => ({
-	head: void 0,
-	tail: void 0,
-	length: 0
-});
-const compactHead = (self) => {
-	const head = self.head;
-	if (head.offset >= 1024 && head === self.tail && head.mutable && (head.array.length - head.offset) * 8 <= head.offset) self.head = self.tail = {
-		array: head.array.slice(head.offset),
-		mutable: true,
-		offset: 0,
-		next: void 0
-	};
-};
-const emptyBucket = () => ({
-	array: [],
-	mutable: true,
-	offset: 0,
-	next: void 0
-});
-const append = (self, message) => {
-	if (!self.tail) self.head = self.tail = emptyBucket();
-	else if (!self.tail.mutable) {
-		self.tail.next = emptyBucket();
-		self.tail = self.tail.next;
-	}
-	self.tail.array.push(message);
-	self.length++;
-};
-const prepend = (self, message) => {
-	self.head = {
-		array: [message],
-		mutable: true,
-		offset: 0,
-		next: self.head
-	};
-	if (!self.tail) self.tail = self.head;
-	self.length++;
-};
-const appendAll = (self, messages) => appendAllUnsafe(self, fromIterable$2(messages), !Array.isArray(messages));
-const appendAllUnsafe = (self, messages, mutable = false) => {
-	if (messages.length === 0) return 0;
-	const chunk = {
-		array: messages,
-		mutable,
-		offset: 0,
-		next: void 0
-	};
-	if (self.head) self.tail = self.tail.next = chunk;
-	else self.head = self.tail = chunk;
-	self.length += messages.length;
-	return messages.length;
-};
-const clear$1 = (self) => {
-	self.head = self.tail = void 0;
-	self.length = 0;
-};
-const takeN = (self, n) => {
-	n = normalize$2(n);
-	if (n <= 0 || !self.head) return [];
-	n = Math.min(n, self.length);
-	if (n === self.length && self.head?.offset === 0 && !self.head.next) {
-		const array = self.head.array;
-		clear$1(self);
-		return array;
-	}
-	const array = new Array(n);
-	let index = 0;
-	let chunk = self.head;
-	while (chunk) {
-		while (chunk.offset < chunk.array.length) {
-			array[index++] = chunk.array[chunk.offset];
-			if (chunk.mutable) chunk.array[chunk.offset] = void 0;
-			chunk.offset++;
-			if (index === n) {
-				self.head = chunk.offset === chunk.array.length && chunk.next ? chunk.next : chunk;
-				self.length -= n;
-				if (self.length === 0) clear$1(self);
-				else compactHead(self);
-				return array;
-			}
-		}
-		chunk = chunk.next;
-	}
-	clear$1(self);
-	return array;
-};
-const takeAll$1 = (self) => takeN(self, self.length);
-const take$1 = (self) => {
-	if (!self.head) return Empty$3;
-	const message = self.head.array[self.head.offset];
-	if (self.head.mutable) self.head.array[self.head.offset] = void 0;
-	self.head.offset++;
-	self.length--;
-	if (self.head.offset === self.head.array.length) {
-		if (self.head.next) self.head = self.head.next;
-		else clear$1(self);
-	} else compactHead(self);
-	return message;
-};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/PubSub.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PubSub.js
 const TypeId$29 = "~effect/PubSub";
 const SubscriptionTypeId = "~effect/PubSub/Subscription";
-const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$2(false), make$33(false), options.strategy(), make$33(none())));
-const unbounded$1 = (options) => make$31({
+const make$29 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$1(false), make$30(false), options.strategy(), make$30(none())));
+const unbounded = (options) => make$29({
 	atomicPubSub: () => makeAtomicUnbounded(options),
 	strategy: () => new DroppingStrategy()
 });
@@ -10208,7 +11053,7 @@ const makeAtomicUnbounded = (options) => {
 	const replay = options?.replay;
 	return new UnboundedPubSub(replay && replay > 0 ? new ReplayBuffer(Math.ceil(replay)) : void 0);
 };
-const publish = /*#__PURE__*/ dual(2, (self, value) => suspend$2(() => {
+const publish = /*#__PURE__*/ dual(2, (self, value) => suspend$3(() => {
 	if (self.shutdownFlag.current || isSome(self.ended.current)) return succeed$3(false);
 	if (self.pubsub.publish(value)) {
 		self.strategy.completeSubscribersUnsafe(self.pubsub, self.subscribers);
@@ -10245,7 +11090,7 @@ const removeSubscribers = (subscribers, subscription, pollers) => {
 	set.delete(pollers);
 	if (set.size === 0) subscribers.delete(subscription);
 };
-const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$32(), makeUnsafe$2(false), make$33(false), strategy, pubsub.replayWindow(), ended);
+const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$42(), makeUnsafe$1(false), make$30(false), strategy, pubsub.replayWindow(), ended);
 var UnboundedPubSub = class {
 	publisherHead = {
 		value: AbsentValue,
@@ -10509,8 +11354,12 @@ var ReplayBuffer = class {
 			next: null
 		};
 		this.tail = this.tail.next;
-		if (this.size === this.capacity) this.head = this.head.next;
-		else this.size += 1;
+		if (this.size === this.capacity) {
+			const dropped = this.head;
+			this.head = dropped.next;
+			dropped.next = null;
+			dropped.value = AbsentValue;
+		} else this.size += 1;
 		return index;
 	}
 	offerAll(as) {
@@ -10584,377 +11433,11 @@ const emptyReplayWindow = {
 	close: () => void 0
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Queue.js
-const TypeId$28 = "~effect/Queue";
-const EnqueueTypeId = "~effect/Queue/Enqueue";
-const DequeueTypeId = "~effect/Queue/Dequeue";
-const variance = {
-	_A: identity,
-	_E: identity
-};
-const QueueProto = {
-	[TypeId$28]: variance,
-	[EnqueueTypeId]: variance,
-	[DequeueTypeId]: variance,
-	...PipeInspectableProto,
-	toJSON() {
-		return {
-			_id: "effect/Queue",
-			state: this.state._tag,
-			size: sizeUnsafe(this)
-		};
-	}
-};
-const make$30 = (options) => withFiber$1((fiber) => {
-	const self = Object.create(QueueProto);
-	self.dispatcher = fiber.currentDispatcher;
-	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
-	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$32();
-	self.scheduleRunning = false;
-	self.state = {
-		_tag: "Open",
-		takers: /* @__PURE__ */ new Set(),
-		offers: /* @__PURE__ */ new Set(),
-		awaiters: /* @__PURE__ */ new Set()
-	};
-	return succeed$7(self);
-});
-const bounded = (capacity) => make$30({ capacity });
-const unbounded = () => make$30();
-const offer = /*#__PURE__*/ dual(2, (self, message) => suspend$3(() => offerUnsafe(self, message) ? exitTrue : self.state._tag === "Open" && self.strategy === "suspend" ? offerOrWait(self, message) : exitFalse));
-const offerUnsafe = (self, message) => {
-	if (self.state._tag !== "Open") return false;
-	else if (self.messages.length >= self.capacity) {
-		if (self.strategy === "sliding") {
-			take$1(self.messages);
-			append(self.messages, message);
-			return true;
-		} else if (self.capacity <= 0 && self.state.takers.size > 0) {
-			append(self.messages, message);
-			releaseTakers(self);
-			return true;
-		}
-		return false;
-	}
-	append(self.messages, message);
-	scheduleReleaseTaker(self);
-	return true;
-};
-const offerAll = /*#__PURE__*/ dual(2, (self, messages) => callback$2((resume) => {
-	const remaining = offerAllUnsafe(self, messages);
-	if (remaining.length === 0 || self.strategy === "dropping") return resume(exitSucceed(remaining));
-	return waitToOffer(self, {
-		_tag: "Array",
-		remaining,
-		offset: 0,
-		resume
-	});
-}));
-const offerAllUnsafe = (self, messages) => {
-	if (self.state._tag !== "Open") return fromIterable$2(messages);
-	else if (self.capacity === Number.POSITIVE_INFINITY || self.strategy === "sliding") {
-		appendAll(self.messages, messages);
-		if (self.strategy === "sliding") takeN(self.messages, self.messages.length - self.capacity);
-		scheduleReleaseTaker(self);
-		return [];
-	}
-	const free = self.capacity <= 0 ? self.state.takers.size : self.capacity - self.messages.length;
-	if (free === 0) return fromIterable$2(messages);
-	const remaining = [];
-	let i = 0;
-	for (const message of messages) {
-		if (i < free) append(self.messages, message);
-		else remaining.push(message);
-		i++;
-	}
-	scheduleReleaseTaker(self);
-	return remaining;
-};
-const failCause$2 = /*#__PURE__*/ dual(2, (self, cause) => sync$1(() => failCauseUnsafe(self, cause)));
-const failCauseUnsafe = (self, cause) => {
-	if (self.state._tag !== "Open") return false;
-	const exit = exitFailCause(cause);
-	const fail = exitZipRight(exit, exitFailDone);
-	if (self.state.offers.size === 0 && self.messages.length === 0) {
-		finalize(self, fail);
-		return true;
-	}
-	self.state = {
-		...self.state,
-		_tag: "Closing",
-		exit: fail
-	};
-	scheduleReleaseTaker(self);
-	return true;
-};
-const end = (self) => failCause$2(self, causeFail(Done$2()));
-const endUnsafe = (self) => failCauseUnsafe(self, causeFail(Done$2()));
-const shutdown = (self) => sync$1(() => shutdownUnsafe(self));
-const shutdownUnsafe = (self) => {
-	if (self.state._tag === "Done") return false;
-	clear$1(self.messages);
-	const offers = self.state.offers;
-	finalize(self, self.state._tag === "Open" ? exitInterrupt : self.state.exit);
-	for (const entry of offers) resumeUnoffered(entry);
-	return true;
-};
-const clear = (self) => suspendTake(() => {
-	if (self.state._tag === "Done") return catchDone(self.state.exit, () => succeed$7([]));
-	const messages = takeAllUnsafe(self);
-	releaseCapacity(self);
-	return succeed$7(messages);
-});
-const takeAll = (self) => takeBetween(self, 1, Number.POSITIVE_INFINITY);
-const takeBetween = /*#__PURE__*/ dual(3, (self, min, max) => {
-	min = normalize$2(min);
-	max = normalize$2(max);
-	return suspendTake(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self, () => canTake(self, min)), takeBetween(self, min, max)));
-});
-const take = (self) => suspendTake(() => takeUnsafe(self) ?? andThen$1(awaitTake(self, () => canTake(self, 1)), take(self)));
-const takeUnsafe = (self) => {
-	if (self.state._tag === "Done") return self.state.exit;
-	if (self.messages.length > 0) {
-		const message = take$1(self.messages);
-		releaseCapacity(self);
-		return exitSucceed(message);
-	} else if (self.capacity <= 0 && self.state.offers.size > 0) {
-		const message = takeOfferUnsafe(self.state.offers);
-		releaseCapacity(self);
-		return exitSucceed(message);
-	}
-};
-const sizeUnsafe = (self) => self.state._tag === "Done" ? 0 : self.messages.length;
-const exitFalse = /*#__PURE__*/ exitSucceed(false);
-const exitTrue = /*#__PURE__*/ exitSucceed(true);
-const exitFailDone = /*#__PURE__*/ exitFail(/*#__PURE__*/ Done$2());
-const exitInterrupt = /*#__PURE__*/ exitInterrupt$1();
-const releaseTakers = (self) => {
-	if (self.state._tag === "Done" || self.state.takers.size === 0) return;
-	for (const taker of self.state.takers) {
-		if (!taker.ready()) continue;
-		self.state.takers.delete(taker);
-		taker.resume(exitVoid);
-		if (self.messages.length === 0) break;
-	}
-};
-const scheduleReleaseTaker = (self) => {
-	if (self.scheduleRunning || self.state._tag === "Done" || self.state.takers.size === 0) return;
-	self.scheduleRunning = true;
-	self.dispatcher.scheduleTask(() => {
-		self.scheduleRunning = false;
-		releaseTakers(self);
-	}, 0);
-};
-const takeBetweenUnsafe = (self, min, max) => {
-	if (self.state._tag === "Done") return self.state.exit;
-	else if (max <= 0 || min <= 0) return exitSucceed([]);
-	else if (!canTake(self, min)) return;
-	const messages = self.messages.length > 0 ? takeN(self.messages, max) : [takeOfferUnsafe(self.state.offers)];
-	releaseCapacity(self);
-	return exitSucceed(messages);
-};
-const suspendTake = /*#__PURE__*/ makePrimitive({
-	op: "QueueTake",
-	[evaluate](fiber) {
-		const effect = this[args]();
-		return isExit$1(effect) ? effect[evaluate](fiber) : effect;
-	}
-});
-const canTake = (self, min) => self.messages.length >= (self.state._tag === "Closing" ? 1 : Math.min(min, self.capacity || 1)) || self.capacity <= 0 && self.state._tag !== "Done" && self.state.offers.size > 0;
-const awaitTake = (self, ready) => callback$2((resume) => {
-	if (self.state._tag === "Done") return resume(self.state.exit);
-	if (ready()) return resume(exitVoid);
-	const taker = {
-		ready,
-		resume
-	};
-	self.state.takers.add(taker);
-	return sync$1(() => {
-		if (self.state._tag !== "Done") self.state.takers.delete(taker);
-	});
-});
-const offerOrWait = (self, message) => callback$2((resume) => offerUnsafe(self, message) ? resume(exitTrue) : waitToOffer(self, {
-	_tag: "Single",
-	message,
-	resume
-}));
-const waitToOffer = (self, entry) => {
-	if (self.state._tag !== "Open") return resumeUnoffered(entry);
-	const offers = self.state.offers;
-	offers.add(entry);
-	return sync$1(() => {
-		if (self.state._tag === "Done") return;
-		offers.delete(entry);
-		if (self.state._tag === "Closing" && offers.size === 0 && self.messages.length === 0) finalize(self, self.state.exit);
-	});
-};
-const resumeUnoffered = (entry) => entry._tag === "Single" ? entry.resume(exitFalse) : entry.resume(exitSucceed(entry.remaining.slice(entry.offset)));
-const takeOfferUnsafe = (offers) => {
-	const entry = offers.values().next().value;
-	if (entry._tag === "Single") {
-		offers.delete(entry);
-		entry.resume(exitTrue);
-		return entry.message;
-	}
-	const message = entry.remaining[entry.offset++];
-	if (entry.offset === entry.remaining.length) {
-		offers.delete(entry);
-		entry.resume(exitSucceed([]));
-	}
-	return message;
-};
-const releaseCapacity = (self) => {
-	if (self.state._tag === "Done") return isDoneCause(self.state.exit.cause);
-	else if (self.state.offers.size === 0) {
-		if (self.state._tag === "Closing" && self.messages.length === 0) {
-			finalize(self, self.state.exit);
-			return isDoneCause(self.state.exit.cause);
-		}
-		return false;
-	}
-	for (const entry of self.state.offers) {
-		let n = self.capacity - self.messages.length;
-		if (n <= 0) break;
-		else if (entry._tag === "Single") {
-			append(self.messages, entry.message);
-			self.state.offers.delete(entry);
-			entry.resume(exitTrue);
-		} else {
-			for (; entry.offset < entry.remaining.length; entry.offset++) {
-				if (n === 0) return false;
-				append(self.messages, entry.remaining[entry.offset]);
-				n--;
-			}
-			self.state.offers.delete(entry);
-			entry.resume(exitSucceed([]));
-		}
-		const state = self.state;
-		if (state._tag === "Done") return isDoneCause(state.exit.cause);
-	}
-	return false;
-};
-const takeAllUnsafe = (self) => {
-	if (self.messages.length > 0) {
-		const messages = takeAll$1(self.messages);
-		releaseCapacity(self);
-		return messages;
-	} else if (self.state._tag !== "Done" && self.state.offers.size > 0) {
-		const messages = [takeOfferUnsafe(self.state.offers)];
-		releaseCapacity(self);
-		return messages;
-	}
-	return [];
-};
-const finalize = (self, exit) => {
-	if (self.state._tag === "Done") return;
-	const openState = self.state;
-	self.state = {
-		_tag: "Done",
-		exit
-	};
-	for (const taker of openState.takers) taker.resume(exit);
-	openState.takers.clear();
-	for (const awaiter of openState.awaiters) awaiter(exit);
-	openState.awaiters.clear();
-};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Semaphore.js
-const makeUnsafe$1 = (permits) => new SemaphoreImpl(permits);
-const waitForPermits = (self, n, effect) => callback$2((resume) => {
-	if (self.free >= n) return resume(effect);
-	const observer = () => {
-		if (self.free < n) return;
-		self.waiters.delete(observer);
-		resume(effect);
-	};
-	self.waiters.add(observer);
-	return sync$1(() => {
-		self.waiters.delete(observer);
-	});
-});
-var SemaphoreImpl = class {
-	waiters = /*#__PURE__*/ new Set();
-	taken = 0;
-	permits;
-	constructor(permits) {
-		this.permits = permits;
-	}
-	get free() {
-		return this.permits - this.taken;
-	}
-	take(n) {
-		const take = suspend$3(() => {
-			if (this.free < n) return waitForPermits(this, n, take);
-			this.taken += n;
-			return succeed$7(n);
-		});
-		return take;
-	}
-	takeIfAvailable(n) {
-		return suspend$3(() => {
-			if (this.free < n) return succeed$7(false);
-			this.taken += n;
-			return succeed$7(true);
-		});
-	}
-	releaseUnsafe(fiber, n) {
-		this.taken -= n;
-		if (this.waiters.size > 0) fiber.currentDispatcher.scheduleTask(() => {
-			for (const observer of this.waiters) {
-				if (this.free <= 0) break;
-				observer();
-			}
-		}, 0);
-		return this.free;
-	}
-	resize(permits) {
-		return withFiber$1((fiber) => {
-			this.permits = permits;
-			if (this.free < 0) return void_$3;
-			this.releaseUnsafe(fiber, 0);
-			return void_$3;
-		});
-	}
-	release(n) {
-		return withFiber$1((fiber) => succeed$7(this.releaseUnsafe(fiber, n)));
-	}
-	get releaseAll() {
-		return withFiber$1((fiber) => succeed$7(this.releaseUnsafe(fiber, this.taken)));
-	}
-	withPermits(n) {
-		return (self) => uninterruptibleMask$1((restore) => {
-			const acquire = suspend$3(() => {
-				if (this.free < n) {
-					const wait = waitForPermits(this, n, void_$3);
-					return flatMap$2(restore(wait), () => acquire);
-				}
-				this.taken += n;
-				return onExitPrimitive(restore(self), () => {
-					this.releaseUnsafe(getCurrentFiber(), n);
-				}, true);
-			});
-			return acquire;
-		});
-	}
-	withPermit = /*#__PURE__*/ this.withPermits(1);
-	withPermitsIfAvailable(n) {
-		return (self) => uninterruptibleMask$1((restore) => {
-			if (this.free < n) return succeedNone$1;
-			this.taken += n;
-			return onExitPrimitive(restore(asSome(self)), () => {
-				this.releaseUnsafe(getCurrentFiber(), n);
-			}, true);
-		});
-	}
-};
-const make$29 = (permits) => sync$1(() => new SemaphoreImpl(permits));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Channel.js
-const TypeId$27 = "~effect/Channel";
-const isChannel = (u) => hasProperty(u, TypeId$27);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Channel.js
+const TypeId$28 = "~effect/Channel";
+const isChannel = (u) => hasProperty(u, TypeId$28);
 const ChannelProto = {
-	[TypeId$27]: {
+	[TypeId$28]: {
 		_Env: identity,
 		_InErr: identity,
 		_InElem: identity,
@@ -10967,7 +11450,7 @@ const ChannelProto = {
 };
 const fromTransform$1 = (transform) => {
 	const self = Object.create(ChannelProto);
-	self.transform = (upstream, scope) => catchCause$1(transform(upstream, scope), (cause) => succeed$3(failCause$3(cause)));
+	self.transform = (upstream, scope) => catchCause$2(transform(upstream, scope), (cause) => succeed$3(failCause$3(cause)));
 	return self;
 };
 const transformPull$1 = (self, f) => fromTransform$1((upstream, scope) => flatMap(toTransform(self)(upstream, scope), (pull) => f(pull, scope)));
@@ -10979,18 +11462,19 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 	return onError(pull, onCause);
 }));
 const toTransform = (channel) => channel.transform;
-const asyncQueue = (scope, f, options) => make$30({
+const asyncQueue = (scope, f, options) => make$41({
 	capacity: options?.bufferSize,
 	strategy: options?.strategy
-}).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => provide$3(f(queue), scope).pipe(catchCause$1((cause) => failCause$2(queue, cause)), forkIn(scope))));
+}).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => provide$3(f(queue), scope).pipe(catchCause$2((cause) => failCause$2(queue, cause)), forkIn(scope, { startImmediately: true }))));
 const callbackArray = (f, options) => fromTransform$1((_, scope) => map$4(asyncQueue(scope, f, options), takeAll));
-const suspend$1 = (evaluate) => fromTransform$1((upstream, scope) => suspend$2(() => toTransform(evaluate())(upstream, scope)));
+const suspend$1 = (evaluate) => fromTransform$1((upstream, scope) => suspend$3(() => toTransform(evaluate())(upstream, scope)));
 const succeed$1 = (value) => fromEffect$1(succeed$3(value));
 const fail$1 = (error) => fromPull$1(succeed$3(fail$3(error)));
 const failCause$1 = (cause) => fromPull$1(failCause$3(cause));
+const die$1 = (defect) => failCause$1(die$4(defect));
 const fromEffect$1 = (effect) => fromPull$1(sync(() => {
 	let done = false;
-	return suspend$2(() => {
+	return suspend$3(() => {
 		if (done) return done$1();
 		done = true;
 		return effect;
@@ -11005,8 +11489,8 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$33(void 0);
-	const pull = suspend$2(() => {
+	const exit = options.exit ?? make$30(void 0);
+	const pull = suspend$3(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
 			try: () => reader.read(),
@@ -11019,7 +11503,7 @@ const readableStreamToPullUnsafe = (options) => {
 			}
 		});
 	});
-	return as(addFinalizer$1(options.scope, options.releaseLockOnEnd ? sync(() => reader.releaseLock()) : promise(() => reader.cancel().catch(constVoid))), pull);
+	return as(addFinalizer$1(options.scope, options.releaseLockOnEnd ? sync(() => reader.releaseLock()) : promise(() => reader.cancel().catch((error) => reader.closed.then(() => Promise.reject(error), constVoid))).pipe(ensuring$2(sync(() => reader.releaseLock())))), pull);
 };
 const map$3 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => sync(() => {
 	let i = 0;
@@ -11036,13 +11520,13 @@ const mapEffectSequential = (self, f) => fromTransform$1((upstream, scope) => {
 const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntraced(function* (upstream, scope, forkedScope) {
 	let i = 0;
 	const pull = yield* toTransform(self)(upstream, scope);
-	const concurrencyN = options.concurrency === "unbounded" ? Number.MAX_SAFE_INTEGER : options.concurrency;
+	const concurrencyN = options.concurrency === "unbounded" ? Number.MAX_SAFE_INTEGER : Math.min(options.concurrency, Number.MAX_SAFE_INTEGER);
 	const queue = yield* bounded(0);
 	yield* addFinalizer$1(forkedScope, shutdown(queue));
 	const runFork = runForkWith(yield* context());
 	const trackFiber = runIn(forkedScope);
 	if (options.unordered) {
-		const semaphore = makeUnsafe$1(concurrencyN);
+		const semaphore = makeUnsafe$3(concurrencyN);
 		const release = constant(semaphore.release(1));
 		const handle = matchCauseEffect({
 			onFailure: (cause) => flatMap(failCause$2(queue, cause), release),
@@ -11050,13 +11534,13 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 		});
 		yield* semaphore.take(1).pipe(flatMap(() => pull), flatMap((value) => {
 			const index = i++;
-			trackFiber(runFork(handle(suspend$2(() => f(value, index)))));
+			trackFiber(runFork(handle(suspend$3(() => f(value, index)))));
 			return void_$1;
-		}), forever({ disableYield: true }), catchCause$1((cause) => semaphore.withPermits(concurrencyN - 1)(failCause$2(queue, cause))), forkIn(forkedScope));
+		}), forever({ disableYield: true }), catchCause$2((cause) => semaphore.withPermits(concurrencyN - 1)(failCause$2(queue, cause))), forkIn(forkedScope));
 	} else {
 		const effects = yield* bounded(concurrencyN - 2);
 		yield* addFinalizer$1(forkedScope, shutdown(effects));
-		yield* take(effects).pipe(flatten, flatMap((value) => offer(queue, value)), forever({ disableYield: true }), catchCause$1((cause) => failCause$2(queue, cause)), forkIn(forkedScope));
+		yield* take(effects).pipe(flatten, flatMap((value) => offer(queue, value)), forever({ disableYield: true }), catchCause$2((cause) => failCause$2(queue, cause)), forkIn(forkedScope));
 		let errorCause;
 		const onExit = (exit) => {
 			if (exit._tag === "Success") return;
@@ -11066,18 +11550,18 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 		yield* pull.pipe(flatMap((value) => {
 			if (errorCause) return failCause$3(errorCause);
 			const index = i++;
-			const fiber = runFork(suspend$2(() => f(value, index)));
+			const fiber = runFork(suspend$3(() => f(value, index)));
 			trackFiber(fiber);
 			fiber.addObserver(onExit);
 			return offer(effects, join(fiber));
-		}), forever({ disableYield: true }), catchCause$1((cause) => offer(effects, failCause$5(cause)).pipe(andThen(failCause$2(effects, cause)))), forkIn(forkedScope));
+		}), forever({ disableYield: true }), catchCause$2((cause) => offer(effects, failCause$5(cause)).pipe(andThen(failCause$2(effects, cause)))), forkIn(forkedScope));
 	}
 	return take(queue);
 }));
 const flattenArray = (self) => transformPull$1(self, (pull) => {
 	let array;
 	let index = 0;
-	const pump = suspend$2(function loop() {
+	const pump = suspend$3(function loop() {
 		if (array === void 0) return flatMap(pull, (array_) => {
 			switch (array_.length) {
 				case 0: return loop();
@@ -11096,10 +11580,10 @@ const flattenArray = (self) => transformPull$1(self, (pull) => {
 	});
 	return succeed$3(pump);
 });
-const catchCause = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream, scope) => {
+const catchCause$1 = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream, scope) => {
 	let forkedScope = forkUnsafe(scope);
 	return map$4(toTransform(self)(upstream, forkedScope), (pull) => {
-		let currentPull = pull.pipe(catchCause$1((cause) => {
+		let currentPull = pull.pipe(catchCause$2((cause) => {
 			if (isDoneCause(cause)) return failCause$3(cause);
 			const toClose = forkedScope;
 			forkedScope = forkUnsafe(scope);
@@ -11108,33 +11592,75 @@ const catchCause = /*#__PURE__*/ dual(2, (self, f) => fromTransform$1((upstream,
 				return childPull;
 			}));
 		}));
-		return suspend$2(() => currentPull);
+		return suspend$3(() => currentPull);
 	});
 }));
-const catchCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause(self, (cause) => {
+const catchCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$1(self, (cause) => {
 	const result = filter(cause);
 	return isFailure$1(result) ? failCause$1(result.failure) : f(result.success, cause);
 }));
-const catch_$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter(self, findError, (e) => f(e)));
+const catch_$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter(self, findRecoverableError, (e) => f(e)));
+const catchIf$1 = /*#__PURE__*/ dual((args) => isChannel(args[0]), (self, predicate, f, orElse) => catch_$1(self, (err) => {
+	return predicate(err) ? f(err) : orElse ? orElse(err) : fail$1(err);
+}));
+const mapError$1 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(mapError$2(pull, (err) => isDone(err) ? err : f(err)))));
+const merge = /*#__PURE__*/ dual((args) => isChannel(args[0]) && isChannel(args[1]), (left, right, options) => fromTransformBracket(fnUntraced(function* (upstream, _scope, forkedScope) {
+	const strategy = options?.haltStrategy ?? "both";
+	const queue = yield* bounded(0);
+	yield* addFinalizer$1(forkedScope, shutdown(queue));
+	let done = 0;
+	function onExit(side, cause) {
+		done++;
+		if (!isDoneCause(cause)) return failCause$2(queue, cause);
+		switch (strategy) {
+			case "both": return done === 2 ? failCause$2(queue, cause) : void_$1;
+			case "left":
+			case "right": return side === strategy ? failCause$2(queue, cause) : void_$1;
+			case "either": return failCause$2(queue, cause);
+		}
+	}
+	const runSide = (side, channel, scope) => toTransform(channel)(upstream, scope).pipe(flatMap((pull) => pull.pipe(flatMap((value) => offer(queue, value)), forever)), onError((cause) => onExitPrimitive(doneExitFromCause(cause), (exit) => close(scope, exit)).pipe(matchCauseEffect({
+		onFailure: (cause) => onExit(side, cause),
+		onSuccess: () => onExit(side, cause)
+	}))), forkIn(forkedScope));
+	yield* runSide("left", left, forkUnsafe(forkedScope));
+	yield* runSide("right", right, forkUnsafe(forkedScope));
+	return take(queue);
+})));
+const decodeText$2 = (encoding, options) => fromTransform$1((upstream, _scope) => sync(() => {
+	const decoder = new TextDecoder(encoding, options);
+	const streamOptions = { stream: true };
+	let pull = upstream.pipe(map$4(map$7((bytes) => decoder.decode(bytes, streamOptions))), catchDone((leftover) => {
+		pull = done$1(leftover);
+		const last = decoder.decode();
+		return last.length > 0 ? succeed$3(of(last)) : pull;
+	}));
+	return suspend$3(() => pull);
+}));
 const pipeTo = /*#__PURE__*/ dual(2, (self, that) => fromTransform$1((upstream, scope) => flatMap(toTransform(self)(upstream, scope), (upstream) => toTransform(that)(upstream, scope))));
+const isUpstreamFailure = (reason) => reason._tag === "Die" && isDone(reason.defect) && isCause(reason.defect.value);
+const hasUpstreamFailure = (cause) => cause.reasons.some(isUpstreamFailure);
+const upstreamFailureToDefect = (pull) => catchCause$2(pull, (cause) => isDoneCause(cause) ? failCause$3(cause) : die$2(Done$1(cause)));
+const unwrapUpstreamFailure = (cause) => hasUpstreamFailure(cause) ? fromReasons(cause.reasons.flatMap((reason) => isUpstreamFailure(reason) ? reason.defect.value.reasons : [reason])) : cause;
+const restoreUpstreamFailure = (effect) => catchCause$2(effect, (cause) => failCause$3(unwrapUpstreamFailure(cause)));
 const unwrap$2 = (channel) => fromTransform$1((upstream, scope) => {
 	let pull;
-	return succeed$3(suspend$2(() => {
+	return succeed$3(suspend$3(() => {
 		if (pull) return pull;
 		return channel.pipe(provide$3(scope), flatMap((channel) => toTransform(channel)(upstream, scope)), flatMap((pull_) => pull = pull_));
 	}));
 });
+const interruptWhen$1 = /*#__PURE__*/ dual(2, (self, effect) => merge(self, fromPull$1(succeed$3(flatMap(effect, done$1))), { haltStrategy: "either" }));
 const onExit = /*#__PURE__*/ dual(2, (self, finalizer) => fromTransformBracket((upstream, scope, forkedScope) => addFinalizerExit(forkedScope, finalizer).pipe(andThen(toTransform(self)(upstream, scope)))));
-const onEnd$1 = /*#__PURE__*/ dual(2, (self, onEnd) => transformPull$1(self, (pull) => succeed$3(catchDone(pull, (leftover) => flatMap(onEnd, () => done$1(leftover))))));
 const ensuring$1 = /*#__PURE__*/ dual(2, (self, finalizer) => onExit(self, (_) => finalizer));
-const runWith = (self, f, onHalt) => suspend$2(() => {
+const runWith = (self, f, onHalt) => suspend$3(() => {
 	const scope = makeUnsafe$5();
 	const makePull = toTransform(self)(done$1(), scope);
 	return catchDone(flatMap(makePull, f), onHalt ? onHalt : succeed$3).pipe(onExit$1((exit) => close(scope, exit)));
 });
 const provideContext$1 = /*#__PURE__*/ dual(2, (self, context) => fromTransform$1((upstream, scope) => map$4(provideContext$2(toTransform(self)(upstream, scope), context), provideContext$2(context))));
 const runForEach$1 = /*#__PURE__*/ dual(2, (self, f) => runWith(self, (pull) => forever(flatMap(pull, f), { disableYield: true })));
-const runLast$1 = (self) => suspend$2(() => {
+const runLast$1 = (self) => suspend$3(() => {
 	const absent = Symbol();
 	let last = absent;
 	return runWith(self, (pull) => forever(flatMap(pull, (item) => {
@@ -11144,14 +11670,14 @@ const runLast$1 = (self) => suspend$2(() => {
 });
 const toPullScoped = (self, scope) => toTransform(self)(done$1(), scope);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ChannelSchema.js
-const decode$1 = (schema, options) => () => {
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ChannelSchema.js
+const decode$2 = (schema, options) => () => {
 	const decode = decodeEffect(NonEmptyArray(schema), options);
 	return fromTransform$1((upstream, _scope) => succeed$3(flatMap(upstream, (chunk) => decode(chunk))));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/PlatformError.js
-const TypeId$26 = "~effect/PlatformError";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PlatformError.js
+const TypeId$27 = "~effect/PlatformError";
 var BadArgument = class extends (/*#__PURE__*/ TaggedError$1("BadArgument")) {
 	get message() {
 		return `${this.module}.${this.method}${this.description ? `: ${this.description}` : ""}`;
@@ -11170,7 +11696,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 		});
 		else super({ reason });
 	}
-	[TypeId$26] = TypeId$26;
+	[TypeId$27] = TypeId$27;
 	get message() {
 		return this.reason.message;
 	}
@@ -11178,26 +11704,26 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 const systemError = (options) => new PlatformError(new SystemError(options));
 const badArgument = (options) => new PlatformError(new BadArgument(options));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/internal/stream.js
-const TypeId$25 = "~effect/Stream";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stream.js
+const TypeId$26 = "~effect/Stream";
 const streamVariance = {
 	_R: identity,
 	_E: identity,
 	_A: identity
 };
-const Stream$1 = function(channel) {
+const Stream$2 = function(channel) {
 	this.channel = channel;
 };
-Stream$1.prototype = {
-	[TypeId$25]: streamVariance,
+Stream$2.prototype = {
+	[TypeId$26]: streamVariance,
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
 };
-const fromChannel$2 = (channel) => new Stream$1(channel);
+const fromChannel$2 = (channel) => new Stream$2(channel);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Sink.js
-const TypeId$24 = "~effect/Sink";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Sink.js
+const TypeId$25 = "~effect/Sink";
 const endVoid = /*#__PURE__*/ succeed$3([void 0]);
 const sinkVariance = {
 	_A: identity,
@@ -11207,7 +11733,7 @@ const sinkVariance = {
 	_R: identity
 };
 const SinkProto = {
-	[TypeId$24]: sinkVariance,
+	[TypeId$25]: sinkVariance,
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
@@ -11223,10 +11749,10 @@ const forEach = (f) => forEachArray(forEach$1((_) => f(_), { discard: true }));
 const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f), forever({ disableYield: true }), catchDone(() => endVoid)));
 const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$4(effect, toChannel$1)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/RcMap.js
-const TypeId$23 = "~effect/RcMap";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/RcMap.js
+const TypeId$24 = "~effect/RcMap";
 const makeUnsafe = (options) => ({
-	[TypeId$23]: TypeId$23,
+	[TypeId$24]: TypeId$24,
 	lookup: options.lookup,
 	context: options.context,
 	scope: options.scope,
@@ -11234,7 +11760,7 @@ const makeUnsafe = (options) => ({
 	capacity: options.capacity,
 	state: {
 		_tag: "Open",
-		map: empty$5()
+		map: empty$8()
 	},
 	pipe() {
 		return pipeArguments(this, arguments);
@@ -11256,7 +11782,7 @@ const make$28 = (options) => withFiber((fiber) => {
 		self.state = { _tag: "Closed" };
 		return forEach$1(map, ([, entry]) => exit(closeEntry(entry))).pipe(tap(() => sync(() => {
 			clear$2(map);
-		})));
+		})), flatMap(asVoidAll));
 	}), self);
 });
 const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) => {
@@ -11280,14 +11806,14 @@ const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) =
 			refCount: 1
 		};
 		entry.finalizer = release(self, key, entry);
-		set$1(state.map, key, entry);
+		set$2(state.map, key, entry);
 		const context = new Map(self.context.mapUnsafe);
 		parent.context.mapUnsafe.forEach((value, key) => {
 			context.set(key, value);
 		});
 		context.set(Scope.key, entry.scope);
 		const lookupContext = makeUnsafe$7(context);
-		suspend$2(() => self.lookup(key)).pipe(runForkWith(lookupContext), runIn(entry.scope)).addObserver((exit) => {
+		suspend$3(() => self.lookup(key)).pipe(runForkWith(lookupContext), runIn(entry.scope)).addObserver((exit) => {
 			if (hasInterrupts(exit)) removeInterrupted(self, key, entry, lookupContext);
 			doneUnsafe(entry.deferred, exit);
 		});
@@ -11299,7 +11825,7 @@ const removeInterrupted = (self, key, entry, context) => {
 	if (self.state._tag === "Closed") return;
 	const o = get$1(self.state.map, key);
 	if (o._tag === "None" || o.value !== entry) return;
-	remove$1(self.state.map, key);
+	remove$2(self.state.map, key);
 	if (entry.refCount > 0) return;
 	closeEntry(entry).pipe(runForkWith(context), runIn(self.scope));
 };
@@ -11311,7 +11837,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 	const o = get$1(self.state.map, key);
 	if (o._tag === "None" || o.value !== entry) return closeEntry(entry);
 	else if (isZero$1(entry.idleTimeToLive)) {
-		remove$1(self.state.map, key);
+		remove$2(self.state.map, key);
 		return closeEntry(entry);
 	} else if (!isFinite$2(entry.idleTimeToLive)) return void_$1;
 	const clock = fiber.getRef(Clock);
@@ -11324,7 +11850,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 			if (self.state._tag === "Closed" || entry.refCount > 0) return void_$1;
 			const o = get$1(self.state.map, key);
 			if (o._tag === "None" || o.value !== entry) return void_$1;
-			remove$1(self.state.map, key);
+			remove$2(self.state.map, key);
 			return close(entry.scope, void_$2);
 		}
 		return flatMap(restore(clock.sleep(millis(remaining))), () => loop(restore));
@@ -11334,9 +11860,9 @@ const release = (self, key, entry) => withFiber((fiber) => {
 	return void_$1;
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Stream.js
-const TypeId$22 = "~effect/Stream";
-const isStream = (u) => hasProperty(u, TypeId$22);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stream.js
+const TypeId$23 = "~effect/Stream";
+const isStream = (u) => hasProperty(u, TypeId$23);
 const fromChannel = fromChannel$2;
 const fromEffect = (effect) => fromChannel(fromEffect$1(map$4(effect, of)));
 const fromPull = (pull) => fromChannel(fromPull$1(pull));
@@ -11344,9 +11870,15 @@ const transformPull = (self, f) => fromChannel(fromTransform$1((_, scope) => fla
 const toChannel = (stream) => stream.channel;
 const callback = (f, options) => fromChannel(callbackArray(f, options));
 const succeed = (value) => fromChannel(succeed$1(of(value)));
-const suspend = (stream) => fromChannel(suspend$1(() => stream().channel));
+const suspend = (stream) => {
+	const suspended = fromChannel(suspend$1(() => stream().channel));
+	suspendedStreams.set(suspended, stream);
+	return suspended;
+};
+const suspendedStreams = /*#__PURE__*/ new WeakMap();
 const fail = (error) => fromChannel(fail$1(error));
 const failCause = (cause) => fromChannel(failCause$1(cause));
+const die = (defect) => fromChannel(die$1(defect));
 const fromQueue = (queue) => fromChannel(fromQueueArray(queue));
 const fromReadableStream = (options) => fromChannel(fromReadableStream$1(options));
 const unwrap = (effect) => fromChannel(unwrap$2(map$4(effect, toChannel)));
@@ -11355,16 +11887,18 @@ const map$2 = /*#__PURE__*/ dual(2, (self, f) => suspend(() => {
 	return fromChannel(map$3(self.channel, map$7((o) => f(o, i++))));
 }));
 const mapEffect$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, f, options) => self.channel.pipe(flattenArray, mapEffect$2(f, options), map$3(of), fromChannel));
+const mapArrayEffect = /*#__PURE__*/ dual(2, (self, f) => fromChannel(mapEffect$2(self.channel, f)));
+const catchCause = /*#__PURE__*/ dual(2, (self, f) => self.channel.pipe(catchCause$1((cause) => f(cause).channel), fromChannel));
 const catch_ = /*#__PURE__*/ dual(2, (self, f) => fromChannel(catch_$1(self.channel, (error) => f(error).channel)));
+const catchIf = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, predicate, f, orElse) => fromChannel(catchIf$1(toChannel(self), predicate, (e) => f(e).channel, orElse && ((e) => orElse(e).channel))));
+const mapError = /*#__PURE__*/ dual(2, (self, f) => fromChannel(mapError$1(self.channel, f)));
 const pipeThroughChannel = /*#__PURE__*/ dual(2, (self, channel) => fromChannel(pipeTo(self.channel, channel)));
-const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => suspend(() => {
-	const decoder = new TextDecoder(options?.encoding);
-	return map$2(self, (chunk) => decoder.decode(chunk, { stream: true }));
-}));
-const onEnd = /*#__PURE__*/ dual(2, (self, onEnd) => fromChannel(onEnd$1(self.channel, onEnd)));
+const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => self.channel.pipe(pipeTo(decodeText$2(options?.encoding)), fromChannel));
+const interruptWhen = /*#__PURE__*/ dual(2, (self, effect) => fromChannel(interruptWhen$1(self.channel, effect)));
 const ensuring = /*#__PURE__*/ dual(2, (self, finalizer) => fromChannel(ensuring$1(self.channel, finalizer)));
 const provideContext = /*#__PURE__*/ dual(2, (self, context) => fromChannel(provideContext$1(self.channel, context)));
-const run = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullScoped(self.channel, scope).pipe(flatMap((upstream) => sink.transform(upstream, scope)), map$4(([a]) => a))));
+const run = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullScoped(self.channel, scope).pipe(flatMap((upstream) => runSink(sink, upstream, scope)), map$4(([a]) => a))));
+const runSink = (sink, upstream, scope) => restoreUpstreamFailure(sink.transform(upstreamFailureToDefect(upstream), scope));
 const runLast = (self) => map$4(runLast$1(self.channel), map$10(lastNonEmpty));
 const runForEach = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.channel, (arr) => {
 	let i = 0;
@@ -11378,19 +11912,28 @@ const runForEachArray = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.cha
 const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, context, options) => {
 	let currentResolve = void 0;
 	let fiber = void 0;
-	const latch = makeUnsafe$2(false);
+	let cancelled = false;
+	const latch = makeUnsafe$1(false);
+	const signal = options?.signal;
+	const onAbort = () => fiber.interruptUnsafe();
 	return new ReadableStream({
 		start(controller) {
-			fiber = runFork(provideContext$2(runForEachArray(self, (chunk) => latch.whenOpen(sync(() => {
+			fiber = runFork(provideContext$2(runForEach$1(transformPull$1(self.channel, (pull) => succeed$3(latch.whenOpen(pull))), (chunk) => sync(() => {
 				latch.closeUnsafe();
 				for (let i = 0; i < chunk.length; i++) controller.enqueue(chunk[i]);
 				currentResolve();
 				currentResolve = void 0;
-			}))), context));
+			})), context));
 			fiber.addObserver((exit) => {
-				if (exit._tag === "Failure") controller.error(squash(exit.cause));
+				signal?.removeEventListener("abort", onAbort);
+				if (cancelled) return;
+				if (exit._tag === "Failure" && signal?.aborted !== true) controller.error(squash(exit.cause));
 				else controller.close();
 			});
+			if (signal !== void 0 && fiber.pollUnsafe() === void 0) {
+				if (signal.aborted) onAbort();
+				else signal.addEventListener("abort", onAbort, { once: true });
+			}
 		},
 		pull() {
 			return new Promise((resolve) => {
@@ -11400,18 +11943,19 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 		},
 		cancel() {
 			if (!fiber) return;
+			cancelled = true;
 			return runPromise(asVoid(interrupt(fiber)));
 		}
 	}, options?.strategy);
 });
 const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$4(context(), (context) => toReadableStreamWith(self, context, options)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/FileSystem.js
-const TypeId$21 = "~effect/FileSystem";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/FileSystem.js
+const TypeId$22 = "~effect/FileSystem";
 const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
 const make$27 = (impl) => FileSystem.of({
 	...impl,
-	[TypeId$21]: TypeId$21,
+	[TypeId$22]: TypeId$22,
 	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
 	readFileString: (path, encoding) => flatMap(impl.readFile(path), (_) => try_({
 		try: () => new TextDecoder(encoding).decode(_),
@@ -11430,7 +11974,7 @@ const make$27 = (impl) => FileSystem.of({
 		let totalBytesRead = BigInt(0);
 		const chunkSize = Number(BigInt(options?.chunkSize ?? 65536));
 		const readChunk = file.readAlloc(chunkSize);
-		return fromPull(succeed$3(flatMap(suspend$2(() => {
+		return fromPull(succeed$3(flatMap(suspend$3(() => {
 			if (bytesToRead !== void 0 && bytesToRead <= totalBytesRead) return done$1();
 			return bytesToRead !== void 0 && bytesToRead - totalBytesRead < chunkSize ? file.readAlloc(Number(bytesToRead - totalBytesRead)) : readChunk;
 		}), match$3({
@@ -11458,7 +12002,7 @@ const make$27 = (impl) => FileSystem.of({
 const FileTypeId = "~effect/FileSystem/File";
 var WatchBackend = class extends (/*#__PURE__*/ Service$1()("effect/FileSystem/WatchBackend")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ConfigProvider.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ConfigProvider.js
 function makeValue(value) {
 	return {
 		_tag: "Value",
@@ -11547,8 +12091,8 @@ function trieNodeAt(root, path) {
 }
 const isGreaterThanOrEqualTo = /*#__PURE__*/ isGreaterThanOrEqualTo$2(LogLevelOrder);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Config.js
-const TypeId$20 = "~effect/Config";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Config.js
+const TypeId$21 = "~effect/Config";
 var ConfigError = class {
 	_tag = "ConfigError";
 	name = "ConfigError";
@@ -11570,7 +12114,7 @@ const Proto$11 = {
 			return this.parse(fiber.getRef(ConfigProvider));
 		}
 	}),
-	[TypeId$20]: TypeId$20,
+	[TypeId$21]: TypeId$21,
 	toJSON() {
 		return { _id: "Config" };
 	}
@@ -11597,7 +12141,7 @@ const withDefault = /*#__PURE__*/ dual(2, (self, defaultValue) => {
 });
 const isSourceError = (u) => isTagged(u, "SourceError");
 const cursorToString = () => "<configuration>";
-const mapReasons = (f) => (self) => catchCause$1(self, (cause) => failCause$3(fromReasons(cause.reasons.map(f))));
+const mapReasons = (f) => (self) => catchCause$2(self, (cause) => failCause$3(fromReasons(cause.reasons.map(f))));
 const loadCursor = (provider, path) => provider.load(path).pipe(mapReasons((reason) => isFailReason(reason) ? makeDieReason(reason.error).annotate(reasonAnnotations(reason)) : reason), mapEager((node) => ({
 	provider,
 	path,
@@ -11630,14 +12174,15 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 		seen.add(ast);
 		switch (ast._tag) {
 			case "Objects": {
-				const matchesIndex = ast.indexSignatures.map((is) => _is(is.parameter));
 				const materialize = fnUntraced(function* (cursor) {
 					if (cursor.node?._tag !== "Record") return;
 					const node = cursor.node;
 					const keys = /* @__PURE__ */ new Set();
 					for (const property of ast.propertySignatures) if (typeof property.name === "string") keys.add(property.name);
-					if (matchesIndex.length > 0) {
-						for (const key of node.keys) if (matchesIndex.some((matches) => matches(key))) keys.add(key);
+					if (ast.indexSignatures.length > 0) {
+						const input = {};
+						for (const key of node.keys) assignProperty(input, key, void 0);
+						for (const is of ast.indexSignatures) for (const key of getIndexSignatureKeys(input, is.parameter)) if (typeof key === "string") keys.add(key);
 					}
 					const out = {};
 					for (const key of keys) {
@@ -11676,7 +12221,7 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 function schema$1(codec, path) {
 	const codecStringTree = toCodecStringTree(codec);
 	const encodedAst = toEncoded$1(codecStringTree.ast);
-	const decodeCursor = decodeUnknownEffect$1(make$34(toConfigCursorAST(codecStringTree.ast)));
+	const decodeCursor = decodeUnknownEffect$1(make$31(toConfigCursorAST(codecStringTree.ast)));
 	const localPath = typeof path === "string" ? [path] : path ?? [];
 	return make$25((provider, pathPrefix) => {
 		const fullPath = [...pathPrefix, ...localPath];
@@ -11689,21 +12234,21 @@ function schema$1(codec, path) {
 function String$1(name) {
 	return schema$1(String$2, name);
 }
-function Redacted(name) {
-	return schema$1(Redacted$1(String$2), name);
+function Redacted$1(name) {
+	return schema$1(Redacted$2(String$2), name);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ErrorReporter.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ErrorReporter.js
 const report = (cause) => withFiber((fiber) => {
 	reportCauseUnsafe(fiber, cause);
 	return void_$1;
 });
 const ignore = "~effect/ErrorReporter/ignore";
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/PrimaryKey.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PrimaryKey.js
 const symbol$1 = "~effect/PrimaryKey";
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Logger.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Logger.js
 const LogToStderr = LogToStderr$1;
 const ValueMatcherProto = {
 	["~effect/Match/Matcher"]: {
@@ -11741,7 +12286,7 @@ const makePredicate = (pattern) => {
 		const predicates = pattern.map(makePredicate);
 		const len = predicates.length;
 		return (u) => {
-			if (!Array.isArray(u)) return false;
+			if (!Array.isArray(u) || u.length < len) return false;
 			for (let i = 0; i < len; i++) if (predicates[i](u[i]) === false) return false;
 			return true;
 		};
@@ -11816,7 +12361,7 @@ const exhaustive$1 = (self) => {
 	};
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Match.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Match.js
 const value = value$1;
 const when = when$1;
 const tag = tag$1;
@@ -11824,30 +12369,34 @@ const tags = tags$1;
 const is = is$1;
 const exhaustive = exhaustive$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/UndefinedOr.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/UndefinedOr.js
 const map = /*#__PURE__*/ dual(2, (self, f) => self === void 0 ? void 0 : f(self));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Runtime.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Runtime.js
 const defaultTeardown = (exit, onExit) => {
 	if (isSuccess(exit)) return onExit(0);
 	if (hasInterruptsOnly(exit.cause)) return onExit(130);
 	return onExit(getErrorExitCode(squash(exit.cause)));
 };
 const makeRunMain = (f) => dual((args) => isEffect(args[0]), (effect, options) => {
-	const fiber = options?.disableErrorReporting === true ? runFork(effect) : runFork(tapCause(effect, (cause) => {
+	const main = options?.disableErrorReporting === true ? effect : tapCause(effect, (cause) => {
 		if (hasInterruptsOnly(cause)) return void_$1;
 		return getErrorReported(squash(cause)) ? logError(cause) : void_$1;
-	}));
-	try {
-		const keepAlive = globalThis.setInterval(constVoid, 2147483647);
-		fiber.addObserver(() => {
-			clearInterval(keepAlive);
-		});
-	} catch {}
-	return f({
-		fiber,
-		teardown: options?.teardown ?? defaultTeardown
 	});
+	const teardown = options?.teardown ?? defaultTeardown;
+	runFork(withFiber((fiber) => {
+		try {
+			const keepAlive = globalThis.setInterval(constVoid, 2147483647);
+			fiber.addObserver(() => {
+				clearInterval(keepAlive);
+			});
+		} catch {}
+		f({
+			fiber,
+			teardown
+		});
+		return main;
+	}));
 });
 const errorExitCode = "~effect/Runtime/errorExitCode";
 const getErrorExitCode = (u) => {
@@ -11866,27 +12415,28 @@ const getErrorReported = (u) => {
 	return true;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/Stdio.js
-const TypeId$18 = "~effect/Stdio";
-const Stdio = /*#__PURE__*/ Service$1(TypeId$18);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stdio.js
+const TypeId$19 = "~effect/Stdio";
+const Stdio = /*#__PURE__*/ Service$1(TypeId$19);
 const make$24 = (options) => ({
-	[TypeId$18]: TypeId$18,
+	[TypeId$19]: TypeId$19,
 	stdinIsTerminal: succeed$3(false),
 	stdoutIsTerminal: succeed$3(false),
+	stderrIsTerminal: succeed$3(false),
 	...options
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpBody.js
-const TypeId$17 = "~effect/http/HttpBody";
-const isHttpBody = (u) => hasProperty(u, TypeId$17);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpBody.js
+const TypeId$18 = "~effect/http/HttpBody";
+const isHttpBody = (u) => hasProperty(u, TypeId$18);
 const HttpBodyErrorTypeId = "~effect/http/HttpBody/HttpBodyError";
 var HttpBodyError = class extends (/*#__PURE__*/ TaggedError$1("HttpBodyError")) {
 	[HttpBodyErrorTypeId] = HttpBodyErrorTypeId;
 };
 var Proto$10 = class {
-	[TypeId$17];
+	[TypeId$18];
 	constructor() {
-		this[TypeId$17] = TypeId$17;
+		this[TypeId$18] = TypeId$18;
 	}
 	[NodeInspectSymbol]() {
 		return this.toJSON();
@@ -11932,17 +12482,17 @@ var Uint8Array$1 = class extends Proto$10 {
 	}
 };
 const uint8Array = (body, contentType) => new Uint8Array$1(body, contentType ?? "application/octet-stream", body.length);
-const encoder = /*#__PURE__*/ new TextEncoder();
+const encoder$1 = /*#__PURE__*/ new TextEncoder();
 const buffer = globalThis.Buffer;
-const encodeText = buffer !== void 0 ? (body) => buffer.from(body, "utf8") : (body) => encoder.encode(body);
+const encodeText = buffer !== void 0 ? (body) => buffer.from(body, "utf8") : (body) => encoder$1.encode(body);
 const text = (body, contentType) => {
 	if (typeof body !== "string") body = body === void 0 ? "" : String(body);
 	if (buffer !== void 0) return new Uint8Array$1(void 0, contentType ?? "text/plain", buffer.byteLength(body, "utf8"), body);
-	const bytes = encoder.encode(body);
+	const bytes = encoder$1.encode(body);
 	return new Uint8Array$1(bytes, contentType ?? "text/plain", bytes.length, body);
 };
 const jsonUnsafe$1 = (body, contentType) => text(JSON.stringify(body), contentType ?? "application/json");
-const json = (body, contentType) => try_({
+const json$1 = (body, contentType) => try_({
 	try: () => text(JSON.stringify(body), contentType ?? "application/json"),
 	catch: (cause) => new HttpBodyError({
 		reason: { _tag: "JsonError" },
@@ -11968,10 +12518,31 @@ var FormData$1 = class extends Proto$10 {
 	}
 };
 const formData = (body) => new FormData$1(body);
+var Stream$1 = class extends Proto$10 {
+	_tag = "Stream";
+	stream;
+	contentType;
+	contentLength;
+	constructor(stream, contentType, contentLength) {
+		super();
+		this.stream = stream;
+		this.contentType = contentType;
+		this.contentLength = contentLength;
+	}
+	toJSON() {
+		return {
+			_id: "effect/HttpBody",
+			_tag: "Stream",
+			contentType: this.contentType,
+			contentLength: this.contentLength
+		};
+	}
+};
+const stream = (body, contentType, contentLength) => new Stream$1(body, contentType ?? "application/octet-stream", contentLength);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpClientError.js
-const TypeId$16 = "~effect/http/HttpClientError";
-const isHttpClientError = (u) => hasProperty(u, TypeId$16);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientError.js
+const TypeId$17 = "~effect/http/HttpClientError";
+const isHttpClientError = (u) => hasProperty(u, TypeId$17);
 var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientError")) {
 	constructor(props) {
 		if ("cause" in props.reason) super({
@@ -11980,7 +12551,7 @@ var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientErro
 		});
 		else super(props);
 	}
-	[TypeId$16] = TypeId$16;
+	[TypeId$17] = TypeId$17;
 	get request() {
 		return this.reason.request;
 	}
@@ -11993,51 +12564,79 @@ var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientErro
 };
 const formatReason = (tag) => tag.endsWith("Error") ? tag.slice(0, -5) : tag;
 const formatMessage = (reason, description, info) => description ? `${reason}: ${description} (${info})` : `${reason} error (${info})`;
+const formatMethodAndUrl$1 = (request) => `${request.method} ${redactUrl(request.url)}`;
+const reasonToJSON = (reason, json) => ({
+	...json,
+	request: {
+		_id: "HttpClientRequest",
+		method: reason.request.method,
+		url: redactUrl(reason.request.url)
+	},
+	..."response" in reason ? { response: {
+		_id: "HttpClientResponse",
+		status: reason.response.status
+	} } : void 0
+});
 var TransportError = class extends (/*#__PURE__*/ TaggedError$1("TransportError")) {
 	get methodAndUrl() {
-		return `${this.request.method} ${this.request.url}`;
+		return formatMethodAndUrl$1(this.request);
 	}
 	get message() {
 		return formatMessage(formatReason(this._tag), this.description, this.methodAndUrl);
+	}
+	toJSON() {
+		return reasonToJSON(this, super.toJSON());
 	}
 };
 var InvalidUrlError = class extends (/*#__PURE__*/ TaggedError$1("InvalidUrlError")) {
 	get methodAndUrl() {
-		return `${this.request.method} ${this.request.url}`;
+		return formatMethodAndUrl$1(this.request);
 	}
 	get message() {
 		return formatMessage(formatReason(this._tag), this.description, this.methodAndUrl);
 	}
+	toJSON() {
+		return reasonToJSON(this, super.toJSON());
+	}
 };
 var StatusCodeError = class extends (/*#__PURE__*/ TaggedError$1("StatusCodeError")) {
 	get methodAndUrl() {
-		return `${this.request.method} ${this.request.url}`;
+		return formatMethodAndUrl$1(this.request);
 	}
 	get message() {
 		const info = `${this.response.status} ${this.methodAndUrl}`;
 		return formatMessage(formatReason(this._tag), this.description, info);
+	}
+	toJSON() {
+		return reasonToJSON(this, super.toJSON());
 	}
 };
 var DecodeError = class extends (/*#__PURE__*/ TaggedError$1("DecodeError")) {
 	get methodAndUrl() {
-		return `${this.request.method} ${this.request.url}`;
+		return formatMethodAndUrl$1(this.request);
 	}
 	get message() {
 		const info = `${this.response.status} ${this.methodAndUrl}`;
 		return formatMessage(formatReason(this._tag), this.description, info);
+	}
+	toJSON() {
+		return reasonToJSON(this, super.toJSON());
 	}
 };
 var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError")) {
 	get methodAndUrl() {
-		return `${this.request.method} ${this.request.url}`;
+		return formatMethodAndUrl$1(this.request);
 	}
 	get message() {
 		const info = `${this.response.status} ${this.methodAndUrl}`;
 		return formatMessage(formatReason(this._tag), this.description, info);
 	}
+	toJSON() {
+		return reasonToJSON(this, super.toJSON());
+	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpMethod.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMethod.js
 const hasBody = (method) => method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE";
 const allShort = [
 	["GET", "get"],
@@ -12051,21 +12650,25 @@ const allShort = [
 	["QUERY", "query"]
 ];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/internal/httpBody.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/httpBody.js
 const updateHeaders = (headers, body) => {
-	if (body._tag === "Empty" || body._tag === "FormData") return remove$2(remove$2(headers, "content-type"), "content-length");
-	headers = body.contentType === void 0 ? remove$2(headers, "content-type") : set$2(headers, "content-type", body.contentType);
-	return body.contentLength === void 0 ? remove$2(headers, "content-length") : set$2(headers, "content-length", body.contentLength.toString());
+	if (body._tag === "Empty" || body._tag === "FormData") return remove$1(remove$1(headers, "content-type"), "content-length");
+	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set$1(headers, "content-type", body.contentType);
+	return updateContentLength(headers, body);
+};
+const updateContentLength = (headers, body) => {
+	const contentLength = body._tag === "Empty" || body._tag === "FormData" ? void 0 : body.contentLength;
+	return contentLength === void 0 ? remove$1(headers, "content-length") : set$1(headers, "content-length", contentLength.toString());
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/Url.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Url.js
 var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
 const make$23 = (url, params, hash) => try_$2({
 	try: () => {
 		const urlInstance = new URL(url, baseUrl());
 		for (let i = 0; i < params.params.length; i++) {
 			const [key, value] = params.params[i];
-			if (value !== void 0) urlInstance.searchParams.append(key, value);
+			if (value !== void 0) urlInstance.searchParams.append(key, unwrap$3(value));
 		}
 		if (hash !== void 0) urlInstance.hash = hash;
 		return urlInstance;
@@ -12073,22 +12676,29 @@ const make$23 = (url, params, hash) => try_$2({
 	catch: (cause) => new UrlError({ cause })
 });
 const baseUrl = () => {
-	if ("location" in globalThis && globalThis.location !== void 0 && globalThis.location.origin !== void 0 && globalThis.location.pathname !== void 0) return location.origin + location.pathname;
+	if ("location" in globalThis && globalThis.location !== void 0 && globalThis.location.origin !== void 0 && globalThis.location.pathname !== void 0) {
+		const base = location.origin + location.pathname;
+		try {
+			return new URL(base).href;
+		} catch {
+			return;
+		}
+	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpClientRequest.js
-const TypeId$15 = "~effect/http/HttpClientRequest";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientRequest.js
+const TypeId$16 = "~effect/http/HttpClientRequest";
 const Proto$9 = {
-	[TypeId$15]: TypeId$15,
+	[TypeId$16]: TypeId$16,
 	...BaseProto,
 	toJSON() {
 		return {
 			_id: "HttpClientRequest",
 			method: this.method,
-			url: this.url,
+			url: redactUrl(this.url),
 			urlParams: this.urlParams,
 			hash: this.hash,
-			headers: redact$1(this.headers),
+			headers: redact$2(this.headers),
 			body: this.body.toJSON()
 		};
 	},
@@ -12106,7 +12716,7 @@ function makeWith$2(method, url, urlParams, hash, headers, body) {
 	self.body = body;
 	return self;
 }
-const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$6, /*#__PURE__*/ none(), empty$7, empty$2);
+const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$5, /*#__PURE__*/ none(), empty$6, empty$2);
 const make$22 = (method) => (url, options) => modify(empty$1, {
 	method,
 	url,
@@ -12126,11 +12736,12 @@ const modify = /*#__PURE__*/ dual(2, (self, options) => {
 	return result;
 });
 const setMethod = /*#__PURE__*/ dual(2, (self, method) => makeWith$2(method, self.url, self.urlParams, self.hash, self.headers, self.body));
-const setHeader$1 = /*#__PURE__*/ dual(3, (self, key, value) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$2(self.headers, key, value), self.body));
+const setHeader$1 = /*#__PURE__*/ dual(3, (self, key, value) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$1(self.headers, key, value), self.body));
 const setHeaders$1 = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.method, self.url, self.urlParams, self.hash, setAll$1(self.headers, input), self.body));
 const bearerToken = /*#__PURE__*/ dual(2, (self, token) => setHeader$1(self, "Authorization", `Bearer ${stringOrRedacted(token)}`));
 const accept = /*#__PURE__*/ dual(2, (self, mediaType) => setHeader$1(self, "Accept", mediaType));
 const acceptJson = /*#__PURE__*/ accept("application/json");
+const upgrade = /*#__PURE__*/ dual(2, (self, protocol) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$1(set$1(self.headers, "connection", "Upgrade"), "upgrade", protocol), self.body));
 const setUrl = /*#__PURE__*/ dual(2, (self, url) => {
 	if (typeof url === "string") return makeWith$2(self.method, url, self.urlParams, self.hash, self.headers, self.body);
 	const clone = new URL(url.toString());
@@ -12150,12 +12761,12 @@ const joinSegments = (first, second) => {
 	return endsWithSlash && startsWithSlash ? first + second.slice(1) : !endsWithSlash && !startsWithSlash ? first + "/" + second : first + second;
 };
 const setUrlParams = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.method, self.url, setAll(self.urlParams, input), self.hash, self.headers, self.body));
-const appendUrlParams = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.method, self.url, appendAll$1(self.urlParams, input), self.hash, self.headers, self.body));
+const appendUrlParams = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.method, self.url, appendAll(self.urlParams, input), self.hash, self.headers, self.body));
 const setHash = /*#__PURE__*/ dual(2, (self, hash) => makeWith$2(self.method, self.url, self.urlParams, some(hash), self.headers, self.body));
 const setBody = /*#__PURE__*/ dual(2, (self, body) => {
 	return makeWith$2(self.method, self.url, self.urlParams, self.hash, updateHeaders(self.headers, body), body);
 });
-const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$4(json(body), (body) => setBody(self, body)));
+const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$4(json$1(body), (body) => setBody(self, body)));
 const bodyFormData = /*#__PURE__*/ dual(2, (self, body) => setBody(self, formData(body)));
 function toUrl(self) {
 	const r = make$23(self.url, self.urlParams, getOrUndefined$1(self.hash));
@@ -12163,33 +12774,27 @@ function toUrl(self) {
 	return none();
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpIncomingMessage.js
-const TypeId$14 = "~effect/http/HttpIncomingMessage";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpIncomingMessage.js
+const TypeId$15 = "~effect/http/HttpIncomingMessage";
 const schemaBodyJson = (schema, options) => {
 	const decode = decodeEffect(toCodecJson(schema));
 	const decodeJson = options?.reviver === void 0 ? void 0 : decodeEffect(fromJsonString(toCodecJson(schema), options));
 	return (self) => decodeJson === void 0 ? flatMap(self.json, (u) => decode(u, options)) : flatMap(self.text, (body) => body === "" ? flatMap(self.json, (u) => decode(u, options)) : decodeJson(body, options));
 };
 const inspect = (self, that) => {
-	const contentType = self.headers["content-type"] ?? "";
-	let body;
-	if (contentType.includes("application/json")) try {
-		body = runSync$1(self.json);
-	} catch (_) {}
-	else if (contentType.includes("text/") || contentType.includes("urlencoded")) try {
-		body = runSync$1(self.text);
-	} catch (_) {}
-	const obj = {
+	return {
 		...that,
-		headers: redact$1(self.headers),
+		headers: redact$2(self.headers),
 		remoteAddress: self.remoteAddress
 	};
-	if (body !== void 0) obj.body = body;
-	return obj;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpClientResponse.js
-const TypeId$13 = "~effect/http/HttpClientResponse";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/webResponse.js
+const WebSourceSymbol = "~effect/http/HttpClientResponse/WebSource";
+const getWebSource = (self) => self[WebSourceSymbol]?.();
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientResponse.js
+const TypeId$14 = "~effect/http/HttpClientResponse";
 const fromWeb = (request, source) => new WebHttpClientResponse(request, source);
 const schemaJson = (schema, options) => {
 	const decode = decodeEffect(toCodecJson(schema), options);
@@ -12206,16 +12811,16 @@ const filterStatusOk$1 = (self) => self.status >= 200 && self.status < 300 ? suc
 	description: "non 2xx status code"
 }) }));
 var WebHttpClientResponse = class extends Class$2 {
+	[TypeId$15];
 	[TypeId$14];
-	[TypeId$13];
 	request;
 	source;
 	constructor(request, source) {
 		super();
 		this.request = request;
 		this.source = source;
+		this[TypeId$15] = TypeId$15;
 		this[TypeId$14] = TypeId$14;
-		this[TypeId$13] = TypeId$13;
 	}
 	toJSON() {
 		return inspect(this, {
@@ -12244,6 +12849,9 @@ var WebHttpClientResponse = class extends Class$2 {
 	}
 	get remoteAddress() {
 		return none();
+	}
+	[WebSourceSymbol]() {
+		return this.source;
 	}
 	get stream() {
 		return this.source.body ? fromReadableStream({
@@ -12307,30 +12915,37 @@ var WebHttpClientResponse = class extends Class$2 {
 		}).pipe(cached, runSync$1);
 		return this.arrayBufferBody;
 	}
+	get upgrade() {
+		return fail$3(new HttpClientError({ reason: new StatusCodeError({
+			request: this.request,
+			response: this,
+			description: "fetch cannot hand over the connection of an HTTP upgrade"
+		}) }));
+	}
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpTraceContext.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpTraceContext.js
 const toHeaders = (span) => fromRecordUnsafe({
 	b3: `${span.traceId}-${span.spanId}-${span.sampled ? "1" : "0"}${match$3(span.parent, {
 		onNone: () => "",
 		onSome: (parent) => `-${parent.spanId}`
 	})}`,
-	traceparent: `00-${span.traceId}-${span.spanId}-${span.sampled ? "01" : "00"}`
+	traceparent: `00-${span.traceId.padStart(32, "0")}-${span.spanId}-${span.sampled ? "01" : "00"}`
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/internal/tracing.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/tracing.js
 const defaultPorts = {
 	"http:": 80,
 	"https:": 443,
 	"ws:": 80,
 	"wss:": 443
 };
-const addUrlAttributes = (span, url) => {
-	const query = url.search.slice(1);
-	span.attribute("url.full", url.toString());
+const addUrlAttributes = (span, url, redactedNames) => {
+	const query = redactUrl(url.search, redactedNames).slice(1);
+	span.attribute("url.full", redactUrl(url.href, redactedNames));
 	span.attribute("url.path", url.pathname);
 	if (query !== "") span.attribute("url.query", query);
 	span.attribute("url.scheme", url.protocol.slice(0, -1));
@@ -12340,15 +12955,19 @@ const addUrlAttributes = (span, url) => {
 		if (port !== void 0) span.attribute("server.port", port);
 	}
 };
+const redactedNames = (urlParams, redactedNames) => {
+	const keys = urlParams.params.filter(([, value]) => typeof value !== "string").map(([key]) => key);
+	return keys.length === 0 ? redactedNames : [...redactedNames, ...new URLSearchParams(keys.map((key) => [key, ""])).keys()];
+};
 const addHeaderAttributes = (span, phase, headers, filter, redactedNames) => {
 	for (const name in headers) {
 		if (!filter(name, phase)) continue;
-		span.attribute(`http.${phase}.header.${name}`, isRedactedName(name, redactedNames) ? "<redacted>" : headers[name]);
+		span.attribute(`http.${phase}.header.${name}`, isRedactedName$1(name, redactedNames) ? "<redacted>" : headers[name]);
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpClient.js
-const TypeId$12 = "~effect/http/HttpClient";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClient.js
+const TypeId$13 = "~effect/http/HttpClient";
 const HttpClient = /*#__PURE__*/ Service$1("effect/HttpClient");
 const transformResponse$1 = /*#__PURE__*/ dual(2, (self, f) => makeWith$1((request) => f(self.postprocess(request)), self.preprocess));
 const filterStatusOk = /*#__PURE__*/ transformResponse$1(/*#__PURE__*/ flatMap(filterStatusOk$1));
@@ -12362,7 +12981,7 @@ const makeWith$1 = (postprocess, preprocess) => {
 	return self;
 };
 const Proto$8 = {
-	[TypeId$12]: TypeId$12,
+	[TypeId$13]: TypeId$13,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -12385,11 +13004,10 @@ const make$21 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 	const url = urlResult.success;
 	if (fiber.getRef(DisablePropagation) || fiber.getRef(TracerDisabledWhen)(request)) {
 		const effect = f(request, url, controller.signal, fiber);
-		if (scopedController) return effect;
+		if (scopedController) return map$4(effect, (response) => trackResponse(response, controller, true));
 		return uninterruptibleMask((restore) => matchCauseEffect(restore(effect), {
 			onSuccess(response) {
-				responseRegistry.register(response, controller);
-				return succeed$3(new InterruptibleResponse(response, controller));
+				return succeed$3(trackResponse(response, controller, false));
 			},
 			onFailure(cause) {
 				if (hasInterrupts$1(cause)) controller.abort();
@@ -12399,8 +13017,8 @@ const make$21 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 	}
 	return useSpan(fiber.getRef(SpanNameGenerator)(request), { kind: "client" }, (span) => {
 		span.attribute("http.request.method", request.method);
-		const redactedHeaderNames = fiber.getRef(CurrentRedactedNames);
-		addUrlAttributes(span, url);
+		const redactedHeaderNames = fiber.getRef(CurrentRedactedNames$1);
+		addUrlAttributes(span, url, redactedNames(request.urlParams, fiber.getRef(CurrentRedactedNames)));
 		const headerFilter = fiber.getRef(TracerHeaderFilter);
 		addHeaderAttributes(span, "request", request.headers, headerFilter, redactedHeaderNames);
 		request = fiber.getRef(TracerPropagationEnabled) ? setHeaders$1(request, toHeaders(span)) : request;
@@ -12412,9 +13030,7 @@ const make$21 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withF
 					span.attribute("error.type", String(response.status));
 					endSpanWithStatusError(fiber, span, request, response);
 				}
-				if (scopedController) return succeed$3(response);
-				responseRegistry.register(response, controller);
-				return succeed$3(new InterruptibleResponse(response, controller));
+				return succeed$3(trackResponse(response, controller, scopedController !== void 0));
 			},
 			onFailure(cause) {
 				if (!scopedController && hasInterrupts$1(cause)) controller.abort();
@@ -12441,11 +13057,10 @@ const mapRequest = /*#__PURE__*/ dual(2, (self, f) => makeWith$1(self.postproces
 const retryTransient = /*#__PURE__*/ dual(2, (self, options) => {
 	const isOnlySchedule = isSchedule(options);
 	const retryOn = isOnlySchedule ? "errors-and-responses" : options.retryOn ?? "errors-and-responses";
-	const schedule = isOnlySchedule ? options : options.schedule;
-	const passthroughSchedule = schedule && passthrough$2(schedule);
+	const schedule = withRetryAfter(isOnlySchedule ? options : options.schedule ?? forever$1);
 	const times = isOnlySchedule ? void 0 : options.times;
 	return transformResponse$1(self, flow(retryOn === "errors-only" ? identity : repeat({
-		schedule: passthroughSchedule,
+		schedule,
 		times,
 		while: isTransientResponse
 	}), retryOn === "response-only" ? identity : retry({
@@ -12454,15 +13069,22 @@ const retryTransient = /*#__PURE__*/ dual(2, (self, options) => {
 		times
 	})));
 });
+const parseRetryAfter = (nowMillis, value) => {
+	if (value === void 0) return;
+	const retryAfter = parseRetryAfter$1(value);
+	return isSuccess$1(retryAfter) ? max(retryAfterDelay(retryAfter.success, nowMillis), millis(1)) : void 0;
+};
 const TracerDisabledWhen = /*#__PURE__*/ Reference("effect/http/HttpClient/TracerDisabledWhen", { defaultValue: () => constFalse });
 const TracerHeaderFilter = /*#__PURE__*/ Reference("effect/http/HttpClient/TracerHeaderFilter", { defaultValue: () => constFalse });
 const TracerPropagationEnabled = /*#__PURE__*/ Reference("effect/http/HttpClient/TracerPropagationEnabled", { defaultValue: constTrue });
 const SpanNameGenerator = /*#__PURE__*/ Reference("effect/http/HttpClient/SpanNameGenerator", { defaultValue: () => (request) => request.method });
-const layerMergedContext = (effect$1) => effect(HttpClient)(contextWith((context) => map$4(effect$1, (client) => transformResponse$1(client, updateContext((input) => merge$1(context, input))))));
+const layerMergedContext = (effect$1) => effect(HttpClient)(contextWith((context) => map$4(effect$1, (client) => transformResponse$1(client, updateContext((input) => merge$2(context, input))))));
 const responseRegistry = /*#__PURE__*/ (() => {
 	if ("FinalizationRegistry" in globalThis && globalThis.FinalizationRegistry) {
 		const registry = /*#__PURE__*/ new FinalizationRegistry((controller) => {
-			controller.abort();
+			try {
+				controller.abort();
+			} catch {}
 		});
 		return {
 			register(response, controller) {
@@ -12487,6 +13109,15 @@ const responseRegistry = /*#__PURE__*/ (() => {
 	};
 })();
 const scopedRequests = /*#__PURE__*/ new WeakMap();
+const responseControllers = /*#__PURE__*/ new WeakMap();
+const trackResponse = (response, controller, scoped) => {
+	if (!scoped) {
+		responseRegistry.register(response, controller);
+		response = new InterruptibleResponse(response, controller);
+	}
+	responseControllers.set(response, controller);
+	return response;
+};
 var InterruptibleResponse = class {
 	original;
 	controller;
@@ -12494,10 +13125,10 @@ var InterruptibleResponse = class {
 		this.original = original;
 		this.controller = controller;
 	}
-	[TypeId$13] = TypeId$13;
 	[TypeId$14] = TypeId$14;
+	[TypeId$15] = TypeId$15;
 	applyInterrupt(effect) {
-		return suspend$2(() => {
+		return suspend$3(() => {
 			responseRegistry.unregister(this.original);
 			return onInterrupt(effect, () => sync(() => {
 				this.controller.abort();
@@ -12537,6 +13168,14 @@ var InterruptibleResponse = class {
 	get arrayBuffer() {
 		return this.applyInterrupt(this.original.arrayBuffer);
 	}
+	get upgrade() {
+		return this.applyInterrupt(this.original.upgrade);
+	}
+	[WebSourceSymbol]() {
+		const source = getWebSource(this.original);
+		if (source !== void 0) responseRegistry.unregister(this.original);
+		return source;
+	}
 	get stream() {
 		return suspend(() => {
 			responseRegistry.unregister(this.original);
@@ -12557,16 +13196,31 @@ var InterruptibleResponse = class {
 };
 const isTransientError = (error) => isTimeoutError(error) || isTransientHttpError(error);
 const isTransientHttpError = (error) => isHttpClientError(error) && (error.reason._tag === "TransportError" || error.reason._tag === "StatusCodeError" && isTransientResponse(error.reason.response));
+const retryAfterOf = (input, nowMillis) => {
+	const response = isHttpClientError(input) ? input.response : hasProperty(input, "~effect/http/HttpClientResponse") ? input : void 0;
+	return parseRetryAfter(nowMillis, response?.headers["retry-after"]);
+};
+const withRetryAfter = (schedule) => fromStep(map$4(toStep(schedule), (step) => (now, input) => {
+	const retryAfter = retryAfterOf(input, now);
+	if (retryAfter === void 0) return step(now, input);
+	return map$4(step(now, input), ([output, delay]) => [output, max(delay, retryAfter)]);
+}));
 const isTransientResponse = (response) => response.status === 408 || response.status === 429 || response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/FetchHttpClient.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FetchHttpClient.js
 const Fetch = /*#__PURE__*/ Reference("effect/http/FetchHttpClient/Fetch", { defaultValue: () => globalThis.fetch });
 var RequestInit = class extends (/*#__PURE__*/ Service$1()("effect/http/FetchHttpClient/RequestInit")) {};
 const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$21((request, url, signal, fiber) => {
+	if (request.headers.upgrade !== void 0) return fail$3(new HttpClientError({ reason: new TransportError({
+		request,
+		description: "fetch cannot send an HTTP upgrade request"
+	}) }));
 	const fetch = fiber.getRef(Fetch);
 	const options = getOrUndefined(fiber.context, RequestInit) ?? {};
-	let headers = options.headers ? merge(fromInput$1(options.headers), request.headers) : request.headers;
-	if (headers["content-length"]) headers = remove$2(headers, "content-length");
+	let headers = options.headers ? merge$1(fromInput$1(options.headers), request.headers) : request.headers;
+	if (headers["content-length"]) headers = remove$1(headers, "content-length");
+	let uploadController;
+	const stopUpload = sync(() => uploadController?.abort());
 	const send = (body) => map$4(tryPromise({
 		try: () => fetch(url, {
 			...options,
@@ -12574,23 +13228,50 @@ const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__P
 			headers,
 			body,
 			duplex: typeof ReadableStream !== "undefined" && body instanceof ReadableStream ? "half" : void 0,
-			signal
+			signal: uploadController ? AbortSignal.any([signal, uploadController.signal]) : signal
 		}),
 		catch: (cause) => new HttpClientError({ reason: new TransportError({
 			request,
 			cause
 		}) })
-	}), (response) => fromWeb(request, response));
+	}), (response) => {
+		const original = fromWeb(request, response);
+		if (!uploadController) return original;
+		if (response.body === null) uploadController.abort();
+		return Object.create(original, {
+			...Object.fromEntries([
+				"arrayBuffer",
+				"text",
+				"json",
+				"formData",
+				"urlParamsBody"
+			].map((key) => [key, { get: () => ensuring$2(original[key], stopUpload) }])),
+			stream: { get: () => ensuring(original.stream, stopUpload) }
+		});
+	}).pipe(onError(() => stopUpload));
 	switch (request.body._tag) {
 		case "Raw":
 		case "Uint8Array": return send(request.body.body);
 		case "FormData": return send(request.body.formData);
-		case "Stream": return flatMap(toReadableStreamEffect(request.body.stream), send);
+		case "Stream": {
+			uploadController = new AbortController();
+			const uploadSignal = AbortSignal.any([signal, uploadController.signal]);
+			const stopped = callback$1((resume) => {
+				const onAbort = () => resume(interrupt$1);
+				if (uploadSignal.aborted) {
+					onAbort();
+					return;
+				}
+				uploadSignal.addEventListener("abort", onAbort, { once: true });
+				return sync(() => uploadSignal.removeEventListener("abort", onAbort));
+			});
+			return flatMap(toReadableStreamEffect(interruptWhen(request.body.stream, stopped)), send);
+		}
 	}
 	return send(void 0);
 })));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
 const plusRegex = /\+/g;
 const Empty$1 = function() {};
 Empty$1.prototype = /*#__PURE__*/ Object.create(null);
@@ -12652,7 +13333,7 @@ function parse$1(input) {
 	return result;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/FindMyWay/internal/router.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/router.js
 const FULL_PATH_REGEXP = /^https?:\/\/.*?\//;
 const OPTIONAL_PARAM_REGEXP = /(\/:[^/()]*?)\?(\/?)/;
 const emptyParamsArray = [];
@@ -12670,6 +13351,7 @@ var RouterImpl = class {
 		};
 	}
 	options;
+	maxParamLengthExceeded = false;
 	routes = [];
 	trees = /*#__PURE__*/ Object.create(null);
 	staticRoutes = /*#__PURE__*/ Object.create(null);
@@ -12819,6 +13501,7 @@ var RouterImpl = class {
 		return staticNode.isLeafNode;
 	}
 	find(method, path) {
+		this.maxParamLengthExceeded = false;
 		let currentNode = this.trees[method];
 		if (currentNode === void 0) return void 0;
 		let querystring = "";
@@ -12833,7 +13516,6 @@ var RouterImpl = class {
 		}
 		if (!clean) {
 			if (path.charCodeAt(0) !== 47) path = path.replace(FULL_PATH_REGEXP, "/");
-			if (this.options.ignoreDuplicateSlashes) path = removeDuplicateSlashes(path);
 			let sanitizedUrl;
 			try {
 				sanitizedUrl = safeDecodeURI(path);
@@ -12843,6 +13525,7 @@ var RouterImpl = class {
 			} catch (error) {
 				return;
 			}
+			if (this.options.ignoreDuplicateSlashes) path = removeDuplicateSlashes(path);
 			if (this.options.ignoreTrailingSlash) path = trimLastSlash(path);
 		}
 		const originPath = path;
@@ -12872,6 +13555,7 @@ var RouterImpl = class {
 						searchParams: parse$1(querystring)
 					};
 				}
+				this.maxParamLengthExceeded = true;
 			}
 		}
 		let pathIndex = currentNode.prefix.length;
@@ -12926,6 +13610,7 @@ var RouterImpl = class {
 					let maxParamLengthExceeded = false;
 					for (let i = 1; i < matchedParameters.length; i++) if ((matchedParameters[i] ?? "").length > maxParamLength) {
 						maxParamLengthExceeded = true;
+						this.maxParamLengthExceeded = true;
 						break;
 					}
 					if (maxParamLengthExceeded) {
@@ -12939,6 +13624,7 @@ var RouterImpl = class {
 					for (let i = 1; i < matchedParameters.length; i++) params.push(matchedParameters[i] ?? "");
 				} else {
 					if (param.length > maxParamLength) {
+						this.maxParamLengthExceeded = true;
 						if (brothersNodesStack.length === 0) return;
 						const brotherNodeState = brothersNodesStack.pop();
 						pathIndex = brotherNodeState.brotherPathIndex;
@@ -13262,15 +13948,15 @@ const httpMethods = [
 	"UNSUBSCRIBE"
 ];
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/FindMyWay.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay.js
 const make$19 = make$20;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/internal/headers.js
-const Proto$7 = /*#__PURE__*/ Object.getPrototypeOf(empty$7);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/headers.js
+const Proto$7 = /*#__PURE__*/ Object.getPrototypeOf(empty$6);
 const emptyMutableUnsafe = () => Object.create(Proto$7);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpServerResponse.js
-const TypeId$11 = "~effect/http/HttpServerResponse";
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpServerResponse.js
+const TypeId$12 = "~effect/http/HttpServerResponse";
 const empty = (options) => makeResponse({
 	status: options?.status ?? 204,
 	statusText: options?.statusText,
@@ -13282,7 +13968,7 @@ const getContentType = (options, headers) => {
 	else if (options?.headers) return headers["content-type"];
 };
 const jsonUnsafe = (body, options) => {
-	const headers = options?.headers ? fromInput$1(options.headers) : empty$7;
+	const headers = options?.headers ? fromInput$1(options.headers) : empty$6;
 	return makeResponse({
 		status: options?.status ?? 200,
 		statusText: options?.statusText,
@@ -13291,18 +13977,18 @@ const jsonUnsafe = (body, options) => {
 		body: jsonUnsafe$1(body, getContentType(options, headers))
 	});
 };
-const setHeader = /*#__PURE__*/ dual(3, (self, key, value) => makeResponse(self, set$2(self.headers, key, value)));
+const setHeader = /*#__PURE__*/ dual(3, (self, key, value) => makeResponse(self, set$1(self.headers, key, value)));
 const setHeaders = /*#__PURE__*/ dual(2, (self, input) => makeResponse(self, setAll$1(self.headers, input)));
 const Proto$6 = {
 	...PipeInspectableProto,
-	[TypeId$11]: TypeId$11,
+	[TypeId$12]: TypeId$12,
 	[ignore]: true,
 	toJSON() {
 		return {
 			_id: "HttpServerResponse",
 			status: this.status,
 			statusText: this.statusText,
-			headers: redact$1(this.headers),
+			headers: redact$2(this.headers),
 			cookies: this.cookies.toJSON(),
 			body: this.body.toJSON()
 		};
@@ -13312,17 +13998,21 @@ const makeResponse = (options, ownedHeaders) => {
 	const self = Object.create(Proto$6);
 	self.status = options.status;
 	self.statusText = options.statusText;
-	self.cookies = options.cookies ?? empty$8;
+	self.cookies = options.cookies ?? empty$7;
 	self.body = options.body ?? empty$2;
 	if (self.body._tag !== "Empty" && (self.body.contentType || self.body.contentLength !== void 0)) {
 		const owned = ownedHeaders !== void 0;
-		const newHeaders = owned ? ownedHeaders : options.headers === void 0 || options.headers === empty$7 ? emptyMutableUnsafe() : fromRecordUnsafe({ ...options.headers });
+		const newHeaders = owned ? ownedHeaders : options.headers === void 0 || options.headers === empty$6 ? emptyMutableUnsafe() : fromRecordUnsafe({ ...options.headers });
 		if (self.body.contentType && (!owned || newHeaders["content-type"] === void 0)) newHeaders["content-type"] = self.body.contentType;
 		if (self.body.contentLength !== void 0 && (!owned || newHeaders["content-length"] === void 0)) newHeaders["content-length"] = self.body.contentLength.toString();
 		self.headers = newHeaders;
-	} else self.headers = ownedHeaders ?? options.headers ?? empty$7;
+	} else self.headers = ownedHeaders ?? options.headers ?? empty$6;
 	return self;
 };
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/socket/Socket.js
+const TypeId$10 = "~effect/socket/Socket";
+const isSocket = (u) => hasProperty(u, TypeId$10);
 const constNameChars = /*#__PURE__*/ new Uint8Array(256);
 for (const char of "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") constNameChars[/*#__PURE__*/ char.charCodeAt(0)] = 1;
 const constValueChars = /*#__PURE__*/ new Uint8Array(256);
@@ -13331,26 +14021,26 @@ for (let i = 32; i <= 126; i++) constValueChars[i] = 1;
 for (let i = 128; i <= 255; i++) constValueChars[i] = 1;
 const HttpServerRequest = /*#__PURE__*/ Service$1("effect/http/HttpServerRequest");
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/internal/preResponseHandler.js
-const requestPreResponseHandlers = /*#__PURE__*/ new WeakMap();
-const appendPreResponseHandlerUnsafe$1 = (request, handler) => {
-	const prev = requestPreResponseHandlers.get(request.source);
-	const next = prev ? (request, response) => flatMap(prev(request, response), (response) => handler(request, response)) : handler;
-	requestPreResponseHandlers.set(request.source, next);
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/requestState.js
+const CurrentRequestState = /*#__PURE__*/ Service$1("effect/http/HttpEffect/CurrentRequestState");
+const appendPreResponseHandlerUnsafe$1 = (context, handler) => {
+	const state = getOrUndefined(context, CurrentRequestState);
+	if (state === void 0) return;
+	const prev = state.preResponseHandler;
+	state.preResponseHandler = prev ? (request, response) => flatMap(prev(request, response), (response) => handler(request, response)) : handler;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpMiddleware.js
-const loggerDisabledRequests = /*#__PURE__*/ new WeakSet();
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMiddleware.js
 const withLoggerDisabled = (self) => withFiber((fiber) => {
-	const request = getUnsafe(fiber.context, HttpServerRequest);
-	loggerDisabledRequests.add(request.source);
+	const state = getOrUndefined(fiber.context, CurrentRequestState);
+	if (state !== void 0) state.loggerDisabled = true;
 	return self;
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpEffect.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpEffect.js
 const appendPreResponseHandlerUnsafe = appendPreResponseHandlerUnsafe$1;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpRouter.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpRouter.js
 const HttpRouter = /*#__PURE__*/ Service$1("effect/http/HttpRouter");
 const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, -1) : path;
 const prefixPath = /*#__PURE__*/ dual(2, (self, prefix) => {
@@ -13380,11 +14070,11 @@ var MiddlewareImpl = class MiddlewareImpl {
 		this.dependencies = dependencies;
 		const contextKey = `effect/http/HttpRouter/Middleware-${++middlewareId}`;
 		this.layer = effectContext(gen({ self: this }, function* () {
-			const context$3 = yield* context();
-			const stack = [getOrUndefinedUnsafe(context$3, fnContextKey)];
+			const context$4 = yield* context();
+			const stack = [getOrUndefinedUnsafe(context$4, fnContextKey)];
 			if (this.dependencies) {
 				const memoMap = yield* CurrentMemoMap;
-				const scope = get$2(context$3, Scope);
+				const scope = get$2(context$4, Scope);
 				const depsContext = yield* buildWithMemoMap(this.dependencies, memoMap, scope);
 				stack.push(...getMiddleware(depsContext));
 			}
@@ -13417,7 +14107,7 @@ const getMiddleware = (context) => {
 };
 (/*#__PURE__*/ middleware(withLoggerDisabled)).layer;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http/HttpStatus.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpStatus.js
 const codeByLiteral = {
 	Continue: 100,
 	SwitchingProtocols: 101,
@@ -13622,9 +14312,9 @@ const rightFor = (target) => {
 };
 //#endregion
 //#region ../../packages/core/src/Errors.ts
-const JsonObject$3 = fromJsonString(Record(String$2, Unknown));
+const JsonObject = fromJsonString(Record(String$2, Unknown));
 const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
-const quoted = (body) => decodeOption(JsonObject$3)(body).pipe(flatMap$3((json) => {
+const quoted = (body) => decodeOption(JsonObject)(body).pipe(flatMap$4((json) => {
 	const key = ["detail", "message"].find((candidate) => typeof json[candidate] === "string");
 	if (key === void 0) return none();
 	const line = String(json[key]);
@@ -13647,7 +14337,7 @@ const ErrorCode = Struct({
 	error: optionalKey(String$2),
 	warning_type: optionalKey(String$2)
 });
-const codeOf = (found) => getOrUndefined$1(flatMap$3(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
+const codeOf = (found) => getOrUndefined$1(flatMap$4(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
 const INSTANCE_NOT_FOUND_MARKER = "instance_not_found";
 const HTTP_OK_MIN = 200;
@@ -13728,7 +14418,7 @@ var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/encoding/Sse.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Sse.js
 const SseErrorTypeId = "~effect/encoding/Sse/SseError";
 var EventTooLarge = class extends (/*#__PURE__*/ TaggedError$1("EventTooLarge")) {
 	get message() {
@@ -13742,7 +14432,7 @@ var SseError = class extends (/*#__PURE__*/ TaggedError$1("SseError")) {
 	}
 };
 const defaultMaxEventSize = 10485760;
-const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
+const decode$1 = (options) => fromTransform$1((upstream, _scope) => sync(() => {
 	let buffer = [];
 	let retry;
 	const parser = makeParser((event) => {
@@ -13756,7 +14446,7 @@ const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
 		}
 		return void_$1;
 	});
-	return suspend$2(function loop() {
+	return suspend$3(function loop() {
 		if (isArrayNonEmpty(buffer)) {
 			const out = buffer;
 			buffer = [];
@@ -13765,14 +14455,15 @@ const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
 		return flatMap(pump, loop);
 	});
 }));
-const decodeSchema = (schema, options, parseOptions) => pipeTo(decode(options), decode$1(Event.pipe(decodeTo(schema, transformEvent)), parseOptions)());
+const decodeSchema = (schema, options, parseOptions) => pipeTo(decode$1(options), decode$2(Event.pipe(decodeTo(schema, transformEvent)), parseOptions)());
 function makeParser(onParse, options) {
 	const maxEventSize = options?.maxEventSize ?? defaultMaxEventSize;
+	const dispatchEmptyNamedEvents = options?.dispatchEmptyNamedEvents === true;
 	let isFirstChunk;
-	let buffer;
-	let startingPosition;
-	let startingFieldLength;
+	let pending;
+	let pendingLength;
 	let discardTrailingNewline;
+	let generation = 0;
 	let lastEventId;
 	let eventName;
 	let data;
@@ -13782,80 +14473,82 @@ function makeParser(onParse, options) {
 		reset
 	};
 	function reset() {
+		generation++;
 		isFirstChunk = true;
-		buffer = "";
-		startingPosition = 0;
-		startingFieldLength = -1;
+		pending = [];
+		pendingLength = 0;
 		discardTrailingNewline = false;
 		lastEventId = void 0;
 		eventName = void 0;
 		data = "";
 	}
 	function feed(chunk) {
-		buffer = buffer ? buffer + chunk : chunk;
-		if (isFirstChunk && buffer.startsWith(BOM)) buffer = buffer.slice(BOM.length);
+		if (chunk.length === 0) return;
+		if (isFirstChunk && chunk.startsWith(BOM)) chunk = chunk.slice(BOM.length);
 		isFirstChunk = false;
-		const length = buffer.length;
+		const length = chunk.length;
+		const currentGeneration = generation;
 		let position = 0;
 		while (position < length) {
 			if (discardTrailingNewline) {
-				if (buffer[position] === "\n") ++position;
 				discardTrailingNewline = false;
+				if (chunk.charCodeAt(position) === LF$1) {
+					++position;
+					continue;
+				}
 			}
-			let lineLength = -1;
-			let fieldLength = startingFieldLength;
-			let character;
-			for (let index = position + startingPosition; lineLength < 0 && index < length; ++index) {
-				character = buffer[index];
-				if (character === ":" && fieldLength < 0) fieldLength = index - position;
-				else if (character === "\r") {
-					discardTrailingNewline = true;
-					lineLength = index - position;
-				} else if (character === "\n") lineLength = index - position;
+			let lineEnd = position;
+			while (lineEnd < length) {
+				const code = chunk.charCodeAt(lineEnd);
+				if (code === CR$1 || code === LF$1) break;
+				++lineEnd;
 			}
-			if (lineLength < 0) {
-				startingPosition = length - position;
-				startingFieldLength = fieldLength;
+			if (lineEnd === length) {
+				pending.push(chunk.slice(position));
+				pendingLength += length - position;
 				break;
-			} else {
-				startingPosition = 0;
-				startingFieldLength = -1;
 			}
-			parseEventStreamLine(buffer, position, fieldLength, lineLength);
-			position += lineLength + 1;
+			discardTrailingNewline = chunk.charCodeAt(lineEnd) === CR$1;
+			let line = chunk.slice(position, lineEnd);
+			if (pending.length > 0) {
+				pending.push(line);
+				line = pending.join("");
+				pending = [];
+				pendingLength = 0;
+			}
+			parseLine(line);
+			if (generation !== currentGeneration) return;
+			position = lineEnd + 1;
 		}
-		if (position === length) buffer = "";
-		else if (position > 0) buffer = buffer.slice(position);
-		if (buffer.length + data.length > maxEventSize) {
+		if (pendingLength + data.length > maxEventSize) {
 			const error = new SseError({ reason: new EventTooLarge({ maxEventSize }) });
 			reset();
 			return error;
 		}
 	}
-	function parseEventStreamLine(lineBuffer, index, fieldLength, lineLength) {
-		if (lineLength === 0) {
-			if (data.length > 0) {
-				onParse({
-					_tag: "Event",
-					id: lastEventId,
-					event: eventName || "message",
-					data: data.slice(0, -1)
-				});
-				data = "";
-			}
+	function parseLine(line) {
+		if (line.length === 0) {
+			const named = eventName !== void 0 && eventName !== "";
+			const event = eventName || "message";
+			const eventData = data;
 			eventName = void 0;
+			data = "";
+			if (eventData.length > 0 || dispatchEmptyNamedEvents && named) onParse({
+				_tag: "Event",
+				id: lastEventId,
+				event,
+				data: eventData.slice(0, -1)
+			});
 			return;
 		}
-		const noValue = fieldLength < 0;
-		const field = lineBuffer.slice(index, index + (noValue ? lineLength : fieldLength));
-		let step = 0;
-		if (noValue) step = lineLength;
-		else if (lineBuffer[index + fieldLength + 1] === " ") step = fieldLength + 2;
-		else step = fieldLength + 1;
-		const position = index + step;
-		const valueLength = lineLength - step;
-		const value = lineBuffer.slice(position, position + valueLength).toString();
-		if (field === "data") data += value ? `${value}\n` : "\n";
+		const colon = line.indexOf(":");
+		let field = line;
+		let value = "";
+		if (colon >= 0) {
+			field = line.slice(0, colon);
+			value = line.slice(line.charCodeAt(colon + 1) === SPACE ? colon + 2 : colon + 1);
+		}
+		if (field === "data") data += value + "\n";
 		else if (field === "event") eventName = value;
 		else if (field === "id" && !value.includes("\0")) lastEventId = value;
 		else if (field === "retry" && /^\d+$/.test(value)) onParse(new Retry({
@@ -13865,6 +14558,9 @@ function makeParser(onParse, options) {
 	}
 }
 const BOM = "﻿";
+const LF$1 = 10;
+const CR$1 = 13;
+const SPACE = 32;
 const Event = /*#__PURE__*/ Struct({
 	_tag: /*#__PURE__*/ tag$2("Event"),
 	id: /*#__PURE__*/ UndefinedOr(String$2),
@@ -13898,17 +14594,33 @@ var Retry = class Retry extends (/*#__PURE__*/ TaggedClass("Retry")) {
 	}
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/HttpApiSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/mediaType.js
+function normalize(contentType) {
+	const normalized = contentType.toLowerCase().trim();
+	const index = normalized.indexOf(";");
+	return index === -1 ? normalized : normalized.slice(0, index).trim();
+}
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiSchema.js
 const StreamSchemaTypeId$1 = "~effect/http-api/HttpApiSchema/Stream";
 function status(code) {
 	const statusCode = typeof code === "string" ? fromLiteral(code) : code;
-	return (self) => self.annotate({ httpApiStatus: statusCode });
+	return (self) => findHttpApiStatusAnnotation(self.ast) === void 0 ? self.annotateKey({ httpApiStatus: statusCode }) : self.annotate({ httpApiStatus: statusCode });
 }
 const Empty = (code) => Void.pipe(status(code));
 const NoContent = /*#__PURE__*/ Empty(204);
 const isStreamSchema$1 = (u) => isSchema(u) && hasProperty(u, StreamSchemaTypeId$1);
 const isStreamSse = (u) => isStreamSchema$1(u) && u._tag === "StreamSse";
 const isStreamUint8Array = (u) => isStreamSchema$1(u) && u._tag === "StreamUint8Array";
+const isStreamNdjson = (u) => isStreamSchema$1(u) && u._tag === "StreamNdjson";
+const UpgradeTypeId = "~effect/http-api/HttpApiSchema/Upgrade";
+const upgradeSchema = /*#__PURE__*/ declare(isSocket).pipe(/*#__PURE__*/ status(101));
+const rebuildUpgrade = (protocol, headers) => make$31(upgradeSchema.ast, {
+	[UpgradeTypeId]: UpgradeTypeId,
+	protocol,
+	headers
+});
+const isUpgrade = (u) => isSchema(u) && hasProperty(u, UpgradeTypeId);
 const WithHeadersTypeId = "~effect/http-api/HttpApiSchema/WithHeaders";
 const WithHeadersValueTypeId = "~effect/http-api/HttpApiSchema/WithHeadersValue";
 const withHeaders = (options) => ({
@@ -13918,7 +14630,7 @@ const withHeaders = (options) => ({
 });
 const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/http-api/HttpApiSchema/WithHeaders");
 function rebuildWithHeaders(self, schema, headers) {
-	return make$34(self.ast, {
+	return make$31(self.ast, {
 		[WithHeadersTypeId]: WithHeadersTypeId,
 		schema,
 		headers
@@ -13955,7 +14667,23 @@ const isNoContent = (ast) => {
 };
 const resolveHttpApiEncoding = /*#__PURE__*/ resolveAt("~httpApiEncoding");
 const getWithHeadersAnnotation = /*#__PURE__*/ resolveAt("~httpApiWithHeaders");
-const resolveHttpApiStatus = /*#__PURE__*/ resolveAt("httpApiStatus");
+function findHttpApiStatusAnnotation(ast) {
+	if (ast.checks) for (let i = ast.checks.length - 1; i >= 0; i--) {
+		const check = ast.checks[i];
+		if (check.annotations && "httpApiStatus" in check.annotations) return check.annotations;
+		if (check._tag === "FilterGroup") {
+			const annotations = findHttpApiStatusAnnotation(check);
+			if (annotations !== void 0) return annotations;
+		}
+	}
+	const annotations = ast.annotations;
+	return annotations && "httpApiStatus" in annotations ? annotations : void 0;
+}
+function resolveHttpApiStatus(ast) {
+	const annotations = findHttpApiStatusAnnotation(ast);
+	if (annotations !== void 0) return annotations.httpApiStatus;
+	return ast.context?.annotations?.httpApiStatus;
+}
 const defaultJsonEncoding = {
 	_tag: "Json",
 	contentType: "application/json"
@@ -13996,14 +14724,35 @@ function getStatusErrorSchema(schema) {
 	return getStatusError(schema.ast);
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/internal/mediaType.js
-function normalize(contentType) {
-	const normalized = contentType.toLowerCase().trim();
-	const index = normalized.indexOf(";");
-	return index === -1 ? normalized : normalized.slice(0, index).trim();
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/toCodecHttpProperties.js
+function toCodecHttpProperties(schema) {
+	const codec = toCodecStringTree(schema);
+	return codec.rebuild(normalizeProperties(codec.ast));
 }
+const omitUndefined = /*#__PURE__*/ new Transformation(/*#__PURE__*/ passthrough$1(), /*#__PURE__*/ transformOptional(/*#__PURE__*/ filter(isNotUndefined)));
+const present = /*#__PURE__*/ memoize((ast) => {
+	if (ast._tag === "Undefined") return new Never$1(ast.annotations, void 0, void 0, ast.context);
+	if (ast._tag === "Suspend") return ast.recur(present);
+	if (ast._tag !== "Union") return ast;
+	const members = mapOrSame(ast.types, present);
+	if (members === ast.types) return ast;
+	const types = members.filter((member) => member._tag !== "Never");
+	if (types.length === 1 && ast.checks === void 0 && ast.annotations === void 0) return replaceContext(types[0], ast.context);
+	return new Union$1(types, ast.options, ast.annotations, ast.checks, void 0, ast.context);
+});
+const normalizeProperties = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempotent((ast) => {
+	if (ast._tag === "Union" || ast._tag === "Suspend") return ast.recur(normalizeProperties);
+	if (ast._tag !== "Objects") return ast;
+	const properties = mapOrSame(ast.propertySignatures, (ps) => {
+		const encoded = toEncoded$1(ps.type);
+		if (!isOptional(encoded)) return ps;
+		const wire = present(encoded);
+		return wire === encoded ? ps : new PropertySignature(ps.name, decodeTo$1(wire, ps.type, omitUndefined));
+	});
+	return properties === ast.propertySignatures ? ast : new Objects(properties, ast.indexSignatures, ast.annotations, ast.checks, void 0, ast.context, ast.encodingChecks);
+});
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/HttpApiEndpoint.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiEndpoint.js
 const TypeId$7 = "~effect/http-api/HttpApiEndpoint";
 function getPayloadSchemas(endpoint) {
 	const result = [];
@@ -14049,7 +14798,7 @@ const Proto$5 = {
 	annotateMerge(annotations) {
 		return makeProto$5({
 			...optionsFromEndpoint(this),
-			annotations: merge$1(this.annotations, annotations)
+			annotations: merge$2(this.annotations, annotations)
 		});
 	}
 };
@@ -14074,16 +14823,17 @@ function makeProto$5(options) {
 }
 const make$14 = (method) => (identifier, path, options) => {
 	const disableCodecs = options?.disableCodecs ?? false;
-	const transformStringTree = disableCodecs ? identity : toCodecStringTree;
+	const transformProperties = disableCodecs ? identity : toCodecHttpProperties;
+	const payload = getPayload(options?.payload, method, disableCodecs);
 	return makeProto$5({
 		identifier,
 		path,
 		method,
-		params: ensureStruct(options?.params, transformStringTree),
-		query: ensureStruct(options?.query, transformStringTree),
-		headers: ensureStruct(options?.headers, transformStringTree),
-		payload: getPayload(options?.payload, method, disableCodecs),
-		success: getSuccessResponse(options?.success, method, disableCodecs),
+		params: ensureStruct(options?.params, transformProperties),
+		query: ensureStruct(options?.query, transformProperties),
+		headers: ensureStruct(options?.headers, transformProperties),
+		payload,
+		success: getSuccessResponse(options?.success, method, payload, disableCodecs),
 		error: getErrorResponse(options?.error, disableCodecs),
 		annotations: empty$10(),
 		middlewares: /* @__PURE__ */ new Set(),
@@ -14100,11 +14850,31 @@ function getPayload(payload, method, disableCodecs) {
 	if (payload === void 0) return result;
 	const schemas = Array.isArray(payload) ? payload : isSchema(payload) ? [payload] : [Struct(payload).pipe(asFormUrlEncoded())];
 	const transform = disableCodecs ? identity : transformPayload;
+	let hasStream = false;
 	for (const schema of schemas) {
+		if (isStreamSchema$1(schema)) {
+			if (isStreamSse(schema)) throw new Error("StreamSse is response-only and cannot be used as a payload");
+			if (!hasBody(method)) throw new Error(`${method} endpoints cannot declare a streaming payload`);
+			if (hasStream) throw new Error("Multiple streaming payloads are not supported");
+			hasStream = true;
+			for (const declared of schema.contentTypes) {
+				const contentType = normalize(declared);
+				if (result.has(contentType)) throw new Error(`Cannot combine buffered and streaming payloads for content-type: ${declared}`);
+				result.set(contentType, {
+					encoding: {
+						_tag: "Stream",
+						contentType: declared
+					},
+					schemas: [schema]
+				});
+			}
+			continue;
+		}
 		const encoding = getPayloadEncoding(schema.ast, method);
 		const contentType = normalize(encoding.contentType);
 		const existing = result.get(contentType);
 		if (existing) {
+			if (existing.encoding._tag === "Stream") throw new Error(`Cannot combine buffered and streaming payloads for content-type: ${encoding.contentType}`);
 			if (existing.encoding._tag !== encoding._tag) throw new Error(`Multiple payload encodings for content-type: ${encoding.contentType}`);
 			if (existing.encoding._tag === "Multipart") throw new Error(`Multiple multipart payloads for content-type: ${encoding.contentType}`);
 			existing.schemas.push(transform(schema, method));
@@ -14116,15 +14886,16 @@ function getPayload(payload, method, disableCodecs) {
 	return result;
 }
 const reservedStreamFailureEvent$1 = "effect/http-api/stream/failure";
-function getSuccessResponse(success, method, disableCodecs) {
+function getSuccessResponse(success, method, payload, disableCodecs) {
 	if (success === void 0) return /* @__PURE__ */ new Set();
 	const schemas = ensure(success);
-	validateSuccessResponse(schemas, method);
+	validateSuccessResponse(schemas, method, payload);
 	return new Set(disableCodecs ? schemas : schemas.map(transformResponseSchema));
 }
 const transformResponseSchema = /*#__PURE__*/ memoize((schema) => {
 	if (isStreamSchema$1(schema)) return schema;
-	if (isWithHeaders(schema)) return rebuildWithHeaders(schema, isStreamSchema$1(schema.schema) ? schema.schema : applyResponseEncoding(schema.schema, getResponseEncodingSchema(schema)), toCodecStringTree(schema.headers));
+	if (isUpgrade(schema)) return schema.headers === void 0 ? schema : rebuildUpgrade(schema.protocol, toCodecHttpProperties(schema.headers));
+	if (isWithHeaders(schema)) return rebuildWithHeaders(schema, isStreamSchema$1(schema.schema) ? schema.schema : applyResponseEncoding(schema.schema, getResponseEncodingSchema(schema)), toCodecHttpProperties(schema.headers));
 	return transformResponse(schema);
 });
 function getErrorResponse(error, disableCodecs) {
@@ -14133,11 +14904,18 @@ function getErrorResponse(error, disableCodecs) {
 	for (const schema of schemas) {
 		const body = isWithHeaders(schema) ? schema.schema : schema;
 		if (isStreamSchema$1(body)) throw new Error("Streaming schemas are not supported in error responses");
+		if (isUpgrade(body)) throw new Error("Upgrade schemas are not supported in error responses");
 	}
 	validateResponseExclusivity(schemas, getStatusErrorSchema);
 	return new Set(disableCodecs ? schemas : schemas.map(transformResponseSchema));
 }
-function validateSuccessResponse(schemas, method) {
+function validateSuccessResponse(schemas, method, payload) {
+	if (schemas.some(isUpgrade)) {
+		if (schemas.length > 1) throw new Error("Cannot combine an upgrade with other success responses");
+		if (method === "HEAD") throw new Error("HEAD endpoints cannot declare an upgrade");
+		for (const { encoding } of payload.values()) if (encoding._tag === "Stream" || encoding._tag === "Multipart" && encoding.mode === "stream") throw new Error("Upgrade endpoints cannot declare a streaming payload");
+		return;
+	}
 	let hasStream = false;
 	const statuses = /* @__PURE__ */ new Map();
 	for (const schema of schemas) {
@@ -14149,7 +14927,7 @@ function validateSuccessResponse(schemas, method) {
 			hasStream = true;
 			const entry = getStatusEntry(statuses, status);
 			if (entry.noContent) throw new Error(`Cannot combine no-content and streaming success responses for status: ${status}`);
-			if (entry.bufferedContentTypes.has(normalize(inner.contentType))) throw new Error(`Cannot combine buffered and streaming success responses for status ${status} and content-type: ${inner.contentType}`);
+			for (const declared of inner.contentTypes) if (entry.bufferedContentTypes.has(normalize(declared))) throw new Error(`Cannot combine buffered and streaming success responses for status ${status} and content-type: ${declared}`);
 			statuses.set(status, {
 				...entry,
 				stream: inner
@@ -14160,7 +14938,8 @@ function validateSuccessResponse(schemas, method) {
 			if (entry.stream !== void 0) {
 				if (noContent) throw new Error(`Cannot combine no-content and streaming success responses for status: ${status}`);
 				const encoding = getResponseEncodingSchema(schema);
-				if (normalize(encoding.contentType) === normalize(entry.stream.contentType)) throw new Error(`Cannot combine buffered and streaming success responses for status ${status} and content-type: ${encoding.contentType}`);
+				const contentType = normalize(encoding.contentType);
+				if (entry.stream.contentTypes.some((declared) => normalize(declared) === contentType)) throw new Error(`Cannot combine buffered and streaming success responses for status ${status} and content-type: ${encoding.contentType}`);
 			}
 			if (!noContent) entry.bufferedContentTypes.add(normalize(getResponseEncodingSchema(schema).contentType));
 			entry.noContent = entry.noContent || noContent;
@@ -14238,7 +15017,7 @@ function transformResponse(schema) {
 	return schema.annotate({ "~httpApiWithHeaders": {
 		...withHeaders,
 		bodyCodec: applyResponseEncoding(withHeaders.body, encoding),
-		headersCodec: toCodecStringTree(withHeaders.headers)
+		headersCodec: toCodecHttpProperties(withHeaders.headers)
 	} });
 }
 function applyResponseEncoding(schema, encoding) {
@@ -14250,6 +15029,7 @@ function applyResponseEncoding(schema, encoding) {
 	}
 }
 function transformPayload(schema, method) {
+	if (!hasBody(method)) return toCodecHttpProperties(schema);
 	switch (getPayloadEncoding(schema.ast, method)._tag) {
 		case "Json": return toCodecJson(schema);
 		case "FormUrlEncoded": return toCodecStringTree(schema);
@@ -14260,7 +15040,7 @@ function transformPayload(schema, method) {
 }
 const post = /*#__PURE__*/ make$14("POST");
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/HttpApi.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApi.js
 const TypeId$6 = "~effect/http-api/HttpApi";
 const Proto$4 = {
 	[TypeId$6]: TypeId$6,
@@ -14279,7 +15059,7 @@ const Proto$4 = {
 		const newGroups = { ...this.groups };
 		for (const key of Object.keys(api.groups)) {
 			const group = api.groups[key];
-			assignProperty(newGroups, key, group.annotateMerge(merge$1(api.annotations, group.annotations)));
+			assignProperty(newGroups, key, group.annotateMerge(merge$2(api.annotations, group.annotations)));
 		}
 		return makeProto$4({
 			...optionsFromApi(this),
@@ -14307,7 +15087,7 @@ const Proto$4 = {
 	annotateMerge(annotations) {
 		return makeProto$4({
 			...optionsFromApi(this),
-			annotations: merge$1(this.annotations, annotations)
+			annotations: merge$2(this.annotations, annotations)
 		});
 	}
 };
@@ -14329,7 +15109,7 @@ const make$13 = (identifier) => makeProto$4({
 const reflect = (self, options) => {
 	const groups = Object.values(self.groups);
 	for (const group of groups) {
-		const groupAnnotations = merge$1(self.annotations, group.annotations);
+		const groupAnnotations = merge$2(self.annotations, group.annotations);
 		options.onGroup({
 			group,
 			mergedAnnotations: groupAnnotations
@@ -14344,7 +15124,7 @@ const reflect = (self, options) => {
 				group,
 				endpoint,
 				middleware: endpoint.middlewares,
-				mergedAnnotations: merge$1(groupAnnotations, endpoint.annotations),
+				mergedAnnotations: merge$2(groupAnnotations, endpoint.annotations),
 				successes: extractResponseContent(getSuccessSchemas(endpoint), getStatusSuccessSchema),
 				errors: extractResponseContent(getErrorSchemas(endpoint), getStatusErrorSchema)
 			});
@@ -14357,14 +15137,14 @@ const extractResponseContent = (schemas, getStatus) => {
 	return map;
 	function add(schema) {
 		const body = isWithHeaders(schema) ? schema.schema : schema;
-		if (isStreamSchema$1(body)) return;
+		if (isStreamSchema$1(body) || isUpgrade(body)) return;
 		const status = getStatus(schema);
 		const schemas = map.get(status);
 		if (schemas === void 0) map.set(status, [schema]);
 		else schemas.push(schema);
 	}
 };
-var ParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ParseOptions")) {};
+var ParseOptions$1 = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ParseOptions")) {};
 var ParamsParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ParamsParseOptions")) {};
 var QueryParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/QueryParseOptions")) {};
 var HeadersParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/HeadersParseOptions")) {};
@@ -14372,7 +15152,7 @@ var PayloadParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-
 var SuccessParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/SuccessParseOptions")) {};
 var ErrorParseOptions = class extends (/*#__PURE__*/ Service$1()("effect/http-api/HttpApi/ErrorParseOptions")) {};
 const getSlotParseOptions = (annotations) => {
-	const fallback = getOrUndefined(annotations, ParseOptions);
+	const fallback = getOrUndefined(annotations, ParseOptions$1);
 	return {
 		params: getOrUndefined(annotations, ParamsParseOptions) ?? fallback,
 		query: getOrUndefined(annotations, QueryParseOptions) ?? fallback,
@@ -14383,22 +15163,183 @@ const getSlotParseOptions = (annotations) => {
 	};
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/internal/path.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Ndjson.js
+const NdjsonErrorTypeId = "~effect/encoding/Ndjson/NdjsonError";
+const encoder = /*#__PURE__*/ new TextEncoder();
+const utf8Decoder = /*#__PURE__*/ new TextDecoder("utf-8", {
+	fatal: true,
+	ignoreBOM: true
+});
+var NdjsonError = class extends (/*#__PURE__*/ TaggedError$1("NdjsonError")) {
+	[NdjsonErrorTypeId] = NdjsonErrorTypeId;
+	get message() {
+		return this.kind;
+	}
+};
+const isNdjsonError = (u) => hasProperty(u, NdjsonErrorTypeId);
+const encodeString = () => fromTransform$1((upstream, _scope) => succeed$3(flatMap(upstream, (input) => {
+	try {
+		return succeed$3(of(input.map((item) => {
+			const output = JSON.stringify(item);
+			if (output === void 0) throw new TypeError("Value cannot be represented as JSON");
+			return output;
+		}).join("\n") + "\n"));
+	} catch (cause) {
+		return fail$3(new NdjsonError({
+			kind: "Pack",
+			cause
+		}));
+	}
+})));
+const encode = () => map$3(encodeString(), map$7((_) => encoder.encode(_)));
+const makeDecodePull = (upstream, step, flush) => {
+	let failure;
+	let done;
+	const emit = (out, error) => {
+		failure = error;
+		if (isArrayNonEmpty(out)) return succeed$3(out);
+		return error !== void 0 ? fail$3(error) : void 0;
+	};
+	const pull = suspend$3(() => {
+		if (failure !== void 0) return fail$3(failure);
+		if (done !== void 0) return done$1(done.leftover);
+		return matchEffect$1(upstream, {
+			onSuccess: (input) => {
+				const out = [];
+				return emit(out, step(input, out)) ?? pull;
+			},
+			onFailure: failCause$3,
+			onDone: (leftover) => {
+				done = { leftover };
+				const out = [];
+				return emit(out, flush(out)) ?? done$1(leftover);
+			}
+		});
+	});
+	return pull;
+};
+const parseLine = (line, out, ignoreEmptyLines, unterminated) => {
+	if (ignoreEmptyLines && line.length === 0) return;
+	try {
+		out.push(JSON.parse(line));
+	} catch (cause) {
+		return new NdjsonError({
+			kind: "Unpack",
+			reason: "InvalidJson",
+			unterminated,
+			cause
+		});
+	}
+};
+const LF = 10;
+const CR = 13;
+const emptyBytes = /*#__PURE__*/ new Uint8Array(0);
+const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
+	const ignoreEmptyLines = options?.ignoreEmptyLines === true;
+	const maxLineBytes = options?.maxLineBytes ?? Number.POSITIVE_INFINITY;
+	let decoder = new TextDecoder("utf-8", { fatal: true });
+	let pending = [];
+	let pendingBytes = 0;
+	let afterCR = false;
+	const takeLine = (chunk, start, end) => {
+		if (pendingBytes === 0) return chunk.subarray(start, end);
+		const line = new Uint8Array(pendingBytes + end - start);
+		let offset = 0;
+		for (const bytes of pending) {
+			line.set(bytes, offset);
+			offset += bytes.length;
+		}
+		line.set(chunk.subarray(start, end), offset);
+		pending = [];
+		pendingBytes = 0;
+		return line;
+	};
+	const decodeLine = (bytes, out, unterminated) => {
+		let line;
+		try {
+			line = decoder.decode(bytes);
+		} catch (cause) {
+			return new NdjsonError({
+				kind: "Unpack",
+				reason: "InvalidUtf8",
+				unterminated,
+				cause
+			});
+		}
+		const firstLine = decoder !== utf8Decoder;
+		decoder = utf8Decoder;
+		if (firstLine && unterminated && line.length === 0) return;
+		return parseLine(line, out, ignoreEmptyLines, unterminated);
+	};
+	const step = (chunks, out) => {
+		for (const chunk of chunks) {
+			let start = 0;
+			for (let i = 0; i < chunk.length; i++) {
+				const byte = chunk[i];
+				if (byte === LF || byte === CR) {
+					if (byte === LF && afterCR) start = i + 1;
+					else {
+						const error = decodeLine(takeLine(chunk, start, i), out, false);
+						if (error !== void 0) return error;
+						start = i + 1;
+					}
+					afterCR = byte === CR;
+				} else {
+					afterCR = false;
+					if (pendingBytes + i + 1 - start > maxLineBytes) return new NdjsonError({
+						kind: "Unpack",
+						reason: "LineTooLarge",
+						unterminated: false,
+						cause: /* @__PURE__ */ new RangeError(`NDJSON line exceeds maxLineBytes of ${maxLineBytes}`)
+					});
+				}
+			}
+			if (start < chunk.length) {
+				pending.push(chunk.slice(start));
+				pendingBytes += chunk.length - start;
+			}
+		}
+	};
+	const flush = (out) => pendingBytes === 0 ? void 0 : decodeLine(takeLine(emptyBytes, 0, 0), out, true);
+	return makeDecodePull(upstream, step, flush);
+}));
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/path.js
 const emptyParamNames = /*#__PURE__*/ new Set();
 function getParamNames(schema) {
 	if (schema === void 0) return emptyParamNames;
 	const ast = getLastEncoding(schema.ast);
 	return isObjects(ast) && ast.indexSignatures.length === 0 ? new Set(ast.propertySignatures.map((ps) => String(ps.name))) : void 0;
 }
+function replaceParams(path, paramNames, replace) {
+	const params = /::|:(\w+)/g;
+	let out = "";
+	let last = 0;
+	for (let param = params.exec(path); param !== null; param = params.exec(path)) {
+		const name = param[1];
+		if (name === void 0 || paramNames !== void 0 && !paramNames.has(name)) continue;
+		let end = params.lastIndex;
+		if (path[end] === "(") end = getClosingParenthensePosition(path, end) + 1;
+		const optional = path[end] === "?";
+		if (optional) end++;
+		const value = replace(name, optional);
+		let start = param.index;
+		if (value === void 0 && path[start - 1] === "/") start--;
+		out += path.slice(last, start) + (value ?? "");
+		params.lastIndex = end;
+		last = end;
+	}
+	return out + path.slice(last);
+}
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/OpenApi.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/OpenApi.js
 var Identifier = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Identifier")) {};
 var Title$1 = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Title")) {};
 var Version = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Version")) {};
 var Description = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Description")) {};
 var Summary = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Summary")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/HttpApiClient.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiClient.js
 const makeClient = (api, options) => gen(function* () {
 	const services = yield* context();
 	const httpClient = options.httpClient.pipe(options?.baseUrl === void 0 ? identity : mapRequest(prependUrl(options.baseUrl.toString())));
@@ -14421,34 +15362,20 @@ const makeClient = (api, options) => gen(function* () {
 			options.onGroup?.(onGroupOptions);
 		},
 		onEndpoint(onEndpointOptions) {
-			const { group, endpoint, errors, successes, mergedAnnotations } = onEndpointOptions;
+			const { group, endpoint, mergedAnnotations } = onEndpointOptions;
 			const parseOptions = getSlotParseOptions(mergedAnnotations);
 			const makeUrl = compilePath(endpoint.path, endpoint.params);
-			const decodeMap = { orElse: statusOrElse };
-			const errorAlternatives = /* @__PURE__ */ new Map();
-			for (const [status, schemas] of errors.entries()) {
-				const grouped = groupSchemasByContentType(schemas);
-				for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(errorAlternatives, status, contentType, schemasToResponse(schemas, parseOptions.error, parseOptions.headers));
-			}
-			for (const [status, alternatives] of errorAlternatives.entries()) {
-				const decode = makeResponseDecoder(alternatives);
-				decodeMap[status] = (response) => flatMap(catchCause$1(decode(response), (cause) => failCause$3(combine(fail$5(new HttpClientError({ reason: new StatusCodeError({
-					request: response.request,
-					response
-				}) })), cause))), fail$3);
-			}
-			const successAlternatives = /* @__PURE__ */ new Map();
-			for (const [status, schemas] of successes.entries()) {
-				const grouped = groupSchemasByContentType(schemas);
-				for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(successAlternatives, status, contentType, schemasToResponse(schemas, parseOptions.success, parseOptions.headers));
-			}
-			for (const streamSuccess of getStreamSuccessSchemas(endpoint)) {
-				const streamSchema = isWithHeadersStreamSuccess(streamSuccess) ? streamSuccess.schema : streamSuccess;
-				addResponseAlternative(successAlternatives, getStatusSuccessSchema(streamSuccess), streamSchema.contentType, streamToResponse(streamSuccess, parseOptions.success, parseOptions.headers));
-			}
-			for (const [status, alternatives] of successAlternatives.entries()) decodeMap[status] = makeResponseDecoder(alternatives);
+			const upgrade$1 = getUpgradeSuccessSchema(endpoint);
+			const decodeEndpointResponse = makeEndpointDecoder(onEndpointOptions);
 			const encodeParams = map(endpoint.params, (schema) => encodeUnknownEffect(schema, parseOptions.params));
-			const payloadSchemas = getPayloadSchemas(endpoint);
+			const payloadSchemas = [];
+			let streamPayload;
+			for (const schema of getPayloadSchemas(endpoint)) if (isStreamUint8Array(schema) || isStreamNdjson(schema)) streamPayload = schema;
+			else payloadSchemas.push(schema);
+			const streamPayloadEncoder = map(streamPayload, (schema) => ({
+				contentType: schema.contentType,
+				encode: makeStreamPayloadEncoder(schema, parseOptions.payload)
+			}));
 			const encodePayload = isArrayNonEmpty(payloadSchemas) ? encodeUnknownEffect(hasBody(endpoint.method) ? getEncodePayloadSchema(payloadSchemas, endpoint.method) : Union(payloadSchemas), parseOptions.payload) : void 0;
 			const encodeHeaders = map(endpoint.headers, (schema) => encodeUnknownEffect(schema, parseOptions.headers));
 			const encodeQuery = map(endpoint.query, (schema) => encodeUnknownEffect(schema, parseOptions.query));
@@ -14460,7 +15387,10 @@ const makeClient = (api, options) => gen(function* () {
 						const params = yield* encodeParams(request.params);
 						httpRequest = setUrl(httpRequest, makeUrl(params));
 					}
-					if (encodePayload !== void 0) {
+					if (streamPayloadEncoder !== void 0 && isStream(request.payload)) {
+						const context$3 = yield* context();
+						httpRequest = setBody(httpRequest, stream(provideContext(streamPayloadEncoder.encode(request.payload), context$3), streamPayloadEncoder.contentType));
+					} else if (encodePayload !== void 0) {
 						if (hasBody(endpoint.method)) {
 							if (request.payload instanceof FormData) httpRequest = bodyFormData(httpRequest, request.payload);
 							else {
@@ -14471,7 +15401,7 @@ const makeClient = (api, options) => gen(function* () {
 							const urlParams = yield* encodePayload(request.payload);
 							httpRequest = appendUrlParams(httpRequest, urlParams);
 						}
-					}
+					} else if (streamPayloadEncoder !== void 0) return yield* new SchemaError(new InvalidValue({ message: "Expected a Stream payload" }, request.payload));
 					if (encodeHeaders !== void 0) {
 						const headers = yield* encodeHeaders(request.headers);
 						httpRequest = setHeaders$1(httpRequest, headers);
@@ -14481,9 +15411,10 @@ const makeClient = (api, options) => gen(function* () {
 						httpRequest = appendUrlParams(httpRequest, query);
 					}
 				}
+				if (upgrade$1 !== void 0) httpRequest = upgrade(httpRequest, upgrade$1.protocol);
 				const response = yield* executeMiddleware(group, endpoint, httpRequest, middlewareKeys, middlewareKeys.length - 1);
 				if (request?.responseMode === "response-only") return response;
-				const decoded = (decodeMap[response.status] ?? decodeMap.orElse)(response, request?.sseOptions);
+				const decoded = decodeEndpointResponse(response, request?.sseOptions);
 				const value = yield* options.transformResponse === void 0 ? decoded : options.transformResponse(decoded);
 				return request?.responseMode === "decoded-and-response" ? [value, response] : value;
 			});
@@ -14507,21 +15438,16 @@ const makeWith = (api, options) => {
 		}
 	}).pipe(as(client));
 };
-const paramsRegExp = /(\/?):(\w+)(\?)?/g;
 const compilePath = (path, schema) => {
 	if (schema === void 0 || !path.includes(":")) return (_) => path;
 	const paramNames = getParamNames(schema);
-	return (params) => {
-		return path.replace(paramsRegExp, (match, slash, key, optional) => {
-			if (paramNames !== void 0 && !paramNames.has(key)) return match;
-			const value = params[key];
-			if (value === void 0) {
-				if (optional !== void 0) return "";
-				throw new Error(`Missing path parameter: ${key}`);
-			}
-			return `${slash}${encodeURIComponent(value)}`;
-		});
-	};
+	return (params) => replaceParams(path, paramNames, (key, optional) => {
+		const value = params[key];
+		if (value === "." || value === "..") throw new Error(`Invalid path parameter: ${key}`);
+		if (value !== void 0) return encodeURIComponent(value);
+		if (optional) return void 0;
+		throw new Error(`Missing path parameter: ${key}`);
+	});
 };
 function schemasToResponse(schemas, options, headersOptions) {
 	const hasWithHeaders = schemas.some((schema) => isWithHeaders(schema) || getWithHeadersAnnotation(schema.ast) !== void 0);
@@ -14560,6 +15486,44 @@ function toCodecArrayBufferWithHeaders(schema, options, headersOptions) {
 		encode: (input, options) => fail$3(new Forbidden$1({ message: "Decode only schema" }, input, options))
 	})));
 }
+const makeEndpointDecoder = (options) => {
+	const { endpoint, errors, successes, mergedAnnotations } = options;
+	const parseOptions = getSlotParseOptions(mergedAnnotations);
+	const decodeMap = { orElse: statusOrElse };
+	const errorAlternatives = /* @__PURE__ */ new Map();
+	for (const [status, schemas] of errors.entries()) {
+		const grouped = groupSchemasByContentType(schemas);
+		for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(errorAlternatives, status, contentType, schemasToResponse(schemas, parseOptions.error, parseOptions.headers));
+	}
+	for (const [status, alternatives] of errorAlternatives.entries()) {
+		const decode = makeResponseDecoder(alternatives);
+		decodeMap[status] = (response) => flatMap(catchCause$2(decode(response), (cause) => failCause$3(combine(fail$5(new HttpClientError({ reason: new StatusCodeError({
+			request: response.request,
+			response
+		}) })), cause))), fail$3);
+	}
+	const successAlternatives = /* @__PURE__ */ new Map();
+	for (const [status, schemas] of successes.entries()) {
+		const grouped = groupSchemasByContentType(schemas);
+		for (const [contentType, schemas] of grouped.entries()) addResponseAlternative(successAlternatives, status, contentType, schemasToResponse(schemas, parseOptions.success, parseOptions.headers));
+	}
+	for (const streamSuccess of getStreamSuccessSchemas(endpoint)) {
+		const streamSchema = isWithHeadersStreamSuccess(streamSuccess) ? streamSuccess.schema : streamSuccess;
+		const status = getStatusSuccessSchema(streamSuccess);
+		const decode = streamToResponse(streamSuccess, parseOptions.success, parseOptions.headers);
+		for (const contentType of streamSchema.contentTypes) addResponseAlternative(successAlternatives, status, contentType, decode);
+	}
+	for (const [status, alternatives] of successAlternatives.entries()) decodeMap[status] = makeResponseDecoder(alternatives);
+	const upgrade = getUpgradeSuccessSchema(endpoint);
+	if (upgrade !== void 0) {
+		const decodeHeaders = upgrade.headers === void 0 ? succeed$3 : decodeUnknownEffect(upgrade.headers, parseOptions.headers);
+		decodeMap[101] = (response) => uninterruptibleMask((restore) => flatMap(response.upgrade, (socket) => restore(decodeHeaders(response.headers)).pipe(map$4((headers) => ({
+			headers,
+			socket
+		})), onError(() => ignore$1(scoped(socket.reader))))));
+	}
+	return (response, sseOptions) => (decodeMap[response.status] ?? decodeMap.orElse)(response, sseOptions);
+};
 function addResponseAlternative(map, status, contentType, decode) {
 	const normalizedContentType = normalize(contentType);
 	const alternatives = map.get(status);
@@ -14574,7 +15538,7 @@ function addResponseAlternative(map, status, contentType, decode) {
 }
 function makeResponseDecoder(alternatives) {
 	const first = alternatives[0];
-	if (alternatives.length === 1 && first !== void 0) return first.decode;
+	if (first !== void 0 && alternatives.every((alternative) => alternative.decode === first.decode)) return first.decode;
 	return (response, sseOptions) => {
 		const contentType = normalize(response.headers["content-type"] ?? "");
 		const alternative = alternatives.find((alternative) => alternative.contentType === contentType);
@@ -14602,6 +15566,9 @@ function failUnsupportedContentType(response, contentType, alternatives) {
 }
 const reservedStreamFailureEvent = "effect/http-api/stream/failure";
 const isWithHeadersStreamSuccess = (schema) => isWithHeaders(schema);
+function getUpgradeSuccessSchema(endpoint) {
+	for (const schema of endpoint.success) if (isUpgrade(schema)) return schema;
+}
 function getStreamSuccessSchemas(endpoint) {
 	const schemas = [];
 	for (const schema of endpoint.success) {
@@ -14612,12 +15579,8 @@ function getStreamSuccessSchemas(endpoint) {
 }
 function streamToResponse(successSchema, options, headersOptions) {
 	const isWithHeaders = isWithHeadersStreamSuccess(successSchema);
-	const streamSchema = isWithHeaders ? successSchema.schema : successSchema;
-	const sse = isStreamUint8Array(streamSchema) ? void 0 : {
-		declaration: streamSchema,
-		decoder: makeSseDecoder(streamSchema, options)
-	};
-	const toStream = (response, sseOptions) => map$4(context(), (context) => provideContext(sse === void 0 ? response.stream : decodeSseStream(response.stream, sse.declaration, sse.decoder(sseOptions)), context));
+	const decodeBody = makeStreamBodyDecoder(isWithHeaders ? successSchema.schema : successSchema, options);
+	const toStream = (response, sseOptions) => map$4(context(), (context) => provideContext(decodeBody(response, sseOptions), context));
 	if (!isWithHeaders) return toStream;
 	const decodeHeaders = decodeUnknownEffect(successSchema.headers, headersOptions);
 	return (response, sseOptions) => flatMap(decodeHeaders(response.headers), (headers) => map$4(toStream(response, sseOptions), (body) => withHeaders({
@@ -14625,6 +15588,29 @@ function streamToResponse(successSchema, options, headersOptions) {
 		headers
 	})));
 }
+function makeStreamBodyDecoder(streamSchema, options) {
+	if (isStreamUint8Array(streamSchema)) return (response) => response.stream;
+	if (isStreamNdjson(streamSchema)) {
+		const decodeElement = decodeUnknownEffect(toCodecJson(streamSchema.schema), options);
+		const maxElementBytes = toNumberUnsafe(streamSchema.maxElementBytes);
+		return (response) => response.stream.pipe(pipeThroughChannel(decode({
+			ignoreEmptyLines: true,
+			maxLineBytes: maxElementBytes
+		})), mapError((error) => {
+			if (!isNdjsonError(error)) return error;
+			if (error.reason !== "LineTooLarge") return ndjsonSchemaError(error);
+			return new HttpClientError({ reason: new DecodeError({
+				request: response.request,
+				response,
+				description: `NDJSON line exceeds maxElementBytes of ${maxElementBytes} bytes`
+			}) });
+		}), mapEffect$1((json) => decodeElement(json)));
+	}
+	const decoder = makeSseDecoder(streamSchema, options);
+	return (response, sseOptions) => decodeSseStream(response.stream, streamSchema, decoder(sseOptions));
+}
+const isNdjsonPackError = (error) => isNdjsonError(error) && error.kind === "Pack";
+const ndjsonSchemaError = (error) => new SchemaError(new InvalidValue({ message: error.reason === "InvalidUtf8" ? "Expected valid UTF-8" : error.unterminated ? "Expected a valid JSON line, got an unterminated final line" : "Expected a valid JSON line" }));
 function makeSseDecoder(declaration, parseOptions) {
 	const Event = Union([Struct({
 		id: optional$5(String$2),
@@ -14637,7 +15623,7 @@ function makeSseDecoder(declaration, parseOptions) {
 function decodeSseStream(stream, declaration, decoder) {
 	const events = transformPull(stream.pipe(decodeText$1, pipeThroughChannel(decoder)), (pull) => sync(() => {
 		let pendingFailureCause = void 0;
-		return suspend$2(() => {
+		return suspend$3(() => {
 			if (pendingFailureCause !== void 0) return failCause$3(pendingFailureCause);
 			return flatMap(pull, (events) => {
 				for (let i = 0; i < events.length; i++) {
@@ -14700,9 +15686,15 @@ function fromArrayBuffer(schema) {
 }
 const statusOrElse = (response) => fail$3(new HttpClientError({ reason: new DecodeError({
 	request: response.request,
-	response
+	response,
+	description: "undeclared status code"
 }) }));
 const $HttpBody = /*#__PURE__*/ declare(isHttpBody);
+function makeStreamPayloadEncoder(schema, options) {
+	if (isStreamUint8Array(schema)) return (stream) => stream;
+	const encodeElements = encodeUnknownEffect(NonEmptyArray(toCodecJson(schema.schema)), options);
+	return (stream) => stream.pipe(mapArrayEffect((elements) => encodeElements(elements)), pipeThroughChannel(encode()), catchIf(isNdjsonPackError, die));
+}
 function getEncodePayloadSchema(schemas, method) {
 	return Union(schemas.map((s) => getEncodePayloadSchemaFromBody(s, method)));
 }
@@ -14729,7 +15721,7 @@ function getEncodePayloadSchemaFromBody(schema, method) {
 					if (typeof t !== "string") return fail$3(new InvalidValue({ message: "Expected a string" }, t, options));
 					return succeed$3(text(t, encoding.contentType));
 				case "FormUrlEncoded":
-					if (!isObject(t)) return fail$3(new InvalidValue({ message: "Expected a record" }, t, options));
+					if (!isObject$2(t)) return fail$3(new InvalidValue({ message: "Expected a record" }, t, options));
 					return succeed$3(urlParams(fromInput(t), encoding.contentType));
 				case "Uint8Array":
 					if (!(t instanceof Uint8Array)) return fail$3(new InvalidValue({ message: "Expected a Uint8Array" }, t, options));
@@ -14741,7 +15733,7 @@ function getEncodePayloadSchemaFromBody(schema, method) {
 	return out;
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/http-api/HttpApiGroup.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiGroup.js
 const TypeId$5 = "~effect/http-api/HttpApiGroup";
 const Proto$3 = {
 	[TypeId$5]: TypeId$5,
@@ -14768,7 +15760,7 @@ const Proto$3 = {
 	annotateMerge(annotations) {
 		return makeProto$3({
 			...optionsFromGroup(this),
-			annotations: merge$1(this.annotations, annotations)
+			annotations: merge$2(this.annotations, annotations)
 		});
 	},
 	annotate(annotation, value) {
@@ -14813,241 +15805,316 @@ const make$12 = (identifier, options) => makeProto$3({
 });
 //#endregion
 //#region ../../packages/core/src/generated/TipeeApi.ts
-const CreateProjectCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })),
-	"external_id": optionalKey(Union([String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "CreateProjectCommand" });
 const Snowflake = String$2.annotate({
 	"format": "snowflake",
 	"identifier": "Snowflake"
 });
-const DeleteProjectCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteProjectCommand" });
-const UpdateProjectCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": optionalKey(String$2),
-	"description": optionalKey(Union([String$2, Null])),
-	"external_id": optionalKey(Union([String$2, Null])),
-	"resource_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
-	"date_range": optionalKey(Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" })),
-	"hourly_budget_mode": optionalKey(Literals([
-		"none",
-		"project",
-		"task"
-	])),
-	"hourly_budget": optionalKey(String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}))
-}).annotate({ "identifier": "UpdateProjectCommand" });
-const AssignProjectResourceCommand = Struct({
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"access_rights": ArraySchema(Literals([
-		"manage-project",
-		"validate-hours",
-		"contribute-hours",
-		"consult-hours"
-	]))
-}).annotate({ "identifier": "AssignProjectResourceCommand" });
-const AssignProjectTeamCommand = Struct({
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"access_rights": ArraySchema(Literals([
-		"manage-project",
-		"validate-hours",
-		"contribute-hours",
-		"consult-hours"
-	]))
-}).annotate({ "identifier": "AssignProjectTeamCommand" });
-const GrantProjectTeamCommand = Struct({
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"access_rights": ArraySchema(Literals([
-		"manage-project",
-		"validate-hours",
-		"contribute-hours",
-		"consult-hours"
-	]))
-}).annotate({ "identifier": "GrantProjectTeamCommand" });
+const LocalDateInterval = String$2.annotate({
+	"format": "local-date-interval",
+	"identifier": "LocalDateInterval"
+});
+const ProjectHourlyBudgetMode = Literals([
+	"none",
+	"project",
+	"task"
+]).annotate({ "identifier": "ProjectHourlyBudgetMode" });
+const Duration = String$2.annotate({
+	"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
+	"format": "duration",
+	"identifier": "Duration"
+});
+const ProjectAccessRights = Literals([
+	"manage-project",
+	"validate-hours",
+	"contribute-hours",
+	"consult-hours"
+]).annotate({ "identifier": "ProjectAccessRights" });
+const ProjectStatus = Literals([
+	"draft",
+	"active",
+	"locked",
+	"archived"
+]).annotate({ "identifier": "ProjectStatus" });
+const LocalDateTimeInterval = String$2.annotate({
+	"format": "local-date-time-interval",
+	"identifier": "LocalDateTimeInterval"
+});
+const QueryOrderDirection = Literals(["asc", "desc"]).annotate({ "identifier": "QueryOrderDirection" });
+const Instant = String$2.annotate({
+	"format": "zoned-date-time",
+	"identifier": "Instant"
+});
+const LogicalOperator = Literals(["or", "and"]).annotate({ "identifier": "LogicalOperator" });
+const ActivityType = Literals(["duration", "range"]).annotate({ "identifier": "ActivityType" });
+const LocalDate$1 = String$2.annotate({
+	"format": "local-date",
+	"identifier": "LocalDate"
+});
+const LocalDateTime = String$2.annotate({
+	"format": "local-date-time",
+	"identifier": "LocalDateTime"
+});
+const DayTaskStatus = Literals([
+	"editing",
+	"submitted",
+	"validated",
+	"rejected"
+]).annotate({ "identifier": "DayTaskStatus" });
+const Pagination = Struct({
+	"limit": Union([Int, Null]),
+	"next_token": Union([String$2, Null])
+}).annotate({ "identifier": "Pagination" });
+const ActivityDetailedFields = Literals([
+	"activity.date",
+	"activity.billable",
+	"activity.duration",
+	"activity.time_range",
+	"activity.resources",
+	"activity.remark",
+	"activity.id",
+	"activity.task_name",
+	"activity.project_name",
+	"activity.tags_ids",
+	"activity.projects_resources",
+	"activity.day_task_status"
+]).annotate({ "identifier": "ActivityDetailedFields" });
+const GrammaticalGender = String$2.annotate({
+	"description": "Known values: m, f, n.",
+	"identifier": "GrammaticalGender"
+});
+const PictureShape = String$2.annotate({
+	"description": "Known values: round, rounded-square, square.",
+	"identifier": "PictureShape"
+});
+const DayTaskTransition = String$2.annotate({
+	"description": "Known values: submit, submit-for-contributor, cancel-submission, submit-correction, validate, cancel-validation, reject, cancel-rejection.",
+	"identifier": "DayTaskTransition"
+});
+const ListWorkRegimesQuery = Record(String$2, Never).annotate({ "identifier": "ListWorkRegimesQuery" });
+const TranslatedString = Struct({
+	"fr": optionalKey(String$2),
+	"en": optionalKey(String$2),
+	"de": optionalKey(String$2)
+}).annotate({ "identifier": "TranslatedString" });
+const Percentage = Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({
+	"expected": "a finite number",
+	"identifier": "Percentage"
+}));
+const ResourceSecurity = Struct({
+	"username": optionalKey(String$2),
+	"password": optionalKey(String$2),
+	"send_email": optionalKey(Boolean$1)
+}).annotate({ "identifier": "ResourceSecurity" });
+const Locale = Literals([
+	"en",
+	"fr",
+	"de"
+]).annotate({ "identifier": "Locale" });
+const Location = Struct({
+	"latitude": optionalKey(Union([Finite, Null]).annotate({
+		"default": null,
+		"format": "float"
+	})),
+	"longitude": optionalKey(Union([Finite, Null]).annotate({
+		"default": null,
+		"format": "float"
+	})),
+	"address": optionalKey(Union([String$2, Null]).annotate({ "default": null })),
+	"remark": optionalKey(Union([String$2, Null]).annotate({ "default": null }))
+}).annotate({ "identifier": "Location" });
+const LocalTime = String$2.annotate({
+	"format": "local-time",
+	"identifier": "LocalTime"
+});
+const ResourceTeamWarningType = String$2.annotate({
+	"description": "Known values: assign-conflicting-resource-teams, unassign-remove-all-resource-teams, unassign-conflicting-resource-teams.",
+	"identifier": "ResourceTeamWarningType"
+});
+const ResourceCountingMode = Literals(["strict", "approximate"]).annotate({ "identifier": "ResourceCountingMode" });
+const BooleanOperator = Literals([
+	"equals",
+	"not_equals",
+	"none"
+]).annotate({ "identifier": "BooleanOperator" });
+const ListOperator = Literals([
+	"in_list",
+	"not_in_list",
+	"none"
+]).annotate({ "identifier": "ListOperator" });
+const DateTimeOperator = Literals([
+	"equals",
+	"not_equals",
+	"from",
+	"until",
+	"none"
+]).annotate({ "identifier": "DateTimeOperator" });
+const IntervalOperator = Literals([
+	"in_range",
+	"not_in_range",
+	"none"
+]).annotate({ "identifier": "IntervalOperator" });
+const NumericOperator = Literals([
+	"equals",
+	"not_equals",
+	"less_than",
+	"less_than_or_equal",
+	"greater_than",
+	"greater_than_or_equal",
+	"none"
+]).annotate({ "identifier": "NumericOperator" });
+const MonthDayInterval = String$2.annotate({
+	"format": "local-month-day-interval",
+	"identifier": "MonthDayInterval"
+});
+const RegroupingSource = Literals(["resource", "team"]).annotate({ "identifier": "RegroupingSource" });
+const StringOperator = Literals([
+	"equals",
+	"not_equals",
+	"contains",
+	"not_contains",
+	"starts_with",
+	"ends_with",
+	"none"
+]).annotate({ "identifier": "StringOperator" });
+const TeamPeriodOperator = Literals([
+	"first_starts_in",
+	"starts_in",
+	"intersects_with",
+	"ends_in",
+	"last_ends_in",
+	"none"
+]).annotate({ "identifier": "TeamPeriodOperator" });
+const ListKindsQuery = Record(String$2, Never).annotate({ "identifier": "ListKindsQuery" });
+const ContentType = String$2.annotate({
+	"description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, month-day/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain.",
+	"identifier": "ContentType"
+});
+const ChoicesInputType = String$2.annotate({
+	"description": "Known values: select, combobox, radio.",
+	"identifier": "ChoicesInputType"
+});
+const AttributeIcon = String$2.annotate({
+	"description": "Known values: email, phone, mobile-phone, address, description, external-id, job, company, is-company, civility, first-name, last-name, joining-date, website.",
+	"identifier": "AttributeIcon"
+});
+const AttributeType = String$2.annotate({
+	"description": "Known values: boolean, date, date-time, decimal, duration, enum, id, int, percentage, string.",
+	"identifier": "AttributeType"
+});
+const AttributeFormatType = String$2.annotate({
+	"description": "Known values: avs, email, phone, address.",
+	"identifier": "AttributeFormatType"
+});
+const ClassificationLevel = String$2.annotate({
+	"description": "Known values: unclassified, internal, confidential, secret.",
+	"identifier": "ClassificationLevel"
+});
+const AccessLevel = String$2.annotate({
+	"description": "Known values: none, read-own, read, write.",
+	"identifier": "AccessLevel"
+});
+const Redacted = StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "Redacted" });
+const LocalTimeInterval = String$2.annotate({
+	"format": "local-time-interval",
+	"identifier": "LocalTimeInterval"
+});
+const MaskedSectorDTO = StructWithRest(Struct({
+	"sector_name": String$2,
+	"date_start": String$2,
+	"date_end": Union([String$2, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "MaskedSectorDTO" });
+const GroupAction = Literals([
+	"single",
+	"future",
+	"all"
+]).annotate({ "identifier": "GroupAction" });
+const DeleteScheduleResult = StructWithRest(Struct({
+	"deleted_count": Int,
+	"deleted": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
+	"failed_count": Int,
+	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
+	"description": "Result of deleting schedule(s).",
+	"identifier": "DeleteScheduleResult"
+});
+const AbsenceCreateOptions260625 = Struct({
+	"schedule_on_bank_holidays": optionalKey(Boolean$1),
+	"allow_partial": optionalKey(Boolean$1)
+}).annotate({ "identifier": "AbsenceCreateOptions260625" });
+const CreateAbsenceResult = StructWithRest(Struct({
+	"created": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
+	"repetition_id": Union([Int, Null]),
+	"created_count": Int,
+	"failed_count": Int,
+	"failed": ArraySchema(String$2)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
+	"description": "Result of creating absence(s).",
+	"identifier": "CreateAbsenceResult"
+});
+const UpdateAbsenceResult = StructWithRest(Struct({
+	"updated_count": Int,
+	"updated": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
+	"failed_count": Int,
+	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
+	"description": "Result of updating absence(s).",
+	"identifier": "UpdateAbsenceResult"
+});
+const DeleteAbsenceResult = StructWithRest(Struct({
+	"deleted_count": Int,
+	"deleted": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
+	"failed_count": Int,
+	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
+	"description": "Result of deleting absence(s).",
+	"identifier": "DeleteAbsenceResult"
+});
+const CreateOptions260625 = Struct({
+	"counts_in_balances": optionalKey(Boolean$1.annotate({ "default": true })),
+	"timecheck_counted": optionalKey(Boolean$1.annotate({ "default": true })),
+	"employee_resident_ratio": optionalKey(Boolean$1.annotate({ "default": false })),
+	"auto_completable": optionalKey(Boolean$1.annotate({ "default": true }))
+}).annotate({ "identifier": "CreateOptions260625" });
+const UpdateOptions260625 = Struct({
+	"counts_in_balances": optionalKey(Boolean$1),
+	"timecheck_counted": optionalKey(Boolean$1),
+	"employee_resident_ratio": optionalKey(Boolean$1),
+	"auto_completable": optionalKey(Boolean$1)
+}).annotate({ "identifier": "UpdateOptions260625" });
+const ScheduleTemplateTypeDisplayMode = String$2.annotate({
+	"description": "Known values: normal, hour, corner.",
+	"identifier": "ScheduleTemplateTypeDisplayMode"
+});
+const OptionsView260625 = StructWithRest(Struct({
+	"counts_in_balances": Boolean$1,
+	"timecheck_counted": Boolean$1,
+	"employee_resident_ratio": Boolean$1,
+	"auto_completable": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OptionsView260625" });
+const TimecheckType = String$2.annotate({
+	"description": "Known values: device, adjusted, proposal, validation.",
+	"identifier": "TimecheckType"
+});
+const Geolocation = StructWithRest(Struct({
+	"latitude": Union([Finite, Null]).annotate({ "format": "float" }),
+	"longitude": Union([Finite, Null]).annotate({ "format": "float" }),
+	"accuracy": Union([Finite, Null]).annotate({ "format": "float" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "Geolocation" });
+const CreateProjectCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })),
+	"external_id": optionalKey(Union([String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "CreateProjectCommand" });
+const DeleteProjectCommand = Struct({ "id": Snowflake }).annotate({ "identifier": "DeleteProjectCommand" });
 const DeleteProjectMemberCommand = Struct({
-	"member_id": String$2.annotate({ "format": "snowflake" }),
-	"project_id": String$2.annotate({ "format": "snowflake" })
+	"member_id": Snowflake,
+	"project_id": Snowflake
 }).annotate({ "identifier": "DeleteProjectMemberCommand" });
-const UpdateProjectStatusCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"status": Literals([
-		"draft",
-		"active",
-		"locked",
-		"archived"
-	])
-}).annotate({ "identifier": "UpdateProjectStatusCommand" });
-const GrantProjectResourceCommand = Struct({
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"access_rights": ArraySchema(Literals([
-		"manage-project",
-		"validate-hours",
-		"contribute-hours",
-		"consult-hours"
-	]))
-}).annotate({ "identifier": "GrantProjectResourceCommand" });
-const ListProjectsQuery = Struct({
-	"with_task_ids": optionalKey(Boolean$1.annotate({ "default": true })),
-	"filters": optionalKey(ArraySchema(Union([
-		Struct({
-			"key": Literal("project.ids"),
-			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}),
-		Struct({
-			"key": Literal("project.external_id"),
-			"value": ArraySchema(String$2)
-		}),
-		Struct({
-			"key": Literal("project.search"),
-			"value": String$2
-		}),
-		Struct({
-			"key": Literal("project.status"),
-			"value": ArraySchema(Literals([
-				"draft",
-				"active",
-				"locked",
-				"archived"
-			]))
-		}),
-		Struct({
-			"key": Literal("project.access_rights"),
-			"value": Struct({
-				"resource_id": String$2.annotate({ "format": "snowflake" }),
-				"rights": ArraySchema(Literals([
-					"manage-project",
-					"validate-hours",
-					"contribute-hours",
-					"consult-hours"
-				]))
-			})
-		}),
-		Struct({
-			"key": Literal("project.assignable_for"),
-			"value": String$2.annotate({ "format": "snowflake" })
-		}),
-		Struct({
-			"key": Literal("project.date_range"),
-			"value": String$2.annotate({ "format": "local-date-interval" })
-		}),
-		Struct({
-			"key": Literal("project.created_at"),
-			"value": String$2.annotate({ "format": "local-date-time-interval" })
-		}),
-		Struct({
-			"key": Literal("project.with_activities"),
-			"value": String$2.annotate({ "format": "local-date-interval" })
-		}),
-		Struct({
-			"key": Literal("project.resource_ids"),
-			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}),
-		Struct({
-			"key": Literal("or"),
-			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-		}),
-		Struct({
-			"key": Literal("and"),
-			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-		})
-	], { mode: "oneOf" }))),
-	"orders": optionalKey(ArraySchema(Union([
-		Struct({
-			"key": Literal("project.name"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("project.date_range"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("project.client_name"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		})
-	], { mode: "oneOf" })))
-}).annotate({ "identifier": "ListProjectsQuery" });
-const ProjectListView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-	"name": String$2,
-	"description": Union([String$2, Null]),
-	"external_id": Union([String$2, Null]),
-	"status": Literals([
-		"draft",
-		"active",
-		"locked",
-		"archived"
-	]),
-	"date_range": Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"hourly_budget": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"hourly_budget_mode": Literals([
-		"none",
-		"project",
-		"task"
-	]),
-	"created_at": String$2.annotate({ "format": "zoned-date-time" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectListView" });
-const ShowProjectQuery = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "ShowProjectQuery" });
-const ProjectView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-	"name": String$2,
-	"description": Union([String$2, Null]),
-	"external_id": Union([String$2, Null]),
-	"status": Literals([
-		"draft",
-		"active",
-		"locked",
-		"archived"
-	]),
-	"date_range": Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }),
-	"members": StructWithRest(Struct({
-		"resources": ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"access_rights": ArraySchema(Literals([
-				"manage-project",
-				"validate-hours",
-				"contribute-hours",
-				"consult-hours"
-			]))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-		"teams": ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"access_rights": ArraySchema(Literals([
-				"manage-project",
-				"validate-hours",
-				"contribute-hours",
-				"consult-hours"
-			]))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"task_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"hourly_budget": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"hourly_budget_mode": Literals([
-		"none",
-		"project",
-		"task"
-	]),
-	"created_at": String$2.annotate({ "format": "zoned-date-time" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectView" });
-const ListProjectHourlyBudgetStatsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+const ShowProjectQuery = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowProjectQuery" });
+const ListProjectHourlyBudgetStatsQueryFilter = Union([
 	Struct({
 		"key": Literal("project.ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("or"),
@@ -15057,209 +16124,137 @@ const ListProjectHourlyBudgetStatsQuery = Struct({ "filters": optionalKey(ArrayS
 		"key": Literal("and"),
 		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 	})
-], { mode: "oneOf" }))) }).annotate({ "identifier": "ListProjectHourlyBudgetStatsQuery" });
-const ProjectHourlyBudgetStatsView = StructWithRest(Struct({
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"hourly_budget_mode": Literals([
-		"none",
-		"project",
-		"task"
-	]),
-	"hourly_budget": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"total_effective_hours": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"total_budget_hours": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"hours_by_tasks": ArraySchema(StructWithRest(Struct({
-		"task_id": String$2.annotate({ "format": "snowflake" }),
-		"effective_hours": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"budget_hours": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		})
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectHourlyBudgetStatsView" });
-const DeleteProjectTaskCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteProjectTaskCommand" });
-const CreateProjectTaskCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })),
-	"color": String$2,
-	"billable": Boolean$1,
-	"remark_required": optionalKey(Boolean$1.annotate({ "default": false })),
-	"hourly_budget": optionalKey(Union([String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}), Null], { mode: "oneOf" })),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "default": [] })),
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "default": [] }))
-}).annotate({ "identifier": "CreateProjectTaskCommand" });
-const UpdateProjectTaskCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": optionalKey(String$2),
-	"color": optionalKey(String$2),
-	"billable": optionalKey(Boolean$1),
-	"remark_required": optionalKey(Boolean$1),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"hourly_budget": optionalKey(String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}))
-}).annotate({ "identifier": "UpdateProjectTaskCommand" });
-const ListProjectTasksQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
-	Struct({
-		"key": Literal("task.projects_ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("task.ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("task.assigned"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("task.project_status"),
-		"value": ArraySchema(Literals([
-			"draft",
-			"active",
-			"locked",
-			"archived"
-		]))
-	}),
-	Struct({
-		"key": Literal("task.projects_date_range"),
-		"value": String$2.annotate({ "format": "local-date-interval" })
-	}),
-	Struct({
-		"key": Literal("task.effective"),
-		"value": Struct({
-			"resource_id": String$2.annotate({ "format": "snowflake" }),
-			"date_range": String$2.annotate({ "format": "local-date-interval" })
-		})
-	}),
-	Struct({
-		"key": Literal("task.in_activity_day"),
-		"value": Struct({
-			"resource_id": String$2.annotate({ "format": "snowflake" }),
-			"date_range": String$2.annotate({ "format": "local-date-interval" })
-		})
-	}),
-	Struct({
-		"key": Literal("task.billable"),
-		"value": Boolean$1
-	}),
-	Struct({
-		"key": Literal("task.search"),
-		"value": String$2
-	}),
-	Struct({
-		"key": Literal("task.tags"),
-		"value": Struct({
-			"tags": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-			"operator": Literals(["or", "and"])
-		})
-	}),
-	Struct({
-		"key": Literal("project.resource_ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("or"),
-		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-	}),
-	Struct({
-		"key": Literal("and"),
-		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-	})
-], { mode: "oneOf" }))) }).annotate({ "identifier": "ListProjectTasksQuery" });
-const TaskView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"project_id": String$2.annotate({ "format": "snowflake" }),
-	"tag_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
+], { mode: "oneOf" }).annotate({ "identifier": "ListProjectHourlyBudgetStatsQueryFilter" });
+const DeleteProjectTaskCommand = Struct({ "id": Snowflake }).annotate({ "identifier": "DeleteProjectTaskCommand" });
+const DeleteActivityCommand = Struct({ "id": Snowflake }).annotate({ "identifier": "DeleteActivityCommand" });
+const TaskSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"project_id": Snowflake,
 	"name": String$2,
 	"color": String$2,
 	"billable": Boolean$1,
-	"remark_required": Boolean$1,
-	"hourly_budget": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TaskView" });
-const CreateActivityCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"task_id": String$2.annotate({ "format": "snowflake" }),
-	"billable": Boolean$1,
-	"type": Literals(["duration", "range"]).annotate({ "description": "Activity type. Determines which fields are required: `duration` needs `date` + `duration`, `range` needs `start` (+ optionally `end`)." }),
-	"date": optionalKey(String$2.annotate({
-		"format": "local-date",
-		"description": "Required when type is `duration`."
-	})),
-	"duration": optionalKey(Union([String$2.annotate({
-		"description": "Required when type is `duration`. Must be ≤ 24h.",
-		"format": "duration"
-	}), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(65535).annotate({ "expected": "a string with at most 65535 code points" })), Null])),
-	"start": optionalKey(String$2.annotate({
-		"format": "local-date-time",
-		"description": "Required when type is `range`."
-	})),
-	"end": optionalKey(Union([String$2.annotate({
-		"format": "local-date-time",
-		"description": "Required when type is `range`, but can be omitted for open (running) activity."
-	}), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }))
-}).annotate({ "identifier": "CreateActivityCommand" });
-const UpdateActivityCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"type": Literals(["duration", "range"]).annotate({ "description": "Activity type. Determines validation rules for other fields." }),
-	"task_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"billable": optionalKey(Boolean$1),
-	"date": optionalKey(Union([String$2.annotate({ "format": "local-date" }), Null], { mode: "oneOf" })),
-	"duration": optionalKey(Union([String$2.annotate({
-		"description": "Can be provided only for `duration` activity type and must be ≤ 24h.",
-		"format": "duration"
-	}), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." })),
-	"remark": optionalKey(Union([String$2, Null])),
-	"start": optionalKey(String$2.annotate({
-		"format": "local-date-time",
-		"description": "Can be provided only for `range`."
-	})),
-	"end": optionalKey(Union([String$2.annotate({
-		"format": "local-date-time",
-		"description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open."
-	}), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }))
-}).annotate({ "identifier": "UpdateActivityCommand" });
-const DeleteActivityCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteActivityCommand" });
-const ListActivitiesQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	"remark_required": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TaskSummaryView" });
+const TagSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": String$2,
+	"enabled": Boolean$1,
+	"icon": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TagSummaryView" });
+const CreateResourceCommandRelation = Struct({
+	"relation_type_id": Snowflake,
+	"related_id": Snowflake
+}).annotate({ "identifier": "CreateResourceCommandRelation" });
+const PersonaMapping = Struct({
+	"persona_id": Snowflake,
+	"resource_id": Snowflake
+}).annotate({ "identifier": "PersonaMapping" });
+const UpdateResourceCommandRelation = Struct({
+	"relation_type_id": Snowflake,
+	"related_id": optionalKey(Union([Snowflake, Null], { mode: "oneOf" }).annotate({ "description": "Null means \"remove the relation for that relation type\"" }))
+}).annotate({ "identifier": "UpdateResourceCommandRelation" });
+const CreateTeamCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"parent_id": Snowflake,
+	"name": String$2,
+	"short_name": optionalKey(String$2.annotate({ "description": "Should be provided only for sectors" })),
+	"color": optionalKey(String$2.annotate({ "description": "Should be provided only for sectors" })),
+	"external_id": optionalKey(String$2)
+}).annotate({ "identifier": "CreateTeamCommand" });
+const UpdateTeamCommand = Struct({
+	"id": Snowflake,
+	"name": optionalKey(String$2),
+	"short_name": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors" })),
+	"color": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors" })),
+	"external_id": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors and sites" }))
+}).annotate({ "identifier": "UpdateTeamCommand" });
+const EnableTeamCommand = Struct({ "id": Snowflake }).annotate({ "identifier": "EnableTeamCommand" });
+const DisableTeamCommand = Struct({ "id": Snowflake }).annotate({ "identifier": "DisableTeamCommand" });
+const TeamList = Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(Snowflake).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" }).annotate({ "identifier": "TeamList" });
+const ResourceTeamSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"head": Boolean$1,
+	"name": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamSummaryView" });
+const ResourceRelationSummaryView = StructWithRest(Struct({
+	"relation_type_id": Snowflake,
+	"related_to_id": Union([Snowflake, Null], { mode: "oneOf" }),
+	"related_by_ids": ArraySchema(Snowflake)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceRelationSummaryView" });
+const KindSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"machine_name": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindSummaryView" });
+const ShowKindQuery = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowKindQuery" });
+const ListTeamQuery = Struct({
+	"team_ids": optionalKey(ArraySchema(Snowflake)),
+	"with_ancestors": optionalKey(Boolean$1),
+	"with_disabled": optionalKey(Boolean$1),
+	"exclude_instance": optionalKey(Boolean$1)
+}).annotate({ "identifier": "ListTeamQuery" });
+const TeamView = StructWithRest(Struct({
+	"id": Snowflake,
+	"parent_id": Union([Snowflake, Null], { mode: "oneOf" }),
+	"name": String$2,
+	"short_name": Union([String$2, Null]),
+	"color": Union([String$2, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamView" });
+const ShowTeamQuery = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowTeamQuery" });
+const TeamSummary = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamSummary" });
+const TeamSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamSummaryView" });
+const ListResourcesRolesQuery = Struct({
+	"resource_ids": ArraySchema(Snowflake),
+	"role_ids": optionalKey(ArraySchema(Snowflake))
+}).annotate({ "identifier": "ListResourcesRolesQuery" });
+const TagView = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": String$2,
+	"external_id": Union([String$2, Null]),
+	"enabled": Boolean$1,
+	"icon": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TagView" });
+const ScheduleTemplateSummary = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": String$2,
+	"description": Union([String$2, Null]),
+	"color": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateSummary" });
+const ListAbsenceTypesQuery250901 = Struct({
+	"ids": optionalKey(ArraySchema(Snowflake)),
+	"requestable": optionalKey(Boolean$1),
+	"enabled": optionalKey(Boolean$1)
+}).annotate({ "identifier": "ListAbsenceTypesQuery250901" });
+const ListScheduleTemplateTypesQuery260625 = Struct({
+	"ids": optionalKey(ArraySchema(Snowflake)),
+	"team_ids": optionalKey(ArraySchema(Snowflake))
+}).annotate({ "identifier": "ListScheduleTemplateTypesQuery260625" });
+const DeleteTimecheckCommand = Struct({ "id": Snowflake }).annotate({ "identifier": "DeleteTimecheckCommand" });
+const ResourceDateRangeValue = Struct({
+	"resource_id": Snowflake,
+	"date_range": LocalDateInterval
+}).annotate({ "identifier": "ResourceDateRangeValue" });
+const ListActivitiesQueryFilter = Union([
 	Struct({
 		"key": Literal("activity.date_range"),
-		"value": String$2.annotate({ "format": "local-date-interval" })
+		"value": LocalDateInterval
 	}),
 	Struct({
 		"key": Literal("activity.projects_ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("activity.resources"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("activity.tasks_ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("activity.open_activities"),
@@ -15273,244 +16268,807 @@ const ListActivitiesQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
 		"key": Literal("and"),
 		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 	})
-], { mode: "oneOf" }))) }).annotate({ "identifier": "ListActivitiesQuery" });
-const ActivityView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"task_id": String$2.annotate({ "format": "snowflake" }),
+], { mode: "oneOf" }).annotate({ "identifier": "ListActivitiesQueryFilter" });
+const SubmitCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "SubmitCommand" });
+const SubmitForContributorCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "SubmitForContributorCommand" });
+const CancelSubmissionCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "CancelSubmissionCommand" });
+const SubmitCorrectionCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "SubmitCorrectionCommand" });
+const ValidateCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "ValidateCommand" });
+const CancelValidationCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "CancelValidationCommand" });
+const RejectCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "RejectCommand" });
+const CancelRejectionCommand = Struct({
+	"date_range": LocalDateInterval,
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
+	"resource_ids": ArraySchema(Snowflake),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
+}).annotate({ "identifier": "CancelRejectionCommand" });
+const ListDayTasksQuery = Struct({
+	"task_ids": optionalKey(Union([ArraySchema(Snowflake), Null]).annotate({ "title": "Null returns every task the days are made of, including those the resource is no longer assigned to but still has entries or a day task on." })),
+	"date_range": LocalDateInterval,
+	"resource_ids": ArraySchema(Snowflake),
+	"is_own": Boolean$1
+}).annotate({ "identifier": "ListDayTasksQuery" });
+const AssignResourceTeamCommand = Struct({
+	"resource_id": Snowflake,
+	"team_id": Snowflake,
+	"head": Boolean$1,
+	"date_range": LocalDateInterval,
+	"regrouping": optionalKey(Union([String$2, Null])),
+	"contract_number": optionalKey(Union([String$2, Null])),
+	"external_id": optionalKey(Union([String$2, Null])),
+	"warning_aware": optionalKey(Boolean$1.annotate({
+		"description": "Assigning resource to a team will be done only if you provide 'warning_aware: true'.",
+		"default": false
+	}))
+}).annotate({ "identifier": "AssignResourceTeamCommand" });
+const ResourceTeamWarningDetailsInfo = StructWithRest(Struct({
+	"team_id": Snowflake,
+	"date_range": LocalDateInterval,
+	"head": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamWarningDetailsInfo" });
+const UnassignResourceTeamsCommand = Struct({
+	"resource_id": Snowflake,
+	"date_range": LocalDateInterval,
+	"team_ids": optionalKey(ArraySchema(Snowflake)),
+	"head": optionalKey(Boolean$1),
+	"warning_aware": optionalKey(Boolean$1.annotate({
+		"description": "Unassigning resource to a team will be done only if you provide 'warning_aware: true'.",
+		"default": false
+	}))
+}).annotate({ "identifier": "UnassignResourceTeamsCommand" });
+const UnassignResourceActivityRateCommand = Struct({
+	"resource_id": Snowflake,
+	"date_range": LocalDateInterval
+}).annotate({ "identifier": "UnassignResourceActivityRateCommand" });
+const ShowResourceTeamsQuery = Struct({
+	"resource_id": Snowflake,
+	"team_ids": optionalKey(ArraySchema(Snowflake)),
+	"head": optionalKey(Boolean$1),
+	"date_range": optionalKey(LocalDateInterval)
+}).annotate({ "identifier": "ShowResourceTeamsQuery" });
+const ShowResourceActivityRatesQuery = Struct({
+	"resource_id": Snowflake,
+	"date_range": optionalKey(LocalDateInterval)
+}).annotate({ "identifier": "ShowResourceActivityRatesQuery" });
+const ListSchedulesQuery = Struct({
+	"ids": optionalKey(ArraySchema(Snowflake)),
+	"resource_ids": optionalKey(ArraySchema(Snowflake).annotate({ "description": "If used with `ids` filter, it will limit the returned schedules to those that are associated with the given resource ids (ignoring schedule ids that are not)." })),
+	"date_range": LocalDateInterval
+}).annotate({ "identifier": "ListSchedulesQuery" });
+const ListAbsencesQuery250901 = Struct({
+	"resource_ids": optionalKey(ArraySchema(Snowflake).annotate({ "description": "When omitted, the only absences returned are those the current user is allowed to view." })),
+	"date_range": LocalDateInterval
+}).annotate({ "identifier": "ListAbsencesQuery250901" });
+const ListOnCallsQuery = Struct({
+	"resource_ids": optionalKey(ArraySchema(Snowflake)),
+	"date_range": LocalDateInterval,
+	"team_ids": optionalKey(ArraySchema(Snowflake))
+}).annotate({ "identifier": "ListOnCallsQuery" });
+const ListScheduleTemplatesQuery260625 = Struct({
+	"ids": optionalKey(ArraySchema(Snowflake)),
+	"team_ids": optionalKey(ArraySchema(Snowflake).annotate({ "description": "If used, it will limit the returned schedule template list to those that are associated with the given team ids (ignoring provided ids that are not)." })),
+	"date_range": optionalKey(LocalDateInterval),
+	"is_on_call": optionalKey(Boolean$1),
+	"type_ids": optionalKey(ArraySchema(Snowflake).annotate({ "description": "If used, it will limit the returned schedule template list to those that match one of the given schedule template type ids." }))
+}).annotate({ "identifier": "ListScheduleTemplatesQuery260625" });
+const UpdateProjectCommand = Struct({
+	"id": Snowflake,
+	"name": optionalKey(String$2),
+	"description": optionalKey(Union([String$2, Null])),
+	"external_id": optionalKey(Union([String$2, Null])),
+	"resource_id": optionalKey(Union([Snowflake, Null], { mode: "oneOf" })),
+	"date_range": optionalKey(Union([LocalDateInterval, Null], { mode: "oneOf" })),
+	"hourly_budget_mode": optionalKey(ProjectHourlyBudgetMode),
+	"hourly_budget": optionalKey(Duration)
+}).annotate({ "identifier": "UpdateProjectCommand" });
+const TasksHoursStatsView = StructWithRest(Struct({
+	"task_id": Snowflake,
+	"effective_hours": Duration,
+	"budget_hours": Duration
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TasksHoursStatsView" });
+const CreateProjectTaskCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"project_id": Snowflake,
+	"name": String$2.check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })),
+	"color": String$2,
 	"billable": Boolean$1,
-	"type": Literals(["duration", "range"]),
-	"date": String$2.annotate({ "format": "local-date" }),
-	"duration": Union([String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}), Null], { mode: "oneOf" }),
+	"remark_required": optionalKey(Boolean$1.annotate({ "default": false })),
+	"hourly_budget": optionalKey(Union([Duration, Null], { mode: "oneOf" })),
+	"tag_ids": optionalKey(ArraySchema(Snowflake).annotate({ "default": [] })),
+	"resource_ids": optionalKey(ArraySchema(Snowflake).annotate({ "default": [] }))
+}).annotate({ "identifier": "CreateProjectTaskCommand" });
+const UpdateProjectTaskCommand = Struct({
+	"id": Snowflake,
+	"name": optionalKey(String$2),
+	"color": optionalKey(String$2),
+	"billable": optionalKey(Boolean$1),
+	"remark_required": optionalKey(Boolean$1),
+	"tag_ids": optionalKey(ArraySchema(Snowflake)),
+	"resource_ids": optionalKey(ArraySchema(Snowflake)),
+	"hourly_budget": optionalKey(Duration)
+}).annotate({ "identifier": "UpdateProjectTaskCommand" });
+const TaskView = StructWithRest(Struct({
+	"id": Snowflake,
+	"project_id": Snowflake,
+	"tag_ids": ArraySchema(Snowflake),
+	"name": String$2,
+	"color": String$2,
+	"billable": Boolean$1,
+	"remark_required": Boolean$1,
+	"hourly_budget": Duration,
+	"resource_ids": ArraySchema(Snowflake)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TaskView" });
+const ActivityTotalsView = StructWithRest(Struct({
+	"total": Duration,
+	"billable": Duration,
+	"validated": Duration,
+	"non_validated": Duration,
+	"rejected": Duration,
+	"non_submitted": Duration
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityTotalsView" });
+const Autocorrect = Struct({
+	"before_start": Union([Duration, Null], { mode: "oneOf" }),
+	"after_start": Union([Duration, Null], { mode: "oneOf" }),
+	"before_end": Union([Duration, Null], { mode: "oneOf" }),
+	"after_end": Union([Duration, Null], { mode: "oneOf" })
+}).annotate({ "identifier": "Autocorrect" });
+const AssignProjectResourceCommand = Struct({
+	"project_id": Snowflake,
+	"resource_id": Snowflake,
+	"access_rights": ArraySchema(ProjectAccessRights)
+}).annotate({ "identifier": "AssignProjectResourceCommand" });
+const AssignProjectTeamCommand = Struct({
+	"project_id": Snowflake,
+	"team_id": Snowflake,
+	"access_rights": ArraySchema(ProjectAccessRights)
+}).annotate({ "identifier": "AssignProjectTeamCommand" });
+const GrantProjectTeamCommand = Struct({
+	"project_id": Snowflake,
+	"team_id": Snowflake,
+	"access_rights": ArraySchema(ProjectAccessRights)
+}).annotate({ "identifier": "GrantProjectTeamCommand" });
+const GrantProjectResourceCommand = Struct({
+	"project_id": Snowflake,
+	"resource_id": Snowflake,
+	"access_rights": ArraySchema(ProjectAccessRights)
+}).annotate({ "identifier": "GrantProjectResourceCommand" });
+const ProjectAccessRightsValue = Struct({
+	"resource_id": Snowflake,
+	"rights": ArraySchema(ProjectAccessRights)
+}).annotate({ "identifier": "ProjectAccessRightsValue" });
+const AccessView = StructWithRest(Struct({
+	"id": Snowflake,
+	"access_rights": ArraySchema(ProjectAccessRights)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AccessView" });
+const UpdateProjectStatusCommand = Struct({
+	"id": Snowflake,
+	"status": ProjectStatus
+}).annotate({ "identifier": "UpdateProjectStatusCommand" });
+const SchedulePaidBreakTime = StructWithRest(Struct({
+	"max_duration": Duration,
+	"time_range": Union([LocalDateTimeInterval, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "SchedulePaidBreakTime" });
+const ScheduleBreakTime = StructWithRest(Struct({
+	"min_duration": Duration,
+	"time_range": LocalDateTimeInterval
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleBreakTime" });
+const OptionsView = StructWithRest(Struct({
+	"employee_resident_ratio": Boolean$1,
+	"text_color": Union([String$2, Null]),
+	"special_time_range": Union([LocalDateTimeInterval, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OptionsView" });
+const ListTimechecksQueryFilter = Union([
+	Struct({
+		"key": Literal("timecheck.ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("timecheck.resources"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("timecheck.date_range"),
+		"value": LocalDateInterval
+	}),
+	Struct({
+		"key": Literal("timecheck.datetime_range"),
+		"value": LocalDateTimeInterval
+	}),
+	Struct({
+		"key": Literal("timecheck.open"),
+		"value": Boolean$1
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }).annotate({ "identifier": "ListTimechecksQueryFilter" });
+const ProjectListView = StructWithRest(Struct({
+	"id": Snowflake,
+	"resource_id": Union([Snowflake, Null], { mode: "oneOf" }),
+	"name": String$2,
+	"description": Union([String$2, Null]),
+	"external_id": Union([String$2, Null]),
+	"status": ProjectStatus,
+	"date_range": Union([LocalDateInterval, Null], { mode: "oneOf" }),
+	"task_ids": ArraySchema(Snowflake),
+	"hourly_budget": Duration,
+	"hourly_budget_mode": ProjectHourlyBudgetMode,
+	"created_at": Instant
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectListView" });
+const TaskTagsFilterValue = Struct({
+	"tags": ArraySchema(Snowflake),
+	"operator": LogicalOperator
+}).annotate({ "identifier": "TaskTagsFilterValue" });
+const TagsFilterValue = Struct({
+	"tags": ArraySchema(Union([Snowflake, Null], { mode: "oneOf" })),
+	"operator": LogicalOperator
+}).annotate({ "identifier": "TagsFilterValue" });
+const MilestoneMapping = Struct({
+	"milestone_id": Snowflake,
+	"date": LocalDate$1
+}).annotate({ "identifier": "MilestoneMapping" });
+const OverlappingSchedulesConflictsDTO = StructWithRest(Struct({
+	"resource": Snowflake,
+	"date": LocalDate$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OverlappingSchedulesConflictsDTO" });
+const LockedTeamInfo = StructWithRest(Struct({
+	"team_id": Int,
+	"locked_date": LocalDate$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "LockedTeamInfo" });
+const CreateActivityCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"resource_id": Snowflake,
+	"task_id": Snowflake,
+	"billable": Boolean$1,
+	"type": suspend$2(() => ActivityType).annotate({ "description": "Activity type. Determines which fields are required: `duration` needs `date` + `duration`, `range` needs `start` (+ optionally `end`)." }),
+	"date": optionalKey(suspend$2(() => LocalDate$1).annotate({ "description": "Required when type is `duration`." })),
+	"duration": optionalKey(Union([suspend$2(() => Duration).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." }), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." })),
+	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(65535).annotate({ "expected": "a string with at most 65535 code points" })), Null])),
+	"start": optionalKey(suspend$2(() => LocalDateTime).annotate({ "description": "Required when type is `range`." })),
+	"end": optionalKey(Union([suspend$2(() => LocalDateTime).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }))
+}).annotate({ "identifier": "CreateActivityCommand" });
+const UpdateActivityCommand = Struct({
+	"id": Snowflake,
+	"type": suspend$2(() => ActivityType).annotate({ "description": "Activity type. Determines validation rules for other fields." }),
+	"task_id": optionalKey(Snowflake),
+	"billable": optionalKey(Boolean$1),
+	"date": optionalKey(Union([LocalDate$1, Null], { mode: "oneOf" })),
+	"duration": optionalKey(Union([suspend$2(() => Duration).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." }), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." })),
+	"remark": optionalKey(Union([String$2, Null])),
+	"start": optionalKey(suspend$2(() => LocalDateTime).annotate({ "description": "Can be provided only for `range`." })),
+	"end": optionalKey(Union([suspend$2(() => LocalDateTime).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }))
+}).annotate({ "identifier": "UpdateActivityCommand" });
+const ListTagsQueryFilter = Union([
+	Struct({
+		"key": Literal("tag.ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("tag.name"),
+		"value": String$2
+	}).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
+	Struct({
+		"key": Literal("tag.with_disabled"),
+		"value": Boolean$1
+	}),
+	Struct({
+		"key": Literal("tag.date_created"),
+		"value": LocalDateTime
+	}),
+	Struct({
+		"key": Literal("tag.date_updated"),
+		"value": LocalDateTime
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }).annotate({ "identifier": "ListTagsQueryFilter" });
+const ScheduleAdjustment = StructWithRest(Struct({
+	"value": Duration,
+	"time": Union([LocalDateTime, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleAdjustment" });
+const ProposeTimecheckCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"resource_id": optionalKey(Snowflake),
+	"in": optionalKey(Union([LocalDateTime, Null], { mode: "oneOf" })),
+	"out": optionalKey(Union([LocalDateTime, Null], { mode: "oneOf" })),
+	"remark": optionalKey(Union([String$2, Null]))
+}).annotate({ "identifier": "ProposeTimecheckCommand" });
+const ValidateTimecheckCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"resource_id": optionalKey(Snowflake),
+	"in": optionalKey(Union([LocalDateTime, Null], { mode: "oneOf" })),
+	"out": optionalKey(Union([LocalDateTime, Null], { mode: "oneOf" })),
+	"remark": optionalKey(Union([String$2, Null]))
+}).annotate({ "identifier": "ValidateTimecheckCommand" });
+const TimecheckTimeView = StructWithRest(Struct({
+	"resource_id": Union([Snowflake, Null], { mode: "oneOf" }),
+	"in": Union([LocalDateTime, Null], { mode: "oneOf" }),
+	"out": Union([LocalDateTime, Null], { mode: "oneOf" }),
+	"received_at": Union([Instant, Null], { mode: "oneOf" }),
+	"comment": Union([String$2, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimecheckTimeView" });
+const TimecheckTagView = StructWithRest(Struct({
+	"id": Snowflake,
+	"added_at": LocalDateTime,
+	"added_by_id": Union([Snowflake, Null], { mode: "oneOf" }),
+	"removed_at": Union([LocalDateTime, Null], { mode: "oneOf" }),
+	"removed_by_id": Union([Snowflake, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimecheckTagView" });
+const ActivityState = StructWithRest(Struct({
+	"status": suspend$2(() => DayTaskStatus).annotate({ "title": "Status of the DayTask on the activity's start day." }),
+	"editable": Boolean$1.annotate({ "title": "True only if every DayTask covered by the activity is editable." })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityState" });
+const ResourcePictureView = StructWithRest(Struct({
+	"shape": PictureShape,
+	"initial": String$2,
+	"url": Union([String$2, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourcePictureView" });
+const DayTaskView = StructWithRest(Struct({
+	"resource_id": Snowflake,
+	"task_id": Snowflake,
+	"date": LocalDate$1,
+	"actor_id": Union([Snowflake, Null], { mode: "oneOf" }),
+	"status": DayTaskStatus,
+	"at": Union([Instant, Null], { mode: "oneOf" }),
 	"remark": Union([String$2, Null]),
-	"time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" }),
-	"project_status": Literals([
-		"draft",
-		"active",
-		"locked",
-		"archived"
+	"validator_remark": Union([String$2, Null]),
+	"editable": Boolean$1,
+	"virtual": Boolean$1.annotate({ "title": "True when the day task has no record of its own and carries the status of its day." }),
+	"enabled_transitions": ArraySchema(DayTaskTransition)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DayTaskView" });
+const WorkRegimeView = StructWithRest(Struct({
+	"id": Snowflake,
+	"label": TranslatedString,
+	"formatted_label": TranslatedString,
+	"weekly_worked_hours": Duration,
+	"weekly_worked_days": Number$1.annotate({ "format": "float" }).check(isFinite().annotate({ "expected": "a finite number" })),
+	"enabled": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "WorkRegimeView" });
+const WorkRegimeSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"label": TranslatedString,
+	"weekly_worked_hours": Duration,
+	"weekly_worked_days": Number$1.annotate({ "format": "float" }).check(isFinite().annotate({ "expected": "a finite number" }))
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "WorkRegimeSummaryView" });
+const AbsenceTypeView250901 = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": TranslatedString,
+	"requestable": Boolean$1,
+	"enabled": Boolean$1,
+	"confidential": Boolean$1,
+	"machine_name": String$2
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceTypeView250901" });
+const ActivityRateContract = Struct({
+	"rate": Percentage,
+	"paid_hourly": optionalKey(Boolean$1.annotate({ "default": false })),
+	"trainee": optionalKey(Boolean$1.annotate({ "default": false })),
+	"apprentice": optionalKey(Boolean$1.annotate({ "default": false }))
+}).annotate({ "identifier": "ActivityRateContract" });
+const AssignResourceActivityRateCommand260625 = Struct({
+	"resource_id": Snowflake,
+	"date_range": LocalDateInterval,
+	"average_rate": Percentage,
+	"work_regime_id": optionalKey(Union([suspend$2(() => Snowflake).annotate({ "description": "If null, it will adopt the sector’s work regime." }), Null], { mode: "oneOf" }).annotate({ "description": "If null, it will adopt the sector’s work regime." })),
+	"indemnity_enabled": optionalKey(Boolean$1.annotate({ "description": "If not specified, it will adopt the instance indemnity configuration." })),
+	"compensation_enabled": optionalKey(Boolean$1.annotate({ "default": true })),
+	"trainee": optionalKey(Boolean$1.annotate({ "default": false })),
+	"apprentice": optionalKey(Boolean$1.annotate({ "default": false })),
+	"paid_hourly": optionalKey(Boolean$1.annotate({ "default": false }))
+}).annotate({ "identifier": "AssignResourceActivityRateCommand260625" });
+const ActivityRatePatternView = StructWithRest(Struct({
+	"monday": Union([Percentage, Null], { mode: "oneOf" }),
+	"tuesday": Union([Percentage, Null], { mode: "oneOf" }),
+	"wednesday": Union([Percentage, Null], { mode: "oneOf" }),
+	"thursday": Union([Percentage, Null], { mode: "oneOf" }),
+	"friday": Union([Percentage, Null], { mode: "oneOf" }),
+	"saturday": Union([Percentage, Null], { mode: "oneOf" }),
+	"sunday": Union([Percentage, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityRatePatternView" });
+const OnboardingInstantiationPayload = Struct({
+	"location": optionalKey(Union([Location, Null], { mode: "oneOf" })),
+	"date": optionalKey(Union([LocalDate$1, Null], { mode: "oneOf" })),
+	"time": optionalKey(Union([LocalTime, Null], { mode: "oneOf" }))
+}).annotate({ "identifier": "OnboardingInstantiationPayload" });
+const ScheduleTemplateCreateAdjustment = Struct({
+	"value": Duration,
+	"time": optionalKey(LocalTime)
+}).annotate({ "identifier": "ScheduleTemplateCreateAdjustment" });
+const ScheduleTemplateUpdateAdjustment = Struct({
+	"value": optionalKey(Duration),
+	"time": optionalKey(Union([LocalTime, Null], { mode: "oneOf" }))
+}).annotate({ "identifier": "ScheduleTemplateUpdateAdjustment" });
+const AdjustmentView = StructWithRest(Struct({
+	"value": Duration,
+	"time": Union([LocalTime, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AdjustmentView" });
+const BooleanFilterValue = Struct({
+	"attribute": String$2,
+	"operator": BooleanOperator,
+	"value": optionalKey(Boolean$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
+}).annotate({ "identifier": "BooleanFilterValue" });
+const ChoiceFilterValue = Struct({
+	"attribute": String$2,
+	"operator": ListOperator,
+	"value": optionalKey(ArraySchema(Union([Int, String$2])).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
+}).annotate({ "identifier": "ChoiceFilterValue" });
+const DateRangeFilterValue = Struct({
+	"attribute": String$2,
+	"operator": Union([DateTimeOperator, IntervalOperator]),
+	"value": optionalKey(suspend$2(() => LocalDateInterval).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end." }))
+}).annotate({ "identifier": "DateRangeFilterValue" });
+const TimeRangeFilterValue = Struct({
+	"attribute": String$2,
+	"operator": Union([DateTimeOperator, IntervalOperator]),
+	"value": optionalKey(suspend$2(() => LocalDateTimeInterval).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end." }))
+}).annotate({ "identifier": "TimeRangeFilterValue" });
+const DecimalFilterValue = Struct({
+	"attribute": String$2,
+	"operator": NumericOperator,
+	"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
+}).annotate({ "identifier": "DecimalFilterValue" });
+const DurationFilterValue = Struct({
+	"attribute": String$2,
+	"operator": NumericOperator,
+	"value": optionalKey(suspend$2(() => Duration).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
+}).annotate({ "identifier": "DurationFilterValue" });
+const IntegerFilterValue = Struct({
+	"attribute": String$2,
+	"operator": NumericOperator,
+	"value": optionalKey(Number$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }).check(isInt().annotate({ "expected": "an integer" })))
+}).annotate({ "identifier": "IntegerFilterValue" });
+const MonthDayRangeFilterValue = Struct({
+	"attribute": String$2,
+	"operator": IntervalOperator,
+	"value": optionalKey(suspend$2(() => MonthDayInterval).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
+}).annotate({ "identifier": "MonthDayRangeFilterValue" });
+const FulltextFilterValue = Struct({
+	"attributes": optionalKey(ArraySchema(String$2).annotate({ "default": [] })),
+	"operator": StringOperator,
+	"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })))
+}).annotate({ "identifier": "FulltextFilterValue" });
+const TextFilterValue = Struct({
+	"attribute": String$2,
+	"operator": StringOperator,
+	"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
+}).annotate({ "identifier": "TextFilterValue" });
+const TeamFilterPeriod = Struct({
+	"operator": TeamPeriodOperator,
+	"date_range": optionalKey(Union([LocalDateInterval, Null], { mode: "oneOf" }))
+}).annotate({ "identifier": "TeamFilterPeriod" });
+const AttributeChoices = StructWithRest(Struct({
+	"values": Union([Record(String$2, String$2), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
+	"strict": Boolean$1,
+	"input_type": ChoicesInputType
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AttributeChoices" });
+const KindSectionView = StructWithRest(Struct({
+	"id": String$2,
+	"label": String$2,
+	"classification_level": ClassificationLevel,
+	"attribute_ids": ArraySchema(String$2),
+	"relation_type_ids": ArraySchema(Snowflake)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindSectionView" });
+const KindRelationTypeView = StructWithRest(Struct({
+	"id": Snowflake,
+	"label": TranslatedString,
+	"inverse_label": TranslatedString,
+	"classification_level": ClassificationLevel,
+	"access_level": AccessLevel,
+	"inverse": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindRelationTypeView" });
+const AbsenceTypeSummary250901 = StructWithRest(Struct({
+	"id": Union([Redacted, Snowflake]),
+	"name": Union([Redacted, String$2]),
+	"short_name": Union([Redacted, String$2]),
+	"machine_name": Union([Redacted, String$2]),
+	"color": Union([Redacted, String$2])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceTypeSummary250901" });
+const ScheduleTemplatePaidBreakTime = Struct({
+	"max_duration": Duration,
+	"hour_range": Union([LocalTimeInterval, Null], { mode: "oneOf" })
+}).annotate({ "identifier": "ScheduleTemplatePaidBreakTime" });
+const ScheduleTemplateCreateBreakTime = Struct({
+	"min_duration": Duration,
+	"hour_range": LocalTimeInterval
+}).annotate({ "identifier": "ScheduleTemplateCreateBreakTime" });
+const Options260625 = Struct({
+	"employee_resident_ratio": Boolean$1,
+	"text_color": Union([String$2, Null]),
+	"special_hour_range": Union([LocalTimeInterval, Null], { mode: "oneOf" }),
+	"schedule_on_bank_holidays": Boolean$1,
+	"allow_partial": optionalKey(Boolean$1.annotate({ "default": false }))
+}).annotate({ "identifier": "Options260625" });
+const ScheduleTemplateUpdateBreakTime = Struct({
+	"min_duration": optionalKey(Duration),
+	"hour_range": optionalKey(LocalTimeInterval)
+}).annotate({ "identifier": "ScheduleTemplateUpdateBreakTime" });
+const BreakTimeView = StructWithRest(Struct({
+	"min_duration": Duration,
+	"hour_range": LocalTimeInterval
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "BreakTimeView" });
+const MaskedSectorResponseBodyDTO = StructWithRest(Struct({ "masked_sector": ArraySchema(MaskedSectorDTO) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "MaskedSectorResponseBodyDTO" });
+const DeleteOptions = Struct({
+	"group_action": suspend$2(() => GroupAction).annotate({ "description": "If group action is 'single', allow_partial should not be provided" }),
+	"allow_partial": optionalKey(Boolean$1.annotate({ "description": "Allows partial processing of the request for periods when the schedule is not locked and not overlapping" }))
+}).annotate({ "identifier": "DeleteOptions" });
+const UpdateOptions = Struct({
+	"group_action": GroupAction,
+	"allow_partial": optionalKey(Boolean$1)
+}).annotate({ "identifier": "UpdateOptions" });
+const CreateAbsenceCommand260625 = Struct({
+	"resource_id": Snowflake,
+	"absence_type_id": Snowflake,
+	"percentage": optionalKey(Percentage),
+	"time_ranges": optionalKey(ArraySchema(LocalTimeInterval)),
+	"options": optionalKey(AbsenceCreateOptions260625),
+	"repetition_id": optionalKey(Union([Int, Null])),
+	"remark": optionalKey(Union([String$2, Null])),
+	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })
+}).annotate({ "identifier": "CreateAbsenceCommand260625" });
+const ScheduleTemplateTypeView260625 = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": TranslatedString,
+	"machine_name": String$2,
+	"display_mode": ScheduleTemplateTypeDisplayMode,
+	"is_on_call": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateTypeView260625" });
+const DeviceClockView = StructWithRest(Struct({
+	"time": LocalDateTime,
+	"name": Union([String$2, Null]),
+	"beacon_name": Union([String$2, Null]),
+	"autocorrection": Union([LocalDateTime, Null], { mode: "oneOf" }),
+	"autocorrection_source": Union([String$2, Null]),
+	"geolocation": Union([Geolocation, Null], { mode: "oneOf" }),
+	"received_at": Union([Instant, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeviceClockView" });
+const ListProjectHourlyBudgetStatsQuery = Struct({ "filters": optionalKey(ArraySchema(ListProjectHourlyBudgetStatsQueryFilter)) }).annotate({ "identifier": "ListProjectHourlyBudgetStatsQuery" });
+const UpdateResourceCommand = Struct({
+	"id": Snowflake,
+	"attributes": optionalKey(Record(String$2, Json.annotate({ "expected": "JSON value" }))),
+	"relations": optionalKey(ArraySchema(UpdateResourceCommandRelation))
+}).annotate({ "identifier": "UpdateResourceCommand" });
+const ResolveRegrouping = Struct({
+	"teams": optionalKey(TeamList),
+	"main_team": optionalKey(Snowflake),
+	"filter_pattern": optionalKey(String$2),
+	"operator": optionalKey(suspend$2(() => ListOperator).annotate({ "default": "in_list" })),
+	"sources": optionalKey(ArraySchema(RegroupingSource))
+}).annotate({ "identifier": "ResolveRegrouping" });
+const ResourceRoleView = StructWithRest(Struct({
+	"resource_id": Snowflake,
+	"role_id": Snowflake,
+	"is_assigned": Boolean$1,
+	"team_ids": TeamList
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceRoleView" });
+const TeamShowView = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": String$2,
+	"short_name": Union([String$2, Null]),
+	"parent": Union([TeamSummary, Null], { mode: "oneOf" }),
+	"children": ArraySchema(TeamSummary),
+	"enabled": Boolean$1,
+	"external_id": Union([String$2, Null]),
+	"color": Union([String$2, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamShowView" });
+const ResourceTeamView = StructWithRest(Struct({
+	"team": TeamSummaryView,
+	"head": Boolean$1,
+	"date_range": LocalDateInterval,
+	"regrouping": Union([
+		Redacted,
+		String$2,
+		Null
 	]),
-	"state": StructWithRest(Struct({
-		"status": Literals([
-			"editing",
-			"submitted",
-			"validated",
-			"rejected"
-		]).annotate({ "title": "Status of the DayTask on the activity's start day." }),
-		"editable": Boolean$1.annotate({ "title": "True only if every DayTask covered by the activity is editable." })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityView" });
-const ListDetailedActivitiesQuery = Struct({
-	"filters": optionalKey(ArraySchema(Union([
-		Struct({
-			"key": Literal("activity.date_range"),
-			"value": String$2.annotate({ "format": "local-date-interval" })
-		}),
-		Struct({
-			"key": Literal("activity.tags_ids"),
-			"value": Struct({
-				"tags": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
-				"operator": Literals(["or", "and"])
-			})
-		}),
-		Struct({
-			"key": Literal("activity.projects_ids"),
-			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}),
-		Struct({
-			"key": Literal("activity.project_name"),
-			"value": String$2
-		}),
-		Struct({
-			"key": Literal("activity.tasks_ids"),
-			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}),
-		Struct({
-			"key": Literal("activity.task_name"),
-			"value": String$2
-		}),
-		Struct({
-			"key": Literal("activity.billable"),
-			"value": Boolean$1
-		}),
-		Struct({
-			"key": Literal("activity.projects_resources"),
-			"value": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }))
-		}),
-		Struct({
-			"key": Literal("activity.day_task_status"),
-			"value": ArraySchema(Literals([
-				"editing",
-				"submitted",
-				"validated",
-				"rejected"
-			]))
-		}),
-		Struct({
-			"key": Literal("activity.resources"),
-			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}),
-		Struct({
-			"key": Literal("activity.has_remark"),
-			"value": Boolean$1
-		}),
-		Struct({
-			"key": Literal("activity.has_budget"),
-			"value": Boolean$1
-		}),
-		Struct({
-			"key": Literal("or"),
-			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-		}),
-		Struct({
-			"key": Literal("and"),
-			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-		})
-	], { mode: "oneOf" }))),
-	"orders": optionalKey(ArraySchema(Union([
-		Struct({
-			"key": Literal("activity.id"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.date"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.billable"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.duration"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.time_range"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.remark"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.day_task_status"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.project_name"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.task_name"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.projects_resources"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		}),
-		Struct({
-			"key": Literal("activity.resources"),
-			"direction": optionalKey(Literals(["asc", "desc"]))
-		})
-	], { mode: "oneOf" }))),
-	"pagination": optionalKey(Struct({
-		"limit": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
-		"next_token": Union([String$2, Null])
-	})),
-	"select": Struct({ "fields": optionalKey(ArraySchema(Literals([
-		"activity.date",
-		"activity.billable",
-		"activity.duration",
-		"activity.time_range",
-		"activity.resources",
-		"activity.remark",
-		"activity.id",
-		"activity.task_name",
-		"activity.project_name",
-		"activity.tags_ids",
-		"activity.projects_resources",
-		"activity.day_task_status"
-	]))) })
-}).annotate({ "identifier": "ListDetailedActivitiesQuery" });
-const ActivityDetailedView = StructWithRest(Struct({
-	"next_token": Union([String$2, Null]),
-	"data": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"project_name": String$2,
-		"task": StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"project_id": String$2.annotate({ "format": "snowflake" }),
-			"name": String$2,
-			"color": String$2,
-			"billable": Boolean$1,
-			"remark_required": Boolean$1
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		"company": Union([StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"kind_id": String$2.annotate({ "format": "snowflake" }),
-			"label": String$2,
-			"short_label": String$2,
-			"sort_label": String$2,
-			"gender": String$2.annotate({ "description": "Known values: m, f, n." }),
-			"picture": StructWithRest(Struct({
-				"shape": String$2.annotate({ "description": "Known values: round, rounded-square, square." }),
-				"initial": String$2,
-				"url": Union([String$2, Null])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"date": String$2.annotate({ "format": "local-date" }),
-		"billable": Boolean$1,
-		"duration": Union([String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}), Null], { mode: "oneOf" }),
-		"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
-		"resource": StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"kind_id": String$2.annotate({ "format": "snowflake" }),
-			"label": String$2,
-			"short_label": String$2,
-			"sort_label": String$2,
-			"gender": String$2.annotate({ "description": "Known values: m, f, n." }),
-			"picture": StructWithRest(Struct({
-				"shape": String$2.annotate({ "description": "Known values: round, rounded-square, square." }),
-				"initial": String$2,
-				"url": Union([String$2, Null])
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		"remark": Union([String$2, Null]),
-		"status": Literals([
-			"editing",
-			"submitted",
-			"validated",
-			"rejected"
-		]),
-		"tags": ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"name": String$2,
-			"enabled": Boolean$1,
-			"icon": String$2
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityDetailedView" });
-const ShowActivitiesTotalsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
+	"contract_number": Union([
+		Redacted,
+		String$2,
+		Null
+	]),
+	"external_id": Union([
+		Redacted,
+		String$2,
+		Null
+	])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamView" });
+const OnCallView = StructWithRest(Struct({
+	"id": Snowflake,
+	"resource_id": Snowflake,
+	"team_id": Snowflake,
+	"time_range": LocalDateTimeInterval,
+	"schedule_template": Union([ScheduleTemplateSummary, Null], { mode: "oneOf" }),
+	"remark": Union([String$2, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OnCallView" });
+const ListActivitiesQuery = Struct({ "filters": optionalKey(ArraySchema(ListActivitiesQueryFilter)) }).annotate({ "identifier": "ListActivitiesQuery" });
+const ResourceTeamAssignWarningDetails = StructWithRest(Struct({
+	"modifications": ArraySchema(ResourceTeamWarningDetailsInfo),
+	"deletions": ArraySchema(ResourceTeamWarningDetailsInfo)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamAssignWarningDetails" });
+const ResourceTeamUnassignWarningDetails = StructWithRest(Struct({
+	"modifications": ArraySchema(ResourceTeamWarningDetailsInfo),
+	"deletions": ArraySchema(ResourceTeamWarningDetailsInfo),
+	"has_related_schedules": Boolean$1,
+	"has_related_on_calls": Boolean$1,
+	"has_locked_dates": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamUnassignWarningDetails" });
+const ProjectHourlyBudgetStatsView = StructWithRest(Struct({
+	"project_id": Snowflake,
+	"hourly_budget_mode": ProjectHourlyBudgetMode,
+	"hourly_budget": Duration,
+	"total_effective_hours": Duration,
+	"total_budget_hours": Duration,
+	"hours_by_tasks": ArraySchema(TasksHoursStatsView)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectHourlyBudgetStatsView" });
+const ListProjectsQueryFilter = Union([
+	Struct({
+		"key": Literal("project.ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("project.external_id"),
+		"value": ArraySchema(String$2)
+	}),
+	Struct({
+		"key": Literal("project.search"),
+		"value": String$2
+	}),
+	Struct({
+		"key": Literal("project.status"),
+		"value": ArraySchema(ProjectStatus)
+	}),
+	Struct({
+		"key": Literal("project.access_rights"),
+		"value": ProjectAccessRightsValue
+	}),
+	Struct({
+		"key": Literal("project.assignable_for"),
+		"value": Snowflake
+	}),
+	Struct({
+		"key": Literal("project.date_range"),
+		"value": LocalDateInterval
+	}),
+	Struct({
+		"key": Literal("project.created_at"),
+		"value": LocalDateTimeInterval
+	}),
+	Struct({
+		"key": Literal("project.with_activities"),
+		"value": LocalDateInterval
+	}),
+	Struct({
+		"key": Literal("project.resource_ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }).annotate({ "identifier": "ListProjectsQueryFilter" });
+const MemberView = StructWithRest(Struct({
+	"resources": ArraySchema(AccessView),
+	"teams": ArraySchema(AccessView)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "MemberView" });
+const TimeRange = StructWithRest(Struct({
+	"time_range": LocalDateTimeInterval,
+	"auto_correct": Union([Autocorrect, Null], { mode: "oneOf" }),
+	"paid_break": Union([SchedulePaidBreakTime, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimeRange" });
+const ListTimechecksQuery = Struct({ "filters": optionalKey(ArraySchema(ListTimechecksQueryFilter)) }).annotate({ "identifier": "ListTimechecksQuery" });
+const ListProjectTasksQueryFilter = Union([
+	Struct({
+		"key": Literal("task.projects_ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("task.ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("task.assigned"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("task.project_status"),
+		"value": ArraySchema(ProjectStatus)
+	}),
+	Struct({
+		"key": Literal("task.projects_date_range"),
+		"value": LocalDateInterval
+	}),
+	Struct({
+		"key": Literal("task.effective"),
+		"value": ResourceDateRangeValue
+	}),
+	Struct({
+		"key": Literal("task.in_activity_day"),
+		"value": ResourceDateRangeValue
+	}),
+	Struct({
+		"key": Literal("task.billable"),
+		"value": Boolean$1
+	}),
+	Struct({
+		"key": Literal("task.search"),
+		"value": String$2
+	}),
+	Struct({
+		"key": Literal("task.tags"),
+		"value": TaskTagsFilterValue
+	}),
+	Struct({
+		"key": Literal("project.resource_ids"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }).annotate({ "identifier": "ListProjectTasksQueryFilter" });
+const ListDetailedActivitiesQueryFilter = Union([
 	Struct({
 		"key": Literal("activity.date_range"),
-		"value": String$2.annotate({ "format": "local-date-interval" })
+		"value": LocalDateInterval
 	}),
 	Struct({
 		"key": Literal("activity.tags_ids"),
-		"value": Struct({
-			"tags": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
-			"operator": Literals(["or", "and"])
-		})
+		"value": TagsFilterValue
 	}),
 	Struct({
 		"key": Literal("activity.projects_ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("activity.project_name"),
@@ -15518,7 +17076,7 @@ const ShowActivitiesTotalsQuery = Struct({ "filters": optionalKey(ArraySchema(Un
 	}),
 	Struct({
 		"key": Literal("activity.tasks_ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("activity.task_name"),
@@ -15530,20 +17088,15 @@ const ShowActivitiesTotalsQuery = Struct({ "filters": optionalKey(ArraySchema(Un
 	}),
 	Struct({
 		"key": Literal("activity.projects_resources"),
-		"value": ArraySchema(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }))
+		"value": ArraySchema(Union([Snowflake, Null], { mode: "oneOf" }))
 	}),
 	Struct({
 		"key": Literal("activity.day_task_status"),
-		"value": ArraySchema(Literals([
-			"editing",
-			"submitted",
-			"validated",
-			"rejected"
-		]))
+		"value": ArraySchema(DayTaskStatus)
 	}),
 	Struct({
 		"key": Literal("activity.resources"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
+		"value": ArraySchema(Snowflake)
 	}),
 	Struct({
 		"key": Literal("activity.has_remark"),
@@ -15561,288 +17114,473 @@ const ShowActivitiesTotalsQuery = Struct({ "filters": optionalKey(ArraySchema(Un
 		"key": Literal("and"),
 		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 	})
-], { mode: "oneOf" }))) }).annotate({ "identifier": "ShowActivitiesTotalsQuery" });
-const ActivityTotalsView = StructWithRest(Struct({
-	"total": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
+], { mode: "oneOf" }).annotate({ "identifier": "ListDetailedActivitiesQueryFilter" });
+const ShowActivitiesTotalsQueryFilter = Union([
+	Struct({
+		"key": Literal("activity.date_range"),
+		"value": LocalDateInterval
 	}),
-	"billable": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
+	Struct({
+		"key": Literal("activity.tags_ids"),
+		"value": TagsFilterValue
 	}),
-	"validated": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
+	Struct({
+		"key": Literal("activity.projects_ids"),
+		"value": ArraySchema(Snowflake)
 	}),
-	"non_validated": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
+	Struct({
+		"key": Literal("activity.project_name"),
+		"value": String$2
 	}),
-	"rejected": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
+	Struct({
+		"key": Literal("activity.tasks_ids"),
+		"value": ArraySchema(Snowflake)
 	}),
-	"non_submitted": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
+	Struct({
+		"key": Literal("activity.task_name"),
+		"value": String$2
+	}),
+	Struct({
+		"key": Literal("activity.billable"),
+		"value": Boolean$1
+	}),
+	Struct({
+		"key": Literal("activity.projects_resources"),
+		"value": ArraySchema(Union([Snowflake, Null], { mode: "oneOf" }))
+	}),
+	Struct({
+		"key": Literal("activity.day_task_status"),
+		"value": ArraySchema(DayTaskStatus)
+	}),
+	Struct({
+		"key": Literal("activity.resources"),
+		"value": ArraySchema(Snowflake)
+	}),
+	Struct({
+		"key": Literal("activity.has_remark"),
+		"value": Boolean$1
+	}),
+	Struct({
+		"key": Literal("activity.has_budget"),
+		"value": Boolean$1
+	}),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 	})
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityTotalsView" });
-const SubmitCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "SubmitCommand" });
-const SubmitForContributorCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "SubmitForContributorCommand" });
-const CancelSubmissionCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "CancelSubmissionCommand" });
-const SubmitCorrectionCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "SubmitCorrectionCommand" });
-const ValidateCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "ValidateCommand" });
-const CancelValidationCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "CancelValidationCommand" });
-const RejectCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "RejectCommand" });
-const CancelRejectionCommand = Struct({
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null applies the transition to the day as a whole, covering every task it is made of." })),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })), Null]))
-}).annotate({ "identifier": "CancelRejectionCommand" });
-const ListDayTasksQuery = Struct({
-	"task_ids": optionalKey(Union([ArraySchema(String$2.annotate({ "format": "snowflake" })), Null]).annotate({ "title": "Null returns every task the days are made of, including those the resource is no longer assigned to but still has entries or a day task on." })),
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"is_own": Boolean$1
-}).annotate({ "identifier": "ListDayTasksQuery" });
-const DayTaskView = StructWithRest(Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"task_id": String$2.annotate({ "format": "snowflake" }),
-	"date": String$2.annotate({ "format": "local-date" }),
-	"actor_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-	"status": Literals([
-		"editing",
-		"submitted",
-		"validated",
-		"rejected"
-	]),
-	"at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
+], { mode: "oneOf" }).annotate({ "identifier": "ShowActivitiesTotalsQueryFilter" });
+const OverlappingSchedulesConflictResponseBodyDTO = StructWithRest(Struct({ "conflicting_dates": ArraySchema(OverlappingSchedulesConflictsDTO) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OverlappingSchedulesConflictResponseBodyDTO" });
+const DeleteSchedulesWarningDetails = StructWithRest(Struct({
+	"schedules_to_delete_count": Int,
+	"locked_schedules_count": Int,
+	"locked_schedules_date_range": LocalDateInterval,
+	"locked_teams": ArraySchema(LockedTeamInfo)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteSchedulesWarningDetails" });
+const ListTagsQuery = Struct({ "filters": optionalKey(ArraySchema(ListTagsQueryFilter)) }).annotate({ "identifier": "ListTagsQuery" });
+const ActivityView = StructWithRest(Struct({
+	"id": Snowflake,
+	"resource_id": Snowflake,
+	"task_id": Snowflake,
+	"billable": Boolean$1,
+	"type": ActivityType,
+	"date": LocalDate$1,
+	"duration": Union([Duration, Null], { mode: "oneOf" }),
 	"remark": Union([String$2, Null]),
-	"validator_remark": Union([String$2, Null]),
-	"editable": Boolean$1,
-	"virtual": Boolean$1.annotate({ "title": "True when the day task has no record of its own and carries the status of its day." }),
-	"enabled_transitions": ArraySchema(String$2.annotate({ "description": "Known values: submit, submit-for-contributor, cancel-submission, submit-correction, validate, cancel-validation, reject, cancel-rejection." }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DayTaskView" });
-const ListWorkRegimesQuery = Record(String$2, Never).annotate({ "identifier": "ListWorkRegimesQuery" });
-const WorkRegimesView = StructWithRest(Struct({ "work_regimes": ArraySchema(StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"label": Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}),
-	"formatted_label": Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}),
-	"weekly_worked_hours": String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}),
-	"weekly_worked_days": Number$1.annotate({ "format": "float" }).check(isFinite().annotate({ "expected": "a finite number" })),
-	"enabled": Boolean$1
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "WorkRegimesView" });
-const CreateResourceCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"kind_id": String$2.annotate({ "format": "snowflake" }),
-	"attributes": Record(String$2, Json.annotate({ "expected": "JSON value" })),
-	"relations": optionalKey(ArraySchema(Struct({
-		"relation_type_id": String$2.annotate({ "format": "snowflake" }),
-		"related_id": String$2.annotate({ "format": "snowflake" })
-	}))),
-	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"start_date": optionalKey(String$2.annotate({ "format": "local-date" })),
-	"end_date": optionalKey(String$2.annotate({ "format": "local-date" })),
-	"additional_settings": optionalKey(Struct({
-		"activity_rate_contract": optionalKey(Struct({
-			"rate": Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })),
-			"paid_hourly": optionalKey(Boolean$1.annotate({ "default": false })),
-			"trainee": optionalKey(Boolean$1.annotate({ "default": false })),
-			"apprentice": optionalKey(Boolean$1.annotate({ "default": false }))
-		})),
-		"security": optionalKey(Struct({
-			"username": optionalKey(String$2),
-			"password": optionalKey(String$2),
-			"send_email": optionalKey(Boolean$1)
-		})),
-		"language": optionalKey(Literals([
-			"en",
-			"fr",
-			"de"
-		]).annotate({ "title": "Language the resource will use tipee in (also drives the welcome email), stored<br />as its \"language\" user preference." }))
-	})),
-	"hr_process": optionalKey(Struct({
-		"template_id": String$2.annotate({ "format": "snowflake" }),
-		"personas_mapping": ArraySchema(Struct({
-			"persona_id": String$2.annotate({ "format": "snowflake" }),
-			"resource_id": String$2.annotate({ "format": "snowflake" })
-		})),
-		"milestones_mapping": ArraySchema(Struct({
-			"milestone_id": String$2.annotate({ "format": "snowflake" }),
-			"date": String$2.annotate({ "format": "local-date" })
-		})),
-		"built_in_type_payload": optionalKey(Union([Struct({
-			"location": optionalKey(Union([Struct({
-				"latitude": optionalKey(Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				})),
-				"longitude": optionalKey(Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({
-					"default": null,
-					"format": "float"
-				})),
-				"address": optionalKey(Union([String$2, Null]).annotate({ "default": null })),
-				"remark": optionalKey(Union([String$2, Null]).annotate({ "default": null }))
-			}), Null], { mode: "oneOf" })),
-			"date": optionalKey(Union([String$2.annotate({ "format": "local-date" }), Null], { mode: "oneOf" })),
-			"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
-		}), Null], { mode: "oneOf" }))
-	}))
-}).annotate({ "identifier": "CreateResourceCommand" });
-const UpdateResourceCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"attributes": optionalKey(Record(String$2, Json.annotate({ "expected": "JSON value" }))),
-	"relations": optionalKey(ArraySchema(Struct({
-		"relation_type_id": String$2.annotate({ "format": "snowflake" }),
-		"related_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }).annotate({ "description": "Null means \"remove the relation for that relation type\"" }))
-	})))
-}).annotate({ "identifier": "UpdateResourceCommand" });
-const AssignResourceTeamCommand = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"head": Boolean$1,
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"regrouping": optionalKey(Union([String$2, Null])),
-	"contract_number": optionalKey(Union([String$2, Null])),
-	"external_id": optionalKey(Union([String$2, Null])),
-	"warning_aware": optionalKey(Boolean$1.annotate({
-		"description": "Assigning resource to a team will be done only if you provide 'warning_aware: true'.",
-		"default": false
-	}))
-}).annotate({ "identifier": "AssignResourceTeamCommand" });
-const ResourceTeamWarningType = String$2.annotate({
-	"description": "Known values: assign-conflicting-resource-teams, unassign-remove-all-resource-teams, unassign-conflicting-resource-teams.",
-	"identifier": "ResourceTeamWarningType"
-});
-const ResourceTeamAssignWarningDetails = StructWithRest(Struct({
-	"modifications": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({ "format": "snowflake" }),
-		"date_range": String$2.annotate({ "format": "local-date-interval" }),
-		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"deletions": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({ "format": "snowflake" }),
-		"date_range": String$2.annotate({ "format": "local-date-interval" }),
-		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamAssignWarningDetails" });
-const UnassignResourceTeamsCommand = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"head": optionalKey(Boolean$1),
-	"warning_aware": optionalKey(Boolean$1.annotate({
-		"description": "Unassigning resource to a team will be done only if you provide 'warning_aware: true'.",
-		"default": false
-	}))
-}).annotate({ "identifier": "UnassignResourceTeamsCommand" });
-const ResourceTeamUnassignWarningDetails = StructWithRest(Struct({
-	"modifications": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({ "format": "snowflake" }),
-		"date_range": String$2.annotate({ "format": "local-date-interval" }),
-		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"deletions": ArraySchema(StructWithRest(Struct({
-		"team_id": String$2.annotate({ "format": "snowflake" }),
-		"date_range": String$2.annotate({ "format": "local-date-interval" }),
-		"head": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"has_related_schedules": Boolean$1,
-	"has_related_on_calls": Boolean$1,
-	"has_locked_dates": Boolean$1
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamUnassignWarningDetails" });
-const AssignResourceActivityRateCommand260625 = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"average_rate": Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })),
-	"work_regime_id": optionalKey(Union([String$2.annotate({
-		"format": "snowflake",
-		"description": "If null, it will adopt the sector’s work regime."
-	}), Null], { mode: "oneOf" }).annotate({ "description": "If null, it will adopt the sector’s work regime." })),
-	"indemnity_enabled": optionalKey(Boolean$1.annotate({ "description": "If not specified, it will adopt the instance indemnity configuration." })),
-	"compensation_enabled": optionalKey(Boolean$1.annotate({ "default": true })),
-	"trainee": optionalKey(Boolean$1.annotate({ "default": false })),
-	"apprentice": optionalKey(Boolean$1.annotate({ "default": false })),
-	"paid_hourly": optionalKey(Boolean$1.annotate({ "default": false }))
-}).annotate({ "identifier": "AssignResourceActivityRateCommand260625" });
-const UnassignResourceActivityRateCommand = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"date_range": String$2.annotate({ "format": "local-date-interval" })
-}).annotate({ "identifier": "UnassignResourceActivityRateCommand" });
-const CreateTeamCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"parent_id": String$2.annotate({ "format": "snowflake" }),
+	"time_range": Union([LocalDateTimeInterval, Null], { mode: "oneOf" }),
+	"project_status": ProjectStatus,
+	"state": ActivityState
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityView" });
+const ResourceSummaryView = StructWithRest(Struct({
+	"id": Snowflake,
+	"kind_id": Snowflake,
+	"label": String$2,
+	"short_label": String$2,
+	"sort_label": String$2,
+	"gender": GrammaticalGender,
+	"picture": ResourcePictureView
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceSummaryView" });
+const ResourceView = StructWithRest(Struct({
+	"id": Snowflake,
+	"kind_id": Snowflake,
+	"label": String$2,
+	"short_label": String$2,
+	"sort_label": String$2,
+	"picture": ResourcePictureView,
+	"attributes": Union([Record(String$2, Json.annotate({ "expected": "JSON value" })), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
+	"teams": optionalKey(ArraySchema(ResourceTeamSummaryView).annotate({ "description": "Only present if parameter \"with_teams\" is set to \"true\"." })),
+	"relations": optionalKey(ArraySchema(ResourceRelationSummaryView).annotate({ "description": "Only present if parameter \"with_relations\" is set to \"true\"." }))
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceView" });
+const WorkRegimesView = StructWithRest(Struct({ "work_regimes": ArraySchema(WorkRegimeView) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "WorkRegimesView" });
+const AdditionalSettings = Struct({
+	"activity_rate_contract": optionalKey(ActivityRateContract),
+	"security": optionalKey(ResourceSecurity),
+	"language": optionalKey(suspend$2(() => Locale).annotate({ "title": "Language the resource will use tipee in (also drives the welcome email), stored<br />as its \"language\" user preference." }))
+}).annotate({ "identifier": "AdditionalSettings" });
+const ActivityRateView = StructWithRest(Struct({
+	"average_rate": Percentage,
+	"date_range": LocalDateInterval,
+	"activity_rate_patterns": ArraySchema(ActivityRatePatternView),
+	"work_regime": Union([WorkRegimeSummaryView, Null], { mode: "oneOf" }),
+	"paid_hourly": Boolean$1,
+	"apprentice": Boolean$1,
+	"trainee": Boolean$1,
+	"indemnity_enabled": Union([Redacted, Boolean$1]),
+	"compensation_enabled": Union([Redacted, Boolean$1])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityRateView" });
+const HrProcessInstantiationDTO = Struct({
+	"template_id": Snowflake,
+	"personas_mapping": ArraySchema(PersonaMapping),
+	"milestones_mapping": ArraySchema(MilestoneMapping),
+	"built_in_type_payload": optionalKey(Union([OnboardingInstantiationPayload, Null], { mode: "oneOf" }))
+}).annotate({ "identifier": "HrProcessInstantiationDTO" });
+const TeamFilterValue = Struct({
+	"teams": optionalKey(Union([TeamList, Null], { mode: "oneOf" })),
+	"period": optionalKey(Union([TeamFilterPeriod, Null], { mode: "oneOf" })),
+	"recursive": optionalKey(Boolean$1.annotate({ "default": false })),
+	"head": optionalKey(Union([Boolean$1, Null]))
+}).annotate({ "identifier": "TeamFilterValue" });
+const AttributeSummaryView = StructWithRest(Struct({
+	"id": String$2,
+	"content_type": ContentType,
+	"label": TranslatedString,
+	"choices": Union([AttributeChoices, Null], { mode: "oneOf" }),
+	"icon": Union([AttributeIcon, Null], { mode: "oneOf" }),
+	"type": AttributeType,
+	"format": Union([AttributeFormatType, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AttributeSummaryView" });
+const AbsenceView250901 = StructWithRest(Struct({
+	"id": Snowflake,
+	"absence_type": AbsenceTypeSummary250901,
+	"resource_id": Snowflake,
+	"remark": Union([
+		Redacted,
+		String$2,
+		Null
+	]),
+	"date": LocalDate$1,
+	"percentage": Union([Redacted, Percentage]),
+	"time_range": Union([LocalDateTimeInterval, Null], { mode: "oneOf" }),
+	"repetition_id": Union([Int, Null])
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceView250901" });
+const HourRange = Struct({
+	"hour_range": LocalTimeInterval,
+	"auto_correct": Union([Autocorrect, Null], { mode: "oneOf" }),
+	"paid_break": Union([ScheduleTemplatePaidBreakTime, Null], { mode: "oneOf" })
+}).annotate({ "identifier": "HourRange" });
+const DeleteSchedulesCommand = Struct({
+	"ids": ArraySchema(Snowflake),
+	"options": DeleteOptions
+}).annotate({ "identifier": "DeleteSchedulesCommand" });
+const DeleteAbsenceCommand = Struct({
+	"ids": ArraySchema(Snowflake),
+	"options": DeleteOptions
+}).annotate({ "identifier": "DeleteAbsenceCommand" });
+const UpdateAbsenceCommand = Struct({
+	"id": Snowflake,
+	"absence_type_id": optionalKey(Snowflake),
+	"percentage": optionalKey(Percentage),
+	"time_ranges": optionalKey(ArraySchema(LocalTimeInterval)),
+	"options": UpdateOptions,
+	"repetition_id": optionalKey(Union([Int, Null])),
+	"remark": optionalKey(Union([String$2, Null]))
+}).annotate({ "identifier": "UpdateAbsenceCommand" });
+const TimecheckDeviceView = StructWithRest(Struct({
+	"in": Union([DeviceClockView, Null], { mode: "oneOf" }),
+	"out": Union([DeviceClockView, Null], { mode: "oneOf" })
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimecheckDeviceView" });
+const ListProjectsQuery = Struct({
+	"with_task_ids": optionalKey(Boolean$1.annotate({ "default": true })),
+	"filters": optionalKey(ArraySchema(ListProjectsQueryFilter)),
+	"orders": optionalKey(ArraySchema(Union([
+		Struct({
+			"key": Literal("project.name"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("project.date_range"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("project.client_name"),
+			"direction": optionalKey(QueryOrderDirection)
+		})
+	], { mode: "oneOf" })))
+}).annotate({ "identifier": "ListProjectsQuery" });
+const ProjectView = StructWithRest(Struct({
+	"id": Snowflake,
+	"resource_id": Union([Snowflake, Null], { mode: "oneOf" }),
 	"name": String$2,
-	"short_name": optionalKey(String$2.annotate({ "description": "Should be provided only for sectors" })),
-	"color": optionalKey(String$2.annotate({ "description": "Should be provided only for sectors" })),
-	"external_id": optionalKey(String$2)
-}).annotate({ "identifier": "CreateTeamCommand" });
-const UpdateTeamCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": optionalKey(String$2),
-	"short_name": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors" })),
-	"color": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors" })),
-	"external_id": optionalKey(String$2.annotate({ "description": "Can be provided only for sectors and sites" }))
-}).annotate({ "identifier": "UpdateTeamCommand" });
-const EnableTeamCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "EnableTeamCommand" });
-const DisableTeamCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DisableTeamCommand" });
-const ListResourcesQuery = Struct({
-	"kind_id": String$2.annotate({
-		"format": "snowflake",
-		"description": "The id of a kind from kinds_list: the 'employee' kind lists people, the 'integration' kind the API integrations."
+	"description": Union([String$2, Null]),
+	"external_id": Union([String$2, Null]),
+	"status": ProjectStatus,
+	"date_range": Union([LocalDateInterval, Null], { mode: "oneOf" }),
+	"members": MemberView,
+	"task_ids": ArraySchema(Snowflake),
+	"hourly_budget": Duration,
+	"hourly_budget_mode": ProjectHourlyBudgetMode,
+	"created_at": Instant
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ProjectView" });
+const ScheduleView = StructWithRest(Struct({
+	"id": Snowflake,
+	"resource_id": Snowflake,
+	"team_id": Snowflake,
+	"time_ranges": ArraySchema(TimeRange),
+	"schedule_template": Union([ScheduleTemplateSummary, Null], { mode: "oneOf" }),
+	"remark": String$2,
+	"modified": Boolean$1,
+	"adjustment": Union([ScheduleAdjustment, Null], { mode: "oneOf" }),
+	"break_time": Union([ScheduleBreakTime, Null], { mode: "oneOf" }),
+	"options": OptionsView
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleView" });
+const ListProjectTasksQuery = Struct({ "filters": optionalKey(ArraySchema(ListProjectTasksQueryFilter)) }).annotate({ "identifier": "ListProjectTasksQuery" });
+const ListDetailedActivitiesQuery = Struct({
+	"filters": optionalKey(ArraySchema(ListDetailedActivitiesQueryFilter)),
+	"orders": optionalKey(ArraySchema(Union([
+		Struct({
+			"key": Literal("activity.id"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.date"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.billable"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.duration"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.time_range"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.remark"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.day_task_status"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.project_name"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.task_name"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.projects_resources"),
+			"direction": optionalKey(QueryOrderDirection)
+		}),
+		Struct({
+			"key": Literal("activity.resources"),
+			"direction": optionalKey(QueryOrderDirection)
+		})
+	], { mode: "oneOf" }))),
+	"pagination": optionalKey(Pagination),
+	"select": Struct({ "fields": optionalKey(ArraySchema(ActivityDetailedFields)) })
+}).annotate({ "identifier": "ListDetailedActivitiesQuery" });
+const ShowActivitiesTotalsQuery = Struct({ "filters": optionalKey(ArraySchema(ShowActivitiesTotalsQueryFilter)) }).annotate({ "identifier": "ShowActivitiesTotalsQuery" });
+const ActivityDetailedDataView = StructWithRest(Struct({
+	"id": Snowflake,
+	"project_name": String$2,
+	"task": TaskSummaryView,
+	"company": Union([ResourceSummaryView, Null], { mode: "oneOf" }),
+	"date": LocalDate$1,
+	"billable": Boolean$1,
+	"duration": Union([Duration, Null], { mode: "oneOf" }),
+	"time_range": LocalDateTimeInterval,
+	"resource": ResourceSummaryView,
+	"remark": Union([String$2, Null]),
+	"status": DayTaskStatus,
+	"tags": ArraySchema(TagSummaryView)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityDetailedDataView" });
+const ResourceListView = StructWithRest(Struct({
+	"data": ArraySchema(ResourceView),
+	"next_token": Union([String$2, Null]),
+	"total_count": optionalKey(Number$1.annotate({ "description": "Total number of resources matching filters in the request; only present if parameter \"with_total_count\" is set to \"true\"." }).check(isInt().annotate({ "expected": "an integer" }))),
+	"total_count_approximate": optionalKey(Boolean$1.annotate({ "description": "TRUE if the returned number of resources is exact, FALSE if it is only an approximation; only present if parameter \"with_total_count\" is set to \"true\"." }))
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceListView" });
+const CreateResourceCommand = Struct({
+	"id": optionalKey(Snowflake),
+	"kind_id": Snowflake,
+	"attributes": Record(String$2, Json.annotate({ "expected": "JSON value" })),
+	"relations": optionalKey(ArraySchema(CreateResourceCommandRelation)),
+	"team_id": optionalKey(Snowflake),
+	"start_date": optionalKey(LocalDate$1),
+	"end_date": optionalKey(LocalDate$1),
+	"additional_settings": optionalKey(AdditionalSettings),
+	"hr_process": optionalKey(HrProcessInstantiationDTO)
+}).annotate({ "identifier": "CreateResourceCommand" });
+const ListResourcesQueryFilter = Union([
+	Struct({
+		"key": Literal("resource.ids"),
+		"value": ArraySchema(Snowflake)
 	}),
-	"at_date": optionalKey(String$2.annotate({
-		"format": "local-date",
-		"description": "If you do not specify a date, today's date will be used."
-	})),
+	Struct({
+		"key": Literal("resource.boolean"),
+		"value": BooleanFilterValue
+	}).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
+	Struct({
+		"key": Literal("resource.choice"),
+		"value": ChoiceFilterValue
+	}).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
+	Struct({
+		"key": Literal("resource.date_range"),
+		"value": DateRangeFilterValue
+	}),
+	Struct({
+		"key": Literal("resource.decimal"),
+		"value": DecimalFilterValue
+	}).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
+	Struct({
+		"key": Literal("resource.duration"),
+		"value": DurationFilterValue
+	}).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
+	Struct({
+		"key": Literal("resource.integer"),
+		"value": IntegerFilterValue
+	}).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
+	Struct({
+		"key": Literal("resource.month_day_range"),
+		"value": MonthDayRangeFilterValue
+	}).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
+	Struct({
+		"key": Literal("resource.regrouping"),
+		"value": ResolveRegrouping
+	}).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
+	Struct({
+		"key": Literal("resource.fulltext"),
+		"value": FulltextFilterValue
+	}),
+	Struct({
+		"key": Literal("resource.text"),
+		"value": TextFilterValue
+	}).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
+	Struct({
+		"key": Literal("resource.team"),
+		"value": TeamFilterValue
+	}).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
+	Struct({
+		"key": Literal("resource.time_range"),
+		"value": TimeRangeFilterValue
+	}).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
+	Struct({
+		"key": Literal("or"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	}),
+	Struct({
+		"key": Literal("and"),
+		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
+	})
+], { mode: "oneOf" }).annotate({ "identifier": "ListResourcesQueryFilter" });
+const KindAttributeView = StructWithRest(Struct({
+	"attribute": AttributeSummaryView,
+	"classification_level": ClassificationLevel,
+	"access_level": AccessLevel,
+	"searchable": Boolean$1,
+	"sortable": Boolean$1
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindAttributeView" });
+const CreateScheduleCommand260625 = Struct({
+	"resource_id": Snowflake,
+	"team_id": Snowflake,
+	"schedule_template_id": optionalKey(Snowflake),
+	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." }),
+	"hour_ranges": ArraySchema(HourRange),
+	"adjustment": optionalKey(ScheduleTemplateCreateAdjustment),
+	"break_time": optionalKey(ScheduleTemplateCreateBreakTime),
+	"remark": optionalKey(String$2),
+	"options": Options260625
+}).annotate({ "identifier": "CreateScheduleCommand260625" });
+const UpdateScheduleCommand260625 = Struct({
+	"id": Snowflake,
+	"schedule_template_id": optionalKey(Union([Snowflake, Null], { mode: "oneOf" })),
+	"team_id": optionalKey(Snowflake),
+	"when": optionalKey(String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })),
+	"hour_ranges": optionalKey(ArraySchema(HourRange)),
+	"adjustment": optionalKey(Union([ScheduleTemplateUpdateAdjustment, Null], { mode: "oneOf" })),
+	"break_time": optionalKey(Union([ScheduleTemplateUpdateBreakTime, Null], { mode: "oneOf" })),
+	"remark": optionalKey(Union([String$2, Null])),
+	"options": optionalKey(Options260625)
+}).annotate({ "identifier": "UpdateScheduleCommand260625" });
+const CreateScheduleTemplateCommand260625 = Struct({
+	"id": optionalKey(Snowflake),
+	"schedule_template_type_id": Snowflake,
+	"team_id": Snowflake,
+	"name": Union([TranslatedString, String$2]),
+	"description": optionalKey(Union([TranslatedString, String$2])),
+	"color": String$2,
+	"hour_ranges": ArraySchema(HourRange).check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })),
+	"validity_date_range": LocalDateInterval,
+	"tag_ids": optionalKey(ArraySchema(Snowflake)),
+	"adjustment": optionalKey(ScheduleTemplateCreateAdjustment),
+	"break_time": optionalKey(ScheduleTemplateCreateBreakTime),
+	"options": optionalKey(CreateOptions260625)
+}).annotate({ "identifier": "CreateScheduleTemplateCommand260625" });
+const UpdateScheduleTemplateCommand260625 = Struct({
+	"id": Snowflake,
+	"schedule_template_type_id": optionalKey(Snowflake),
+	"team_id": optionalKey(Snowflake),
+	"name": optionalKey(Union([TranslatedString, String$2])),
+	"description": optionalKey(Union([
+		TranslatedString,
+		String$2,
+		Null
+	])),
+	"color": optionalKey(String$2),
+	"hour_ranges": optionalKey(ArraySchema(HourRange)),
+	"validity_date_range": optionalKey(LocalDateInterval),
+	"tag_ids": optionalKey(ArraySchema(Snowflake)),
+	"adjustment": optionalKey(Union([ScheduleTemplateUpdateAdjustment, Null], { mode: "oneOf" })),
+	"break_time": optionalKey(Union([ScheduleTemplateUpdateBreakTime, Null], { mode: "oneOf" })),
+	"options": optionalKey(UpdateOptions260625),
+	"force_update": optionalKey(Boolean$1.annotate({ "default": false }))
+}).annotate({ "identifier": "UpdateScheduleTemplateCommand260625" });
+const ScheduleTemplateView260625 = StructWithRest(Struct({
+	"id": Snowflake,
+	"name": TranslatedString,
+	"description": Union([TranslatedString, Null], { mode: "oneOf" }),
+	"team_id": Snowflake,
+	"type": ScheduleTemplateTypeView260625,
+	"color": String$2,
+	"hour_ranges": ArraySchema(HourRange),
+	"adjustment": Union([AdjustmentView, Null], { mode: "oneOf" }),
+	"tag_ids": ArraySchema(Snowflake),
+	"break_time": Union([BreakTimeView, Null], { mode: "oneOf" }),
+	"validity_date_range": Union([LocalDateInterval, Null], { mode: "oneOf" }),
+	"options": OptionsView260625
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateView260625" });
+const TimecheckView = StructWithRest(Struct({
+	"id": Snowflake,
+	"resource_id": Snowflake,
+	"duration": Union([Duration, Null], { mode: "oneOf" }),
+	"time_range": LocalDateTimeInterval,
+	"expected_time_range": LocalDateTimeInterval,
+	"type": TimecheckType,
+	"color": String$2,
+	"device": TimecheckDeviceView,
+	"proposal": Union([TimecheckTimeView, Null], { mode: "oneOf" }),
+	"validation": Union([TimecheckTimeView, Null], { mode: "oneOf" }),
+	"is_adjusted": Boolean$1,
+	"matched_schedule_ids": ArraySchema(Snowflake),
+	"tags_comment": Union([String$2, Null]),
+	"tags": ArraySchema(TimecheckTagView)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimecheckView" });
+const ActivityDetailedView = StructWithRest(Struct({
+	"next_token": Union([String$2, Null]),
+	"data": ArraySchema(ActivityDetailedDataView)
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityDetailedView" });
+const ListResourcesQuery = Struct({
+	"kind_id": suspend$2(() => Snowflake).annotate({ "description": "The id of a kind from kinds_list: the 'employee' kind lists people, the 'integration' kind the API integrations." }),
+	"at_date": optionalKey(suspend$2(() => LocalDate$1).annotate({ "description": "If you do not specify a date, today's date will be used." })),
 	"attributes": optionalKey(ArraySchema(String$2).annotate({ "description": "Several filters can be used to narrow down the search (except for activity rate). Correct filter types should be used based on the data type of the attribute. The kinds_show tool gives you information about attribute types and whether you can filter or order them." })),
 	"with_teams": optionalKey(Boolean$1.annotate({
 		"description": "Will give additional information about the team they are assigned to at the date provided.",
@@ -15850,1140 +17588,23 @@ const ListResourcesQuery = Struct({
 	})),
 	"with_relations": optionalKey(Union([Boolean$1, Null]).annotate({ "default": false })),
 	"with_total_count": optionalKey(Boolean$1.annotate({ "default": false })),
-	"counting_mode": optionalKey(Literals(["strict", "approximate"]).annotate({ "default": "strict" })),
-	"filters": optionalKey(ArraySchema(Union([
-		Struct({
-			"key": Literal("resource.ids"),
-			"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}),
-		Struct({
-			"key": Literal("resource.boolean"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"equals",
-					"not_equals",
-					"none"
-				]),
-				"value": optionalKey(Boolean$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			})
-		}).annotate({ "description": "Filter on a boolean attribute. The attribute identifier is given by `attribute_id`." }),
-		Struct({
-			"key": Literal("resource.choice"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"in_list",
-					"not_in_list",
-					"none"
-				]),
-				"value": optionalKey(ArraySchema(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), String$2])).annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			})
-		}).annotate({ "description": "Filter on a choice attribute by selected option identifiers (multi-valued, OR semantics)." }),
-		Struct({
-			"key": Literal("resource.date_range"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Union([Literals([
-					"equals",
-					"not_equals",
-					"from",
-					"until",
-					"none"
-				]), Literals([
-					"in_range",
-					"not_in_range",
-					"none"
-				])]),
-				"value": optionalKey(String$2.annotate({
-					"format": "local-date-interval",
-					"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-				}))
-			})
-		}),
-		Struct({
-			"key": Literal("resource.decimal"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"equals",
-					"not_equals",
-					"less_than",
-					"less_than_or_equal",
-					"greater_than",
-					"greater_than_or_equal",
-					"none"
-				]),
-				"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			})
-		}).annotate({ "description": "Filter on a decimal attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-		Struct({
-			"key": Literal("resource.duration"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"equals",
-					"not_equals",
-					"less_than",
-					"less_than_or_equal",
-					"greater_than",
-					"greater_than_or_equal",
-					"none"
-				]),
-				"value": optionalKey(String$2.annotate({
-					"description": "Property can be omitted with 'none' operator. It is required for all other operators.",
-					"format": "duration"
-				}))
-			})
-		}).annotate({ "description": "Filter on a duration attribute (ISO 8601 duration). Supports comparison operators." }),
-		Struct({
-			"key": Literal("resource.integer"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"equals",
-					"not_equals",
-					"less_than",
-					"less_than_or_equal",
-					"greater_than",
-					"greater_than_or_equal",
-					"none"
-				]),
-				"value": optionalKey(Number$1.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }).check(isInt().annotate({ "expected": "an integer" })))
-			})
-		}).annotate({ "description": "Filter on an integer attribute. Supports comparison operators (eq, gt, gte, lt, lte, between)." }),
-		Struct({
-			"key": Literal("resource.month_day_range"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"in_range",
-					"not_in_range",
-					"none"
-				]),
-				"value": optionalKey(String$2.annotate({
-					"format": "local-month-day-interval",
-					"description": "Property can be omitted with 'none' operator. It is required for all other operators."
-				}))
-			})
-		}).annotate({ "description": "Filter on a month/day attribute by an inclusive [start, end] interval (year-agnostic)." }),
-		Struct({
-			"key": Literal("resource.regrouping"),
-			"value": Struct({
-				"teams": optionalKey(Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" })),
-				"main_team": optionalKey(String$2.annotate({ "format": "snowflake" })),
-				"filter_pattern": optionalKey(String$2),
-				"operator": optionalKey(Literals([
-					"in_list",
-					"not_in_list",
-					"none"
-				]).annotate({ "default": "in_list" })),
-				"sources": optionalKey(ArraySchema(Literals(["resource", "team"])))
-			})
-		}).annotate({ "description": "Filter using the resolved regrouping (teams, main team, sources, date and pattern). Use this when you want to combine team-based scoping with a textual filter pattern." }),
-		Struct({
-			"key": Literal("resource.fulltext"),
-			"value": Struct({
-				"attributes": optionalKey(ArraySchema(String$2).annotate({ "default": [] })),
-				"operator": Literals([
-					"equals",
-					"not_equals",
-					"contains",
-					"not_contains",
-					"starts_with",
-					"ends_with",
-					"none"
-				]),
-				"value": optionalKey(String$2.annotate({ "default": "" }).check(isMaxCodePoints(255).annotate({ "expected": "a string with at most 255 code points" })))
-			})
-		}),
-		Struct({
-			"key": Literal("resource.text"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Literals([
-					"equals",
-					"not_equals",
-					"contains",
-					"not_contains",
-					"starts_with",
-					"ends_with",
-					"none"
-				]),
-				"value": optionalKey(String$2.annotate({ "description": "Property can be omitted with 'none' operator. It is required for all other operators." }))
-			})
-		}).annotate({ "description": "Filter on a text attribute by exact or substring match (depending on operator)." }),
-		Struct({
-			"key": Literal("resource.team"),
-			"value": Struct({
-				"teams": optionalKey(Union([Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" }), Null], { mode: "oneOf" })),
-				"period": optionalKey(Union([Struct({
-					"operator": Literals([
-						"first_starts_in",
-						"starts_in",
-						"intersects_with",
-						"ends_in",
-						"last_ends_in",
-						"none"
-					]),
-					"date_range": optionalKey(Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }))
-				}), Null], { mode: "oneOf" })),
-				"recursive": optionalKey(Boolean$1.annotate({ "default": false })),
-				"head": optionalKey(Union([Boolean$1, Null]))
-			})
-		}).annotate({ "description": "Restrict resources by team membership and contract period. Use this filter to limit the search to currently employed people, or to a specific team and date range." }),
-		Struct({
-			"key": Literal("resource.time_range"),
-			"value": Struct({
-				"attribute": String$2,
-				"operator": Union([Literals([
-					"equals",
-					"not_equals",
-					"from",
-					"until",
-					"none"
-				]), Literals([
-					"in_range",
-					"not_in_range",
-					"none"
-				])]),
-				"value": optionalKey(String$2.annotate({
-					"format": "local-date-time-interval",
-					"description": "Property can be omitted with 'none' operator. It is required for all other operators, which only read the bound(s) they filter on: 'from' the start, 'until' the end."
-				}))
-			})
-		}).annotate({ "description": "Filter on a time-of-day attribute by an inclusive [start, end] interval." }),
-		Struct({
-			"key": Literal("or"),
-			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-		}),
-		Struct({
-			"key": Literal("and"),
-			"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-		})
-	], { mode: "oneOf" }))),
+	"counting_mode": optionalKey(suspend$2(() => ResourceCountingMode).annotate({ "default": "strict" })),
+	"filters": optionalKey(ArraySchema(ListResourcesQueryFilter)),
 	"orders": ArraySchema(Union([Struct({
 		"key": Literal("resource.attribute"),
-		"direction": optionalKey(Literals(["asc", "desc"])),
+		"direction": optionalKey(QueryOrderDirection),
 		"attribute": optionalKey(String$2)
 	})], { mode: "oneOf" })),
-	"pagination": Struct({
-		"limit": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
-		"next_token": Union([String$2, Null])
-	})
+	"pagination": Pagination
 }).annotate({ "identifier": "ListResourcesQuery" });
-const ResourceListView = StructWithRest(Struct({
-	"data": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"kind_id": String$2.annotate({ "format": "snowflake" }),
-		"label": String$2,
-		"short_label": String$2,
-		"sort_label": String$2,
-		"picture": StructWithRest(Struct({
-			"shape": String$2.annotate({ "description": "Known values: round, rounded-square, square." }),
-			"initial": String$2,
-			"url": Union([String$2, Null])
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		"attributes": Union([Record(String$2, Json.annotate({ "expected": "JSON value" })), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
-		"teams": optionalKey(ArraySchema(StructWithRest(Struct({
-			"id": String$2.annotate({ "format": "snowflake" }),
-			"head": Boolean$1,
-			"name": String$2
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "description": "Only present if parameter \"with_teams\" is set to \"true\"." })),
-		"relations": optionalKey(ArraySchema(StructWithRest(Struct({
-			"relation_type_id": String$2.annotate({ "format": "snowflake" }),
-			"related_to_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-			"related_by_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])).annotate({ "description": "Only present if parameter \"with_relations\" is set to \"true\"." }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"next_token": Union([String$2, Null]),
-	"total_count": optionalKey(Number$1.annotate({ "description": "Total number of resources matching filters in the request; only present if parameter \"with_total_count\" is set to \"true\"." }).check(isInt().annotate({ "expected": "an integer" }))),
-	"total_count_approximate": optionalKey(Boolean$1.annotate({ "description": "TRUE if the returned number of resources is exact, FALSE if it is only an approximation; only present if parameter \"with_total_count\" is set to \"true\"." }))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceListView" });
-const ListKindsQuery = Record(String$2, Never).annotate({ "identifier": "ListKindsQuery" });
-const KindSummaryView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"machine_name": String$2
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindSummaryView" });
-const ShowKindQuery = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "ShowKindQuery" });
 const KindView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
+	"id": Snowflake,
 	"machine_name": String$2,
-	"attributes": ArraySchema(StructWithRest(Struct({
-		"attribute": StructWithRest(Struct({
-			"id": String$2,
-			"content_type": String$2.annotate({ "description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, month-day/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain." }),
-			"label": Struct({
-				"fr": optionalKey(String$2),
-				"en": optionalKey(String$2),
-				"de": optionalKey(String$2)
-			}),
-			"choices": Union([StructWithRest(Struct({
-				"values": Union([Record(String$2, String$2), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
-				"strict": Boolean$1,
-				"input_type": String$2.annotate({ "description": "Known values: select, combobox, radio." })
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-			"icon": Union([String$2.annotate({ "description": "Known values: email, phone, mobile-phone, address, description, external-id, job, company, is-company, civility, first-name, last-name, joining-date, website." }), Null], { mode: "oneOf" }),
-			"type": String$2.annotate({ "description": "Known values: boolean, date, date-time, decimal, duration, enum, id, int, percentage, string." }),
-			"format": Union([String$2.annotate({ "description": "Known values: avs, email, phone, address." }), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		"classification_level": String$2.annotate({ "description": "Known values: unclassified, internal, confidential, secret." }),
-		"access_level": String$2.annotate({ "description": "Known values: none, read-own, read, write." }),
-		"searchable": Boolean$1,
-		"sortable": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"relation_types": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"label": Struct({
-			"fr": optionalKey(String$2),
-			"en": optionalKey(String$2),
-			"de": optionalKey(String$2)
-		}),
-		"inverse_label": Struct({
-			"fr": optionalKey(String$2),
-			"en": optionalKey(String$2),
-			"de": optionalKey(String$2)
-		}),
-		"classification_level": String$2.annotate({ "description": "Known values: unclassified, internal, confidential, secret." }),
-		"access_level": String$2.annotate({ "description": "Known values: none, read-own, read, write." }),
-		"inverse": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"sections": ArraySchema(StructWithRest(Struct({
-		"id": String$2,
-		"label": String$2,
-		"classification_level": String$2.annotate({ "description": "Known values: unclassified, internal, confidential, secret." }),
-		"attribute_ids": ArraySchema(String$2),
-		"relation_type_ids": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
+	"attributes": ArraySchema(KindAttributeView),
+	"relation_types": ArraySchema(KindRelationTypeView),
+	"sections": ArraySchema(KindSectionView),
 	"sorting_attribute_ids": ArraySchema(String$2)
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindView" });
-const ListTeamQuery = Struct({
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"with_ancestors": optionalKey(Boolean$1),
-	"with_disabled": optionalKey(Boolean$1),
-	"exclude_instance": optionalKey(Boolean$1)
-}).annotate({ "identifier": "ListTeamQuery" });
-const TeamView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"parent_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-	"name": String$2,
-	"short_name": Union([String$2, Null]),
-	"color": Union([String$2, Null])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamView" });
-const ShowTeamQuery = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "ShowTeamQuery" });
-const TeamShowView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": String$2,
-	"short_name": Union([String$2, Null]),
-	"parent": Union([StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"name": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"children": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"name": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"enabled": Boolean$1,
-	"external_id": Union([String$2, Null]),
-	"color": Union([String$2, Null])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TeamShowView" });
-const ShowResourceTeamsQuery = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"head": optionalKey(Boolean$1),
-	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" }))
-}).annotate({ "identifier": "ShowResourceTeamsQuery" });
-const ResourceTeamView = StructWithRest(Struct({
-	"team": StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"name": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"head": Boolean$1,
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"regrouping": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		String$2,
-		Null
-	]),
-	"contract_number": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		String$2,
-		Null
-	]),
-	"external_id": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		String$2,
-		Null
-	])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceTeamView" });
-const ListResourcesRolesQuery = Struct({
-	"resource_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"role_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })))
-}).annotate({ "identifier": "ListResourcesRolesQuery" });
-const ResourceRoleView = StructWithRest(Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"role_id": String$2.annotate({ "format": "snowflake" }),
-	"is_assigned": Boolean$1,
-	"team_ids": Union([Literal("*").annotate({ "description": "Refers to all teams" }), ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "Refers to a list of teams" })], { mode: "oneOf" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ResourceRoleView" });
-const ShowResourceActivityRatesQuery = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" }))
-}).annotate({ "identifier": "ShowResourceActivityRatesQuery" });
-const ActivityRateView = StructWithRest(Struct({
-	"average_rate": Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })),
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"activity_rate_patterns": ArraySchema(StructWithRest(Struct({
-		"monday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"tuesday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"wednesday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"thursday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"friday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"saturday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" }),
-		"sunday": Union([Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" })), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"work_regime": Union([StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"label": Struct({
-			"fr": optionalKey(String$2),
-			"en": optionalKey(String$2),
-			"de": optionalKey(String$2)
-		}),
-		"weekly_worked_hours": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"weekly_worked_days": Number$1.annotate({ "format": "float" }).check(isFinite().annotate({ "expected": "a finite number" }))
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"paid_hourly": Boolean$1,
-	"apprentice": Boolean$1,
-	"trainee": Boolean$1,
-	"indemnity_enabled": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Boolean$1]),
-	"compensation_enabled": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Boolean$1])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ActivityRateView" });
-const ListTagsQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
-	Struct({
-		"key": Literal("tag.ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("tag.name"),
-		"value": String$2
-	}).annotate({ "description": "Case-insensitive substring match on the tag name (any locale)." }),
-	Struct({
-		"key": Literal("tag.with_disabled"),
-		"value": Boolean$1
-	}),
-	Struct({
-		"key": Literal("tag.date_created"),
-		"value": String$2.annotate({ "format": "local-date-time" })
-	}),
-	Struct({
-		"key": Literal("tag.date_updated"),
-		"value": String$2.annotate({ "format": "local-date-time" })
-	}),
-	Struct({
-		"key": Literal("or"),
-		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-	}),
-	Struct({
-		"key": Literal("and"),
-		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-	})
-], { mode: "oneOf" }))) }).annotate({ "identifier": "ListTagsQuery" });
-const TagView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": String$2,
-	"external_id": Union([String$2, Null]),
-	"enabled": Boolean$1,
-	"icon": String$2
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TagView" });
-const CreateScheduleCommand260625 = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"schedule_template_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." }),
-	"hour_ranges": ArraySchema(Struct({
-		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
-		"auto_correct": Union([Struct({
-			"before_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"before_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" }),
-		"paid_break": Union([Struct({
-			"max_duration": String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}),
-			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" })
-	})),
-	"adjustment": optionalKey(Struct({
-		"value": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"time": optionalKey(String$2.annotate({ "format": "local-time" }))
-	})),
-	"break_time": optionalKey(Struct({
-		"min_duration": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"hour_range": String$2.annotate({ "format": "local-time-interval" })
-	})),
-	"remark": optionalKey(String$2),
-	"options": Struct({
-		"employee_resident_ratio": Boolean$1,
-		"text_color": Union([String$2, Null]),
-		"special_hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" }),
-		"schedule_on_bank_holidays": Boolean$1,
-		"allow_partial": optionalKey(Boolean$1.annotate({ "default": false }))
-	})
-}).annotate({ "identifier": "CreateScheduleCommand260625" });
-const OverlappingSchedulesConflictResponseBodyDTO = StructWithRest(Struct({ "conflicting_dates": ArraySchema(StructWithRest(Struct({
-	"resource": String$2.annotate({ "format": "snowflake" }),
-	"date": String$2.annotate({ "format": "local-date" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OverlappingSchedulesConflictResponseBodyDTO" });
-const MaskedSectorResponseBodyDTO = StructWithRest(Struct({ "masked_sector": ArraySchema(StructWithRest(Struct({
-	"sector_name": String$2,
-	"date_start": String$2,
-	"date_end": Union([String$2, Null])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "MaskedSectorResponseBodyDTO" });
-const UpdateScheduleCommand260625 = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"schedule_template_id": optionalKey(Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })),
-	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"when": optionalKey(String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })),
-	"hour_ranges": optionalKey(ArraySchema(Struct({
-		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
-		"auto_correct": Union([Struct({
-			"before_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"before_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" }),
-		"paid_break": Union([Struct({
-			"max_duration": String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}),
-			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" })
-	}))),
-	"adjustment": optionalKey(Union([Struct({
-		"value": optionalKey(String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		})),
-		"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
-	}), Null], { mode: "oneOf" })),
-	"break_time": optionalKey(Union([Struct({
-		"min_duration": optionalKey(String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		})),
-		"hour_range": optionalKey(String$2.annotate({ "format": "local-time-interval" }))
-	}), Null], { mode: "oneOf" })),
-	"remark": optionalKey(Union([String$2, Null])),
-	"options": optionalKey(Struct({
-		"employee_resident_ratio": Boolean$1,
-		"text_color": Union([String$2, Null]),
-		"special_hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" }),
-		"schedule_on_bank_holidays": Boolean$1,
-		"allow_partial": optionalKey(Boolean$1.annotate({ "default": false }))
-	}))
-}).annotate({ "identifier": "UpdateScheduleCommand260625" });
-const DeleteSchedulesCommand = Struct({
-	"ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"options": Struct({
-		"group_action": Literals([
-			"single",
-			"future",
-			"all"
-		]).annotate({ "description": "If group action is 'single', allow_partial should not be provided" }),
-		"allow_partial": optionalKey(Boolean$1.annotate({ "description": "Allows partial processing of the request for periods when the schedule is not locked and not overlapping" }))
-	})
-}).annotate({ "identifier": "DeleteSchedulesCommand" });
-const DeleteScheduleResult = StructWithRest(Struct({
-	"deleted_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"deleted": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
-	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
-	"description": "Result of deleting schedule(s).",
-	"identifier": "DeleteScheduleResult"
-});
-const DeleteSchedulesWarningDetails = StructWithRest(Struct({
-	"schedules_to_delete_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"locked_schedules_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"locked_schedules_date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"locked_teams": ArraySchema(StructWithRest(Struct({
-		"team_id": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-		"locked_date": String$2.annotate({ "format": "local-date" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "DeleteSchedulesWarningDetails" });
-const CreateAbsenceCommand260625 = Struct({
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"absence_type_id": String$2.annotate({ "format": "snowflake" }),
-	"percentage": optionalKey(Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))),
-	"time_ranges": optionalKey(ArraySchema(String$2.annotate({ "format": "local-time-interval" }))),
-	"options": optionalKey(Struct({
-		"schedule_on_bank_holidays": optionalKey(Boolean$1),
-		"allow_partial": optionalKey(Boolean$1)
-	})),
-	"repetition_id": optionalKey(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])),
-	"remark": optionalKey(Union([String$2, Null])),
-	"when": String$2.annotate({ "description": "A single date (YYYY-MM-DD), a date interval (YYYY-MM-DD/YYYY-MM-DD), or an [RRULE](https://www.rfc-editor.org/rfc/rfc5545.html#section-3.3.10) string. When using a date interval or RRULE, options.schedule_on_bank_holidays is required." })
-}).annotate({ "identifier": "CreateAbsenceCommand260625" });
-const CreateAbsenceResult = StructWithRest(Struct({
-	"created": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
-	"repetition_id": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null]),
-	"created_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": ArraySchema(String$2)
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
-	"description": "Result of creating absence(s).",
-	"identifier": "CreateAbsenceResult"
-});
-const UpdateAbsenceCommand = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"absence_type_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"percentage": optionalKey(Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))),
-	"time_ranges": optionalKey(ArraySchema(String$2.annotate({ "format": "local-time-interval" }))),
-	"options": Struct({
-		"group_action": Literals([
-			"single",
-			"future",
-			"all"
-		]),
-		"allow_partial": optionalKey(Boolean$1)
-	}),
-	"repetition_id": optionalKey(Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])),
-	"remark": optionalKey(Union([String$2, Null]))
-}).annotate({ "identifier": "UpdateAbsenceCommand" });
-const UpdateAbsenceResult = StructWithRest(Struct({
-	"updated_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"updated": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
-	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
-	"description": "Result of updating absence(s).",
-	"identifier": "UpdateAbsenceResult"
-});
-const DeleteAbsenceCommand = Struct({
-	"ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"options": Struct({
-		"group_action": Literals([
-			"single",
-			"future",
-			"all"
-		]).annotate({ "description": "If group action is 'single', allow_partial should not be provided" }),
-		"allow_partial": optionalKey(Boolean$1.annotate({ "description": "Allows partial processing of the request for periods when the schedule is not locked and not overlapping" }))
-	})
-}).annotate({ "identifier": "DeleteAbsenceCommand" });
-const DeleteAbsenceResult = StructWithRest(Struct({
-	"deleted_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"deleted": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" }),
-	"failed_count": Number$1.check(isInt().annotate({ "expected": "an integer" })),
-	"failed": Union([Record(String$2, ArraySchema(String$2)), ArraySchema(Json.annotate({ "expected": "JSON value" })).check(isMaxLength(0).annotate({ "expected": "a value with a length of at most 0" }))], { mode: "oneOf" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({
-	"description": "Result of deleting absence(s).",
-	"identifier": "DeleteAbsenceResult"
-});
-const ListSchedulesQuery = Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "If used with `ids` filter, it will limit the returned schedules to those that are associated with the given resource ids (ignoring schedule ids that are not)." })),
-	"date_range": String$2.annotate({ "format": "local-date-interval" })
-}).annotate({ "identifier": "ListSchedulesQuery" });
-const ScheduleView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"time_ranges": ArraySchema(StructWithRest(Struct({
-		"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
-		"auto_correct": Union([Struct({
-			"before_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"before_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" }),
-		"paid_break": Union([StructWithRest(Struct({
-			"max_duration": String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}),
-			"time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])),
-	"schedule_template": Union([StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"name": String$2,
-		"description": Union([String$2, Null]),
-		"color": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"remark": String$2,
-	"modified": Boolean$1,
-	"adjustment": Union([StructWithRest(Struct({
-		"value": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"time": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"break_time": Union([StructWithRest(Struct({
-		"min_duration": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"time_range": String$2.annotate({ "format": "local-date-time-interval" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"options": StructWithRest(Struct({
-		"employee_resident_ratio": Boolean$1,
-		"text_color": Union([String$2, Null]),
-		"special_time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleView" });
-const ListAbsencesQuery250901 = Struct({
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "When omitted, the only absences returned are those the current user is allowed to view." })),
-	"date_range": String$2.annotate({ "format": "local-date-interval" })
-}).annotate({ "identifier": "ListAbsencesQuery250901" });
-const AbsenceView250901 = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"absence_type": StructWithRest(Struct({
-		"id": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2.annotate({ "format": "snowflake" })]),
-		"name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
-		"short_name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
-		"machine_name": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2]),
-		"color": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), String$2])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"remark": Union([
-		StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-		String$2,
-		Null
-	]),
-	"date": String$2.annotate({ "format": "local-date" }),
-	"percentage": Union([StructWithRest(Struct({ "redacted": Literals(["forbidden", "confidential"]) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Number$1.annotate({ "format": "percentage" }).check(isFinite().annotate({ "expected": "a finite number" }))]),
-	"time_range": Union([String$2.annotate({ "format": "local-date-time-interval" }), Null], { mode: "oneOf" }),
-	"repetition_id": Union([Number$1.check(isInt().annotate({ "expected": "an integer" })), Null])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceView250901" });
-const ListAbsenceTypesQuery250901 = Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"requestable": optionalKey(Boolean$1),
-	"enabled": optionalKey(Boolean$1)
-}).annotate({ "identifier": "ListAbsenceTypesQuery250901" });
-const AbsenceTypeView250901 = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}),
-	"requestable": Boolean$1,
-	"enabled": Boolean$1,
-	"confidential": Boolean$1,
-	"machine_name": String$2
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AbsenceTypeView250901" });
-const ListOnCallsQuery = Struct({
-	"resource_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })))
-}).annotate({ "identifier": "ListOnCallsQuery" });
-const OnCallView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
-	"schedule_template": Union([StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"name": String$2,
-		"description": Union([String$2, Null]),
-		"color": String$2
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"remark": Union([String$2, Null])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "OnCallView" });
-const CreateScheduleTemplateCommand260625 = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"schedule_template_type_id": String$2.annotate({ "format": "snowflake" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"name": Union([Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}), String$2]),
-	"description": optionalKey(Union([Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}), String$2])),
-	"color": String$2,
-	"hour_ranges": ArraySchema(Struct({
-		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
-		"auto_correct": Union([Struct({
-			"before_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"before_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" }),
-		"paid_break": Union([Struct({
-			"max_duration": String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}),
-			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" })
-	})).check(isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })),
-	"validity_date_range": String$2.annotate({ "format": "local-date-interval" }),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"adjustment": optionalKey(Struct({
-		"value": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"time": optionalKey(String$2.annotate({ "format": "local-time" }))
-	})),
-	"break_time": optionalKey(Struct({
-		"min_duration": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"hour_range": String$2.annotate({ "format": "local-time-interval" })
-	})),
-	"options": optionalKey(Struct({
-		"counts_in_balances": optionalKey(Boolean$1.annotate({ "default": true })),
-		"timecheck_counted": optionalKey(Boolean$1.annotate({ "default": true })),
-		"employee_resident_ratio": optionalKey(Boolean$1.annotate({ "default": false })),
-		"auto_completable": optionalKey(Boolean$1.annotate({ "default": true }))
-	}))
-}).annotate({ "identifier": "CreateScheduleTemplateCommand260625" });
-const UpdateScheduleTemplateCommand260625 = Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"schedule_template_type_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"team_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"name": optionalKey(Union([Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}), String$2])),
-	"description": optionalKey(Union([
-		Struct({
-			"fr": optionalKey(String$2),
-			"en": optionalKey(String$2),
-			"de": optionalKey(String$2)
-		}),
-		String$2,
-		Null
-	])),
-	"color": optionalKey(String$2),
-	"hour_ranges": optionalKey(ArraySchema(Struct({
-		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
-		"auto_correct": Union([Struct({
-			"before_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"before_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" }),
-		"paid_break": Union([Struct({
-			"max_duration": String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}),
-			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" })
-	}))),
-	"validity_date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" })),
-	"tag_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"adjustment": optionalKey(Union([Struct({
-		"value": optionalKey(String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		})),
-		"time": optionalKey(Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" }))
-	}), Null], { mode: "oneOf" })),
-	"break_time": optionalKey(Union([Struct({
-		"min_duration": optionalKey(String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		})),
-		"hour_range": optionalKey(String$2.annotate({ "format": "local-time-interval" }))
-	}), Null], { mode: "oneOf" })),
-	"options": optionalKey(Struct({
-		"counts_in_balances": optionalKey(Boolean$1),
-		"timecheck_counted": optionalKey(Boolean$1),
-		"employee_resident_ratio": optionalKey(Boolean$1),
-		"auto_completable": optionalKey(Boolean$1)
-	})),
-	"force_update": optionalKey(Boolean$1.annotate({ "default": false }))
-}).annotate({ "identifier": "UpdateScheduleTemplateCommand260625" });
-const ListScheduleTemplatesQuery260625 = Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "If used, it will limit the returned schedule template list to those that are associated with the given team ids (ignoring provided ids that are not)." })),
-	"date_range": optionalKey(String$2.annotate({ "format": "local-date-interval" })),
-	"is_on_call": optionalKey(Boolean$1),
-	"type_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })).annotate({ "description": "If used, it will limit the returned schedule template list to those that match one of the given schedule template type ids." }))
-}).annotate({ "identifier": "ListScheduleTemplatesQuery260625" });
-const ScheduleTemplateView260625 = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}),
-	"description": Union([Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}), Null], { mode: "oneOf" }),
-	"team_id": String$2.annotate({ "format": "snowflake" }),
-	"type": StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"name": Struct({
-			"fr": optionalKey(String$2),
-			"en": optionalKey(String$2),
-			"de": optionalKey(String$2)
-		}),
-		"machine_name": String$2,
-		"display_mode": String$2.annotate({ "description": "Known values: normal, hour, corner." }),
-		"is_on_call": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"color": String$2,
-	"hour_ranges": ArraySchema(Struct({
-		"hour_range": String$2.annotate({ "format": "local-time-interval" }),
-		"auto_correct": Union([Struct({
-			"before_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_start": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"before_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" }),
-			"after_end": Union([String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" }),
-		"paid_break": Union([Struct({
-			"max_duration": String$2.annotate({
-				"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-				"format": "duration"
-			}),
-			"hour_range": Union([String$2.annotate({ "format": "local-time-interval" }), Null], { mode: "oneOf" })
-		}), Null], { mode: "oneOf" })
-	})),
-	"adjustment": Union([StructWithRest(Struct({
-		"value": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"time": Union([String$2.annotate({ "format": "local-time" }), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"tag_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"break_time": Union([StructWithRest(Struct({
-		"min_duration": String$2.annotate({
-			"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-			"format": "duration"
-		}),
-		"hour_range": String$2.annotate({ "format": "local-time-interval" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"validity_date_range": Union([String$2.annotate({ "format": "local-date-interval" }), Null], { mode: "oneOf" }),
-	"options": StructWithRest(Struct({
-		"counts_in_balances": Boolean$1,
-		"timecheck_counted": Boolean$1,
-		"employee_resident_ratio": Boolean$1,
-		"auto_completable": Boolean$1
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))])
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateView260625" });
-const ListScheduleTemplateTypesQuery260625 = Struct({
-	"ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" }))),
-	"team_ids": optionalKey(ArraySchema(String$2.annotate({ "format": "snowflake" })))
-}).annotate({ "identifier": "ListScheduleTemplateTypesQuery260625" });
-const ScheduleTemplateTypeView260625 = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"name": Struct({
-		"fr": optionalKey(String$2),
-		"en": optionalKey(String$2),
-		"de": optionalKey(String$2)
-	}),
-	"machine_name": String$2,
-	"display_mode": String$2.annotate({ "description": "Known values: normal, hour, corner." }),
-	"is_on_call": Boolean$1
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "ScheduleTemplateTypeView260625" });
-const ProposeTimecheckCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"resource_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"in": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
-	"out": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
-	"remark": optionalKey(Union([String$2, Null]))
-}).annotate({ "identifier": "ProposeTimecheckCommand" });
-const ValidateTimecheckCommand = Struct({
-	"id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"resource_id": optionalKey(String$2.annotate({ "format": "snowflake" })),
-	"in": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
-	"out": optionalKey(Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" })),
-	"remark": optionalKey(Union([String$2, Null]))
-}).annotate({ "identifier": "ValidateTimecheckCommand" });
-const DeleteTimecheckCommand = Struct({ "id": String$2.annotate({ "format": "snowflake" }) }).annotate({ "identifier": "DeleteTimecheckCommand" });
-const ListTimechecksQuery = Struct({ "filters": optionalKey(ArraySchema(Union([
-	Struct({
-		"key": Literal("timecheck.ids"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("timecheck.resources"),
-		"value": ArraySchema(String$2.annotate({ "format": "snowflake" }))
-	}),
-	Struct({
-		"key": Literal("timecheck.date_range"),
-		"value": String$2.annotate({ "format": "local-date-interval" })
-	}),
-	Struct({
-		"key": Literal("timecheck.datetime_range"),
-		"value": String$2.annotate({ "format": "local-date-time-interval" })
-	}),
-	Struct({
-		"key": Literal("timecheck.open"),
-		"value": Boolean$1
-	}),
-	Struct({
-		"key": Literal("or"),
-		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-	}),
-	Struct({
-		"key": Literal("and"),
-		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
-	})
-], { mode: "oneOf" }))) }).annotate({ "identifier": "ListTimechecksQuery" });
-const TimecheckView = StructWithRest(Struct({
-	"id": String$2.annotate({ "format": "snowflake" }),
-	"resource_id": String$2.annotate({ "format": "snowflake" }),
-	"duration": Union([String$2.annotate({
-		"description": "[ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations)",
-		"format": "duration"
-	}), Null], { mode: "oneOf" }),
-	"time_range": String$2.annotate({ "format": "local-date-time-interval" }),
-	"expected_time_range": String$2.annotate({ "format": "local-date-time-interval" }),
-	"type": String$2.annotate({ "description": "Known values: device, adjusted, proposal, validation." }),
-	"color": String$2,
-	"device": StructWithRest(Struct({
-		"in": Union([StructWithRest(Struct({
-			"time": String$2.annotate({ "format": "local-date-time" }),
-			"name": Union([String$2, Null]),
-			"beacon_name": Union([String$2, Null]),
-			"autocorrection": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-			"autocorrection_source": Union([String$2, Null]),
-			"geolocation": Union([StructWithRest(Struct({
-				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
-				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
-				"accuracy": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" })
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-			"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-		"out": Union([StructWithRest(Struct({
-			"time": String$2.annotate({ "format": "local-date-time" }),
-			"name": Union([String$2, Null]),
-			"beacon_name": Union([String$2, Null]),
-			"autocorrection": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-			"autocorrection_source": Union([String$2, Null]),
-			"geolocation": Union([StructWithRest(Struct({
-				"latitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
-				"longitude": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" }),
-				"accuracy": Union([Number$1.check(isFinite().annotate({ "expected": "a finite number" })), Null]).annotate({ "format": "float" })
-			}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-			"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" })
-		}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]),
-	"proposal": Union([StructWithRest(Struct({
-		"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-		"in": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-		"out": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-		"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
-		"comment": Union([String$2, Null])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"validation": Union([StructWithRest(Struct({
-		"resource_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-		"in": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-		"out": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-		"received_at": Union([String$2.annotate({ "format": "zoned-date-time" }), Null], { mode: "oneOf" }),
-		"comment": Union([String$2, Null])
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]), Null], { mode: "oneOf" }),
-	"is_adjusted": Boolean$1,
-	"matched_schedule_ids": ArraySchema(String$2.annotate({ "format": "snowflake" })),
-	"tags_comment": Union([String$2, Null]),
-	"tags": ArraySchema(StructWithRest(Struct({
-		"id": String$2.annotate({ "format": "snowflake" }),
-		"added_at": String$2.annotate({ "format": "local-date-time" }),
-		"added_by_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" }),
-		"removed_at": Union([String$2.annotate({ "format": "local-date-time" }), Null], { mode: "oneOf" }),
-		"removed_by_id": Union([String$2.annotate({ "format": "snowflake" }), Null], { mode: "oneOf" })
-	}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]))
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "TimecheckView" });
 const PostAppUiApiActivityConfigurationProjectcommandCreateprojectRequestJson = CreateProjectCommand;
 const PostAppUiApiActivityConfigurationProjectcommandCreateproject201 = StructWithRest(Struct({ "id": Snowflake }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]);
 const PostAppUiApiActivityConfigurationProjectcommandDeleteprojectRequestJson = DeleteProjectCommand;
@@ -17375,9 +17996,9 @@ const normalizeInstance = (raw) => {
 const invalid = (message) => new ConfigError(new SourceError({ message }));
 const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
 const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a tipee instance: enter the part before .tipee.net, such as acme.`))));
-const apiKeyConfig = Redacted("TIPEE_API_KEY").pipe(withDefault(make$39("")), mapEffect((key) => {
+const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$36("")), mapEffect((key) => {
 	const trimmed = value$2(key).trim();
-	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$39(trimmed));
+	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$36(trimmed));
 }));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
 	static layer = (credentials) => effect(TipeeClient, gen(function* () {
@@ -17390,7 +18011,7 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 			instance: credentials.instance
 		};
 	}));
-	static layerConfig = unwrap$3(all({
+	static layerConfig = unwrap$4(all({
 		apiKey: apiKeyConfig,
 		instance: instanceConfig
 	}).pipe(map$4((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
@@ -17448,7 +18069,7 @@ const call = (target, params) => gen(function* () {
 	const { api } = yield* TipeeClient;
 	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => new TipeeError({ reason: new InvalidRequest$1({ details: cause.message }) })));
 	const method = api[target.group]?.[target.endpoint];
-	if (method === void 0) return yield* die(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
+	if (method === void 0) return yield* die$2(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
 	return yield* method({ payload: params }).pipe(catch_$2((error) => flatMap(TipeeError.fromCause(error), fail$3)));
 });
 const PAGE_SIZE$1 = 100;
@@ -17511,7 +18132,7 @@ const explain = (error, target) => gen(function* () {
 });
 const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target), fail$3)));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/AiError.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/AiError.js
 const HttpRequestDetails = /*#__PURE__*/ Struct({
 	method: Literals([
 		"GET",
@@ -17525,18 +18146,18 @@ const HttpRequestDetails = /*#__PURE__*/ Struct({
 		"QUERY"
 	]),
 	url: String$2,
-	urlParams: ArraySchema(Tuple([String$2, String$2])),
+	urlParams: ArraySchema(Tuple([String$2, Union([String$2, Redacted$2(String$2)])])),
 	hash: optional$5(String$2),
-	headers: Record(String$2, Union([String$2, Redacted$1(String$2)]))
+	headers: Record(String$2, Union([String$2, Redacted$2(String$2)]))
 }).annotate({ identifier: "HttpRequestDetails" });
 const HttpResponseDetails = /*#__PURE__*/ Struct({
 	status: Int,
-	headers: Record(String$2, Union([String$2, Redacted$1(String$2)]))
+	headers: Record(String$2, Union([String$2, Redacted$2(String$2)]))
 }).annotate({ identifier: "HttpResponseDetails" });
 const ReasonTypeId = "~effect/ai/AiError/Reason";
 const providerMetadataWithDefaults = () => ProviderMetadata.pipe(withConstructorDefault(succeed$3({})), withDecodingDefault(succeed$3({})));
 const redactHeaders = (headers) => {
-	const redacted = redact$1(headers);
+	const redacted = redact$2(headers);
 	const result = {};
 	for (const key in redacted) {
 		const value = redacted[key];
@@ -17603,7 +18224,7 @@ const HttpContext = /*#__PURE__*/ Struct({
 }).annotate({ identifier: "HttpContext" });
 var RateLimitError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/RateLimitError")({
 	_tag: /*#__PURE__*/ tag$2("RateLimitError"),
-	retryAfter: /*#__PURE__*/ optional$5(Duration),
+	retryAfter: /*#__PURE__*/ optional$5(Duration$1),
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
 	http: /*#__PURE__*/ optional$5(HttpContext)
 })) {
@@ -17708,6 +18329,23 @@ var InternalProviderError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 	}
 	get message() {
 		return `Internal provider error: ${this.description}`;
+	}
+};
+var InvalidResponseError = class InvalidResponseError extends (/*#__PURE__*/ Error$1("effect/ai/AiError/InvalidResponseError")({
+	_tag: /*#__PURE__*/ tag$2("InvalidResponseError"),
+	description: String$2,
+	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
+	http: /*#__PURE__*/ optional$5(HttpContext)
+})) {
+	[ReasonTypeId] = ReasonTypeId;
+	get isRetryable() {
+		return false;
+	}
+	static fromSchemaError(error) {
+		return new InvalidResponseError({ description: error.message });
+	}
+	get message() {
+		return `Invalid response: ${this.description}`;
 	}
 };
 var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1("effect/ai/AiError/InvalidOutputError")({
@@ -17873,6 +18511,7 @@ const AiErrorReason = /*#__PURE__*/ Union([
 	AuthenticationError,
 	ContentPolicyError,
 	InvalidRequestError,
+	InvalidResponseError,
 	InternalProviderError,
 	NetworkError,
 	InvalidOutputError,
@@ -17910,7 +18549,7 @@ const isAiError = (u) => hasProperty(u, TypeId$4);
 const isAiErrorReason = (u) => hasProperty(u, ReasonTypeId);
 const make$11 = (params) => new AiError(params);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/Tool.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Tool.js
 const TypeId$3 = "~effect/ai/Tool";
 const DynamicTypeId = "~effect/ai/Tool/Dynamic";
 const isDynamic = (u) => hasProperty(u, DynamicTypeId);
@@ -17930,7 +18569,10 @@ const Proto$2 = {
 		});
 	},
 	setSuccess(successSchema) {
-		return clone(this, { successSchema });
+		return clone(this, {
+			successSchema,
+			toModelOutput: void 0
+		});
 	},
 	setFailure(failureSchema) {
 		return clone(this, { failureSchema });
@@ -17942,7 +18584,7 @@ const Proto$2 = {
 		return clone(this, { annotations: add$2(this.annotations, tag, value) });
 	},
 	annotateMerge(context) {
-		return clone(this, { annotations: merge$1(this.annotations, context) });
+		return clone(this, { annotations: merge$2(this.annotations, context) });
 	}
 };
 ({ ...Proto$2 });
@@ -17971,7 +18613,8 @@ const make$10 = (name, options) => {
 		failureSchema,
 		failureMode: options?.failureMode ?? "error",
 		annotations: empty$10(),
-		needsApproval: options?.needsApproval
+		needsApproval: options?.needsApproval,
+		toModelOutput: options?.toModelOutput
 	});
 };
 const dynamic = (name, options) => {
@@ -17990,6 +18633,7 @@ const dynamic = (name, options) => {
 		failureMode: options?.failureMode ?? "error",
 		annotations: empty$10(),
 		needsApproval: options?.needsApproval,
+		toModelOutput: options?.toModelOutput,
 		jsonSchema
 	});
 };
@@ -18029,10 +18673,12 @@ function resolveTopLevelReference(document) {
 	};
 }
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/Toolkit.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Toolkit.js
 const TypeId$2 = "~effect/ai/Toolkit";
 const FailureOrigin = /*#__PURE__*/ Reference("effect/ai/Toolkit/FailureOrigin", { defaultValue: () => "result" });
+const PreliminaryBuffer = /*#__PURE__*/ Reference("effect/ai/Toolkit/PreliminaryBuffer", { defaultValue: () => "unbounded" });
 const failureCause = (error, origin) => annotate$1(fail$5(error), make$48(FailureOrigin, origin));
+const failureOrigin = (error) => isSchemaError(error) ? "result" : "handler";
 const Proto$1 = {
 	.../*#__PURE__*/ Prototype({
 		label: "Toolkit",
@@ -18104,7 +18750,9 @@ const Proto$1 = {
 						})));
 					}
 					const decodedParams = decodedParamsResult.success;
-					const queue = yield* make$30();
+					const capacity = yield* PreliminaryBuffer;
+					if (capacity !== "unbounded" && !(Number.isInteger(capacity) && capacity > 0)) return yield* die$2(`Tool "${name}": PreliminaryBuffer must be a positive integer, got ${capacity}`);
+					const queue = yield* make$41(capacity === "unbounded" ? void 0 : { capacity });
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -18117,7 +18765,7 @@ const Proto$1 = {
 						result,
 						isFailure: false,
 						preliminary: false
-					})), updateContext((input) => merge$1(schemas.context, input)), matchCauseEffect({
+					})), updateContext((input) => merge$2(schemas.context, input)), matchCauseEffect({
 						onFailure: (cause) => failCause$2(queue, cause),
 						onSuccess: () => end(queue)
 					}), forkChild);
@@ -18135,22 +18783,23 @@ const Proto$1 = {
 							reason: error
 						}) : error;
 					};
-					return fromQueue(queue).pipe(catch_((error) => {
-						const normalizedError = normalizeError(error);
-						const failureOrigin = isSchemaError(error) ? "result" : "handler";
-						return tool.failureMode === "error" ? failCause(failureCause(normalizedError, failureOrigin)) : succeed({
-							result: normalizedError,
-							isFailure: true,
-							failureOrigin,
-							preliminary: false
-						});
-					}), mapEffect$1(fnUntraced(function* (output) {
+					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$48(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
+						result: normalizeError(error),
+						isFailure: true,
+						failureOrigin: failureOrigin(error),
+						preliminary: false
+					})), mapEffect$1(fnUntraced(function* (output) {
 						const encodedResult = yield* encodeResult(output.result, output.isFailure);
-						return {
+						if (output.isFailure || output.preliminary || tool.toModelOutput === void 0) return {
 							...output,
 							encodedResult
 						};
-					})), onEnd(interrupt(fiber)));
+						return {
+							...output,
+							encodedResult,
+							modelOutput: tool.toModelOutput(output.result)
+						};
+					})), ensuring(interrupt(fiber)));
 				})
 			};
 		})
@@ -18191,7 +18840,38 @@ const resolveInput = (...tools) => {
 };
 const make$9 = (...tools) => makeProto$2(resolveInput(...tools));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/workers/Transferable.js
+var Collector = class extends (/*#__PURE__*/ Service$1()("effect/workers/Transferable/Collector")) {};
+const makeCollectorUnsafe = () => {
+	let tranferables = [];
+	const unsafeAddAll = (transfers) => {
+		tranferables.push(...transfers);
+	};
+	const unsafeRead = () => tranferables;
+	const unsafeClear = () => {
+		const prev = tranferables;
+		tranferables = [];
+		return prev;
+	};
+	return Collector.of({
+		addAllUnsafe: unsafeAddAll,
+		addAll: (transferables) => sync(() => unsafeAddAll(transferables)),
+		readUnsafe: unsafeRead,
+		read: sync(unsafeRead),
+		clearUnsafe: unsafeClear,
+		clear: sync(unsafeClear)
+	});
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/internal/tracing.js
+const spanName = (spanPrefix, tag) => spanPrefix === void 0 ? tag : `${spanPrefix}.${tag}`;
+const spanAttributes = (tag, attributes) => ({
+	"rpc.system.name": "effect_rpc",
+	"rpc.method": tag,
+	...attributes
+});
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSchema.js
 const StreamSchemaTypeId = "~effect/rpc/RpcSchema/StreamSchema";
 function isStreamSchema(schema) {
 	return hasProperty(schema, StreamSchemaTypeId);
@@ -18204,7 +18884,7 @@ function getStreamSchemas(schema) {
 }
 const schema = /*#__PURE__*/ declare(isStream);
 function Stream(success, error) {
-	return make$34(schema.ast, {
+	return make$31(schema.ast, {
 		[StreamSchemaTypeId]: StreamSchemaTypeId,
 		success,
 		error
@@ -18218,7 +18898,7 @@ var ClientAbort = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcSchema
 	}));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/Rpc.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Rpc.js
 const TypeId$1 = "~effect/rpc/Rpc";
 var ServerClient = class {
 	id;
@@ -18311,7 +18991,7 @@ const Proto = {
 			errorSchema: this.errorSchema,
 			defectSchema: this.defectSchema,
 			middlewares: this.middlewares,
-			annotations: merge$1(this.annotations, context)
+			annotations: merge$2(this.annotations, context)
 		});
 	}
 };
@@ -18355,10 +19035,689 @@ const exitSchema = (self) => {
 	exitSchemaCache.set(self, schema);
 	return schema;
 };
+const ParseOptions = /*#__PURE__*/ Reference("effect/rpc/Rpc/ParseOptions", { defaultValue: () => defaultParseOptions });
 const WrapperTypeId = "~effect/rpc/Rpc/Wrapper";
 const isWrapper = (u) => WrapperTypeId in u;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcGroup.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMessage.js
+const RequestId$2 = (id) => id;
+const constEof = { _tag: "Eof" };
+const ResponseDefectEncoded = (encodedDefect) => ({
+	_tag: "Defect",
+	defect: encodedDefect
+});
+const constPong = { _tag: "Pong" };
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSerialization.js
+const codecForJson = toCodecJson;
+let sharedTextDecoder;
+const decodeText = (bytes) => (sharedTextDecoder ??= new TextDecoder()).decode(bytes);
+var RpcSerialization = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcSerialization")) {};
+var MaxBufferSizeExceeded = class extends (/*#__PURE__*/ TaggedError$1("MaxBufferSizeExceeded")) {
+	get message() {
+		return `RPC serialization buffer exceeded the maximum size of ${this.maxBufferSize}`;
+	}
+};
+var NdjsonDecodeError = class extends (/*#__PURE__*/ TaggedError$1("NdjsonDecodeError")) {};
+const defaultMaxBufferSize = 16777216;
+const isBufferSizeExceeded = (bufferSize, maxBufferSize) => maxBufferSize !== "unbounded" && bufferSize > maxBufferSize;
+const json = /*#__PURE__*/ RpcSerialization.of({
+	contentType: "application/json",
+	includesFraming: false,
+	codecFor: codecForJson,
+	makeUnsafe: () => ({
+		decode: (bytes) => {
+			const decoded = JSON.parse(typeof bytes === "string" ? bytes : decodeText(bytes));
+			return Array.isArray(decoded) ? decoded : [decoded];
+		},
+		encode: (response) => JSON.stringify(response)
+	})
+});
+const makeNdjson = (options) => {
+	const maxBufferSize = options?.maxBufferSize ?? defaultMaxBufferSize;
+	return RpcSerialization.of({
+		contentType: "application/x-ndjson",
+		includesFraming: true,
+		codecFor: codecForJson,
+		makeUnsafe: () => {
+			let decoder;
+			let buffer = "";
+			const failMaxBufferSize = (maxBufferSize) => {
+				buffer = "";
+				throw new MaxBufferSizeExceeded({ maxBufferSize });
+			};
+			return {
+				decode: (bytes) => {
+					buffer += typeof bytes === "string" ? bytes : (decoder ??= new TextDecoder()).decode(bytes, { stream: true });
+					let position = 0;
+					let nlIndex = buffer.indexOf("\n", position);
+					const items = [];
+					while (nlIndex !== -1) {
+						if (isBufferSizeExceeded(nlIndex - position, maxBufferSize)) failMaxBufferSize(maxBufferSize);
+						const line = buffer.slice(position, buffer[nlIndex - 1] === "\r" ? nlIndex - 1 : nlIndex);
+						position = nlIndex + 1;
+						if (line.length > 0) try {
+							items.push(JSON.parse(line));
+						} catch (cause) {
+							buffer = "";
+							throw new NdjsonDecodeError({ cause });
+						}
+						nlIndex = buffer.indexOf("\n", position);
+					}
+					buffer = buffer.slice(position);
+					if (isBufferSizeExceeded(buffer.length, maxBufferSize)) failMaxBufferSize(maxBufferSize);
+					return items;
+				},
+				encode: (response) => {
+					if (Array.isArray(response)) {
+						if (response.length === 0) return void 0;
+						let data = "";
+						for (let i = 0; i < response.length; i++) data += JSON.stringify(response[i]) + "\n";
+						return data;
+					}
+					return JSON.stringify(response) + "\n";
+				}
+			};
+		}
+	});
+};
+const ndjson = /*#__PURE__*/ makeNdjson();
+const jsonRpc = (options) => RpcSerialization.of({
+	contentType: options?.contentType ?? "application/json",
+	includesFraming: false,
+	codecFor: codecForJson,
+	makeUnsafe: () => {
+		const controlMessages = options?.controlMessages ?? true;
+		const batches = /* @__PURE__ */ new Map();
+		return {
+			decode: (bytes) => {
+				return decodeJsonRpcRaw(JSON.parse(typeof bytes === "string" ? bytes : decodeText(bytes)), batches, controlMessages);
+			},
+			encode: (response) => {
+				const encoded = encodeJsonRpcResponse(response, batches);
+				return encoded && JSON.stringify(encoded);
+			}
+		};
+	}
+});
+function decodeJsonRpcRaw(decoded, batches, controlMessages) {
+	if (Array.isArray(decoded)) {
+		const batch = {
+			size: 0,
+			responses: /* @__PURE__ */ new Map()
+		};
+		const messages = [];
+		for (let i = 0; i < decoded.length; i++) {
+			const item = decoded[i];
+			if (!isObject$2(item)) continue;
+			const message = decodeJsonRpcMessage(item, controlMessages);
+			messages.push(message);
+			if (message._tag === "Request" && !message.isNotification) {
+				batch.size++;
+				batches.set(message.id, batch);
+			}
+		}
+		return messages;
+	}
+	return isObject$2(decoded) ? [decodeJsonRpcMessage(decoded, controlMessages)] : [];
+}
+function decodeJsonRpcMessage(decoded, controlMessages) {
+	if (Object.hasOwn(decoded, "method")) {
+		const request = decoded;
+		if (controlMessages && isNullish(request.id) && isString$1(request.method) && request.method.startsWith("@effect/rpc/")) {
+			const tag = request.method.slice(12);
+			const requestId = request.params?.requestId;
+			return requestId !== void 0 ? {
+				_tag: tag,
+				requestId
+			} : { _tag: tag };
+		}
+		return {
+			_tag: "Request",
+			id: request.id ?? "",
+			tag: request.method,
+			payload: request.params ?? null,
+			headers: request.headers ?? [],
+			...hasProperty(request, "id") ? {} : { isNotification: true },
+			...request.spanId ? {
+				traceId: request.traceId,
+				spanId: request.spanId,
+				sampled: request.sampled
+			} : {}
+		};
+	}
+	const response = decoded;
+	const hasError = Object.hasOwn(response, "error");
+	if (hasError && response.error && response.error._tag === "Defect") return {
+		_tag: "Defect",
+		defect: response.error.data
+	};
+	else if (Object.hasOwn(response, "chunk") && response.chunk === true) return {
+		_tag: "Chunk",
+		requestId: response.id ?? "",
+		values: response.result
+	};
+	return {
+		_tag: "Exit",
+		requestId: response.id ?? "",
+		exit: hasError && response.error != null ? {
+			_tag: "Failure",
+			cause: response.error._tag === "Cause" ? response.error.data : [{
+				_tag: "Fail",
+				error: response.error
+			}]
+		} : {
+			_tag: "Success",
+			value: response.result
+		}
+	};
+}
+function encodeJsonRpcRaw(response, batches) {
+	if (response._tag !== "Exit") return encodeJsonRpcMessage(response);
+	const batch = batches.get(response.requestId);
+	if (batch) {
+		batches.delete(response.requestId);
+		batch.responses.set(response.requestId, response);
+		if (batch.size === batch.responses.size) return Array.from(batch.responses.values(), encodeJsonRpcMessage);
+		return;
+	}
+	return encodeJsonRpcMessage(response);
+}
+function encodeJsonRpcResponse(response, batches) {
+	if (Array.isArray(response) === false) return encodeJsonRpcRaw(response, batches);
+	if (response.length === 0) return;
+	const encoded = [];
+	for (let i = 0; i < response.length; i++) {
+		const current = encodeJsonRpcRaw(response[i], batches);
+		if (current !== void 0) encoded.push(current);
+	}
+	if (encoded.length === 0) return;
+	if (encoded.length === 1) return encoded[0];
+	const messages = [];
+	for (let i = 0; i < encoded.length; i++) {
+		const current = encoded[i];
+		if (Array.isArray(current)) messages.push(...current);
+		else messages.push(current);
+	}
+	return messages;
+}
+function encodeJsonRpcMessage(response) {
+	switch (response._tag) {
+		case "Request": return {
+			jsonrpc: "2.0",
+			method: response.tag,
+			params: response.payload,
+			...response.isNotification ? {} : { id: response.id },
+			...response.headers?.length > 0 ? { headers: response.headers } : {},
+			traceId: response.traceId,
+			spanId: response.spanId,
+			sampled: response.sampled
+		};
+		case "Ping":
+		case "Pong":
+		case "Interrupt":
+		case "Ack":
+		case "Eof": return {
+			jsonrpc: "2.0",
+			method: `@effect/rpc/${response._tag}`,
+			params: "requestId" in response ? { requestId: response.requestId } : void 0
+		};
+		case "Chunk": return {
+			jsonrpc: "2.0",
+			chunk: true,
+			id: response.requestId,
+			result: response.values
+		};
+		case "Exit": {
+			if (response.exit._tag === "Success") return {
+				jsonrpc: "2.0",
+				id: response.requestId ?? void 0,
+				result: response.exit.value
+			};
+			const failure = response.exit.cause.find((failure) => failure._tag === "Fail");
+			const error = failure?._tag === "Fail" ? failure.error : void 0;
+			return {
+				jsonrpc: "2.0",
+				id: response.requestId ?? void 0,
+				error: response.exit._tag === "Failure" ? {
+					_tag: "Cause",
+					code: error && hasProperty(error, "code") ? Number(error.code) : 0,
+					message: error && hasProperty(error, "message") ? error.message : JSON.stringify(response.exit.cause),
+					data: response.exit.cause
+				} : void 0
+			};
+		}
+		case "Defect": return {
+			jsonrpc: "2.0",
+			id: jsonRpcInternalError,
+			error: {
+				_tag: "Defect",
+				code: 1,
+				message: "A defect occurred",
+				data: response.defect
+			}
+		};
+		case "ClientProtocolError": return {};
+	}
+}
+const jsonRpcInternalError = -32603;
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Utils.js
+const withRun = () => (f) => suspend$3(() => {
+	const semaphore = makeUnsafe$3(1);
+	let buffer = [];
+	let write = (...args) => contextWith((context) => {
+		buffer.push([args, context]);
+		return void_$1;
+	});
+	return map$4(f((...args) => write(...args)), (a) => ({
+		...a,
+		run(f) {
+			return semaphore.withPermits(1)(gen(function* () {
+				const prev = write;
+				for (const [args, context] of buffer) yield* provideContext$2(suspend$3(() => f(...args)), context);
+				buffer = [];
+				write = f;
+				return yield* onExit$1(never$1, () => {
+					write = prev;
+					return void_$1;
+				});
+			}));
+		}
+	}));
+});
+const withRunClient = (f) => suspend$3(() => {
+	const clientIds = /* @__PURE__ */ new Set();
+	const clientBuffers = /* @__PURE__ */ new Map();
+	const clientWrites = /* @__PURE__ */ new Map();
+	let write = (clientId, data) => contextWith((context) => {
+		let buffer = clientBuffers.get(clientId);
+		if (!buffer) {
+			buffer = [];
+			clientBuffers.set(clientId, buffer);
+		}
+		buffer.push([data, context]);
+		return void_$1;
+	});
+	return map$4(f((clientId, data) => {
+		const clientWrite = clientWrites.get(clientId);
+		if (clientWrite) return clientWrite(data);
+		return write(clientId, data);
+	}, clientIds), (a) => ({
+		...a,
+		run(clientId, f) {
+			return gen(function* () {
+				clientIds.add(clientId);
+				clientWrites.set(clientId, f);
+				const buffer = clientBuffers.get(clientId);
+				if (buffer) {
+					clientBuffers.delete(clientId);
+					for (const [args, context] of buffer) yield* provideContext$2(suspend$3(() => f(args)), context);
+				}
+				return yield* onExit$1(never$1, () => {
+					clientIds.delete(clientId);
+					clientWrites.delete(clientId);
+					return void_$1;
+				});
+			});
+		}
+	}));
+});
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcClient.js
+let requestIdCounter = 0;
+const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options) {
+	const spanPrefix = options.spanPrefix;
+	const supportsAck = options?.supportsAck ?? true;
+	const disableTracing = options?.disableTracing ?? false;
+	const generateRequestId = options?.generateRequestId ?? (() => requestIdCounter++);
+	const services = yield* context();
+	const scope = get$2(services, Scope);
+	const entries = /* @__PURE__ */ new Map();
+	let isShutdown = false;
+	yield* addFinalizer$1(scope, withFiber((parent) => {
+		isShutdown = true;
+		return clearEntries(interrupt$2(parent.id));
+	}));
+	const clearEntries = fnUntraced(function* (exit) {
+		const pending = Array.from(entries.values());
+		entries.clear();
+		for (const entry of pending) if (entry._tag === "Queue") yield* exit._tag === "Success" ? end(entry.queue) : failCause$2(entry.queue, exit.cause);
+		else entry.resume(exit);
+	}, uninterruptible);
+	const onRequest = (rpc) => {
+		const isStream = isStreamSchema(rpc.successSchema);
+		const middleware = getRpcClientMiddleware(rpc);
+		return (payload, opts) => {
+			const headers = opts?.headers ? fromInput$1(opts.headers) : empty$6;
+			const context = opts?.context ?? empty$10();
+			if (!isStream) {
+				const onRequest = (span) => onEffectRequest(rpc, middleware, span, rpc.payloadSchema.make(payload), headers, context, opts?.discard ?? false);
+				return disableTracing ? onRequest(void 0) : useSpan(spanName(spanPrefix, rpc._tag), {
+					kind: "client",
+					attributes: spanAttributes(rpc._tag, options.spanAttributes)
+				}, onRequest);
+			}
+			const queue = onStreamRequest(rpc, middleware, rpc.payloadSchema.make(payload), headers, opts?.streamBufferSize ?? 16, context);
+			if (opts?.asQueue) return queue;
+			return unwrap(map$4(queue, fromQueue));
+		};
+	};
+	const onEffectRequest = (rpc, middleware, span, payload, headers, context, discard) => withFiber((parentFiber) => {
+		if (isShutdown) return interrupt$1;
+		const id = generateRequestId();
+		const send = middleware((message) => options.onFromClient({
+			message,
+			context,
+			discard
+		}), {
+			_tag: "Request",
+			id,
+			tag: rpc._tag,
+			payload,
+			...span ? {
+				traceId: span.traceId,
+				spanId: span.spanId,
+				sampled: span.sampled
+			} : {},
+			headers: merge$1(parentFiber.getRef(CurrentHeaders), headers)
+		});
+		if (discard) return send;
+		let fiber;
+		return onInterrupt(callback$1((resume) => {
+			const entry = {
+				_tag: "Effect",
+				rpc,
+				context,
+				resume(exit) {
+					resume(exit);
+					if (fiber && !fiber.pollUnsafe()) parentFiber.currentDispatcher.scheduleTask(() => {
+						fiber.interruptUnsafe(parentFiber.id);
+					}, 0);
+				}
+			};
+			entries.set(id, entry);
+			fiber = send.pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, runForkWith(parentFiber.context));
+			fiber.addObserver((exit) => {
+				if (exit._tag === "Failure") {
+					entries.delete(id);
+					return resume(exit);
+				}
+			});
+		}), (interruptors) => {
+			entries.delete(id);
+			return andThen(interrupt(fiber), sendInterrupt(id, Array.from(interruptors), context));
+		});
+	});
+	const onStreamRequest = fnUntraced(function* (rpc, middleware, payload, headers, streamBufferSize, context) {
+		if (isShutdown) return yield* interrupt$1;
+		const span = disableTracing ? void 0 : yield* makeSpanScoped(spanName(spanPrefix, rpc._tag), {
+			kind: "client",
+			attributes: spanAttributes(rpc._tag, options.spanAttributes)
+		});
+		const fiber = getCurrent();
+		const id = generateRequestId();
+		const scope = getUnsafe(fiber.context, Scope);
+		const queue = yield* bounded(streamBufferSize);
+		yield* addFinalizerExit(scope, (exit) => {
+			shutdownUnsafe(queue);
+			if (!entries.has(id)) return void_$1;
+			entries.delete(id);
+			return sendInterrupt(id, isFailure(exit) ? Array.from(interruptors(exit.cause)) : [], context);
+		});
+		entries.set(id, {
+			_tag: "Queue",
+			rpc,
+			queue,
+			scope,
+			context
+		});
+		yield* middleware((message) => options.onFromClient({
+			message,
+			context,
+			discard: false
+		}), {
+			_tag: "Request",
+			id,
+			tag: rpc._tag,
+			payload,
+			...span ? {
+				traceId: span.traceId,
+				spanId: span.spanId,
+				sampled: span.sampled
+			} : {},
+			headers: merge$1(fiber.getRef(CurrentHeaders), headers)
+		}).pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, onError((cause) => {
+			if (!hasInterruptsOnly(cause)) entries.delete(id);
+			return failCause$2(queue, cause);
+		}), interruptible, forkIn(scope, { startImmediately: true }));
+		return queue;
+	});
+	const getRpcClientMiddleware = (rpc) => {
+		const middlewares = [];
+		for (const tag of rpc.middlewares.values()) {
+			const middleware = getOrUndefinedUnsafe(services, `${tag.key}/Client`);
+			if (!middleware) continue;
+			middlewares.push(middleware);
+		}
+		if (middlewares.length === 0) return (send, request) => send(request);
+		return function loop(send, request, index = middlewares.length - 1) {
+			if (index === -1) return send(request);
+			return middlewares[index]({
+				rpc,
+				request,
+				next(request) {
+					return loop(send, request, index - 1);
+				}
+			});
+		};
+	};
+	const sendInterrupt = (requestId, interruptors, context) => callback$1((resume) => {
+		const parentFiber = getCurrent();
+		options.onFromClient({
+			message: {
+				_tag: "Interrupt",
+				requestId,
+				interruptors
+			},
+			context,
+			discard: false
+		}).pipe(timeout(1e3), runForkWith(parentFiber.context)).addObserver(() => {
+			resume(void_$1);
+		});
+	});
+	const write = (message) => {
+		switch (message._tag) {
+			case "Chunk": {
+				const requestId = message.requestId;
+				const entry = entries.get(requestId);
+				if (!entry || entry._tag !== "Queue") return void_$1;
+				return offerAll(entry.queue, message.values).pipe(supportsAck ? flatMap(() => options.onFromClient({
+					message: {
+						_tag: "Ack",
+						requestId: message.requestId
+					},
+					context: entry.context,
+					discard: false
+				})) : identity, catchCause$2((cause) => failCause$2(entry.queue, cause)));
+			}
+			case "Exit": {
+				const requestId = message.requestId;
+				const entry = entries.get(requestId);
+				if (!entry) return void_$1;
+				entries.delete(requestId);
+				if (entry._tag === "Effect") {
+					entry.resume(message.exit);
+					return void_$1;
+				}
+				return message.exit._tag === "Success" ? end(entry.queue) : failCause$2(entry.queue, message.exit.cause);
+			}
+			case "Defect": return clearEntries(die$3(message.defect));
+			case "ClientEnd": return void_$1;
+		}
+	};
+	let client;
+	if (options.flatten) {
+		const fns = /* @__PURE__ */ new Map();
+		client = function client(tag, payload, options) {
+			let fn = fns.get(tag);
+			if (!fn) {
+				fn = onRequest(group.requests.get(tag));
+				fns.set(tag, fn);
+			}
+			return fn(payload, options);
+		};
+	} else {
+		client = {};
+		group.requests.forEach((rpc) => {
+			assignProperty(client, rpc._tag, onRequest(rpc));
+		});
+	}
+	return {
+		client,
+		write
+	};
+});
+let clientIdCounter = 0;
+const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
+	const clientId = clientIdCounter++;
+	const { codecFor, run, send, supportsAck, supportsTransferables } = yield* Protocol$1;
+	const rpcSchemas = makeRpcSchemas(codecFor);
+	const decodeDefect = decodeSync(codecFor(Defect()));
+	const entries = /* @__PURE__ */ new Map();
+	const closing = makeUnsafe$6();
+	const interruptRequest = (requestId) => {
+		if (!entries.has(requestId)) return void_$1;
+		entries.delete(requestId);
+		return send(clientId, {
+			_tag: "Interrupt",
+			requestId
+		});
+	};
+	const { client, write } = yield* makeNoSerialization$1(group, {
+		...options,
+		supportsAck,
+		onFromClient({ message }) {
+			switch (message._tag) {
+				case "Request": {
+					const rpc = group.requests.get(message.tag);
+					const collector = supportsTransferables ? makeCollectorUnsafe() : void 0;
+					const fiber = getCurrent();
+					const entry = {
+						rpc,
+						context: collector ? add$2(fiber.context, Collector, collector) : fiber.context,
+						schemas: rpcSchemas(rpc)
+					};
+					entries.set(message.id, entry);
+					return entry.schemas.encodePayload(message.payload).pipe(provideContext$2(entry.context), orDie, flatMap((payload) => {
+						if (isDoneUnsafe(closing)) {
+							entries.delete(message.id);
+							return interrupt$1;
+						}
+						return send(clientId, {
+							...message,
+							id: message.id,
+							payload,
+							headers: Object.entries(message.headers)
+						}, collector && collector.readUnsafe());
+					}), onError((cause) => hasInterruptsOnly(cause) ? void_$1 : sync(() => entries.delete(message.id))));
+				}
+				case "Ack":
+					if (!entries.get(message.requestId)) return void_$1;
+					return send(clientId, {
+						_tag: "Ack",
+						requestId: message.requestId
+					});
+				case "Interrupt": return interruptRequest(message.requestId);
+				case "Eof": return void_$1;
+			}
+		}
+	});
+	yield* run(clientId, (message) => {
+		switch (message._tag) {
+			case "Chunk": {
+				const requestId = RequestId$2(message.requestId);
+				const entry = entries.get(requestId);
+				if (!entry || isNone(entry.schemas.decodeChunk)) return void_$1;
+				const decodeChunk = entry.schemas.decodeChunk.value;
+				return uninterruptibleMask((restore) => restore(decodeChunk(message.values).pipe(provideContext$2(entry.context), orDie, flatMap((chunk) => write({
+					_tag: "Chunk",
+					clientId: 0,
+					requestId,
+					values: chunk
+				})))).pipe(onError((cause) => write({
+					_tag: "Exit",
+					clientId: 0,
+					requestId,
+					exit: failCause$5(cause)
+				}).pipe(andThen(hasInterrupts$1(cause) ? void_$1 : raceFirst(ignore$1(interruptRequest(requestId)), _await(closing))))), catchCauseIf((cause) => !hasInterrupts$1(cause), () => void_$1)));
+			}
+			case "Exit": {
+				const requestId = RequestId$2(message.requestId);
+				const entry = entries.get(requestId);
+				if (!entry) return void_$1;
+				entries.delete(requestId);
+				return entry.schemas.decodeExit(message.exit).pipe(provideContext$2(entry.context), orDie, matchCauseEffect({
+					onSuccess: (exit) => write({
+						_tag: "Exit",
+						clientId: 0,
+						requestId,
+						exit
+					}),
+					onFailure: (cause) => write({
+						_tag: "Exit",
+						clientId: 0,
+						requestId,
+						exit: failCause$5(cause)
+					})
+				}));
+			}
+			case "Defect":
+				entries.clear();
+				return write({
+					_tag: "Defect",
+					clientId: 0,
+					defect: decodeDefect(message.defect)
+				});
+			case "ClientProtocolError": {
+				const exit = fail$4(message.error);
+				const requestIds = Array.from(entries.keys());
+				entries.clear();
+				return forEach$1(requestIds, (requestId) => write({
+					_tag: "Exit",
+					clientId: 0,
+					requestId,
+					exit
+				})).pipe(uninterruptible);
+			}
+			default: return void_$1;
+		}
+	}).pipe(catchCause$2(logError), interruptible, forkScoped);
+	yield* addFinalizer(() => succeed$5(closing, void 0));
+	return client;
+});
+const makeRpcSchemas = (codecFor) => {
+	const cache = /* @__PURE__ */ new WeakMap();
+	return (rpc) => {
+		let entry = cache.get(rpc);
+		if (entry !== void 0) return entry;
+		const streamSchemas = getStreamSchemas(rpc.successSchema);
+		const parseOptions = get$2(rpc.annotations, ParseOptions);
+		entry = {
+			decodeChunk: map$10(streamSchemas, (streamSchemas) => decodeUnknownEffect(codecFor(NonEmptyArray(streamSchemas.success)), parseOptions)),
+			encodePayload: encodeEffect(codecFor(rpc.payloadSchema), parseOptions),
+			decodeExit: decodeUnknownEffect(codecFor(exitSchema(rpc)), parseOptions)
+		};
+		cache.set(rpc, entry);
+		return entry;
+	};
+};
+const CurrentHeaders = /*#__PURE__*/ Reference("effect/rpc/RpcClient/CurrentHeaders", { defaultValue: () => empty$6 });
+var Protocol$1 = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcClient/Protocol")) {
+	static make = withRunClient;
+};
+//#endregion
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcGroup.js
 const RpcGroupProto = {
 	add(...rpcs) {
 		const requests = new Map(this.requests);
@@ -18465,12 +19824,12 @@ const RpcGroupProto = {
 	annotateMerge(context) {
 		return makeProto({
 			requests: this.requests,
-			annotations: merge$1(this.annotations, context)
+			annotations: merge$2(this.annotations, context)
 		});
 	},
 	annotateRpcsMerge(context) {
 		const requests = /* @__PURE__ */ new Map();
-		for (const [tag, rpc] of this.requests) requests.set(tag, rpc.annotateMerge(merge$1(context, rpc.annotations)));
+		for (const [tag, rpc] of this.requests) requests.set(tag, rpc.annotateMerge(merge$2(context, rpc.annotations)));
 		return makeProto({
 			requests,
 			annotations: this.annotations
@@ -18481,12 +19840,12 @@ const makeProto = (options) => Object.assign(function() {}, RpcGroupProto, {
 	requests: options.requests,
 	annotations: options.annotations
 });
-const make$7 = (...rpcs) => makeProto({
+const make$6 = (...rpcs) => makeProto({
 	requests: new Map(rpcs.map((rpc) => [rpc._tag, rpc])),
 	annotations: empty$10()
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcMiddleware.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMiddleware.js
 const TypeId = "~effect/rpc/RpcMiddleware";
 const Service = () => (id, options) => {
 	const limit = getStackTraceLimit();
@@ -18509,23 +19868,24 @@ const Service = () => (id, options) => {
 	return ServiceClass;
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/McpSchema.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpSchema.js
 const optionalWithDefault = (schema, defaultValue) => {
 	const effect = sync(defaultValue);
-	return optionalKey(schema).pipe(decode$2({
+	return optionalKey(schema).pipe(decode$3({
 		decode: withDefault$2(effect),
 		encode: passthrough$1()
 	}), withConstructorDefault(effect));
 };
 const optional$4 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$5(schema)), {
 	decode: passthrough$1(),
-	encode: transformOptional(flatMap$3(fromUndefinedOr))
+	encode: transformOptional(flatMap$4(fromUndefinedOr))
 }));
-const RequestId$2 = /*#__PURE__*/ Union([String$2, Finite]);
+const UnknownObject$4 = /*#__PURE__*/ Record(String$2, Unknown);
+const RequestId$1 = /*#__PURE__*/ Union([String$2, Finite]);
 const ProgressToken$1 = /*#__PURE__*/ Union([String$2, Finite]);
-var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [JsonObject$4])) }))) {};
-var ResultMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(JsonObject$4) }))) {};
-var NotificationMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(JsonObject$4) }))) {};
+var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [UnknownObject$4])) }))) {};
+var ResultMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(UnknownObject$4) }))) {};
+var NotificationMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(UnknownObject$4) }))) {};
 const Cursor = String$2;
 ({ ...RequestMeta$1.fields });
 var PaginatedResultMeta = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
@@ -18561,7 +19921,7 @@ var ClientCapabilities$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSch
 		String$2,
 		"/",
 		String$2
-	]), Json)),
+	]), Unknown)),
 	roots: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) })),
 	sampling: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({
 		context: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
@@ -18578,7 +19938,7 @@ var ServerCapabilities$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ S
 		String$2,
 		"/",
 		String$2
-	]), Json)),
+	]), Unknown)),
 	logging: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
 	completions: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
 	prompts: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) })),
@@ -18599,6 +19959,7 @@ const INVALID_PARAMS_ERROR_CODE = -32602;
 const INTERNAL_ERROR_CODE = -32603;
 const PARSE_ERROR_CODE = -32700;
 const HEADER_MISMATCH_ERROR_CODE = -32020;
+const UNSUPPORTED_PROTOCOL_VERSION_ERROR_CODE = -32022;
 var ParseError = class extends (/*#__PURE__*/ Error$1("effect/ai/McpSchema/ParseError")({
 	...McpErrorBase.fields,
 	_tag: /*#__PURE__*/ tag$2("ParseError"),
@@ -18658,7 +20019,7 @@ var Initialize$4 = class extends (/*#__PURE__*/ make$8("initialize", {
 })) {};
 var CancelledNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/cancelled", { payload: {
 	...NotificationMeta$1.fields,
-	requestId: RequestId$2,
+	requestId: RequestId$1,
 	reason: /*#__PURE__*/ optional$4(String$2)
 } })) {};
 var ProgressNotification$2 = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
@@ -18677,12 +20038,12 @@ var Resource$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Resour
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
 	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
 	size: /*#__PURE__*/ optional$4(Int),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 })) {};
 var ResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	uri: String$2,
 	mimeType: /*#__PURE__*/ optional$4(String$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 }))) {};
 var TextResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	...ResourceContents$2.fields,
@@ -18715,33 +20076,33 @@ var Prompt$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Prompt")
 	description: /*#__PURE__*/ optional$4(String$2),
 	arguments: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(PromptArgument$2)),
 	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 })) {};
 var TextContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("text"),
 	text: String$2,
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 }))) {};
 var ImageContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("image"),
 	data: Uint8ArrayFromBase64,
 	mimeType: String$2,
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 }))) {};
 var AudioContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("audio"),
 	data: Uint8ArrayFromBase64,
 	mimeType: String$2,
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 }))) {};
 var EmbeddedResource$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("resource"),
 	resource: /*#__PURE__*/ Union([TextResourceContents$2, BlobResourceContents$2]),
 	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 }))) {};
 var ResourceLink$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	...Resource$3.fields,
@@ -18775,10 +20136,10 @@ var ToolAnnotations$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Stru
 }))) {};
 const ToolJson = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, JsonObject$4)),
+	properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([UnknownObject$4, Boolean$1]))),
 	required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
-}), [JsonObject$4]);
-const ToolOutputJson = JsonObject$4;
+}), [UnknownObject$4]);
+const ToolOutputJson = UnknownObject$4;
 var Tool$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
 	name: String$2,
 	title: /*#__PURE__*/ optional$4(String$2),
@@ -18787,13 +20148,13 @@ var Tool$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
 	outputSchema: /*#__PURE__*/ optional$4(ToolOutputJson),
 	annotations: /*#__PURE__*/ optional$4(ToolAnnotations$1),
 	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 })) {};
 ({ ...PaginatedResultMeta.fields });
 var CallToolResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CallToolResult")({
 	...ResultMeta$1.fields,
 	content: /*#__PURE__*/ ArraySchema(ContentBlock$2),
-	structuredContent: /*#__PURE__*/ optional$4(Json),
+	structuredContent: /*#__PURE__*/ optional$4(Unknown),
 	isError: /*#__PURE__*/ optional$4(Boolean$1)
 })) {};
 ({ ...RequestMeta$1.fields });
@@ -18820,15 +20181,15 @@ var ToolUseContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/
 	id: String$2,
 	name: String$2,
 	input: /*#__PURE__*/ Record(String$2, Unknown),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 })) {};
 var ToolResultContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolResultContent")({
 	type: /*#__PURE__*/ tag$2("tool_result"),
 	toolUseId: String$2,
 	content: /*#__PURE__*/ ArraySchema(ContentBlock$2),
-	structuredContent: /*#__PURE__*/ optional$4(Json),
+	structuredContent: /*#__PURE__*/ optional$4(Unknown),
 	isError: /*#__PURE__*/ optional$4(Boolean$1),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 })) {};
 const SamplingMessageContentBlock$1 = /*#__PURE__*/ Union([
 	TextContent$3,
@@ -18840,7 +20201,7 @@ const SamplingMessageContentBlock$1 = /*#__PURE__*/ Union([
 var SamplingMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	role: Role$1,
 	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 }))) {};
 var ToolChoice$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolChoice")({ mode: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals([
 	"auto",
@@ -18866,7 +20227,7 @@ var ModelPreferences$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchem
 var CreateMessageResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CreateMessageResult")({
 	role: Role$1,
 	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4),
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4),
 	model: String$2,
 	stopReason: /*#__PURE__*/ optional$4(String$2)
 })) {};
@@ -18894,7 +20255,7 @@ var CreateMessage$4 = class extends (/*#__PURE__*/ make$8("sampling/createMessag
 var Root$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Root")({
 	uri: String$2,
 	name: /*#__PURE__*/ optional$4(String$2),
-	_meta: /*#__PURE__*/ optional$4(JsonObject$4)
+	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
 })) {};
 var ListRootsResult$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ListRootsResult")({ roots: /*#__PURE__*/ ArraySchema(Root$2) })) {};
 var ListRoots$2 = class extends (/*#__PURE__*/ make$8("roots/list", {
@@ -19037,10 +20398,10 @@ var McpReverseOperationError = class extends (/*#__PURE__*/ TaggedError$1("McpRe
 var McpRequestContext = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/McpRequestContext")) {};
 var McpServerClient = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/McpServerClient")) {};
 var McpServerClientMiddleware = class extends (/*#__PURE__*/ Service()("effect/ai/McpSchema/McpServerClientMiddleware")) {};
-var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$7(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
+var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
 var EnabledWhen = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/EnabledWhen")) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpCore.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpCore.js
 const OperationOutcome = {
 	Complete: (value) => ({
 		_tag: "Complete",
@@ -19060,7 +20421,7 @@ var UnsupportedByProtocol = class extends (/*#__PURE__*/ TaggedError$1("Unsuppor
 var PromptNotFound = class extends (/*#__PURE__*/ TaggedError$1("PromptNotFound")) {};
 const ClientNotification = /*#__PURE__*/ taggedEnum();
 const ServerNotification = /*#__PURE__*/ taggedEnum();
-const make$6 = /*#__PURE__*/ sync(() => {
+const make$5 = /*#__PURE__*/ sync(() => {
 	const registrations = /* @__PURE__ */ new Map();
 	const resourceRegistrations = [];
 	const resourceTemplateRegistrations = [];
@@ -19076,7 +20437,7 @@ const make$6 = /*#__PURE__*/ sync(() => {
 				for (const registration of registrations.values()) if (registration.isVisible(profile)) descriptors.push(registration.descriptor);
 				return descriptors;
 			}),
-			call: (call, invocation) => suspend$2(() => {
+			call: (call, invocation) => suspend$3(() => {
 				const registration = registrations.get(call.name);
 				if (registration === void 0) return new ToolNotFound({ name: call.name });
 				if (!registration.isVisible(invocation.protocol)) return new ToolNotFound({ name: call.name });
@@ -19142,684 +20503,9 @@ const make$6 = /*#__PURE__*/ sync(() => {
 	};
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/workers/Transferable.js
-var Collector = class extends (/*#__PURE__*/ Service$1()("effect/workers/Transferable/Collector")) {};
-const makeCollectorUnsafe = () => {
-	let tranferables = [];
-	const unsafeAddAll = (transfers) => {
-		tranferables.push(...transfers);
-	};
-	const unsafeRead = () => tranferables;
-	const unsafeClear = () => {
-		const prev = tranferables;
-		tranferables = [];
-		return prev;
-	};
-	return Collector.of({
-		addAllUnsafe: unsafeAddAll,
-		addAll: (transferables) => sync(() => unsafeAddAll(transferables)),
-		readUnsafe: unsafeRead,
-		read: sync(unsafeRead),
-		clearUnsafe: unsafeClear,
-		clear: sync(unsafeClear)
-	});
-};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/internal/tracing.js
-const spanName = (spanPrefix, tag) => spanPrefix === void 0 ? tag : `${spanPrefix}.${tag}`;
-const spanAttributes = (tag, attributes) => ({
-	"rpc.system.name": "effect_rpc",
-	"rpc.method": tag,
-	...attributes
-});
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcMessage.js
-const RequestId$1 = (id) => id;
-const constEof = { _tag: "Eof" };
-const ResponseDefectEncoded = (encodedDefect) => ({
-	_tag: "Defect",
-	defect: encodedDefect
-});
-const constPong = { _tag: "Pong" };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcSerialization.js
-const codecForJson = toCodecJson;
-let sharedTextDecoder;
-const decodeText = (bytes) => (sharedTextDecoder ??= new TextDecoder()).decode(bytes);
-var RpcSerialization = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcSerialization")) {};
-var MaxBufferSizeExceeded = class extends (/*#__PURE__*/ TaggedError$1("MaxBufferSizeExceeded")) {
-	get message() {
-		return `RPC serialization buffer exceeded the maximum size of ${this.maxBufferSize}`;
-	}
-};
-const defaultMaxBufferSize = 16777216;
-const isBufferSizeExceeded = (bufferSize, maxBufferSize) => maxBufferSize !== "unbounded" && bufferSize > maxBufferSize;
-const makeNdjson = (options) => {
-	const maxBufferSize = options?.maxBufferSize ?? defaultMaxBufferSize;
-	return RpcSerialization.of({
-		contentType: "application/ndjson",
-		includesFraming: true,
-		codecFor: codecForJson,
-		makeUnsafe: () => {
-			let decoder;
-			let buffer = "";
-			const failMaxBufferSize = (maxBufferSize) => {
-				buffer = "";
-				throw new MaxBufferSizeExceeded({ maxBufferSize });
-			};
-			return {
-				decode: (bytes) => {
-					buffer += typeof bytes === "string" ? bytes : (decoder ??= new TextDecoder()).decode(bytes, { stream: true });
-					let position = 0;
-					let nlIndex = buffer.indexOf("\n", position);
-					const items = [];
-					while (nlIndex !== -1) {
-						if (isBufferSizeExceeded(nlIndex - position, maxBufferSize)) failMaxBufferSize(maxBufferSize);
-						const line = buffer.slice(position, nlIndex);
-						position = nlIndex + 1;
-						try {
-							items.push(JSON.parse(line));
-						} catch {}
-						nlIndex = buffer.indexOf("\n", position);
-					}
-					buffer = buffer.slice(position);
-					if (isBufferSizeExceeded(buffer.length, maxBufferSize)) failMaxBufferSize(maxBufferSize);
-					return items;
-				},
-				encode: (response) => {
-					if (Array.isArray(response)) {
-						if (response.length === 0) return void 0;
-						let data = "";
-						for (let i = 0; i < response.length; i++) data += JSON.stringify(response[i]) + "\n";
-						return data;
-					}
-					return JSON.stringify(response) + "\n";
-				}
-			};
-		}
-	});
-};
-const ndjson = /*#__PURE__*/ makeNdjson();
-const jsonRpc = (options) => RpcSerialization.of({
-	contentType: options?.contentType ?? "application/json",
-	includesFraming: false,
-	codecFor: codecForJson,
-	makeUnsafe: () => {
-		const batches = /* @__PURE__ */ new Map();
-		return {
-			decode: (bytes) => {
-				return decodeJsonRpcRaw(JSON.parse(typeof bytes === "string" ? bytes : decodeText(bytes)), batches);
-			},
-			encode: (response) => {
-				const encoded = encodeJsonRpcResponse(response, batches);
-				return encoded && JSON.stringify(encoded);
-			}
-		};
-	}
-});
-function decodeJsonRpcRaw(decoded, batches) {
-	if (Array.isArray(decoded)) {
-		const batch = {
-			size: 0,
-			responses: /* @__PURE__ */ new Map()
-		};
-		const messages = [];
-		for (let i = 0; i < decoded.length; i++) {
-			const item = decoded[i];
-			if (!isObject(item)) continue;
-			const message = decodeJsonRpcMessage(item);
-			messages.push(message);
-			if (message._tag === "Request" && !message.isNotification) {
-				batch.size++;
-				batches.set(message.id, batch);
-			}
-		}
-		return messages;
-	}
-	return isObject(decoded) ? [decodeJsonRpcMessage(decoded)] : [];
-}
-function decodeJsonRpcMessage(decoded) {
-	if (Object.hasOwn(decoded, "method")) {
-		const request = decoded;
-		if (isNullish(request.id) && isString(request.method) && request.method.startsWith("@effect/rpc/")) {
-			const tag = request.method.slice(12);
-			const requestId = request.params?.requestId;
-			return requestId !== void 0 ? {
-				_tag: tag,
-				requestId
-			} : { _tag: tag };
-		}
-		return {
-			_tag: "Request",
-			id: request.id ?? "",
-			tag: request.method,
-			payload: request.params ?? null,
-			headers: request.headers ?? [],
-			...hasProperty(request, "id") ? {} : { isNotification: true },
-			...request.spanId ? {
-				traceId: request.traceId,
-				spanId: request.spanId,
-				sampled: request.sampled
-			} : {}
-		};
-	}
-	const response = decoded;
-	const hasError = Object.hasOwn(response, "error");
-	if (hasError && response.error && response.error._tag === "Defect") return {
-		_tag: "Defect",
-		defect: response.error.data
-	};
-	else if (Object.hasOwn(response, "chunk") && response.chunk === true) return {
-		_tag: "Chunk",
-		requestId: response.id ?? "",
-		values: response.result
-	};
-	return {
-		_tag: "Exit",
-		requestId: response.id ?? "",
-		exit: hasError && response.error != null ? {
-			_tag: "Failure",
-			cause: response.error._tag === "Cause" ? response.error.data : [{
-				_tag: "Fail",
-				error: response.error
-			}]
-		} : {
-			_tag: "Success",
-			value: response.result
-		}
-	};
-}
-function encodeJsonRpcRaw(response, batches) {
-	if (!("requestId" in response)) return encodeJsonRpcMessage(response);
-	const batch = batches.get(response.requestId);
-	if (batch) {
-		batches.delete(response.requestId);
-		batch.responses.set(response.requestId, response);
-		if (batch.size === batch.responses.size) return Array.from(batch.responses.values(), encodeJsonRpcMessage);
-		return;
-	}
-	return encodeJsonRpcMessage(response);
-}
-function encodeJsonRpcResponse(response, batches) {
-	if (Array.isArray(response) === false) return encodeJsonRpcRaw(response, batches);
-	if (response.length === 0) return;
-	const encoded = [];
-	for (let i = 0; i < response.length; i++) {
-		const current = encodeJsonRpcRaw(response[i], batches);
-		if (current !== void 0) encoded.push(current);
-	}
-	if (encoded.length === 0) return;
-	if (encoded.length === 1) return encoded[0];
-	const messages = [];
-	for (let i = 0; i < encoded.length; i++) {
-		const current = encoded[i];
-		if (Array.isArray(current)) messages.push(...current);
-		else messages.push(current);
-	}
-	return messages;
-}
-function encodeJsonRpcMessage(response) {
-	switch (response._tag) {
-		case "Request": return {
-			jsonrpc: "2.0",
-			method: response.tag,
-			params: response.payload,
-			...response.isNotification ? {} : { id: response.id },
-			...response.headers?.length > 0 ? { headers: response.headers } : {},
-			traceId: response.traceId,
-			spanId: response.spanId,
-			sampled: response.sampled
-		};
-		case "Ping":
-		case "Pong":
-		case "Interrupt":
-		case "Ack":
-		case "Eof": return {
-			jsonrpc: "2.0",
-			method: `@effect/rpc/${response._tag}`,
-			params: "requestId" in response ? { requestId: response.requestId } : void 0
-		};
-		case "Chunk": return {
-			jsonrpc: "2.0",
-			chunk: true,
-			id: response.requestId,
-			result: response.values
-		};
-		case "Exit": {
-			if (response.exit._tag === "Success") return {
-				jsonrpc: "2.0",
-				id: response.requestId ?? void 0,
-				result: response.exit.value
-			};
-			const failure = response.exit.cause.find((failure) => failure._tag === "Fail");
-			const error = failure?._tag === "Fail" ? failure.error : void 0;
-			return {
-				jsonrpc: "2.0",
-				id: response.requestId ?? void 0,
-				error: response.exit._tag === "Failure" ? {
-					_tag: "Cause",
-					code: error && hasProperty(error, "code") ? Number(error.code) : 0,
-					message: error && hasProperty(error, "message") ? error.message : JSON.stringify(response.exit.cause),
-					data: response.exit.cause
-				} : void 0
-			};
-		}
-		case "Defect": return {
-			jsonrpc: "2.0",
-			id: jsonRpcInternalError,
-			error: {
-				_tag: "Defect",
-				code: 1,
-				message: "A defect occurred",
-				data: response.defect
-			}
-		};
-		case "ClientProtocolError": return {};
-	}
-}
-const jsonRpcInternalError = -32603;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/Utils.js
-const withRun = () => (f) => suspend$2(() => {
-	const semaphore = makeUnsafe$1(1);
-	let buffer = [];
-	let write = (...args) => contextWith((context) => {
-		buffer.push([args, context]);
-		return void_$1;
-	});
-	return map$4(f((...args) => write(...args)), (a) => ({
-		...a,
-		run(f) {
-			return semaphore.withPermits(1)(gen(function* () {
-				const prev = write;
-				for (const [args, context] of buffer) yield* provideContext$2(suspend$2(() => f(...args)), context);
-				buffer = [];
-				write = f;
-				return yield* onExit$1(never$1, () => {
-					write = prev;
-					return void_$1;
-				});
-			}));
-		}
-	}));
-});
-const withRunClient = (f) => suspend$2(() => {
-	const clientIds = /* @__PURE__ */ new Set();
-	const clientBuffers = /* @__PURE__ */ new Map();
-	const clientWrites = /* @__PURE__ */ new Map();
-	let write = (clientId, data) => contextWith((context) => {
-		let buffer = clientBuffers.get(clientId);
-		if (!buffer) {
-			buffer = [];
-			clientBuffers.set(clientId, buffer);
-		}
-		buffer.push([data, context]);
-		return void_$1;
-	});
-	return map$4(f((clientId, data) => {
-		const clientWrite = clientWrites.get(clientId);
-		if (clientWrite) return clientWrite(data);
-		return write(clientId, data);
-	}, clientIds), (a) => ({
-		...a,
-		run(clientId, f) {
-			return gen(function* () {
-				clientIds.add(clientId);
-				clientWrites.set(clientId, f);
-				const buffer = clientBuffers.get(clientId);
-				if (buffer) {
-					clientBuffers.delete(clientId);
-					for (const [args, context] of buffer) yield* provideContext$2(suspend$2(() => f(args)), context);
-				}
-				return yield* onExit$1(never$1, () => {
-					clientIds.delete(clientId);
-					clientWrites.delete(clientId);
-					return void_$1;
-				});
-			});
-		}
-	}));
-});
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcClient.js
-let requestIdCounter = 0;
-const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options) {
-	const spanPrefix = options.spanPrefix;
-	const supportsAck = options?.supportsAck ?? true;
-	const disableTracing = options?.disableTracing ?? false;
-	const generateRequestId = options?.generateRequestId ?? (() => requestIdCounter++);
-	const services = yield* context();
-	const scope = get$2(services, Scope);
-	const entries = /* @__PURE__ */ new Map();
-	let isShutdown = false;
-	yield* addFinalizer$1(scope, withFiber((parent) => {
-		isShutdown = true;
-		return clearEntries(interrupt$2(parent.id));
-	}));
-	const clearEntries = fnUntraced(function* (exit) {
-		for (const [id, entry] of entries) {
-			entries.delete(id);
-			if (entry._tag === "Queue") yield* exit._tag === "Success" ? end(entry.queue) : failCause$2(entry.queue, exit.cause);
-			else entry.resume(exit);
-		}
-	});
-	const onRequest = (rpc) => {
-		const isStream = isStreamSchema(rpc.successSchema);
-		const middleware = getRpcClientMiddleware(rpc);
-		return (payload, opts) => {
-			const headers = opts?.headers ? fromInput$1(opts.headers) : empty$7;
-			const context = opts?.context ?? empty$10();
-			if (!isStream) {
-				const onRequest = (span) => onEffectRequest(rpc, middleware, span, rpc.payloadSchema.make(payload), headers, context, opts?.discard ?? false);
-				return disableTracing ? onRequest(void 0) : useSpan(spanName(spanPrefix, rpc._tag), {
-					kind: "client",
-					attributes: spanAttributes(rpc._tag, options.spanAttributes)
-				}, onRequest);
-			}
-			const queue = onStreamRequest(rpc, middleware, rpc.payloadSchema.make(payload), headers, opts?.streamBufferSize ?? 16, context);
-			if (opts?.asQueue) return queue;
-			return unwrap(map$4(queue, fromQueue));
-		};
-	};
-	const onEffectRequest = (rpc, middleware, span, payload, headers, context, discard) => withFiber((parentFiber) => {
-		if (isShutdown) return interrupt$1;
-		const id = generateRequestId();
-		const send = middleware((message) => options.onFromClient({
-			message,
-			context,
-			discard
-		}), {
-			_tag: "Request",
-			id,
-			tag: rpc._tag,
-			payload,
-			...span ? {
-				traceId: span.traceId,
-				spanId: span.spanId,
-				sampled: span.sampled
-			} : {},
-			headers: merge(parentFiber.getRef(CurrentHeaders), headers)
-		});
-		if (discard) return send;
-		let fiber;
-		return onInterrupt(callback$1((resume) => {
-			const entry = {
-				_tag: "Effect",
-				rpc,
-				context,
-				resume(exit) {
-					resume(exit);
-					if (fiber && !fiber.pollUnsafe()) parentFiber.currentDispatcher.scheduleTask(() => {
-						fiber.interruptUnsafe(parentFiber.id);
-					}, 0);
-				}
-			};
-			entries.set(id, entry);
-			fiber = send.pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, runForkWith(parentFiber.context));
-			fiber.addObserver((exit) => {
-				if (exit._tag === "Failure") return resume(exit);
-			});
-		}), (interruptors) => {
-			entries.delete(id);
-			return andThen(interrupt(fiber), sendInterrupt(id, Array.from(interruptors), context));
-		});
-	});
-	const onStreamRequest = fnUntraced(function* (rpc, middleware, payload, headers, streamBufferSize, context) {
-		if (isShutdown) return yield* interrupt$1;
-		const span = disableTracing ? void 0 : yield* makeSpanScoped(spanName(spanPrefix, rpc._tag), {
-			kind: "client",
-			attributes: spanAttributes(rpc._tag, options.spanAttributes)
-		});
-		const fiber = getCurrent();
-		const id = generateRequestId();
-		const scope = getUnsafe(fiber.context, Scope);
-		const queue = yield* bounded(streamBufferSize);
-		yield* addFinalizerExit(scope, (exit) => {
-			shutdownUnsafe(queue);
-			if (!entries.has(id)) return void_$1;
-			entries.delete(id);
-			return sendInterrupt(id, isFailure(exit) ? Array.from(interruptors(exit.cause)) : [], context);
-		});
-		entries.set(id, {
-			_tag: "Queue",
-			rpc,
-			queue,
-			scope,
-			context
-		});
-		yield* middleware((message) => options.onFromClient({
-			message,
-			context,
-			discard: false
-		}), {
-			_tag: "Request",
-			id,
-			tag: rpc._tag,
-			payload,
-			...span ? {
-				traceId: span.traceId,
-				spanId: span.spanId,
-				sampled: span.sampled
-			} : {},
-			headers: merge(fiber.getRef(CurrentHeaders), headers)
-		}).pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, onError((cause) => failCause$2(queue, cause)), interruptible, forkIn(scope, { startImmediately: true }));
-		return queue;
-	});
-	const getRpcClientMiddleware = (rpc) => {
-		const middlewares = [];
-		for (const tag of rpc.middlewares.values()) {
-			const middleware = getOrUndefinedUnsafe(services, `${tag.key}/Client`);
-			if (!middleware) continue;
-			middlewares.push(middleware);
-		}
-		if (middlewares.length === 0) return (send, request) => send(request);
-		return function loop(send, request, index = middlewares.length - 1) {
-			if (index === -1) return send(request);
-			return middlewares[index]({
-				rpc,
-				request,
-				next(request) {
-					return loop(send, request, index - 1);
-				}
-			});
-		};
-	};
-	const sendInterrupt = (requestId, interruptors, context) => callback$1((resume) => {
-		const parentFiber = getCurrent();
-		options.onFromClient({
-			message: {
-				_tag: "Interrupt",
-				requestId,
-				interruptors
-			},
-			context,
-			discard: false
-		}).pipe(timeout(1e3), runForkWith(parentFiber.context)).addObserver(() => {
-			resume(void_$1);
-		});
-	});
-	const write = (message) => {
-		switch (message._tag) {
-			case "Chunk": {
-				const requestId = message.requestId;
-				const entry = entries.get(requestId);
-				if (!entry || entry._tag !== "Queue") return void_$1;
-				return offerAll(entry.queue, message.values).pipe(supportsAck ? flatMap(() => options.onFromClient({
-					message: {
-						_tag: "Ack",
-						requestId: message.requestId
-					},
-					context: entry.context,
-					discard: false
-				})) : identity, catchCause$1((cause) => failCause$2(entry.queue, cause)));
-			}
-			case "Exit": {
-				const requestId = message.requestId;
-				const entry = entries.get(requestId);
-				if (!entry) return void_$1;
-				entries.delete(requestId);
-				if (entry._tag === "Effect") {
-					entry.resume(message.exit);
-					return void_$1;
-				}
-				return message.exit._tag === "Success" ? end(entry.queue) : failCause$2(entry.queue, message.exit.cause);
-			}
-			case "Defect": return clearEntries(die$1(message.defect));
-			case "ClientEnd": return void_$1;
-		}
-	};
-	let client;
-	if (options.flatten) {
-		const fns = /* @__PURE__ */ new Map();
-		client = function client(tag, payload, options) {
-			let fn = fns.get(tag);
-			if (!fn) {
-				fn = onRequest(group.requests.get(tag));
-				fns.set(tag, fn);
-			}
-			return fn(payload, options);
-		};
-	} else {
-		client = {};
-		group.requests.forEach((rpc) => {
-			assignProperty(client, rpc._tag, onRequest(rpc));
-		});
-	}
-	return {
-		client,
-		write
-	};
-});
-let clientIdCounter = 0;
-const make$5 = /*#__PURE__*/ fnUntraced(function* (group, options) {
-	const clientId = clientIdCounter++;
-	const { codecFor, run, send, supportsAck, supportsTransferables } = yield* Protocol$1;
-	const rpcSchemas = makeRpcSchemas(codecFor);
-	const decodeDefect = decodeSync(codecFor(Defect()));
-	const entries = /* @__PURE__ */ new Map();
-	const interruptRequest = (requestId) => {
-		if (!entries.has(requestId)) return void_$1;
-		entries.delete(requestId);
-		return send(clientId, {
-			_tag: "Interrupt",
-			requestId
-		});
-	};
-	const { client, write } = yield* makeNoSerialization$1(group, {
-		...options,
-		supportsAck,
-		onFromClient({ message }) {
-			switch (message._tag) {
-				case "Request": {
-					const rpc = group.requests.get(message.tag);
-					const collector = supportsTransferables ? makeCollectorUnsafe() : void 0;
-					const fiber = getCurrent();
-					const entry = {
-						rpc,
-						context: collector ? add$2(fiber.context, Collector, collector) : fiber.context,
-						schemas: rpcSchemas(rpc)
-					};
-					entries.set(message.id, entry);
-					return entry.schemas.encodePayload(message.payload).pipe(provideContext$2(entry.context), orDie, flatMap((payload) => send(clientId, {
-						...message,
-						id: message.id,
-						payload,
-						headers: Object.entries(message.headers)
-					}, collector && collector.readUnsafe())));
-				}
-				case "Ack":
-					if (!entries.get(message.requestId)) return void_$1;
-					return send(clientId, {
-						_tag: "Ack",
-						requestId: message.requestId
-					});
-				case "Interrupt": return interruptRequest(message.requestId);
-				case "Eof": return void_$1;
-			}
-		}
-	});
-	yield* run(clientId, (message) => {
-		switch (message._tag) {
-			case "Chunk": {
-				const requestId = RequestId$1(message.requestId);
-				const entry = entries.get(requestId);
-				if (!entry || isNone(entry.schemas.decodeChunk)) return void_$1;
-				const decodeChunk = entry.schemas.decodeChunk.value;
-				return uninterruptibleMask((restore) => restore(decodeChunk(message.values).pipe(provideContext$2(entry.context), orDie, flatMap((chunk) => write({
-					_tag: "Chunk",
-					clientId: 0,
-					requestId,
-					values: chunk
-				})))).pipe(onError((cause) => write({
-					_tag: "Exit",
-					clientId: 0,
-					requestId,
-					exit: failCause$5(cause)
-				}).pipe(andThen(hasInterrupts$1(cause) ? void_$1 : ignore$1(interruptRequest(requestId))))), catchCauseIf((cause) => !hasInterrupts$1(cause), () => void_$1)));
-			}
-			case "Exit": {
-				const requestId = RequestId$1(message.requestId);
-				const entry = entries.get(requestId);
-				if (!entry) return void_$1;
-				entries.delete(requestId);
-				return entry.schemas.decodeExit(message.exit).pipe(provideContext$2(entry.context), orDie, matchCauseEffect({
-					onSuccess: (exit) => write({
-						_tag: "Exit",
-						clientId: 0,
-						requestId,
-						exit
-					}),
-					onFailure: (cause) => write({
-						_tag: "Exit",
-						clientId: 0,
-						requestId,
-						exit: failCause$5(cause)
-					})
-				}));
-			}
-			case "Defect": return write({
-				_tag: "Defect",
-				clientId: 0,
-				defect: decodeDefect(message.defect)
-			});
-			case "ClientProtocolError": {
-				const exit = fail$4(message.error);
-				return forEach$1(Array.from(entries.keys()), (requestId) => write({
-					_tag: "Exit",
-					clientId: 0,
-					requestId,
-					exit
-				}));
-			}
-			default: return void_$1;
-		}
-	}).pipe(catchCause$1(logError), interruptible, forkScoped);
-	return client;
-});
-const makeRpcSchemas = (codecFor) => {
-	const cache = /* @__PURE__ */ new WeakMap();
-	return (rpc) => {
-		let entry = cache.get(rpc);
-		if (entry !== void 0) return entry;
-		const streamSchemas = getStreamSchemas(rpc.successSchema);
-		entry = {
-			decodeChunk: map$10(streamSchemas, (streamSchemas) => decodeUnknownEffect(codecFor(NonEmptyArray(streamSchemas.success)))),
-			encodePayload: encodeEffect(codecFor(rpc.payloadSchema)),
-			decodeExit: decodeUnknownEffect(codecFor(exitSchema(rpc)))
-		};
-		cache.set(rpc, entry);
-		return entry;
-	};
-};
-const CurrentHeaders = /*#__PURE__*/ Reference("effect/rpc/RpcClient/CurrentHeaders", { defaultValue: () => empty$7 });
-var Protocol$1 = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcClient/Protocol")) {
-	static make = withRunClient;
-};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpProtocol.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol.js
 const LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE = -32002;
 const BASE64_SENTINEL_PREFIX = "=?base64?";
-const BASE64_SENTINEL_SUFFIX = "?=";
 const routingHeaderDecoder = /*#__PURE__*/ new TextDecoder("utf-8", {
 	fatal: true,
 	ignoreBOM: true
@@ -19860,9 +20546,9 @@ const mcpLogLevels = {
 };
 const decodeRoutingHeader = (value) => {
 	const startsWithSentinel = value.startsWith(BASE64_SENTINEL_PREFIX);
-	const endsWithSentinel = value.endsWith(BASE64_SENTINEL_SUFFIX);
+	const endsWithSentinel = value.endsWith("?=");
 	if (!startsWithSentinel || !endsWithSentinel) return /^[\t\x20-\x7e]*$/.test(value) ? value : void 0;
-	const decoded = decode$3(value.slice(9, -2));
+	const decoded = decode$4(value.slice(9, -2));
 	if (isFailure$1(decoded)) return void 0;
 	try {
 		return routingHeaderDecoder.decode(decoded.success);
@@ -19892,6 +20578,10 @@ const requireCompleteOperation = (protocolVersion, outcome) => outcome._tag === 
 	protocolVersion,
 	feature: "Client input"
 }));
+const projectLegacyToolInputSchema = (inputSchema) => ({
+	...inputSchema,
+	properties: inputSchema.properties === void 0 ? void 0 : Object.fromEntries(Object.entries(inputSchema.properties).map(([name, schema]) => [name, typeof schema === "boolean" ? schema ? {} : { not: {} } : schema]))
+});
 const unwrapStringStructuredContent = (result) => {
 	const { content, structuredContent } = result;
 	if (typeof structuredContent !== "string" || content.length !== 1) return content;
@@ -19926,11 +20616,11 @@ var ProtocolError = class ProtocolError extends (/*#__PURE__*/ TaggedError$1("Pr
 	}
 	static fromFeature(error) {
 		if (hasProperty(error, "_tag")) {
-			if (error._tag === "PromptNotFound" && hasProperty(error, "name") && isString(error.name)) return new ProtocolError({
+			if (error._tag === "PromptNotFound" && hasProperty(error, "name") && isString$1(error.name)) return new ProtocolError({
 				code: INVALID_PARAMS_ERROR_CODE,
 				message: `Prompt '${error.name}' not found`
 			});
-			if (error._tag === "ResourceNotFound" && hasProperty(error, "uri") && isString(error.uri)) return new ProtocolError({
+			if (error._tag === "ResourceNotFound" && hasProperty(error, "uri") && isString$1(error.uri)) return new ProtocolError({
 				code: LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE,
 				message: `Resource '${error.uri}' not found`
 			});
@@ -20028,8 +20718,8 @@ const make$4 = (options) => {
 		}
 		return codecs;
 	};
-	const installHandlers = (core, lifecycle, target) => options.handlerRpcs === void 0 || options.makeHandlers === void 0 ? void_$1 : lifecycle === void 0 && options.runtime._tag === "Stateful" ? die("MCP sessionful handler installation requires a lifecycle runtime") : target.install(options, options.handlerRpcs, options.makeHandlers(core, options.runtime._tag === "Stateful" ? lifecycle : void 0, target.context));
-	const makeReverseClient = (profile) => make$5(options.serverRequestRpcs, { spanPrefix: "McpServer/Client" }).pipe(map$4((client) => options.toReverseClient(profile, client)));
+	const installHandlers = (core, lifecycle, target) => options.handlerRpcs === void 0 || options.makeHandlers === void 0 ? void_$1 : lifecycle === void 0 && options.runtime._tag === "Stateful" ? die$2("MCP sessionful handler installation requires a lifecycle runtime") : target.install(options, options.handlerRpcs, options.makeHandlers(core, options.runtime._tag === "Stateful" ? lifecycle : void 0, target.context));
+	const makeReverseClient = (profile) => make$7(options.serverRequestRpcs, { spanPrefix: "McpServer/Client" }).pipe(map$4((client) => options.toReverseClient(profile, client)));
 	return {
 		...options,
 		payloadCodecs,
@@ -20038,7 +20728,7 @@ const make$4 = (options) => {
 	};
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
 const prefix = (protocol) => `@effect/mcp/${encodeURIComponent(protocol.protocolVersion)}/`;
 const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 	if (protocols.length === 0) return yield* new IllegalArgumentError("MCP protocol declaration must contain at least one MCP protocol");
@@ -20066,7 +20756,7 @@ const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 				for (const rpcDefinition of rpcs.requests.values()) {
 					const namespacedRpc = clientRpcs.requests.get(`${prefix(protocol)}${rpcDefinition._tag}`);
 					const handler = handlerContext.mapUnsafe.get(rpcDefinition.key);
-					if (namespacedRpc === void 0 || handler === void 0) return yield* die(`MCP handler registration invariant failed for ${protocol.protocolVersion}/${rpcDefinition._tag}`);
+					if (namespacedRpc === void 0 || handler === void 0) return yield* die$2(`MCP handler registration invariant failed for ${protocol.protocolVersion}/${rpcDefinition._tag}`);
 					contextMap.set(namespacedRpc.key, handler);
 				}
 			})
@@ -20074,7 +20764,7 @@ const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 	};
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
 const MCP_SESSION_ID_HEADER$2 = "mcp-session-id";
 const makeSession = (registration) => ({
 	initializePayload: registration.initializePayload,
@@ -20155,14 +20845,13 @@ const make$2 = () => {
 	};
 };
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpRuntime.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpRuntime.js
 const MCP_SESSION_ID_HEADER$1 = "mcp-session-id";
 const MCP_PROTOCOL_VERSION_HEADER$1 = "mcp-protocol-version";
 const MCP_METHOD_HEADER = "mcp-method";
 const MCP_NAME_HEADER = "mcp-name";
 const PROTOCOL_VERSION_METADATA_KEY = "io.modelcontextprotocol/protocolVersion";
 const CLIENT_CAPABILITIES_METADATA_KEY = "io.modelcontextprotocol/clientCapabilities";
-const UNSUPPORTED_PROTOCOL_VERSION_ERROR_CODE = -32022;
 const asRecord = (input) => typeof input === "object" && input !== null ? input : void 0;
 const protocolVersionClaim = (input) => {
 	const metadata = asRecord(input);
@@ -20191,7 +20880,7 @@ const headerMismatch = (message) => ({
 		message
 	}
 });
-const PingRpcs = /*#__PURE__*/ make$7(Ping$1);
+const PingRpcs = /*#__PURE__*/ make$6(Ping$1);
 const stateful = (transport) => ({
 	_tag: "Stateful",
 	transport
@@ -20318,7 +21007,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 				binding
 			};
 			if (request.isNotification && request.tag === "notifications/cancelled") return { protocol };
-			if (statelessDescriptor === void 0) return yield* die("MCP stateless runtime invariant failed");
+			if (statelessDescriptor === void 0) return yield* die$2("MCP stateless runtime invariant failed");
 			if (requestedVersion !== void 0 && requestedVersion !== protocol.protocolVersion) return yield* new ProtocolError(unsupportedProtocolVersion(requestedVersion));
 			const decodedProfile = yield* statelessDescriptor.profileFromRequestMetadata(metadata);
 			const profile = {
@@ -20392,7 +21081,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 		},
 		effectLogLevel: (clientId, headers, fallback) => stateful?.effectLogLevel(clientId, headers, fallback) ?? fallback,
 		disconnect: (clientId) => stateful?.disconnect(clientId),
-		terminateHttpSession: (headers) => suspend$2(() => {
+		terminateHttpSession: (headers) => suspend$3(() => {
 			const sessionId = headers[MCP_SESSION_ID_HEADER$1];
 			if (sessionId === void 0) return succeed$3(empty({ status: 400 }));
 			const selection = selectHttpSession(headers, false);
@@ -20412,6 +21101,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 			const contextMap = /* @__PURE__ */ new Map();
 			const installationContext = {
 				subscribeServerNotifications: options.subscribeServerNotifications,
+				getListChangeRevision: options.getListChangeRevision,
 				...options.sendNotification === void 0 ? {} : { sendNotification: options.sendNotification },
 				...options.markSubscriptionCancelled === void 0 ? {} : { markSubscriptionCancelled: options.markSubscriptionCancelled },
 				...options.terminateSubscription === void 0 ? {} : { terminateSubscription: options.terminateSubscription },
@@ -20425,7 +21115,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 					yield* protocol.installHandlers(options.core, void 0, handlerTarget);
 					continue;
 				}
-				if (stateful === void 0) return yield* die("MCP sessionful runtime invariant failed");
+				if (stateful === void 0) return yield* die$2("MCP sessionful runtime invariant failed");
 				yield* handlerTarget.install(protocol, PingRpcs, PingRpcs.of({ ping: () => succeed$3({}) }));
 				const lifecycle = {
 					initialize: fnUntraced(function* (protocolVersion, profile, clientId) {
@@ -20458,7 +21148,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 							if (httpRequest !== void 0) {
 								const sessionId = crypto.randomUUID();
 								stateful.registerHttp(sessionId, registration);
-								appendPreResponseHandlerUnsafe(httpRequest, (_request, response) => succeed$3(setHeaders(response, {
+								appendPreResponseHandlerUnsafe(fiber.context, (_request, response) => succeed$3(setHeaders(response, {
 									[MCP_SESSION_ID_HEADER$1]: sessionId,
 									[MCP_PROTOCOL_VERSION_HEADER$1]: protocol.protocolVersion
 								})));
@@ -20491,13 +21181,13 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 });
 const layer$4 = (protocols) => effect(ServerRuntime)(make$1(protocols));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
 const protocolVersion$3 = "2024-11-05";
 const optional$3 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$5(schema)), {
 	decode: passthrough$1(),
-	encode: transformOptional(flatMap$3(fromUndefinedOr))
+	encode: transformOptional(flatMap$4(fromUndefinedOr))
 }));
-const JsonObject$2 = JsonObject$4;
+const UnknownObject$3 = /*#__PURE__*/ Record(String$2, Unknown);
 const RequestId = /*#__PURE__*/ Union([String$2, Finite]);
 const ProgressToken = /*#__PURE__*/ Union([String$2, Finite]);
 const Role = /*#__PURE__*/ Literals(["user", "assistant"]);
@@ -20511,9 +21201,9 @@ const LoggingLevel = /*#__PURE__*/ Literals([
 	"alert",
 	"emergency"
 ]);
-const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) }), [JsonObject$4])) });
-const NotificationMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(JsonObject$2) });
-const ResultMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(JsonObject$2) });
+const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) }), [UnknownObject$3])) });
+const NotificationMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(UnknownObject$3) });
+const ResultMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(UnknownObject$3) });
 const PaginatedRequest = /*#__PURE__*/ Struct({
 	...RequestMeta.fields,
 	cursor: /*#__PURE__*/ optional$3(String$2)
@@ -20531,19 +21221,19 @@ const ClientCapabilities$2 = /*#__PURE__*/ Struct({
 		String$2,
 		"/",
 		String$2
-	]), Json)),
-	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, JsonObject$2)),
+	]), Unknown)),
+	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, UnknownObject$3)),
 	roots: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean$1) })),
-	sampling: /*#__PURE__*/ optional$3(JsonObject$2)
+	sampling: /*#__PURE__*/ optional$3(UnknownObject$3)
 });
 const ServerCapabilities$2 = /*#__PURE__*/ Struct({
 	extensions: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
 		String$2,
 		"/",
 		String$2
-	]), Json)),
-	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, JsonObject$2)),
-	logging: /*#__PURE__*/ optional$3(JsonObject$2),
+	]), Unknown)),
+	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, UnknownObject$3)),
+	logging: /*#__PURE__*/ optional$3(UnknownObject$3),
 	prompts: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean$1) })),
 	resources: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({
 		subscribe: /*#__PURE__*/ optional$3(Boolean$1),
@@ -20630,7 +21320,7 @@ const Tool$3 = /*#__PURE__*/ Struct({
 	description: /*#__PURE__*/ optional$3(String$2),
 	inputSchema: /* @__PURE__ */ Struct({
 		type: /*#__PURE__*/ Literal("object"),
-		properties: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, JsonObject$2)),
+		properties: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, UnknownObject$3)),
 		required: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(String$2))
 	})
 });
@@ -20810,7 +21500,7 @@ var CallTool$3 = class extends (/*#__PURE__*/ make$8("tools/call", {
 	payload: {
 		...RequestMeta.fields,
 		name: String$2,
-		arguments: /*#__PURE__*/ optional$3(JsonObject$2)
+		arguments: /*#__PURE__*/ optional$3(UnknownObject$3)
 	}
 })) {};
 var ListTools$3 = class extends (/*#__PURE__*/ make$8("tools/list", {
@@ -20834,7 +21524,7 @@ var CreateMessage$3 = class extends (/*#__PURE__*/ make$8("sampling/createMessag
 		temperature: /*#__PURE__*/ optional$3(Finite),
 		maxTokens: Finite,
 		stopSequences: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$3(JsonObject$2)
+		metadata: /*#__PURE__*/ optional$3(UnknownObject$3)
 	}
 })) {};
 var ListRoots$1 = class extends (/*#__PURE__*/ make$8("roots/list", {
@@ -20868,12 +21558,12 @@ var ResourceUpdatedNotification = class extends (/*#__PURE__*/ make$8("notificat
 var ResourceListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
 var ToolListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
 var PromptListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$7(Ping, Initialize$3, Complete$1, SetLevel, GetPrompt$3, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$3, ListTools$3)) {};
-var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$7(Ping, CreateMessage$3, ListRoots$1)) {};
-var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification$1, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$3, Complete$1, SetLevel, GetPrompt$3, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$3, ListTools$3)) {};
+var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$3, ListRoots$1)) {};
+var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification$1, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
 const ClientRpcs$3 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$3.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$3);
 const AdapterRpcs$3 = /*#__PURE__*/ ClientRpcs$3.omit("ping");
 const profileFromInitialize$2 = (initialize) => ({
@@ -20903,7 +21593,7 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 	})), when({ type: "image" }, (content) => ImageContent$2.make({
 		type: "image",
 		mimeType: content.mimeType,
-		data: encode(content.data),
+		data: encode$1(content.data),
 		annotations: content.annotations
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
@@ -20921,7 +21611,7 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 			resource: {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
-				blob: encode(resource.blob)
+				blob: encode$1(resource.blob)
 			},
 			annotations: content.annotations
 		});
@@ -20972,7 +21662,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 				} : {
 					uri: content.uri,
 					mimeType: content.mimeType,
-					blob: encode(content.blob)
+					blob: encode$1(content.blob)
 				}),
 				_meta: result._meta
 			});
@@ -21033,7 +21723,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 			return yield* core.tools.list(profileFromClient(request)).pipe(map$4((tools) => ListToolsResult$3.make({ tools: tools.map((tool) => Tool$3.make({
 				name: tool.name,
 				description: tool.description,
-				inputSchema: tool.inputSchema
+				inputSchema: projectLegacyToolInputSchema(tool.inputSchema)
 			})) })));
 		}),
 		"tools/call": fnUntraced(function* (call) {
@@ -21073,9 +21763,10 @@ const protocol$3 = /*#__PURE__*/ make$4({
 	})))
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
 const protocolVersion$2 = "2025-03-26";
 const optional$2 = optional$3;
+const UnknownObject$2 = UnknownObject$3;
 const ServerCapabilities$1 = /*#__PURE__*/ Struct({
 	...ServerCapabilities$2.fields,
 	completions: /*#__PURE__*/ optional$2(/*#__PURE__*/ Struct({}))
@@ -21174,7 +21865,7 @@ var CallTool$2 = class extends (/*#__PURE__*/ make$8("tools/call", {
 	payload: {
 		...RequestMeta.fields,
 		name: String$2,
-		arguments: /*#__PURE__*/ optional$2(JsonObject$4)
+		arguments: /*#__PURE__*/ optional$2(UnknownObject$2)
 	}
 })) {};
 var CreateMessage$2 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
@@ -21193,7 +21884,7 @@ var CreateMessage$2 = class extends (/*#__PURE__*/ make$8("sampling/createMessag
 		temperature: /*#__PURE__*/ optional$2(Finite),
 		maxTokens: Finite,
 		stopSequences: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$2(JsonObject$4)
+		metadata: /*#__PURE__*/ optional$2(UnknownObject$2)
 	}
 })) {};
 var ProgressNotification = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
@@ -21203,12 +21894,12 @@ var ProgressNotification = class extends (/*#__PURE__*/ make$8("notifications/pr
 	total: /*#__PURE__*/ optional$2(Finite),
 	message: /*#__PURE__*/ optional$2(String$2)
 } })) {};
-var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$7(Ping, Initialize$2, Complete$1, SetLevel, GetPrompt$2, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$2, ListTools$2)) {};
-var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$7(Ping, CreateMessage$2, ListRoots$1)) {};
-var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$2, Complete$1, SetLevel, GetPrompt$2, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$2, ListTools$2)) {};
+var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$2, ListRoots$1)) {};
+var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
 const ClientRpcs$2 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$2.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$2);
 const AdapterRpcs$2 = /*#__PURE__*/ ClientRpcs$2.omit("ping");
 const profileFromInitialize$1 = (initialize) => ({
@@ -21230,7 +21921,7 @@ const projectContent$2 = /*#__PURE__*/ fnUntraced(function* (content) {
 	})), when({ type: is("image", "audio") }, (content) => ({
 		type: content.type,
 		mimeType: content.mimeType,
-		data: encode(content.data),
+		data: encode$1(content.data),
 		annotations: content.annotations
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
@@ -21248,7 +21939,7 @@ const projectContent$2 = /*#__PURE__*/ fnUntraced(function* (content) {
 			resource: {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
-				blob: encode(resource.blob)
+				blob: encode$1(resource.blob)
 			},
 			annotations: content.annotations
 		});
@@ -21265,7 +21956,7 @@ const projectResourceContents$1 = (content) => "text" in content ? {
 } : {
 	uri: content.uri,
 	mimeType: content.mimeType,
-	blob: encode(content.blob)
+	blob: encode$1(content.blob)
 };
 const protocol$2 = /*#__PURE__*/ make$4({
 	protocolVersion: protocolVersion$2,
@@ -21384,7 +22075,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 			return ListToolsResult$2.make({ tools: tools.map((tool) => Tool$2.make({
 				name: tool.name,
 				description: tool.description,
-				inputSchema: tool.inputSchema,
+				inputSchema: projectLegacyToolInputSchema(tool.inputSchema),
 				annotations: tool.title === void 0 && tool.annotations === void 0 ? void 0 : ToolAnnotations.make({
 					...tool.annotations,
 					title: tool.title
@@ -21428,11 +22119,11 @@ const protocol$2 = /*#__PURE__*/ make$4({
 	})))
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
 const protocolVersion$1 = "2025-06-18";
 const optional$1 = optional$3;
-const JsonObject$1 = JsonObject$4;
-const Meta$1 = /*#__PURE__*/ optional$1(JsonObject$1);
+const UnknownObject$1 = UnknownObject$3;
+const Meta$1 = /*#__PURE__*/ optional$1(UnknownObject$1);
 const Implementation$1 = /*#__PURE__*/ Struct({
 	name: String$2,
 	title: /*#__PURE__*/ optional$1(String$2),
@@ -21543,9 +22234,9 @@ var Initialize$1 = class extends (/*#__PURE__*/ make$8("initialize", {
 })) {};
 const ToolJsonSchema = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, JsonObject$1)),
+	properties: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([UnknownObject$1, Boolean$1]))),
 	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
-}), [JsonObject$4]);
+}), [UnknownObject$1]);
 const Tool$1 = /*#__PURE__*/ Struct({
 	name: String$2,
 	title: /*#__PURE__*/ optional$1(String$2),
@@ -21558,7 +22249,7 @@ const Tool$1 = /*#__PURE__*/ Struct({
 const CallToolResult$1 = /*#__PURE__*/ Struct({
 	...ResultMeta.fields,
 	content: /*#__PURE__*/ ArraySchema(ContentBlock$1),
-	structuredContent: /*#__PURE__*/ optional$1(JsonObject$1),
+	structuredContent: /*#__PURE__*/ optional$1(UnknownObject$1),
 	isError: /*#__PURE__*/ optional$1(Boolean$1)
 });
 const CreateMessageResult$1 = /*#__PURE__*/ Struct({
@@ -21584,7 +22275,7 @@ var CreateMessage$1 = class extends (/*#__PURE__*/ make$8("sampling/createMessag
 		temperature: /*#__PURE__*/ optional$1(Finite),
 		maxTokens: Finite,
 		stopSequences: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$1(JsonObject$1)
+		metadata: /*#__PURE__*/ optional$1(UnknownObject$1)
 	}
 })) {};
 const PromptReference = /*#__PURE__*/ Struct({
@@ -21677,7 +22368,7 @@ var CallTool$1 = class extends (/*#__PURE__*/ make$8("tools/call", {
 	payload: {
 		...RequestMeta.fields,
 		name: String$2,
-		arguments: /*#__PURE__*/ optional$1(JsonObject$1)
+		arguments: /*#__PURE__*/ optional$1(UnknownObject$1)
 	}
 })) {};
 const ElicitResult$1 = /*#__PURE__*/ Struct({
@@ -21741,18 +22432,18 @@ var Elicit$1 = class extends (/*#__PURE__*/ make$8("elicitation/create", {
 		requestedSchema: RequestedSchema$1
 	}
 })) {};
-var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$7(Ping, Initialize$1, Complete, SetLevel, GetPrompt$1, ListPrompts$1, ListResources$1, ListResourceTemplates$1, ReadResource, Subscribe, Unsubscribe, CallTool$1, ListTools$1)) {};
-var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$7(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
-var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$1, Complete, SetLevel, GetPrompt$1, ListPrompts$1, ListResources$1, ListResourceTemplates$1, ReadResource, Subscribe, Unsubscribe, CallTool$1, ListTools$1)) {};
+var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
+var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
 const ClientRpcs$1 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$1.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$1);
 const AdapterRpcs$1 = /*#__PURE__*/ ClientRpcs$1.omit("ping");
 const isToolOutputSchema$1 = (schema) => {
 	if (schema?.type !== "object") return false;
 	const isPropertiesSupported = schema.properties === void 0 || isReadonlyObject(schema.properties) && Object.values(schema.properties).every(isReadonlyObject);
-	const isRequiredDefined = schema.required === void 0 || Array.isArray(schema.required) && schema.required.every(isString);
+	const isRequiredDefined = schema.required === void 0 || Array.isArray(schema.required) && schema.required.every(isString$1);
 	return isPropertiesSupported && isRequiredDefined;
 };
 const profileFromInitialize = (initialize) => ({
@@ -21771,7 +22462,7 @@ const projectContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
 	return value(content).pipe(when({ type: is("text", "resource_link") }, (content) => content), when({ type: is("image", "audio") }, (content) => ({
 		type: content.type,
 		mimeType: content.mimeType,
-		data: encode(content.data),
+		data: encode$1(content.data),
 		annotations: content.annotations,
 		_meta: content._meta
 	})), when({ type: "resource" }, (content) => {
@@ -21793,7 +22484,7 @@ const projectContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
 				_meta: resource._meta,
-				blob: encode(resource.blob)
+				blob: encode$1(resource.blob)
 			},
 			annotations: content.annotations,
 			_meta: content._meta
@@ -21809,10 +22500,10 @@ const projectResourceContents = (content) => "text" in content ? {
 	uri: content.uri,
 	mimeType: content.mimeType,
 	_meta: content._meta,
-	blob: encode(content.blob)
+	blob: encode$1(content.blob)
 };
-const projectStructuredContent$1 = (content) => content === void 0 || isJsonObject$1(content) ? content : void 0;
-const isJsonObject$1 = (value) => isReadonlyObject(value);
+const projectStructuredContent$1 = (content) => content === void 0 || isObject$1(content) ? content : void 0;
+const isObject$1 = (value) => isReadonlyObject(value);
 const protocol$1 = /*#__PURE__*/ make$4({
 	protocolVersion: protocolVersion$1,
 	runtime: /*#__PURE__*/ stateful({
@@ -21969,11 +22660,11 @@ const protocol$1 = /*#__PURE__*/ make$4({
 	})))
 });
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
 const protocolVersion = "2025-11-25";
 const optional = optional$3;
-const JsonObject = JsonObject$4;
-const Meta = /*#__PURE__*/ optional(JsonObject);
+const UnknownObject = UnknownObject$3;
+const Meta = /*#__PURE__*/ optional(UnknownObject);
 const Icon = /*#__PURE__*/ Struct({
 	src: String$2,
 	mimeType: /*#__PURE__*/ optional(String$2),
@@ -21989,12 +22680,12 @@ const Implementation = /*#__PURE__*/ Struct({
 const ClientCapabilities = /*#__PURE__*/ Struct({
 	...ClientCapabilities$1.fields,
 	sampling: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
-		context: /*#__PURE__*/ optional(JsonObject),
-		tools: /*#__PURE__*/ optional(JsonObject)
+		context: /*#__PURE__*/ optional(UnknownObject),
+		tools: /*#__PURE__*/ optional(UnknownObject)
 	})),
 	elicitation: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
-		form: /*#__PURE__*/ optional(JsonObject),
-		url: /*#__PURE__*/ optional(JsonObject)
+		form: /*#__PURE__*/ optional(UnknownObject),
+		url: /*#__PURE__*/ optional(UnknownObject)
 	}))
 });
 const Annotations = /*#__PURE__*/ Struct({
@@ -22066,14 +22757,14 @@ const SamplingMessageContentBlock = /*#__PURE__*/ Union([
 		type: /*#__PURE__*/ Literal("tool_use"),
 		id: String$2,
 		name: String$2,
-		input: JsonObject,
+		input: UnknownObject,
 		_meta: Meta
 	}),
 	/* @__PURE__ */ Struct({
 		type: /*#__PURE__*/ Literal("tool_result"),
 		toolUseId: String$2,
 		content: /*#__PURE__*/ ArraySchema(ContentBlock),
-		structuredContent: /*#__PURE__*/ optional(JsonObject),
+		structuredContent: /*#__PURE__*/ optional(UnknownObject),
 		isError: /*#__PURE__*/ optional(Boolean$1),
 		_meta: Meta
 	})
@@ -22297,18 +22988,18 @@ var ListTools = class extends (/*#__PURE__*/ make$8("tools/list", {
 	error: McpError,
 	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
 })) {};
-var ClientRequestRpcs = class extends (/*#__PURE__*/ make$7(Ping, Initialize, Complete, SetLevel, GetPrompt, ListPrompts, ListResources, ListResourceTemplates, ReadResource, Subscribe, Unsubscribe, CallTool, ListTools)) {};
-var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs = class extends (/*#__PURE__*/ make$7(Ping, CreateMessage, ListRoots, Elicit)) {};
-var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$7(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
+var ClientRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, Initialize, Complete, SetLevel, GetPrompt, ListPrompts, ListResources, ListResourceTemplates, ReadResource, Subscribe, Unsubscribe, CallTool, ListTools)) {};
+var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage, ListRoots, Elicit)) {};
+var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
 const ClientRpcs = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs);
 const AdapterRpcs = /*#__PURE__*/ ClientRpcs.omit("ping");
 const isToolOutputSchema = (schema) => {
 	if (schema?.type !== "object") return false;
 	const isPropertiesSupported = schema.properties === void 0 || isReadonlyObject(schema.properties) && Object.values(schema.properties).every(isReadonlyObject);
-	const isRequiredDefined = schema.required === void 0 || Array.isArray(schema.required) && schema.required.every(isString);
+	const isRequiredDefined = schema.required === void 0 || Array.isArray(schema.required) && schema.required.every(isString$1);
 	return isPropertiesSupported && isRequiredDefined;
 };
 const unsupported = (operation, reason) => new McpReverseOperationUnsupported({
@@ -22327,7 +23018,7 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 	return value(content).pipe(when({ type: is("text", "resource_link") }, (content) => content), when({ type: is("image", "audio") }, (content) => ({
 		type: content.type,
 		mimeType: content.mimeType,
-		data: encode(content.data),
+		data: encode$1(content.data),
 		annotations: content.annotations,
 		_meta: content._meta
 	})), when({ type: "resource" }, (content) => {
@@ -22349,17 +23040,17 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 				uri: resource.uri,
 				mimeType: resource.mimeType,
 				_meta: resource._meta,
-				blob: encode(resource.blob)
+				blob: encode$1(resource.blob)
 			},
 			annotations: content.annotations,
 			_meta: content._meta
 		});
 	}), exhaustive);
 });
-const projectStructuredContent = (content) => content === void 0 || isJsonObject(content) ? content : void 0;
-const isJsonObject = (value) => isReadonlyObject(value);
+const projectStructuredContent = (content) => content === void 0 || isObject(content) ? content : void 0;
+const isObject = (value) => isReadonlyObject(value);
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/McpProtocol.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpProtocol.js
 const v2025_11_25 = /* @__PURE__ */ make$4({
 	protocolVersion,
 	runtime: /*#__PURE__*/ stateful({
@@ -22417,7 +23108,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 					uri: content.uri,
 					mimeType: content.mimeType,
 					_meta: content._meta,
-					blob: encode(content.blob)
+					blob: encode$1(content.blob)
 				}),
 				_meta: result._meta
 			});
@@ -22548,7 +23239,7 @@ const v2025_06_18 = protocol$1;
 const v2025_03_26 = protocol$2;
 const v2024_11_05 = protocol$3;
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/rpc/RpcServer.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcServer.js
 const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const enableTracing = options.disableTracing !== true;
 	const enableSpanPropagation = options.disableSpanPropagation !== true;
@@ -22559,10 +23250,10 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$29(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$40(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
-	const shutdownLatch = makeUnsafe$2(false);
+	const shutdownLatch = makeUnsafe$1(false);
 	yield* addFinalizer$1(scope, withFiber((parent) => {
 		isShutdown = true;
 		for (const client of clients.values()) {
@@ -22595,12 +23286,12 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 				serverClient: new ServerClient(clientId)
 			};
 			clients.set(clientId, client);
-		} else if (client.ended && (message._tag !== "Interrupt" || !client.fibers.has(message.requestId))) return interrupt$1;
+		} else if (client.ended && (message._tag !== "Interrupt" && message._tag !== "Ack" || !client.fibers.has(message.requestId))) return interrupt$1;
 		switch (message._tag) {
 			case "Request": return handleRequest(requestFiber, client, message, opts);
 			case "Ack": {
 				const latch = client.latches?.get(message.requestId);
-				return latch ? latch.open : void_$1;
+				return latch ? asVoid(latch.open) : void_$1;
 			}
 			case "Interrupt": {
 				const fiber = client.fibers.get(message.requestId);
@@ -22640,7 +23331,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 				_tag: "Exit",
 				clientId: client.id,
 				requestId: request.id,
-				exit: die$1(`Unknown request tag: ${request.tag}`)
+				exit: die$3(`Unknown request tag: ${request.tag}`)
 			}), (defect) => sendDefect(client, defect));
 			if (!client.ended || client.fibers.size > 0) return write;
 			return ensuring$2(write, endClient(client));
@@ -22653,13 +23344,16 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			headers: request.headers,
 			payload: request.payload
 		};
-		const result = entry.handler(request.payload, metadata);
+		const result = runHandler(entry, request.payload, metadata);
 		const isWrapper$1 = isWrapper(result);
 		const isFork = isWrapper$1 && result.fork;
 		const isUninterruptible = isWrapper$1 && result.uninterruptible;
 		const streamOrEffect = isWrapper$1 ? result.value : result;
-		const handler = isStream ? streamEffect(client, request, streamOrEffect) : streamOrEffect;
-		const withMiddleware = rpc.middlewares.size > 0 ? applyMiddleware(services, handler, metadata) : handler;
+		let writeFailure;
+		const handler = isStream ? streamEffect(client, request, streamOrEffect, (cause) => {
+			writeFailure = cause;
+		}) : streamOrEffect;
+		const withMiddleware = rpc.middlewares.size === 0 ? handler : isStream ? flatMap(exit(applyMiddleware(services, handler, metadata)), (exit) => writeFailure ? failCause$3(writeFailure) : exit) : applyMiddleware(services, handler, metadata);
 		let responded = false;
 		const scope = makeUnsafe$5();
 		let deferred = void 0;
@@ -22676,7 +23370,8 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 					requestId: request.id,
 					exit
 				});
-			} else if (!disableFatalDefects && hasDies(exit.cause) && !hasInterrupts$1(exit.cause)) write = sendDefect(client, squash(exit.cause));
+			} else if (writeFailure) return closeUnsafe(scope, exit) ?? void_$1;
+			else if (!disableFatalDefects && hasDies(exit.cause) && !hasInterrupts$1(exit.cause)) write = sendDefect(client, squash(exit.cause));
 			else write = options.onFromServer({
 				_tag: "Exit",
 				clientId: client.id,
@@ -22735,25 +23430,29 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 		});
 		return void_$1;
 	};
-	const streamEffect = (client, request, stream) => {
+	const streamEffect = (client, request, stream, onWriteFailure) => {
+		const writeChunk = (values) => onError(options.onFromServer({
+			_tag: "Chunk",
+			clientId: client.id,
+			requestId: request.id,
+			values
+		}), (cause) => {
+			if (!hasInterruptsOnly(cause)) onWriteFailure(cause);
+			return void_$1;
+		});
 		let latch;
 		if (supportsAck) {
 			client.latches ??= /* @__PURE__ */ new Map();
 			latch = client.latches.get(request.id);
 			if (!latch) {
-				latch = makeUnsafe$2(false);
+				latch = makeUnsafe$1(false);
 				client.latches.set(request.id, latch);
 			}
 		}
 		if (isEffect(stream)) return stream.pipe(flatMap((queue) => whileLoop({
 			while: constTrue,
 			body: constant(flatMap(takeAll(queue), (values) => {
-				const write = options.onFromServer({
-					_tag: "Chunk",
-					clientId: client.id,
-					requestId: request.id,
-					values
-				});
+				const write = writeChunk(values);
 				if (!latch) return write;
 				latch.closeUnsafe();
 				return flatMap(write, () => latch.await);
@@ -22761,18 +23460,13 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			step: constVoid
 		})), catchDone(() => void_$1), scoped);
 		return runForEachArray(stream, (values) => {
-			const write = options.onFromServer({
-				_tag: "Chunk",
-				clientId: client.id,
-				requestId: request.id,
-				values
-			});
+			const write = writeChunk(values);
 			if (!latch) return write;
 			latch.closeUnsafe();
 			return andThen(write, latch.await);
 		});
 	};
-	const sendDefect = (client, defect) => suspend$2(() => {
+	const sendDefect = (client, defect) => suspend$3(() => {
 		const shouldEnd = client.ended && client.fibers.size === 0;
 		const write = options.onFromServer({
 			_tag: "Defect",
@@ -22787,6 +23481,29 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 		disconnect
 	});
 });
+const isSharedCodecFor = (codecFor) => codecFor === json.codecFor;
+const sharedRpcCodecs = /*#__PURE__*/ new WeakMap();
+const rpcCodecs = (codecFor, rpc) => {
+	const shared = isSharedCodecFor(codecFor);
+	let codecs = shared ? sharedRpcCodecs.get(rpc) : void 0;
+	if (codecs === void 0) {
+		const streamSchemas = getStreamSchemas(rpc.successSchema);
+		const parseOptions = get$2(rpc.annotations, ParseOptions);
+		codecs = {
+			decode: decodeUnknownEffect(codecFor(rpc.payloadSchema), parseOptions),
+			encodeChunk: encodeUnknownEffect(codecFor(NonEmptyArray(isSome(streamSchemas) ? streamSchemas.value.success : Any)), parseOptions),
+			encodeExit: encodeUnknownEffect(codecFor(exitSchema(rpc)), parseOptions)
+		};
+		if (shared) sharedRpcCodecs.set(rpc, codecs);
+	}
+	return codecs;
+};
+let sharedDefectCodecs;
+const makeDefectCodecs = (codecFor) => ({
+	encodeDefectUnsafe: encodeSync(codecFor(Defect())),
+	encodeUnknownRequestExit: encodeUnknownEffect(codecFor(Exit(Never, Never, Defect())))
+});
+const defectCodecs = (codecFor) => isSharedCodecFor(codecFor) ? sharedDefectCodecs ??= makeDefectCodecs(codecFor) : makeDefectCodecs(codecFor);
 const handlerContextCache = /*#__PURE__*/ new WeakMap();
 const handlerContext = (entry, fiberContext) => {
 	let cache = handlerContextCache.get(entry);
@@ -22796,10 +23513,17 @@ const handlerContext = (entry, fiberContext) => {
 	}
 	let merged = cache.get(fiberContext);
 	if (merged === void 0) {
-		merged = merge$1(entry.context, fiberContext);
+		merged = merge$2(entry.context, fiberContext);
 		cache.set(fiberContext, merged);
 	}
 	return merged;
+};
+const runHandler = (entry, payload, metadata) => {
+	try {
+		return entry.handler(payload, metadata);
+	} catch (defect) {
+		return die$2(defect);
+	}
 };
 const applyMiddleware = (context, handler, options) => {
 	for (const service of options.rpc.middlewares) handler = getUnsafe(context, service)(handler, options);
@@ -22807,8 +23531,7 @@ const applyMiddleware = (context, handler, options) => {
 };
 const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
-	const encodeDefectUnsafe = encodeSync(codecFor(Defect()));
-	const encodeUnknownRequestExit = encodeUnknownEffect(codecFor(Exit(Never, Never, Defect())));
+	const { encodeDefectUnsafe, encodeUnknownRequestExit } = defectCodecs(codecFor);
 	const services = yield* context();
 	const scope = yield* make$44();
 	const server = yield* makeNoSerialization(group, {
@@ -22850,11 +23573,9 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 		let schemas = schemasCache.get(rpc);
 		if (!schemas) {
 			const entry = getOrUndefinedUnsafe(services, rpc.key);
-			const streamSchemas = getStreamSchemas(rpc.successSchema);
 			schemas = {
-				decode: decodeUnknownEffect(codecFor(rpc.payloadSchema)),
-				encodeChunk: encodeUnknownEffect(codecFor(NonEmptyArray(isSome(streamSchemas) ? streamSchemas.value.success : Any))),
-				encodeExit: encodeUnknownEffect(codecFor(exitSchema(rpc))),
+				tag: rpc._tag,
+				...rpcCodecs(codecFor, rpc),
 				context: entry.context
 			};
 			schemasCache.set(rpc, schemas);
@@ -22873,19 +23594,24 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	};
 	const handleEncode = (client, requestId, schemas, effect, tag) => {
 		const collector = schemas.collector;
-		const write = isExit(effect) && isSuccess(effect) ? send(client.id, responseEnvelope(requestId, tag, effect.value), collector && collector.clearUnsafe()) : flatMap(provideContext$2(collector ? provideService(effect, Collector, collector) : effect, schemas.context), (value) => send(client.id, responseEnvelope(requestId, tag, value), collector && collector.clearUnsafe()));
-		return catchCause$1(write, (cause) => {
+		let encodeFailed = false;
+		const write = isExit(effect) && isSuccess(effect) ? send(client.id, responseEnvelope(requestId, tag, effect.value), collector && collector.clearUnsafe()) : flatMap(catch_$2(provideContext$2(collector ? provideService(effect, Collector, collector) : effect, schemas.context), (error) => withFiber((fiber) => {
+			const defect = die$4(`Failed to encode response for RPC "${schemas.tag}": ${defaultFormatter(error.issue)}`);
+			reportCauseUnsafe(fiber, defect);
+			encodeFailed = true;
+			return failCause$3(defect);
+		})), (value) => send(client.id, responseEnvelope(requestId, tag, value), collector && collector.clearUnsafe()));
+		return catchCause$2(write, (cause) => {
 			client.schemas.delete(requestId);
-			const defect = squash(map$5(cause, (e) => defaultFormatter(e.issue)));
-			return andThen(sendRequestDefect(client, requestId, schemas.encodeExit, defect), server.write(client.id, {
+			return andThen(sendRequestDefect(client, requestId, schemas.encodeExit, squash(cause)), encodeFailed ? failCause$3(cause) : server.write(client.id, {
 				_tag: "Interrupt",
 				requestId,
 				interruptors: []
 			}));
 		});
 	};
-	const sendRequestDefect = (client, requestId, encodeExit, defect) => catchCause$1(flatMap(encodeExit(die$1(defect)), (exit) => send(client.id, responseEnvelope(requestId, "Exit", exit))), (cause) => sendDefect(client, squash(cause)));
-	const sendDefect = (client, defect) => catchCause$1(send(client.id, ResponseDefectEncoded(encodeDefectUnsafe(defect))), (cause) => annotateLogs(logDebug(cause), {
+	const sendRequestDefect = (client, requestId, encodeExit, defect) => catchCause$2(flatMap(encodeExit(die$3(defect)), (exit) => send(client.id, responseEnvelope(requestId, "Exit", exit))), (cause) => sendDefect(client, squash(cause)));
+	const sendDefect = (client, defect) => catchCause$2(send(client.id, ResponseDefectEncoded(encodeDefectUnsafe(defect))), (cause) => annotateLogs(logDebug(cause), {
 		module: "RpcServer",
 		method: "sendDefect"
 	}));
@@ -22916,7 +23642,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 				switch (typeof request.id) {
 					case "number":
 					case "string":
-						requestId = RequestId$1(request.id);
+						requestId = RequestId$2(request.id);
 						break;
 					default: return sendDefect(client, `Invalid request id: ${request.id}`);
 				}
@@ -22930,12 +23656,12 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 					onSuccess: (payload) => writeDecodedRequest(client, requestId, schemas, request, payload)
 				});
 			}
-			case "Ping": return catchCause$1(send(client.id, constPong), (cause) => sendDefect(client, squash(cause)));
+			case "Ping": return catchCause$2(send(client.id, constPong), (cause) => sendDefect(client, squash(cause)));
 			case "Eof": return server.write(clientId, request);
 			case "Ack": return server.write(clientId, request);
 			case "Interrupt": return server.write(clientId, {
 				...request,
-				requestId: RequestId$1(request.requestId),
+				requestId: RequestId$2(request.requestId),
 				interruptors: []
 			});
 			default: return sendDefect(client, `Unknown request tag: ${request._tag}`);
@@ -22964,7 +23690,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 		}), sandbox, tapError(logError), retry(spaced(500)), andThen(() => writeRequest(0, constEof)), forkScoped);
 		yield* fromQueue(queue).pipe(run(stdio.stdout()), retry(spaced(500)), ensuring$2(forkDetach(interrupt(fiber), { startImmediately: true })), forkScoped);
 		return {
-			disconnects: yield* make$30(),
+			disconnects: yield* make$41(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -22984,8 +23710,10 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 	}));
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.2/node_modules/effect/dist/ai/McpServer.js
+//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpServer.js
 const internalState = /*#__PURE__*/ new WeakMap();
+const RequestNotificationQueue = /*#__PURE__*/ Reference("effect/ai/McpServer/RequestNotificationQueue", { defaultValue: () => void 0 });
+const isRequestNotification = (notification) => notification._tag === "Progress" || notification._tag === "LoggingMessage";
 const BroadcastServerNotificationRpcs = /*#__PURE__*/ ServerNotificationRpcs$4.omit("notifications/elicitation/complete");
 const isLoggingLevel = /*#__PURE__*/ is$2(LoggingLevel$1);
 const toInternalServerNotification = (message) => {
@@ -23028,14 +23756,19 @@ const provideInvocationContext = (effect, invocation) => {
 };
 var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/McpServer")) {
 	static make = /*#__PURE__*/ gen(function* () {
-		const internalCore = yield* make$6;
+		const internalCore = yield* make$5;
 		const tools = empty$9();
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$30();
-		const notificationDelivery = { consumers: 0 };
-		const pendingListChanges = /* @__PURE__ */ new Set();
+		const notificationsQueue = yield* make$41();
+		const notificationDelivery = {
+			consumers: 0,
+			listChangeRevision: 0,
+			requestEndpoints: 0
+		};
+		const withoutSharedConsumer = () => notificationDelivery.consumers === 0 && notificationDelivery.requestEndpoints > 0;
+		const pendingListChanges = /* @__PURE__ */ new Map();
 		const dispatcher = (yield* Scheduler).makeDispatcher();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
@@ -23050,41 +23783,50 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 					requestContext: getOrUndefined(fiber.context, McpRequestContext),
 					requestHeaders: getOrUndefined(fiber.context, HttpServerRequest)?.headers
 				};
-				let enqueued = false;
-				if (message.tag.includes("list_changed")) {
-					if (!pendingListChanges.has(message.tag)) {
-						enqueued = true;
-						const tag = message.tag;
-						dispatcher.scheduleTask(() => {
-							offerUnsafe(notificationsQueue, queued);
-							pendingListChanges.delete(message.tag);
-						}, 0);
-						pendingListChanges.add(tag);
-					}
-				} else {
-					enqueued = true;
-					offerUnsafe(notificationsQueue, queued);
-				}
-				const acknowledge = suspend$2(() => notifications.write({
+				const acknowledge = suspend$3(() => notifications.write({
 					clientId: 0,
 					requestId: message.id,
 					_tag: "Exit",
 					exit: void_$2
 				}));
+				const requestQueue = get$2(fiber.context, RequestNotificationQueue);
+				if (requestQueue !== void 0 && queued.requestContext !== void 0 && isRequestNotification(notification)) {
+					offerUnsafe(requestQueue, queued);
+					return andThen(_await(delivered), acknowledge);
+				}
+				if (withoutSharedConsumer()) return acknowledge;
+				let enqueued = false;
+				if (message.tag.includes("list_changed")) {
+					const revision = ++notificationDelivery.listChangeRevision;
+					const pending = pendingListChanges.get(message.tag);
+					if (pending !== void 0) pending.listChangeRevision = revision;
+					else {
+						queued.listChangeRevision = revision;
+						enqueued = true;
+						pendingListChanges.set(message.tag, queued);
+						dispatcher.scheduleTask(() => {
+							pendingListChanges.delete(message.tag);
+							offerUnsafe(notificationsQueue, queued);
+						}, 0);
+					}
+				} else {
+					enqueued = true;
+					offerUnsafe(notificationsQueue, queued);
+				}
 				return enqueued && queued.requestContext !== void 0 && notificationDelivery.consumers > 0 ? andThen(_await(delivered), acknowledge) : acknowledge;
 			})))
 		});
 		const service = McpServer.of({
 			notifications: notifications.client,
-			notifyElicitationComplete: ({ clientId, elicitationId }) => make$45().pipe(flatMap((delivered) => offer(notificationsQueue, {
+			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$45().pipe(flatMap((delivered) => offer(notificationsQueue, {
 				notification: ServerNotification.ElicitationComplete({ elicitationId }),
 				targetClientId: clientId,
 				delivered
-			}).pipe(andThen(suspend$2(() => notificationDelivery.consumers > 0 ? _await(delivered) : void_$1))))),
+			}).pipe(andThen(suspend$3(() => notificationDelivery.consumers > 0 ? _await(delivered) : void_$1))))),
 			get tools() {
 				return tools;
 			},
-			addTool: (options) => gen(function* () {
+			addTool: fnUntraced(function* (options) {
 				const existingIndex = tools.findIndex(({ tool }) => tool.name === options.tool.name);
 				if (existingIndex === -1) tools.push(options);
 				else tools[existingIndex] = options;
@@ -23112,7 +23854,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				});
 				yield* notifications.client["notifications/tools/list_changed"]({});
 			}),
-			callTool: (request) => gen(function* () {
+			callTool: fnUntraced(function* (request) {
 				const client = yield* McpServerClient;
 				const result = yield* internalCore.tools.call(request, invocationFromClient(client)).pipe(mapError$2((error) => new InvalidParams({ message: error._tag === "ToolNotFound" ? `Tool '${error.name}' not found` : error.message })));
 				if (result._tag === "InputRequired") return yield* new InvalidParams({ message: "Client input is not supported by this MCP protocol" });
@@ -23124,7 +23866,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			get resourceTemplates() {
 				return resourceTemplates;
 			},
-			addResource: (options) => gen(function* () {
+			addResource: fnUntraced(function* (options) {
 				const existingIndex = resources.findIndex(({ resource }) => resource.uri === options.resource.uri);
 				if (existingIndex === -1) resources.push(options);
 				else resources[existingIndex] = options;
@@ -23142,7 +23884,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				});
 				yield* notifications.client["notifications/resources/list_changed"]({});
 			}),
-			addResourceTemplate: ({ annotations, completions, handle, routerPath, template }) => gen(function* () {
+			addResourceTemplate: fnUntraced(function* ({ annotations, completions, handle, routerPath, template }) {
 				const existingIndex = resourceTemplates.findIndex(({ template: current }) => current.uriTemplate === template.uriTemplate);
 				if (existingIndex === -1) resourceTemplates.push({
 					template,
@@ -23181,14 +23923,14 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				}))));
 				yield* notifications.client["notifications/resources/list_changed"]({});
 			}),
-			findResource: (uri) => gen(function* () {
+			findResource: fnUntraced(function* (uri) {
 				const client = yield* McpServerClient;
 				return yield* internalCore.resources.read(uri, invocationFromClient(client)).pipe(catchTag("ResourceNotFound", (error) => fail$3(new InvalidParams({ message: `Resource '${error.uri}' not found` }))));
 			}),
 			get prompts() {
 				return prompts;
 			},
-			addPrompt: (options) => gen(function* () {
+			addPrompt: fnUntraced(function* (options) {
 				const existingIndex = prompts.findIndex(({ prompt }) => prompt.name === options.prompt.name);
 				if (existingIndex === -1) prompts.push(options);
 				else prompts[existingIndex] = options;
@@ -23254,9 +23996,10 @@ const MCP_SESSION_ID_HEADER = "mcp-session-id";
 const MCP_PROTOCOL_VERSION_HEADER = "mcp-protocol-version";
 const MCP_INVALID_BATCH_METHOD = "invalid/json-rpc-batch";
 const cancelledResponses = /*#__PURE__*/ new WeakMap();
+const httpPostResponses = /*#__PURE__*/ new WeakMap();
 const requestKey = (requestId) => `${typeof requestId}:${requestId}`;
 var McpClientKey = class extends Class$1 {};
-const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, transport) {
+const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, transport, requestScoped) {
 	const protocol = yield* Protocol;
 	const server = yield* McpServer;
 	const defaultLogLevel = yield* CurrentLogLevel;
@@ -23269,14 +24012,21 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		clientStates.delete(clientId);
 		runtime.disconnect(clientId);
 	};
-	const sendRequestError = (clientId, requestId, error) => protocol.send(clientId, {
+	const sendRequestError = (clientId, requestId, { code, data, message }) => protocol.send(clientId, {
 		_tag: "Exit",
 		requestId,
 		exit: {
 			_tag: "Failure",
 			cause: [{
 				_tag: "Fail",
-				error
+				error: data === void 0 ? {
+					code,
+					message
+				} : {
+					code,
+					message,
+					data
+				}
 			}]
 		}
 	});
@@ -23287,11 +24037,11 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		if (remaining.length === 0) reverseRequestClients.delete(requestId);
 		else reverseRequestClients.set(requestId, remaining);
 	};
-	const serverNotifications = yield* unbounded$1();
-	const sendNotification = (protocolVersion, clientId, notification) => suspend$2(() => {
+	const serverNotifications = yield* unbounded();
+	const sendNotification = (protocolVersion, clientId, notification) => suspend$3(() => {
 		const selectedProtocol = runtime.selectProtocol(protocolVersion);
 		const rpc = selectedProtocol.serverNotificationRpcs.requests.get(notification.tag);
-		if (rpc === void 0) return die(`MCP protocol ${protocolVersion} does not define server notification ${notification.tag}`);
+		if (rpc === void 0) return die$2(`MCP protocol ${protocolVersion} does not define server notification ${notification.tag}`);
 		return selectedProtocol.payloadCodecs(rpc).encode(notification.payload).pipe(orDie, flatMap((payload) => protocol.send(clientId, {
 			_tag: "Request",
 			id: "",
@@ -23312,7 +24062,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		});
 		return true;
 	};
-	const terminateSubscription = (protocolVersion, clientId, requestId, reason) => suspend$2(() => {
+	const terminateSubscription = (protocolVersion, clientId, requestId, reason) => suspend$3(() => {
 		if (!cancelRequest(clientId, requestId)) return void_$1;
 		return isHttp ? protocol.end(clientId) : sendNotification(protocolVersion, clientId, {
 			tag: "notifications/cancelled",
@@ -23323,10 +24073,12 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		});
 	});
 	let writeFromClient;
-	const handlers = yield* runtime.installHandlers({
-		core: internalState.get(server).core,
+	const { core, notificationDelivery, notifications } = internalState.get(server);
+	const handlers = requestScoped?.handlers ?? (yield* runtime.installHandlers({
+		core,
 		subscribeServerNotifications: subscribe(serverNotifications),
-		...!protocol.supportsNotifications ? {} : {
+		getListChangeRevision: () => notificationDelivery.listChangeRevision,
+		...!protocol.supportsNotifications || options.allowSubscriptions === false ? {} : {
 			sendNotification,
 			markSubscriptionCancelled: (clientId, requestId) => sync(() => {
 				cancelRequest(clientId, requestId);
@@ -23335,7 +24087,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		},
 		defaultLogLevel,
 		serverInfo: options
-	});
+	}));
 	const clients = yield* make$28({
 		lookup: fnUntraced(function* (key) {
 			const selectedProtocol = runtime.selectProtocol(key.profile.protocolVersion);
@@ -23359,8 +24111,14 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 								headers: []
 							}).pipe(onError(() => sync(() => removeReverseRequestClient(requestId, key))));
 						}
-						if (request._tag === "Interrupt") removeReverseRequestClient(requestKey(request.requestId), key);
-						return protocol.send(key.clientId, request);
+						if (request._tag === "Interrupt") {
+							removeReverseRequestClient(requestKey(request.requestId), key);
+							return sendNotification(key.profile.protocolVersion, key.clientId, {
+								tag: "notifications/cancelled",
+								payload: { requestId: request.requestId }
+							});
+						}
+						return void_$1;
 					},
 					supportsAck: true,
 					supportsTransferables: false,
@@ -23379,14 +24137,13 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		const session = runtime.resolveRequest(client.id, headers);
 		if (!rpc._tag.endsWith("/initialize") && !session) {
 			const fiber = getCurrent();
-			const httpRequest = getOrUndefined(fiber.context, HttpServerRequest);
-			if (httpRequest) appendPreResponseHandlerUnsafe(httpRequest, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
-			return die(/* @__PURE__ */ new Error(`Mcp-Session-Id does not exist`));
+			appendPreResponseHandlerUnsafe(fiber.context, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
+			return die$2(/* @__PURE__ */ new Error(`Mcp-Session-Id does not exist`));
 		}
 		const initializePayload = session?.initializePayload ?? payload;
 		const clientState = clientStates.get(client.id);
 		const selectedProtocol = session?.protocol ?? clientState?.protocol ?? runtime.protocolForInternalTag(rpc._tag);
-		if (!isProtocolVersion(selectedProtocol.protocolVersion) || selectedProtocol.protocolVersion === "2026-07-28") return die(`Unsupported selected MCP protocol version: ${selectedProtocol.protocolVersion}`);
+		if (!isProtocolVersion(selectedProtocol.protocolVersion) || selectedProtocol.protocolVersion === "2026-07-28") return die$2(`Unsupported selected MCP protocol version: ${selectedProtocol.protocolVersion}`);
 		const profile = session?.negotiatedProfile ?? {
 			protocolVersion: selectedProtocol.protocolVersion,
 			clientCapabilities: initializePayload.capabilities,
@@ -23419,23 +24176,17 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 			if (response._tag === "Exit") {
 				const requests = activeRequests.get(clientId);
 				const key = requestKey(response.requestId);
-				const cancelled = requests?.get(key)?.cancelled;
+				const active = requests?.get(key);
 				if (requests !== void 0 && requests.delete(key) && requests.size === 0) activeRequests.delete(clientId);
-				if (cancelled === true) {
+				if (active?.cancelled === true) {
 					if (transport === "custom") return void_$1;
+					if (active.httpPost !== void 0) active.httpPost.expected--;
 					cancelledResponses.set(response, response.requestId);
 					return protocol.send(clientId, response);
 				}
-				if (response.exit._tag === "Failure" && !response.exit.cause.some((failure) => failure._tag === "Fail")) return protocol.send(clientId, {
-					_tag: "Exit",
-					requestId: response.requestId,
-					exit: {
-						_tag: "Failure",
-						cause: [{
-							_tag: "Fail",
-							error: new InternalError({ message: "Internal error" })
-						}]
-					}
+				if (response.exit._tag === "Failure" && !response.exit.cause.some((failure) => failure._tag === "Fail")) return sendRequestError(clientId, response.requestId, {
+					code: INTERNAL_ERROR_CODE,
+					message: "Internal error"
 				});
 			}
 			return protocol.send(clientId, response);
@@ -23446,12 +24197,17 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 				const fiber = getCurrent();
 				const request = request_;
 				const httpRequest = isHttp ? getOrUndefined(fiber.context, HttpServerRequest) : void 0;
-				if (httpRequest !== void 0 && request._tag !== "Eof") appendPreResponseHandlerUnsafe(httpRequest, (_, response) => succeed$3(response.status === 200 && response.body._tag === "Uint8Array" && response.body.contentLength === 0 ? empty({
-					headers: remove$2(response.headers, "content-type"),
+				if (httpRequest !== void 0 && request._tag !== "Eof") appendPreResponseHandlerUnsafe(fiber.context, (_, response) => succeed$3(response.status === 200 && response.body._tag === "Uint8Array" && response.body.contentLength === 0 ? empty({
+					headers: remove$1(response.headers, "content-type"),
 					status: 202
 				}) : response));
 				switch (request._tag) {
 					case "Request": {
+						if (httpRequest !== void 0 && request.isNotification !== true) {
+							const httpPost = httpPostResponses.get(httpRequest) ?? { expected: 0 };
+							httpPost.expected++;
+							httpPostResponses.set(httpRequest, httpPost);
+						}
 						const headers = isHttp ? getUnsafe(getCurrent().context, HttpServerRequest).headers : fromInput$1(request.headers);
 						const cancellationRequest = request.tag === "notifications/cancelled" && typeof request.payload === "object" && request.payload !== null && "requestId" in request.payload && (typeof request.payload.requestId === "string" || typeof request.payload.requestId === "number") ? activeRequests.get(clientId)?.get(requestKey(request.payload.requestId)) : void 0;
 						const prepare = cancellationRequest === void 0 ? runtime.prepareRequest(clientId, headers, request) : succeed$3(cancellationRequest.prepared);
@@ -23467,13 +24223,13 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 								sessionHeaders: isHttp && headers[MCP_SESSION_ID_HEADER] !== void 0 ? fromInput$1({ [MCP_SESSION_ID_HEADER]: headers[MCP_SESSION_ID_HEADER] }) : clientState?.sessionHeaders
 							});
 							if (request.tag === MCP_INVALID_BATCH_METHOD) return yield* sendRequestError(clientId, request.id, new InvalidRequest({ message: "JSON-RPC batches are not supported" }));
-							if (httpRequest !== void 0 && session !== void 0) appendPreResponseHandlerUnsafe(httpRequest, (_, res) => succeed$3(runtime.resolveRequest(clientId, headers) === void 0 ? empty({ status: 404 }) : setHeader(res, MCP_PROTOCOL_VERSION_HEADER, session.protocol.protocolVersion)));
+							if (httpRequest !== void 0 && session !== void 0) appendPreResponseHandlerUnsafe(fiber.context, (_, res) => succeed$3(runtime.resolveRequest(clientId, headers) === void 0 ? empty({ status: 404 }) : setHeader(res, MCP_PROTOCOL_VERSION_HEADER, session.protocol.protocolVersion)));
 							const routedRequest = runtime.routeClientRequest(selectedProtocol, request);
 							const rpc = runtime.clientRpcs.requests.get(routedRequest.tag);
 							const isClientNotification = selectedProtocol.clientNotificationRpcs.requests.has(request.tag);
 							if (rpc && isClientNotification && request.isNotification) {
 								if (!session && selectedProtocol.runtime._tag === "Stateful") {
-									if (httpRequest) appendPreResponseHandlerUnsafe(httpRequest, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
+									appendPreResponseHandlerUnsafe(fiber.context, () => succeed$3(empty({ status: headers[MCP_SESSION_ID_HEADER] === void 0 ? 400 : 404 })));
 									return;
 								}
 								const decode = selectedProtocol.payloadCodecs(rpc).decode(request.payload);
@@ -23498,7 +24254,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 									const handler = handlers.mapUnsafe.get(rpc.key);
 									const handled = handler ? handler.handler(payload, {
 										rpc,
-										requestId: RequestId$1(request.id),
+										requestId: RequestId$2(request.id),
 										client: new ServerClient(clientId),
 										headers
 									}) : void_$1;
@@ -23514,9 +24270,10 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 							if (request.isNotification !== true) {
 								const requests = activeRequests.get(clientId) ?? /* @__PURE__ */ new Map();
 								requests.set(requestKey(request.id), {
-									requestId: RequestId$1(request.id),
+									requestId: RequestId$2(request.id),
 									prepared,
-									cancelled: false
+									cancelled: false,
+									httpPost: httpRequest === void 0 ? void 0 : httpPostResponses.get(httpRequest)
 								});
 								activeRequests.set(clientId, requests);
 							}
@@ -23568,25 +24325,25 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		}));
 		return all$1(interrupts, { discard: true });
 	});
-	const { notificationDelivery, notifications } = internalState.get(server);
-	yield* acquireRelease(sync(() => {
+	if (requestScoped === void 0) yield* acquireRelease(sync(() => {
 		notificationDelivery.consumers++;
 	}), () => sync(() => {
 		notificationDelivery.consumers--;
 	}));
 	const notificationTails = /* @__PURE__ */ new Map();
-	yield* take(notifications).pipe(flatMap(fnUntraced(function* (queued) {
-		const { delivered, notification, targetClientId, requestContext, requestHeaders } = queued;
+	yield* take(requestScoped?.notifications ?? notifications).pipe(flatMap(fnUntraced(function* (queued) {
+		const { delivered, listChangeRevision, notification, targetClientId, requestContext, requestHeaders } = queued;
 		if (isSubscriptionServerNotification(notification)) yield* publish(serverNotifications, {
 			notification,
-			targetClientId
+			targetClientId,
+			listChangeRevision
 		});
 		const clientIds = yield* patchedProtocol.clientIds;
 		for (const clientId of clientStates.keys()) if (!clientIds.has(clientId)) {
 			clientStates.delete(clientId);
 			runtime.disconnect(clientId);
 		}
-		const requestNotification = notification._tag === "LoggingMessage" || notification._tag === "Progress";
+		const requestNotification = isRequestNotification(notification);
 		const deliveryClientIds = requestNotification && requestContext !== void 0 ? [requestContext.clientId] : targetClientId === void 0 ? isHttp ? clientStates.keys() : runtime.deliveryClientIds() : [targetClientId];
 		const deliveries = [];
 		let hasOriginDelivery = false;
@@ -23613,7 +24370,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 					const metadata = requestContext?.requestMetadata;
 					const level = hasProperty(metadata, "io.modelcontextprotocol/logLevel") ? metadata["io.modelcontextprotocol/logLevel"] : void 0;
 					if (requestContext?.clientId !== clientId || !isLoggingLevel(level) || LoggingLevel$1.literals.indexOf(notification.level) < LoggingLevel$1.literals.indexOf(level)) return;
-				} else if (!runtime.canDeliver(clientId, (requestContext?.clientId === clientId ? requestHeaders : void 0) ?? clientStates.get(clientId)?.sessionHeaders ?? empty$7, notification, defaultLogLevel)) return;
+				} else if (!runtime.canDeliver(clientId, (requestContext?.clientId === clientId ? requestHeaders : void 0) ?? clientStates.get(clientId)?.sessionHeaders ?? empty$6, notification, defaultLogLevel)) return;
 				const rpc = selectedProtocol.serverNotificationRpcs.requests.get(projected.tag);
 				if (!rpc) return;
 				const encoded = yield* selectedProtocol.payloadCodecs(rpc).encode(projected.payload);
@@ -23707,7 +24464,10 @@ const normalizeMcpJsonRpcResponse = (response) => {
 	} : response;
 };
 function mcpJsonRpcSerialization(options) {
-	const serialization = jsonRpc(options);
+	const serialization = jsonRpc({
+		...options,
+		controlMessages: false
+	});
 	return RpcSerialization.of({
 		...serialization,
 		makeUnsafe: () => {
@@ -23783,7 +24543,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 	for (const tool of Object.values(built.tools)) {
 		const strict = getStrictMode(tool) === true;
 		const rawJsonSchema = isDynamic(tool) ? tool.jsonSchema : void 0;
-		if (strict && rawJsonSchema !== void 0) return yield* die(`McpServer cannot strictly validate the raw JSON Schema for tool '${tool.name}'; use an Effect Schema instead`);
+		if (strict && rawJsonSchema !== void 0) return yield* die$2(`McpServer cannot strictly validate the raw JSON Schema for tool '${tool.name}'; use an Effect Schema instead`);
 		const decodeOptions = {
 			onExcessProperty: strict ? "error" : "ignore",
 			errors: "all"
@@ -23802,12 +24562,12 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 				const error = failure.success.error;
 				const origin = get$2(reasonAnnotations(failure.success), FailureOrigin);
 				if (origin === "parameters" && isParameterValidationError(error)) return fail$3(new InvalidParams({ message: error.reason.message }));
-				if (origin === "handler" && isDeclaredFailure(error)) return catchCause$1(declaredFailureResult(error), internalToolError);
+				if (origin === "handler" && isDeclaredFailure(error)) return catchCause$2(declaredFailureResult(error), internalToolError);
 			}
 			return internalToolError(cause);
 		};
 		const outputSchema = yield* decodeUnknownEffect(ToolOutputJson)(toolJsonSchema(tool.successSchema, false)).pipe(orDie);
-		const inputSchema = yield* decodeUnknownEffect(ToolJson)(rawJsonSchema ?? toolJsonSchema(tool.parametersSchema, strict)).pipe(catchTag("SchemaError", (error) => die(rawJsonSchema !== void 0 ? `McpServer cannot register tool '${tool.name}': its raw JSON Schema must have an object root (type: "object").\n\n${error.message}` : `McpServer cannot register tool '${tool.name}': its parameters must encode to a JSON Schema with an object root (type: "object"), such as a Schema.Struct. Use Tool.EmptyParams for a tool without parameters.\n\n${error.message}`)));
+		const inputSchema = yield* decodeUnknownEffect(ToolJson)(rawJsonSchema ?? toolJsonSchema(tool.parametersSchema, strict)).pipe(catchTag("SchemaError", (error) => die$2(rawJsonSchema !== void 0 ? `McpServer cannot register tool '${tool.name}': its raw JSON Schema must have an object root (type: "object").\n\n${error.message}` : `McpServer cannot register tool '${tool.name}': its parameters must encode to a JSON Schema with an object root (type: "object"), such as a Schema.Struct. Use Tool.EmptyParams for a tool without parameters.\n\n${error.message}`)));
 		const mcpTool = new Tool$4({
 			name: tool.name,
 			description: getDescription(tool),
@@ -23830,7 +24590,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 					isError: result.isFailure,
 					structuredContent: result.isFailure ? void 0 : result.encodedResult,
 					content: toolResultContent(result.encodedResult)
-				}))), catchCause$1(handleCause), provideContext$2(services));
+				}))), catchCause$2(handleCause), provideContext$2(services));
 			}
 		});
 	}
@@ -23838,7 +24598,11 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 });
 const isParameterValidationError = (error) => isAiError(error) && error.reason._tag === "ToolParameterValidationError";
 const toolJsonSchema = (schema, strict) => {
-	const document = resolveTopLevelReference(toJsonSchemaDocument(schema, { onExcessProperty: strict ? "error" : "ignore" }));
+	const root = getContextOwner(getLastEncoding(toCodecJson(schema).ast));
+	const document = resolveTopLevelReference(toJsonSchemaDocument(schema, {
+		onExcessProperty: strict ? "error" : "ignore",
+		referencePolicy: ({ ast, identifier, occurrences }) => ast === root && occurrences === 1 ? void 0 : identifier
+	}));
 	return Object.keys(document.definitions).length === 0 ? document.schema : {
 		...document.schema,
 		$defs: document.definitions
@@ -23871,7 +24635,7 @@ const registerPrompt = (options) => {
 				values,
 				total: values.length,
 				hasMore: false
-			} })), catchCause$1((cause) => {
+			} })), catchCause$2((cause) => {
 				const prettyError = prettyErrors(cause)[0];
 				return fail$3(new InternalError({ message: prettyError.message }));
 			}), provide(services));
@@ -23881,7 +24645,7 @@ const registerPrompt = (options) => {
 			prompt,
 			completions,
 			annotations: options.annotations ?? empty$10(),
-			handle: (params) => decode(params).pipe(mapError$2((error) => new InvalidParams({ message: error.message })), flatMap((params) => options.content(params).pipe(catchCause$1((cause) => {
+			handle: (params) => decode(params).pipe(mapError$2((error) => new InvalidParams({ message: error.message })), flatMap((params) => options.content(params).pipe(catchCause$2((cause) => {
 				const prettyError = prettyErrors(cause)[0];
 				return fail$3(new InternalError({ message: prettyError.message }));
 			}))), map$4((messages) => {
@@ -24029,7 +24793,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		}));
 		const distinctId = installationId();
 		const launchId = randomUUID();
-		const queue = yield* unbounded();
+		const queue = yield* unbounded$1();
 		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
 			api_key: config.key,
 			batch: batch.map((event) => ({
@@ -24088,7 +24852,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 	}));
 };
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.4_effect@4.0.2/node_modules/@effect/platform-node-shared/dist/internal/utils.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/utils.js
 const handleErrnoException = (module, method) => (err, [path]) => {
 	let reason = "Unknown";
 	switch (err.code) {
@@ -24096,6 +24860,7 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 			reason = "NotFound";
 			break;
 		case "EACCES":
+		case "EPERM":
 			reason = "PermissionDenied";
 			break;
 		case "EEXIST":
@@ -24122,7 +24887,7 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 	});
 };
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.4_effect@4.0.2/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
 const handleBadArgument = (method) => (err) => badArgument({
 	module: "FileSystem",
 	method,
@@ -24133,7 +24898,9 @@ const bigintToNumber = (value, field) => {
 	if (!Number.isSafeInteger(number)) throw new RangeError(`${field} exceeds the safe integer range: ${value}`);
 	return number;
 };
-const bigintToNumberOption = (value) => flatMap$3(fromNullishOr(value), toNumber);
+const bigintToNumberOption = (value) => flatMap$4(fromNullishOr(value), toNumber$1);
+const toUint64 = (value) => BigInt.asUintN(64, value);
+const toUint64Option = (value) => map$10(fromNullishOr(value), toUint64);
 const positionToNumber = (position, method) => try_({
 	try: () => bigintToNumber(position, "position"),
 	catch: handleBadArgument(method)
@@ -24187,7 +24954,7 @@ const makeDirectory = /*#__PURE__*/ (() => {
 })();
 const makeTempDirectoryFactory = (method) => {
 	const nodeMkdtemp = effectify(NFS.mkdtemp, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	return (options) => suspend$2(() => {
+	return (options) => suspend$3(() => {
 		const prefix = options?.prefix ?? "";
 		const directory = typeof options?.directory === "string" ? Path.join(options.directory, ".") : OS.tmpdir();
 		return nodeMkdtemp(prefix ? Path.join(directory, prefix) : directory + "/");
@@ -24205,7 +24972,10 @@ const remove = /*#__PURE__*/ removeFactory("remove");
 const makeTempDirectoryScoped = /*#__PURE__*/ (() => {
 	const makeDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectoryScoped");
 	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempDirectoryScoped");
-	return (options) => acquireRelease(makeDirectory(options), (directory) => orDie(removeDirectory(directory, { recursive: true })));
+	return (options) => acquireRelease(makeDirectory(options), (directory) => orDie(removeDirectory(directory, {
+		recursive: true,
+		force: true
+	})));
 })();
 const openFlagBits = (flag) => {
 	const { O_APPEND, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY } = NFS.constants;
@@ -24222,7 +24992,7 @@ const openFlagBits = (flag) => {
 		case "ax+": return O_APPEND | O_CREAT | O_RDWR | O_EXCL;
 	}
 };
-const noFollowFlags = (method, flag) => suspend$2(() => {
+const noFollowFlags = (method, flag) => suspend$3(() => {
 	const { O_NOFOLLOW } = NFS.constants;
 	if (process.platform === "win32" || typeof O_NOFOLLOW !== "number" || O_NOFOLLOW === 0) return fail$3(badArgument({
 		module: "FileSystem",
@@ -24269,7 +25039,7 @@ const makeFile = /*#__PURE__*/ (() => {
 			return nodeSync(this.fd);
 		}
 		seek(offset, from) {
-			return suspend$2(() => {
+			return suspend$3(() => {
 				const position = from === "start" ? offset : this.position + offset;
 				if (position < BigInt(0)) return fail$3(badArgument({
 					module: "FileSystem",
@@ -24281,7 +25051,7 @@ const makeFile = /*#__PURE__*/ (() => {
 			});
 		}
 		read(buffer, options) {
-			return suspend$2(() => {
+			return suspend$3(() => {
 				const explicit = options?.position;
 				if (explicit !== void 0) return explicit < BigInt(0) ? fail$3(negativePosition("read")) : nodeRead(this.fd, {
 					buffer,
@@ -24298,7 +25068,7 @@ const makeFile = /*#__PURE__*/ (() => {
 			});
 		}
 		readAlloc(size, options) {
-			return suspend$2(() => {
+			return suspend$3(() => {
 				try {
 					if (!Number.isInteger(size) || size < 0) throw new RangeError("size must be a non-negative integer");
 					const explicit = options?.position;
@@ -24330,7 +25100,7 @@ const makeFile = /*#__PURE__*/ (() => {
 			});
 		}
 		write(buffer) {
-			return suspend$2(() => {
+			return suspend$3(() => {
 				const position = this.position;
 				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$4(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
 					if (!this.append) this.position = position + BigInt(bytesWritten);
@@ -24339,7 +25109,7 @@ const makeFile = /*#__PURE__*/ (() => {
 			});
 		}
 		writeAllChunk(buffer) {
-			return suspend$2(() => {
+			return suspend$3(() => {
 				const position = this.position;
 				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "writeAll"), (nodePosition) => flatMap(nodeWriteAll(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
 					if (bytesWritten === 0) return fail$3(systemError({
@@ -24374,7 +25144,10 @@ const makeTempFile = /*#__PURE__*/ makeTempFileFactory("makeTempFile");
 const makeTempFileScoped = /*#__PURE__*/ (() => {
 	const makeFile = /*#__PURE__*/ makeTempFileFactory("makeTempFileScoped");
 	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempFileScoped");
-	return (options) => acquireRelease(makeFile(options), (file) => orDie(removeDirectory(Path.dirname(file), { recursive: true })));
+	return (options) => acquireRelease(makeFile(options), (file) => orDie(removeDirectory(Path.dirname(file), {
+		recursive: true,
+		force: true
+	})));
 })();
 const readDirectory = (path, options) => tryPromise({
 	try: () => NFS.promises.readdir(path, options),
@@ -24395,36 +25168,38 @@ const readLink = /*#__PURE__*/ (() => {
 	return (path) => nodeReadLink(path);
 })();
 const realPath = /*#__PURE__*/ (() => {
-	const nodeRealPath = /*#__PURE__*/ effectify(NFS.realpath, /*#__PURE__*/ handleErrnoException("FileSystem", "realPath"), /*#__PURE__*/ handleBadArgument("realPath"));
+	const nodeRealPath = /*#__PURE__*/ effectify(process.platform === "win32" ? NFS.realpath.native : NFS.realpath, /*#__PURE__*/ handleErrnoException("FileSystem", "realPath"), /*#__PURE__*/ handleBadArgument("realPath"));
 	return (path) => nodeRealPath(path);
 })();
 const rename = /*#__PURE__*/ (() => {
 	const nodeRename = /*#__PURE__*/ effectify(NFS.rename, /*#__PURE__*/ handleErrnoException("FileSystem", "rename"), /*#__PURE__*/ handleBadArgument("rename"));
 	return (oldPath, newPath) => nodeRename(oldPath, newPath);
 })();
-const makeFileInfo = (stat) => try_({
+const makeFileInfo = (stat, method = "stat") => try_({
 	try: () => ({
 		type: stat.isFile() ? "File" : stat.isDirectory() ? "Directory" : stat.isSymbolicLink() ? "SymbolicLink" : stat.isBlockDevice() ? "BlockDevice" : stat.isCharacterDevice() ? "CharacterDevice" : stat.isFIFO() ? "FIFO" : stat.isSocket() ? "Socket" : "Unknown",
 		mtime: fromNullishOr(stat.mtime),
 		atime: fromNullishOr(stat.atime),
 		birthtime: fromNullishOr(stat.birthtime),
-		dev: bigintToNumber(stat.dev, "dev"),
-		rdev: bigintToNumberOption(stat.rdev),
-		ino: bigintToNumberOption(stat.ino),
+		dev: toUint64(stat.dev),
+		rdev: toUint64Option(stat.rdev),
+		ino: toUint64Option(stat.ino),
 		mode: bigintToNumber(stat.mode, "mode"),
-		nlink: bigintToNumberOption(stat.nlink),
+		nlink: toUint64Option(stat.nlink),
 		uid: bigintToNumberOption(stat.uid),
 		gid: bigintToNumberOption(stat.gid),
 		size: bytes(stat.size),
 		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none(),
-		blocks: bigintToNumberOption(stat.blocks)
+		blocks: fromNullishOr(stat.blocks)
 	}),
-	catch: handleBadArgument("stat")
+	catch: handleBadArgument(method)
 });
-const stat = /*#__PURE__*/ (() => {
-	const nodeStat = /*#__PURE__*/ effectify(NFS.stat, /*#__PURE__*/ handleErrnoException("FileSystem", "stat"), /*#__PURE__*/ handleBadArgument("stat"));
-	return (path) => flatMap(nodeStat(path, { bigint: true }), makeFileInfo);
-})();
+const statFactory = (method, nodeStatFn) => {
+	const nodeStat = effectify(nodeStatFn, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (path) => flatMap(nodeStat(path, { bigint: true }), (stat) => makeFileInfo(stat, method));
+};
+const stat = /*#__PURE__*/ statFactory("stat", NFS.stat);
+const lstat = /*#__PURE__*/ statFactory("lstat", NFS.lstat);
 const symlink = /*#__PURE__*/ (() => {
 	const nodeSymlink = /*#__PURE__*/ effectify(NFS.symlink, /*#__PURE__*/ handleErrnoException("FileSystem", "symlink"), /*#__PURE__*/ handleBadArgument("symlink"));
 	return (target, path) => nodeSymlink(target, path);
@@ -24475,8 +25250,8 @@ const watchNode = (path, info, options) => callback((queue) => acquireRelease(sy
 		endUnsafe(queue);
 	});
 	return watcher;
-}), (watcher) => sync(() => watcher.close())));
-const watch = (backend, path, options) => stat(path).pipe(map$4((stat) => backend.pipe(flatMap$3((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
+}), (watcher) => sync(() => watcher.close())).pipe(tap(() => sync(() => options?.onReady?.()))));
+const watch = (backend, path, options) => all$1([stat(path), serviceOption(WatchBackend)]).pipe(map$4(([stat, callerBackend]) => orElse(callerBackend, () => backend).pipe(flatMap$4((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
 const writeFile = (path, data, options) => callback$1((resume, signal) => {
 	try {
 		NFS.writeFile(path, data, {
@@ -24499,6 +25274,7 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	copyFile,
 	glob,
 	link,
+	lstat,
 	makeDirectory,
 	makeTempDirectory,
 	makeTempDirectoryScoped,
@@ -24521,7 +25297,7 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	writeFile
 }));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.2_effect@4.0.2/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeFileSystem.js
 const layer$2 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 //#endregion
 //#region ../../packages/mcp/src/Updates.ts
@@ -24926,7 +25702,7 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 		yield* telemetry.capture("server_failed", { reason: connection.failure._tag });
 	}
 	let announced = false;
-	const announce = (who) => suspend$2(() => {
+	const announce = (who) => suspend$3(() => {
 		if (announced) return void_$1;
 		announced = true;
 		return telemetry.capture("session_started", who);
@@ -24944,7 +25720,7 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	for (const target of operations) handlers[target.name] = observed(watcher, target.name, (params) => provided(connected(invoke(target, params))).pipe(map$4((result) => result ?? { done: true })));
 	return TipeeToolkit.of(handlers);
 }));
-const TipeeToolkitLayerConfig = unwrap$3(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$2(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$7(missing))));
+const TipeeToolkitLayerConfig = unwrap$4(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$2(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$7(missing))));
 //#endregion
 //#region ../../packages/mcp/src/Prompts.ts
 const SETUP_PROMPT = {
@@ -24960,55 +25736,118 @@ const SetupPrompt = prompt({
 	title: SETUP_PROMPT.title
 });
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.4_effect@4.0.2/node_modules/@effect/platform-node-shared/dist/NodeSink.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/stream.js
+const destroyStream = (stream, cleanup, onDestroyed) => {
+	if (!("closed" in stream)) {
+		cleanup();
+		onDestroyed?.();
+		return;
+	}
+	const onDone = () => {
+		clearImmediate(immediate);
+		stream.off("error", onDone);
+		stream.off("close", onDone);
+		onDestroyed?.();
+	};
+	const onClosed = () => {
+		if (stream.closed) onDone();
+		else {
+			immediate = setImmediate(onClosed);
+			if (!onDestroyed) immediate.unref();
+		}
+	};
+	let immediate = setImmediate(onClosed);
+	if (!onDestroyed) immediate.unref();
+	stream.once("error", onDone);
+	stream.once("close", onDone);
+	cleanup();
+	if (!stream.closed) stream.destroy();
+};
+//#endregion
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeSink.js
 const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
 const fromWritableChannel = (options) => fromTransform$1((pull) => {
 	const writable = options.evaluate();
-	return succeed$3(pullIntoWritable({
+	const write = pullIntoWritable({
 		...options,
 		writable,
 		pull
-	}));
+	});
+	return succeed$3(options.endOnDone === false ? write : onError(write, (cause) => isDoneCause(cause) ? void_$1 : releaseWritable(writable)));
 });
-const pullIntoWritable = (options) => options.pull.pipe(flatMap((chunk) => {
-	let i = 0;
-	return callback$1((resume) => {
-		let cancelled = false;
-		const loop = () => {
-			for (; i < chunk.length;) {
-				if (cancelled) return;
-				if (!options.writable.write(chunk[i++], options.encoding)) {
-					if (!cancelled) options.writable.once("drain", loop);
-					return;
+const releaseWritable = (writable) => callback$1((resume) => {
+	const onDestroyed = () => resume(void_$1);
+	if (writable.closed) {
+		const cleanup = finished(writable, { readable: false }, () => {
+			cleanup();
+			onDestroyed();
+		});
+	} else destroyStream(writable, constVoid, onDestroyed);
+});
+const pullIntoWritable = (options) => withFiber((fiber) => {
+	const dispatcher = fiber.currentDispatcher;
+	const completion = makeUnsafe$6();
+	const failure = makeUnsafe$6();
+	const onError = (error) => doneUnsafe(failure, failSync(() => options.onError(error)));
+	let errorEmitted = false;
+	const onStreamError = (error) => {
+		errorEmitted = true;
+		onError(error);
+	};
+	options.writable.on("error", onStreamError);
+	const cleanup = finished(options.writable, { readable: false }, (error) => {
+		if (error) onError(error);
+		else doneUnsafe(completion, void_$1);
+	});
+	return options.pull.pipe(flatMap((chunk) => {
+		let i = 0;
+		return callback$1((resume) => {
+			let cancelled = false;
+			const onFinish = () => dispatcher.scheduleTask(loop, 0);
+			const loop = () => {
+				options.writable.off("drain", loop);
+				options.writable.off("finish", onFinish);
+				for (; i < chunk.length;) {
+					if (cancelled) return;
+					if (!options.writable.write(chunk[i++], options.encoding, (error) => {
+						if (!error) return;
+						if (options.writable.closed) onError(error);
+						else dispatcher.scheduleTask(() => onError(error), 0);
+					})) {
+						if (!cancelled) {
+							options.writable.once("drain", loop);
+							options.writable.once("finish", onFinish);
+						}
+						return;
+					}
 				}
-			}
-			if (!cancelled) resume(void_$1);
-		};
-		loop();
-		return sync(() => {
-			cancelled = true;
-			options.writable.off("drain", loop);
+				if (!cancelled) resume(void_$1);
+			};
+			loop();
+			return sync(() => {
+				cancelled = true;
+				options.writable.off("drain", loop);
+				options.writable.off("finish", onFinish);
+			});
 		});
-	});
-}), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
-	if ("closed" in options.writable && options.writable.closed) return done$1(_);
-	return callback$1((resume) => {
-		const onFinish = () => resume(done$1(_));
-		options.writable.once("finish", onFinish);
+	}), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
 		options.writable.end();
-		return sync(() => {
-			options.writable.off("finish", onFinish);
-		});
-	});
-}) : identity, raceFirst(callback$1((resume) => {
-	const onError = (error) => resume(fail$3(options.onError(error)));
-	options.writable.once("error", onError);
-	return sync(() => {
-		options.writable.off("error", onError);
-	});
-})));
+		return andThen(_await(completion), done$1(_));
+	}) : identity, raceFirst(_await(failure)), ensuring$2(sync(() => {
+		cleanup();
+		const removeErrorListener = () => {
+			options.writable.off("error", onStreamError);
+			options.writable.off("error", removeErrorListener);
+			options.writable.off("close", removeErrorListener);
+		};
+		if (options.writable.errored && !options.writable.closed && !errorEmitted) {
+			options.writable.once("error", removeErrorListener);
+			options.writable.once("close", removeErrorListener);
+		} else removeErrorListener();
+	})));
+});
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.4_effect@4.0.2/node_modules/@effect/platform-node-shared/dist/NodeStream.js
+//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeStream.js
 const fromReadable = (options) => fromChannel(fromReadableChannel(options));
 const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
 	scope,
@@ -25020,23 +25859,20 @@ const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableT
 const readableToPullUnsafe = (options) => {
 	const readable = options.readable;
 	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$33(void 0);
-	const latch = options.latch ?? makeUnsafe$2(false);
+	const exit = options.exit ?? make$30(void 0);
+	const latch = options.latch ?? makeUnsafe$1(false);
 	function onReadable() {
 		latch.openUnsafe();
 	}
-	function onError(error) {
-		exit.current = fail$4(options.onError(error));
-		latch.openUnsafe();
-	}
-	function onEnd() {
-		exit.current = fail$4(Done$1());
-		latch.openUnsafe();
-	}
 	readable.on("readable", onReadable);
-	readable.once("error", onError);
-	readable.once("end", onEnd);
-	const pull = suspend$2(function loop() {
+	const cleanup = finished(readable, {
+		readable: true,
+		writable: false
+	}, (error) => {
+		exit.current ??= fail$4(error ? options.onError(error) : Done$1());
+		latch.openUnsafe();
+	});
+	const pull = suspend$3(function loop() {
 		let item = options.readable.read(options.chunkSize);
 		if (item === null) {
 			if (exit.current) return exit.current;
@@ -25054,14 +25890,13 @@ const readableToPullUnsafe = (options) => {
 	});
 	return as(addFinalizer$1(options.scope, sync(() => {
 		readable.off("readable", onReadable);
-		readable.off("error", onError);
-		readable.off("end", onEnd);
-		if (closeOnDone && "closed" in options.readable && !options.readable.closed) options.readable.destroy();
+		if (closeOnDone) destroyStream(readable, cleanup);
+		else cleanup();
 	})), pull);
 };
 const defaultOnError = (error) => new UnknownError$1(error);
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.2_effect@4.0.2/node_modules/@effect/platform-node/dist/NodeStdio.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeStdio.js
 const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
@@ -25108,7 +25943,7 @@ const SERVER_ICON = new Icon$1({
 //#endregion
 //#region ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.5";
+const SERVER_VERSION = "1.0.6";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
@@ -25148,7 +25983,7 @@ const reportCrash = (cause) => gen(function* () {
 }).pipe(provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, ignore$1);
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
 //#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.2_effect@4.0.2/node_modules/@effect/platform-node/dist/NodeRuntime.js
+//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeRuntime.js
 const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
 	let receivedSignal = false;
 	fiber.addObserver((exit) => {
@@ -25176,7 +26011,7 @@ const start = () => {
 		process.exit(EXIT_CRASHED);
 	});
 	const crashed = (error) => {
-		runFork(andThen(reportCrash(die$2(error)), leave));
+		runFork(andThen(reportCrash(die$4(error)), leave));
 	};
 	process.on("uncaughtException", crashed);
 	process.on("unhandledRejection", crashed);
