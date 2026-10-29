@@ -4,6 +4,7 @@
 // say: the base URL, the headers tipee insists on, a timeout, and retries.
 
 import {
+  Cause,
   Config,
   ConfigProvider,
   Context,
@@ -14,7 +15,6 @@ import {
   Schedule,
   flow,
 } from 'effect';
-import type { Cause } from 'effect';
 import { HttpClient, HttpClientError, HttpClientRequest } from 'effect/http';
 import type { HttpClientResponse } from 'effect/http';
 import { HttpApiClient } from 'effect/http-api';
@@ -31,8 +31,20 @@ const HTTP_TOO_MANY_REQUESTS = 429;
 // Timeouts, rate limits and server errors that may pass on their own.
 const TRANSIENT_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 // Well under the minute after which MCP clients give up on a tool call, so
-// the agent hears what happened instead of a generic error.
-const REQUEST_TIMEOUT = '20 seconds';
+// the agent hears what happened instead of a generic error: one attempt, and
+// all of them with their backoff (four slow server errors would take 80 s).
+const ATTEMPT_TIMEOUT_SECONDS = 20;
+const CALL_TIMEOUT_SECONDS = 50;
+
+// A timeout whose message says how long tipee was given.
+const within = (
+  seconds: number,
+  message: string,
+): (<A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E | Cause.TimeoutError, R>) =>
+  Effect.timeoutOrElse({
+    duration: `${seconds} seconds`,
+    orElse: () => Effect.fail(new Cause.TimeoutError(message)),
+  });
 
 // `*.list` and `*.show*` operations, the ones that only read.
 export const readsOnly = (path: string): boolean =>
@@ -48,14 +60,15 @@ const resendable = (request: HttpClientRequest.HttpClientRequest, status?: numbe
     (status === undefined || TRANSIENT_STATUSES.has(status)));
 
 // Each attempt has its own timeout, and an attempt that timed out is not
-// sent again: three more would outlast the client's patience. Statuses are
+// sent again: three more would outlast the client's patience; the whole call
+// has a timeout too, for slow answers that are retried. Statuses are
 // handled by the repeat, on the answer itself (the client fails with a
 // StatusCodeError only after this), so only a lost connection is retried.
 const retried = <E, R>(
   response: Effect.Effect<HttpClientResponse.HttpClientResponse, E, R>,
 ): Effect.Effect<HttpClientResponse.HttpClientResponse, E | Cause.TimeoutError, R> =>
   response.pipe(
-    Effect.timeout(REQUEST_TIMEOUT),
+    within(ATTEMPT_TIMEOUT_SECONDS, `tipee did not answer within ${ATTEMPT_TIMEOUT_SECONDS} s`),
     Effect.repeat({
       schedule: RETRY_SCHEDULE,
       times: RETRY_ATTEMPTS,
@@ -70,6 +83,10 @@ const retried = <E, R>(
         error.reason._tag === 'TransportError' &&
         resendable(error.request),
     }),
+    within(
+      CALL_TIMEOUT_SECONDS,
+      `tipee gave no usable answer within ${CALL_TIMEOUT_SECONDS} s, retries included`,
+    ),
   );
 
 const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;

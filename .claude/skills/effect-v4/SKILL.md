@@ -5,8 +5,9 @@ description: Writing idiomatic Effect 4 code in this repo — services, layers, 
 
 # Effect 4 in tipee-tools
 
-This repo pins `effect@4.0.0` (and `@effect/platform-node`,
-`@effect/vitest` at the same version). v4 renamed and merged a lot; most
+This repo pins `effect` exactly (and `@effect/platform-node`,
+`@effect/vitest`, `@effect/openapi-generator` with it; see
+`packages/core/package.json`). v4 renamed and merged a lot; most
 model training data describes v3. **Read the installed sources, not memory**:
 `packages/core/node_modules/effect/src/<Module>.ts` (JSDoc with examples on
 every export; pnpm links `effect` into each package, not the root), and
@@ -33,12 +34,13 @@ Effect's own agent docs shipped beside them:
   `typeof S.Type`. Descriptions via `.annotate({ description })` (they reach
   the MCP JSON Schema).
 - HttpClient (`effect/http`): take `yield* HttpClient.HttpClient`,
-  shape it with `HttpClient.mapRequest(flow(prependUrl, acceptJson, bearerToken, setHeader))`
-  and retries with `HttpClient.transformResponse` (`Effect.repeat` on
-  transient responses, `Effect.retry` on errors; see `TipeeClient.ts` for why
-  not `retryTransient`); decode with
-  `HttpClientResponse.schemaBodyJson(schema)`. Provide `FetchHttpClient.layer`
-  (MSW intercepts it in tests).
+  shape it with `HttpClient.mapRequest(flow(acceptJson, bearerToken, setHeader))`,
+  timeouts and retries with `HttpClient.transformResponse` (`Effect.repeat` on
+  transient responses, `Effect.retry` on errors; not `retryTransient`, which
+  would resend writes; see `retried` in `TipeeClient.ts`), and hand it to
+  `HttpApiClient.makeWith(api, { baseUrl, httpClient })`; decode a plain
+  response with `HttpClientResponse.schemaJson(schema)`. Provide
+  `FetchHttpClient.layer` (MSW intercepts it in tests).
 - MCP (`effect/ai`): `Tool.make(name, { description, parameters, success, failure })`
   `.annotate(Tool.Readonly, true)`, `Toolkit.make(...)`, handlers with
   `toolkit.toLayer(Effect.gen(…))`, server with `McpServer.toolkit(toolkit)`

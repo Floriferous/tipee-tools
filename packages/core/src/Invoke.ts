@@ -91,12 +91,17 @@ export const integrationLink: Effect.Effect<IntegrationLink | undefined, never, 
       : undefined;
   });
 
+// How a failure finds the integration: looked up afresh by default; a
+// caller making many calls (check_setup) passes one cached lookup.
+export type IntegrationLookup = Effect.Effect<IntegrationLink | undefined, never, TipeeClient>;
+
 // The Roles tab of the integration the key belongs to, or the integrations page.
-const rolesPage: Effect.Effect<string, never, TipeeClient> = Effect.gen(function* () {
-  const { instance } = yield* TipeeClient;
-  const link = yield* integrationLink;
-  return link?.roles_page ?? pages(instance).integrations;
-});
+const rolesPage = (lookup: IntegrationLookup): Effect.Effect<string, never, TipeeClient> =>
+  Effect.gen(function* () {
+    const { instance } = yield* TipeeClient;
+    const link = yield* lookup;
+    return link?.roles_page ?? pages(instance).integrations;
+  });
 
 // The next step for the reasons whose fix does not depend on the call.
 const FIXES: Partial<Record<TipeeErrorReason['_tag'], string>> = {
@@ -117,6 +122,7 @@ const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
 const explain = (
   error: TipeeError,
   target: Operation,
+  lookup: IntegrationLookup,
 ): Effect.Effect<TipeeError, never, TipeeClient> =>
   Effect.gen(function* () {
     const { instance } = yield* TipeeClient;
@@ -170,7 +176,9 @@ const explain = (
     if (reason._tag === 'Forbidden') {
       return /not activated/iu.test(reason.body)
         ? fixed('The module is off on this instance: only a tipee administrator can turn it on.')
-        : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`);
+        : fixed(
+            `Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage(lookup)}`,
+          );
     }
     const fix = FIXES[reason._tag];
     return fix === undefined ? error : fixed(fix);
@@ -181,9 +189,10 @@ const explain = (
 export const invoke = (
   target: Operation,
   params: unknown,
+  lookup: IntegrationLookup = integrationLink,
 ): Effect.Effect<unknown, TipeeError, TipeeClient> =>
   call(target, params).pipe(
     Effect.catchTag('TipeeError', (failure) =>
-      Effect.flatMap(explain(failure, target), Effect.fail),
+      Effect.flatMap(explain(failure, target, lookup), Effect.fail),
     ),
   );
