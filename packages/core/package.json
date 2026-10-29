@@ -15,11 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "effect": "4.0.2"
+    "effect": "4.0.5"
   },
   "devDependencies": {
-    "@effect/openapi-generator": "4.0.2",
-    "@effect/vitest": "4.0.2",
+    "@effect/openapi-generator": "4.0.5",
+    "@effect/vitest": "4.0.6",
     "@types/node": "24.19.1",
     "msw": "3.0.2",
     "vitest": "5.0.3"
