@@ -35,6 +35,11 @@
       "matchManagers": ["github-actions"],
       "matchDepNames": ["node"],
       "enabled": false
+    },
+    {
+      "description": "lefthook 2.2.2 was published by hand, without the provenance 2.2.1 has: pnpm's trustPolicy refuses it as a possible takeover. Skip it; a later release published from CI again passes.",
+      "matchPackageNames": ["lefthook"],
+      "allowedVersions": "!/^2\\.2\\.2$/"
     }
   ]
 }

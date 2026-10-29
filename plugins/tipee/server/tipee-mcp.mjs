@@ -1,7 +1,6 @@
 import * as Crypto from "node:crypto";
 import { createHash, randomUUID } from "node:crypto";
-import * as Path from "node:path";
-import path from "node:path";
+import path, * as Path from "node:path";
 import { arch, argv, env, platform, version } from "node:process";
 import * as OS from "node:os";
 import { hostname, userInfo } from "node:os";
@@ -9,7 +8,7 @@ import { spawn } from "node:child_process";
 import * as NFS from "node:fs";
 import { finished } from "node:stream";
 import tls from "node:tls";
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pipeable.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pipeable.js
 const pipeArguments = (self, args) => {
 	switch (args.length) {
 		case 0: return self;
@@ -37,8 +36,7 @@ const Class$3 = /*#__PURE__*/ function() {
 	PipeableBase.prototype = Prototype$1;
 	return PipeableBase;
 }();
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Function.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Function.js
 const dual = function(arity, body) {
 	if (typeof arity === "function") return function() {
 		return arity(arguments) ? body.apply(this, arguments) : (self) => body(self, ...arguments);
@@ -126,8 +124,7 @@ function memoizeIdempotent(f) {
 		return result;
 	};
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/equal.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/equal.js
 const getAllObjectKeys = (obj) => {
 	const keys = new Set(Reflect.ownKeys(obj));
 	if (obj.constructor === Object) return keys;
@@ -152,14 +149,12 @@ const bufferBytes = (buffer) => {
 		return;
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/hash.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/hash.js
 let backEdges = 0;
 const addBackEdge = () => {
 	backEdges++;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Predicate.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Predicate.js
 function isString$1(input) {
 	return typeof input === "string";
 }
@@ -217,8 +212,7 @@ function isIterable(input) {
 	return hasProperty(input, Symbol.iterator) || isString$1(input);
 }
 const or = /*#__PURE__*/ dual(2, (self, that) => (a) => self(a) || that(a));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Hash.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Hash.js
 const symbol$3 = "~effect/Hash";
 const hash = (self) => {
 	switch (typeof self) {
@@ -309,8 +303,7 @@ const hashSet = /*#__PURE__*/ unordered(setSeed, (element) => combine$1(setSeed,
 const randomHashCache = /*#__PURE__*/ new WeakMap();
 const hashCache = /*#__PURE__*/ new WeakMap();
 const visitedObjects = /*#__PURE__*/ new WeakSet();
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equal.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equal.js
 const symbol$2 = "~effect/Equal";
 function equals$1() {
 	if (arguments.length === 1) return (self) => compareBoth(self, arguments[0]);
@@ -426,8 +419,7 @@ const entryHash = (entry) => hash(entry[0]);
 const equalEntries = (self, that) => compareBoth(self[0], that[0]) && compareBoth(self[1], that[1]);
 const isEqual = (u) => hasProperty(u, symbol$2);
 const asEquivalence = () => equals$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redactable.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redactable.js
 const symbolRedactable = /*#__PURE__*/ Symbol.for("~effect/Redactable");
 const isRedactable = (u) => hasProperty(u, symbolRedactable);
 function redact$2(u) {
@@ -448,8 +440,7 @@ const emptyContext$1 = {
 		return pipeArguments(this, arguments);
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Formatter.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Formatter.js
 function format$2(input, options) {
 	const space = options?.space ?? 0;
 	const ancestors = /* @__PURE__ */ new WeakSet();
@@ -586,8 +577,7 @@ function isJsonPrimitiveWrapper(object) {
 	} catch {}
 	return false;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Inspectable.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Inspectable.js
 const NodeInspectSymbol = /*#__PURE__*/ Symbol.for("nodejs.util.inspect.custom");
 const toJson = (input) => {
 	try {
@@ -626,8 +616,7 @@ var Class$2 = class {
 		return format$2(this.toJSON());
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stackTraceLimit.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stackTraceLimit.js
 const isStackTraceLimitWritable = () => {
 	const desc = Object.getOwnPropertyDescriptor(Error, "stackTraceLimit");
 	if (desc === void 0) return Object.isExtensible(Error);
@@ -638,8 +627,7 @@ const getStackTraceLimit = () => Error.stackTraceLimit;
 const setStackTraceLimit = (value) => {
 	if (canWriteStackTraceLimit) Error.stackTraceLimit = value;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Utils.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Utils.js
 var SingleShotGen = class {
 	constructor(self) {
 		this.value = self;
@@ -675,8 +663,7 @@ const pickInternalCall = () => {
 	return error.stack?.includes(InternalTypeId) === true ? standard[InternalTypeId] : forced[InternalTypeId];
 };
 const internalCall = /*#__PURE__*/ pickInternalCall();
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/record.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/record.js
 function assignProperty(self, key, value) {
 	if (key === "__proto__") Object.defineProperty(self, key, {
 		value,
@@ -693,8 +680,7 @@ function assignProperties(self, source) {
 	}
 	for (const key of Reflect.ownKeys(source)) if (Object.prototype.propertyIsEnumerable.call(source, key)) assignProperty(self, key, source[key]);
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/core.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/core.js
 const EffectTypeId = `~effect/Effect`;
 const ExitTypeId = `~effect/Exit`;
 const effectVariance = {
@@ -736,7 +722,7 @@ const EffectProto = {
 		return {
 			_id: "Effect",
 			op: this[identifier],
-			...args in this ? { args: this[args] } : void 0
+			..."~effect/Effect/args" in this ? { args: this[args] } : void 0
 		};
 	}
 };
@@ -894,7 +880,7 @@ function defaultEvaluate(_fiber) {
 const makePrimitiveProto = (options) => ({
 	...EffectProto,
 	[identifier]: options.op,
-	[evaluate]: options[evaluate] ?? defaultEvaluate,
+	[evaluate]: options["~effect/Effect/evaluate"] ?? defaultEvaluate,
 	[contA]: options[contA],
 	[contE]: options[contE],
 	[contAll]: options[contAll]
@@ -928,7 +914,7 @@ const makeExit = (options) => {
 			};
 		},
 		[symbol$2](that) {
-			return isExit$1(that) && that._tag === this._tag && equals$1(this[args], that[args]);
+			return isExit$1(that) && that._tag === this._tag && equals$1(this["~effect/Effect/args"], that["~effect/Effect/args"]);
 		},
 		[symbol$3]() {
 			return combine$1(string$1(options.op), hash(this[args]));
@@ -1052,14 +1038,12 @@ const done$2 = (value) => {
 	if (value === void 0) return doneVoid;
 	return exitFail(Done$2(value));
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effectable.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effectable.js
 const Prototype = (options) => makePrimitiveProto({
 	op: options.label,
 	[evaluate]: options.evaluate
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equivalence.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equivalence.js
 const make$50 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 const strictEqual = () => isStrictEquivalent;
@@ -1077,8 +1061,7 @@ function Array_(item) {
 		return true;
 	});
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/option.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/option.js
 const TypeId$52 = "~effect/Option";
 const CommonProto$1 = {
 	[TypeId$52]: { _A: (_) => _ },
@@ -1139,8 +1122,7 @@ const SomeImpl = function(value) {
 };
 SomeImpl.prototype = SomeProto;
 const some$1 = (value) => new SomeImpl(value);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/result.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/result.js
 const TypeId$51 = "~effect/Result";
 const CommonProto = {
 	[TypeId$51]: {
@@ -1206,8 +1188,7 @@ const SuccessImpl = function(success) {
 };
 SuccessImpl.prototype = SuccessProto;
 const succeed$9 = (success) => new SuccessImpl(success);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Order.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Order.js
 function make$49(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
@@ -1224,8 +1205,7 @@ const isGreaterThan$1 = (O) => dual(2, (self, that) => O(self, that) === 1);
 const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1);
 const isGreaterThanOrEqualTo$2 = (O) => dual(2, (self, that) => O(self, that) !== -1);
 const max$1 = (O) => dual(2, (self, that) => self === that || O(self, that) > -1 ? self : that);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Option.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Option.js
 const none = () => none$1;
 const some = some$1;
 const isOption = isOption$1;
@@ -1251,8 +1231,7 @@ const getOrThrowWith$1 = /*#__PURE__*/ dual(2, (self, onNone) => {
 const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
 const flatMap$4 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
 const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Context.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Context.js
 const ServiceTypeId = "~effect/Context/Service";
 const Service$1 = function() {
 	function KeyClass() {}
@@ -1441,14 +1420,11 @@ const omit$2 = (...keys) => (self) => withFlat(self, (map) => {
 	for (let i = 0; i < keys.length; i++) map.delete(keys[i].key);
 });
 const Reference = Service$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/array.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/array.js
 const isArrayNonEmpty$1 = (self) => self.length > 0;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/count.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/count.js
 const normalize$2 = (n) => n > 0 ? Math.floor(n) : 0;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Result.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Result.js
 const succeed$8 = succeed$9;
 const fail$7 = fail$8;
 const try_$2 = (evaluate) => {
@@ -1486,11 +1462,9 @@ const all$3 = (input) => {
 	}
 	return succeed$8(out);
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tuple.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tuple.js
 const makeEquivalence$3 = Tuple$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Record.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Record.js
 const has = /*#__PURE__*/ dual(2, (self, key) => Object.hasOwn(self, key));
 const map$8 = /*#__PURE__*/ dual(2, (self, f) => {
 	const out = { ...self };
@@ -1506,8 +1480,7 @@ const makeEquivalence$2 = (equivalence) => {
 	const is = isSubrecordBy(equivalence);
 	return (self, that) => is(self, that) && is(that, self);
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Array.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Array.js
 const Array$1 = globalThis.Array;
 const fromIterable$2 = (collection) => Array$1.isArray(collection) ? collection : Array$1.from(collection);
 const ensure = (self) => Array$1.isArray(self) ? self : [self];
@@ -1530,8 +1503,7 @@ const empty$9 = () => [];
 const of = (a) => [a];
 const map$7 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
 const makeEquivalence$1 = Array_;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Duration.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Duration.js
 const TypeId$49 = "~effect/Duration";
 const bigint0$3 = /*#__PURE__*/ BigInt(0);
 const bigint1$2 = /*#__PURE__*/ BigInt(1);
@@ -1855,8 +1827,7 @@ const format$1 = (self) => {
 	if (fragments.nanos !== 0) pieces.push(`${fragments.nanos}ns`);
 	return pieces.join(" ");
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scheduler.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scheduler.js
 const Scheduler = /*#__PURE__*/ Reference("effect/Scheduler", {
 	fiberCached: true,
 	defaultValue: () => new MixedScheduler()
@@ -1959,8 +1930,7 @@ const PreventSchedulerYield = /*#__PURE__*/ Reference("effect/Scheduler/PreventS
 	fiberCached: true,
 	defaultValue: () => false
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Data.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Data.js
 const Class$1 = class extends Class$3 {
 	constructor(props) {
 		super();
@@ -1990,8 +1960,7 @@ function taggedMatch() {
 }
 const Error$2 = Error$3;
 const TaggedError$1 = TaggedError$2;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/EncodingError.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/EncodingError.js
 const EncodingErrorTypeId = "~effect/encoding/EncodingError";
 var EncodingError = class extends (/*#__PURE__*/ TaggedError$1("EncodingError")) {
 	[EncodingErrorTypeId] = EncodingErrorTypeId;
@@ -2025,8 +1994,7 @@ const random32 = () => {
 	const d = randomWord();
 	return String.fromCharCode(hexCharCodes[a >>> 28], hexCharCodes[a >>> 24 & 15], hexCharCodes[a >>> 20 & 15], hexCharCodes[a >>> 16 & 15], hexCharCodes[a >>> 12 & 15], hexCharCodes[a >>> 8 & 15], hexCharCodes[a >>> 4 & 15], hexCharCodes[a & 15], hexCharCodes[b >>> 28], hexCharCodes[b >>> 24 & 15], hexCharCodes[b >>> 20 & 15], hexCharCodes[b >>> 16 & 15], hexCharCodes[b >>> 12 & 15], hexCharCodes[b >>> 8 & 15], hexCharCodes[b >>> 4 & 15], hexCharCodes[b & 15], hexCharCodes[c >>> 28], hexCharCodes[c >>> 24 & 15], hexCharCodes[c >>> 20 & 15], hexCharCodes[c >>> 16 & 15], hexCharCodes[c >>> 12 & 15], hexCharCodes[c >>> 8 & 15], hexCharCodes[c >>> 4 & 15], hexCharCodes[c & 15], hexCharCodes[d >>> 28], hexCharCodes[d >>> 24 & 15], hexCharCodes[d >>> 20 & 15], hexCharCodes[d >>> 16 & 15], hexCharCodes[d >>> 12 & 15], hexCharCodes[d >>> 8 & 15], hexCharCodes[d >>> 4 & 15], hexCharCodes[d & 15]);
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tracer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tracer.js
 const ParentSpanKey = "effect/Tracer/ParentSpan";
 var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiberCached: true })) {};
 const make$46 = (options) => options;
@@ -2107,11 +2075,9 @@ var NativeSpan = class {
 		this.links.push(...links);
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/metric.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/metric.js
 const FiberRuntimeMetricsKey = "effect/Metric/FiberRuntimeMetrics";
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/references.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/references.js
 const CurrentErrorReporters = /*#__PURE__*/ Reference("effect/ErrorReporter/CurrentErrorReporters", { defaultValue: () => /* @__PURE__ */ new Set() });
 const CurrentStackFrame = /*#__PURE__*/ Reference("effect/References/CurrentStackFrame", {
 	fiberCached: true,
@@ -2134,8 +2100,7 @@ const MinimumLogLevel = /*#__PURE__*/ Reference("effect/References/MinimumLogLev
 	defaultValue: () => "Info"
 });
 const CurrentLogSpans = /*#__PURE__*/ Reference("effect/References/CurrentLogSpans", { defaultValue: () => [] });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/tracer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/tracer.js
 const addSpanStackTrace = (options) => {
 	if (options?.captureStackTrace === false) return options;
 	else if (options?.captureStackTrace !== void 0 && typeof options.captureStackTrace !== "boolean") return options;
@@ -2166,8 +2131,7 @@ const makeStackCleaner = (line) => (stack) => {
 	};
 };
 const spanCleaner = /*#__PURE__*/ makeStackCleaner(3);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/effect.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/effect.js
 var Interrupt = class extends ReasonBase {
 	constructor(fiberId, annotations = constEmptyAnnotations) {
 		super("Interrupt", annotations, "Interrupted");
@@ -2492,7 +2456,7 @@ var FiberImpl = class {
 				current = cache.tracerContext ? cache.tracerContext(current, this) : current[evaluate](this);
 				if (current === Yield) {
 					const yielded = this._yielded;
-					if (ExitTypeId in yielded) {
+					if ("~effect/Exit" in yielded) {
 						this._deferredInterrupt = false;
 						this._yielded = void 0;
 						return yielded;
@@ -2504,7 +2468,7 @@ var FiberImpl = class {
 					return Yield;
 				}
 			} catch (error) {
-				if (!hasProperty(current, evaluate)) return exitDie(`Fiber.runLoop: Not a valid effect: ${String(current)}`);
+				if (!hasProperty(current, "~effect/Effect/evaluate")) return exitDie(`Fiber.runLoop: Not a valid effect: ${String(current)}`);
 				current = exitDie(error);
 			}
 		} finally {
@@ -2682,7 +2646,7 @@ const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 		fiber.currentDispatcher.scheduleTask(() => {
 			if (resumed) return;
 			fiber.evaluate(exitVoid);
-		}, this[args] ?? 0);
+		}, this["~effect/Effect/args"] ?? 0);
 		return fiber.yieldWith(() => {
 			resumed = true;
 		});
@@ -3496,14 +3460,14 @@ const whileLoop$1 = /*#__PURE__*/ makePrimitive({
 	op: "While",
 	[contA](value, fiber) {
 		this[args].step(value);
-		if (this[args].while()) {
+		if (this["~effect/Effect/args"].while()) {
 			fiber._stack.push(this);
 			return this[args].body();
 		}
 		return exitVoid;
 	},
 	[evaluate](fiber) {
-		if (this[args].while()) {
+		if (this["~effect/Effect/args"].while()) {
 			fiber._stack.push(this);
 			return this[args].body();
 		}
@@ -4163,8 +4127,7 @@ const reportCauseUnsafe = (fiber, cause, defectsOnly) => {
 	};
 	reporters.forEach((reporter) => reporter.report(opts));
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Cause.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Cause.js
 const isCause = isCause$1;
 const isReason = isCauseReason;
 const isFailReason = isFailReason$1;
@@ -4195,8 +4158,7 @@ const UnknownError$1 = UnknownError$2;
 const annotate$1 = causeAnnotate;
 const reasonAnnotations = reasonAnnotations$1;
 var StackTrace = class extends (/*#__PURE__*/ Service$1()("effect/Cause/StackTrace")) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Exit.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Exit.js
 const isExit = isExit$1;
 const succeed$6 = exitSucceed;
 const failCause$5 = exitFailCause;
@@ -4208,8 +4170,7 @@ const isSuccess = exitIsSuccess;
 const isFailure = exitIsFailure;
 const hasInterrupts = exitHasInterrupts;
 const asVoidAll = exitAsVoidAll;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Deferred.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Deferred.js
 const TypeId$48 = "~effect/Deferred";
 const isDeferred = (u) => hasProperty(u, TypeId$48);
 const DeferredProto = {
@@ -4254,13 +4215,11 @@ const doneUnsafe = (self, effect) => {
 	}
 	return true;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/References.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/References.js
 const CurrentLogAnnotations = CurrentLogAnnotations$1;
 const CurrentLogLevel = CurrentLogLevel$1;
 const TracerTimingEnabled = TracerTimingEnabled$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scope.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scope.js
 const Scope = scopeTag;
 const make$44 = scopeMake;
 const makeUnsafe$5 = scopeMakeUnsafe;
@@ -4270,8 +4229,7 @@ const addFinalizer$1 = scopeAddFinalizer;
 const forkUnsafe = scopeForkUnsafe;
 const close = scopeClose;
 const closeUnsafe = scopeCloseUnsafe;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Layer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Layer.js
 const TypeId$47 = "~effect/Layer";
 const MemoMapTypeId = "~effect/Layer/MemoMap";
 const makeMemoMapEntry = (memoMap, layer) => {
@@ -4386,12 +4344,10 @@ const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, tha
 const flatMap$1 = /*#__PURE__*/ dual(2, (self, f) => fromBuild((memoMap, scope) => flatMap$2(self.build(memoMap, scope), (context) => f(context).build(memoMap, scope))));
 const catchTag$1 = /*#__PURE__*/ dual(3, (self, k, f) => fromBuildUnsafe((memoMap, scope) => catchTag$2(self.build(memoMap, scope), k, (error) => f(error).build(memoMap, scope))));
 const launch = (self) => scoped$1(andThen$1(build(self), never$2));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Clock.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Clock.js
 const Clock = ClockRef;
 const currentTimeMillis = currentTimeMillis$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/dateTime.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/dateTime.js
 const TypeId$46 = "~effect/DateTime";
 const TimeZoneTypeId = "~effect/DateTime/TimeZone";
 const Proto$17 = {
@@ -4637,8 +4593,7 @@ const formatIsoOffset = (self) => {
 	return self._tag === "Utc" ? date.toISOString() : `${date.toISOString().slice(0, -1)}${zonedOffsetIso(self)}`;
 };
 const formatIsoZoned = (self) => self.zone._tag === "Offset" ? formatIsoOffset(self) : `${formatIsoOffset(self)}[${self.zone.id}]`;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pull.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pull.js
 const catchDone = /*#__PURE__*/ dual(2, (effect, f) => catchCauseFilter$1(effect, filterDoneLeftover, (l) => f(l)));
 const isDoneCause = (cause) => cause.reasons.some(isDoneFailure);
 const isDoneFailure = (failure) => failure._tag === "Fail" && isDone(failure.error);
@@ -4665,8 +4620,7 @@ const matchEffect$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 		return !isFailure$1(halt) ? options.onDone(halt.success.value) : options.onFailure(halt.failure);
 	}
 }));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schedule.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schedule.js
 const TypeId$45 = "~effect/Schedule";
 const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata", { defaultValue: /*#__PURE__*/ constant({
 	input: void 0,
@@ -4759,12 +4713,10 @@ const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$6(toStep(
 	});
 })));
 const forever$1 = /*#__PURE__*/ spaced(zero$1);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/layer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/layer.js
 const provideLayer = (self, layer, options) => scopedWith$1((scope) => flatMap$2(options?.local ? buildWithMemoMap(layer, makeMemoMapUnsafe(), scope) : buildWithScope(layer, scope), (context) => provideContext$3(self, context)));
 const provide$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, source, options) => isContext(source) ? provideContext$3(self, source) : provideLayer(self, Array.isArray(source) ? mergeAll(...source) : source, options));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schedule.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schedule.js
 const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2(toStepWithMetadata(schedule), (step) => {
 	let meta = CurrentMetadata.defaultValue();
 	const loop = (input) => matchEffect$1(step(input), {
@@ -4811,8 +4763,7 @@ const buildFromOptions = (options) => {
 	if (options.times !== void 0) schedule = while_(schedule, ({ attempt }) => succeed$7(attempt <= options.times));
 	return schedule;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableHashMap.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableHashMap.js
 const TypeId$44 = "~effect/MutableHashMap";
 const MutableHashMapProto = {
 	[TypeId$44]: TypeId$44,
@@ -4905,8 +4856,7 @@ const clear$2 = (self) => {
 	return self;
 };
 const size = (self) => self.backing.size;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effect.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effect.js
 const isEffect = isEffect$1;
 const all$1 = all$2;
 const forEach$1 = forEach$2;
@@ -5037,14 +4987,12 @@ const mapBothEager = mapBothEager$1;
 const flatMapEager = flatMapEager$1;
 const catchEager = catchEager$1;
 const fnUntracedEager = fnUntracedEager$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Fiber.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Fiber.js
 const join = fiberJoin;
 const interrupt = fiberInterrupt;
 const getCurrent = getCurrentFiber;
 const runIn = fiberRunIn;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableList.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableList.js
 const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
 const make$42 = () => ({
 	head: void 0,
@@ -5146,8 +5094,7 @@ const take$1 = (self) => {
 	} else compactHead(self);
 	return message;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Queue.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Queue.js
 const TypeId$43 = "~effect/Queue";
 const EnqueueTypeId = "~effect/Queue/Enqueue";
 const DequeueTypeId = "~effect/Queue/Dequeue";
@@ -5421,8 +5368,7 @@ const finalize = (self, exit) => {
 	for (const awaiter of openState.awaiters) awaiter(exit);
 	openState.awaiters.clear();
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Semaphore.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Semaphore.js
 const makeUnsafe$3 = (permits) => new SemaphoreImpl(permits);
 const firstAvailableWaiter = (self) => {
 	for (const waiter of self.waiters) if (waiter.permits <= self.free) return waiter;
@@ -5518,8 +5464,7 @@ var SemaphoreImpl = class {
 	}
 };
 const make$40 = (permits) => sync$1(() => new SemaphoreImpl(permits));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigDecimal.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigDecimal.js
 const TypeId$42 = "~effect/BigDecimal";
 const BigDecimalProto = {
 	[TypeId$42]: TypeId$42,
@@ -5621,15 +5566,13 @@ const toExponential = (n) => {
 	return `${head}${tail === "" ? "" : `.${tail}`}e${exp >= 0 ? "+" : ""}${exp}`;
 };
 const isZero = (n) => n.value === bigint0$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigInt.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigInt.js
 const BigInt$4 = globalThis.BigInt;
 const toNumber$1 = (b) => {
 	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none();
 	return some(Number(b));
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ByteSize.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ByteSize.js
 const bigint0 = /*#__PURE__*/ BigInt(0);
 const bigint1 = /*#__PURE__*/ BigInt(1);
 const decimalBase = /*#__PURE__*/ BigInt(1e3);
@@ -5844,8 +5787,7 @@ const fromInputUnsafe = (input) => {
 const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fromNumber(value);
 const toNumber = toNumber$1;
 const toNumberUnsafe = (self) => getOrThrowWith$1(toNumber(self), () => /* @__PURE__ */ new Error(`ByteSize exceeds Number.MAX_SAFE_INTEGER: ${self}`));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/DateTime.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/DateTime.js
 const isDateTime = isDateTime$1;
 const isUtc = isUtc$1;
 const makeUnsafe$2 = makeUnsafe$4;
@@ -5856,8 +5798,7 @@ const toEpochMillis = toEpochMillis$1;
 const add = add$1;
 const formatIso = formatIso$1;
 const formatIsoDate = formatIsoDate$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Base64.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Base64.js
 const encode$1 = (input) => encodeBytes(typeof input === "string" ? encoder$3.encode(input) : input);
 const decode$4 = (str) => {
 	const stripped = stripCrlf(str);
@@ -5961,8 +5902,7 @@ const getCode = (charCode) => {
 	if (charCode >= codes.length || codes[charCode] === 255) throw new TypeError(`Invalid character ${String.fromCharCode(charCode)}`);
 	return codes[charCode];
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Cookies.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Cookies.js
 const TypeId$41 = "~effect/http/Cookies";
 const CookieTypeId = "~effect/http/Cookies/Cookie";
 const Proto$16 = {
@@ -6102,16 +6042,14 @@ const tryDecodeURIComponent = (str) => {
 		return str;
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/redacted.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/redacted.js
 const redactedRegistry = /*#__PURE__*/ new WeakMap();
 const value$3 = (self) => {
 	if (redactedRegistry.has(self)) return redactedRegistry.get(self);
 	else throw new Error("Unable to get redacted value" + (self.label ? ` with label: "${self.label}"` : ""));
 };
 const stringOrRedacted = (val) => typeof val === "string" ? val : value$3(val);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redacted.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redacted.js
 const TypeId$40 = "~effect/Redacted";
 const isRedacted = (u) => hasProperty(u, TypeId$40);
 const make$36 = (value, options) => {
@@ -6139,8 +6077,7 @@ const Proto$15 = {
 };
 const value$2 = value$3;
 const makeEquivalence = (isEquivalent) => make$50((x, y) => isEquivalent(value$2(x), value$2(y)));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Headers.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Headers.js
 const TypeId$39 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
 const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.create(null), {
 	[TypeId$39]: { value: TypeId$39 },
@@ -6293,11 +6230,9 @@ const parseRetryAfter$1 = (input) => {
 	return millis === void 0 ? fail$7(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$2(millis)));
 };
 const retryAfterDelay = (self, now) => self._tag === "Duration" ? self.duration : millis(Math.max(0, toEpochMillis(self.dateTime) - now));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/urlParams.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/urlParams.js
 const unwrap$3 = (value) => typeof value === "string" ? value : value$2(value);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/UrlParams.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/UrlParams.js
 const TypeId$38 = "~effect/http/UrlParams";
 const isUrlParams = (u) => hasProperty(u, TypeId$38);
 const Proto$13 = {
@@ -6436,8 +6371,7 @@ const CurrentRedactedNames = /*#__PURE__*/ Reference("effect/http/UrlParams/Curr
 	"sig",
 	"X-Goog-Signature"
 ] });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/annotations.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/annotations.js
 function resolve$1(ast) {
 	return ast.checks ? ast.checks[ast.checks.length - 1].annotations : ast.annotations;
 }
@@ -6483,16 +6417,14 @@ const annotationExcludedKeys = /*#__PURE__*/ new Set([
 	"toCodecIso",
 	"toCodecArbitrary"
 ]);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/parser.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/parser.js
 const missing = /*#__PURE__*/ Symbol();
 const succeed$2 = succeed$6;
 const missingExit = /*#__PURE__*/ succeed$2(missing);
 const sameExit = /*#__PURE__*/ succeed$2(missing);
 const toOption = (value) => value === missing ? none() : some(value);
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed$2(option.value);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaIssue.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaIssue.js
 const TypeId$37 = "~effect/SchemaIssue/Issue";
 function isIssue(u) {
 	return hasProperty(u, TypeId$37) && u[TypeId$37] === TypeId$37;
@@ -6701,8 +6633,7 @@ function findMessage(issue) {
 	const message = (issue._tag === "Filter" ? issue.filter.annotations : "annotations" in issue ? issue.annotations : issue.ast.annotations)?.[issue._tag === "MissingKey" ? "messageMissingKey" : issue._tag === "UnexpectedKey" ? "messageUnexpectedKey" : "message"];
 	if (typeof message === "string") return message;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/cause.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/cause.js
 function getSchemaIssue(cause) {
 	let issue;
 	for (const reason of cause.reasons) {
@@ -6716,8 +6647,7 @@ function getSchemaIssueOrThrow(cause, message) {
 	if (issue === void 0) throw new Error(message, { cause });
 	return issue;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaGetter.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaGetter.js
 const makeGetter = (fields) => Object.assign(Object.create(Prototype$1), fields);
 function fail$2(f) {
 	return transformOptionalEffect((oe, options) => fail$3(f(oe, options)));
@@ -6803,8 +6733,7 @@ function encodeBase64() {
 function decodeBase64() {
 	return transformEffect$1((input, options) => mapErrorEager(fromResult(decode$4(input)), () => new InvalidValue({ expected: "a valid Base64 string" }, input, options)));
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/content.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/content.js
 const ContentTypeId = /*#__PURE__*/ Symbol.for("~effect/Schema/content");
 function setContent(operation, content) {
 	Object.defineProperty(operation, ContentTypeId, { value: content });
@@ -6813,8 +6742,7 @@ function setContent(operation, content) {
 function getContent(operation) {
 	return operation[ContentTypeId];
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaTransformation.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaTransformation.js
 const Middleware = class extends Class$3 {
 	_tag = "Middleware";
 	decode;
@@ -6912,8 +6840,7 @@ function fromJsonString$1(options) {
 		preserveSchema: options?.reviver === void 0 && options?.replacer === void 0
 	}));
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaAST.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaAST.js
 function makeGuard(tag) {
 	return (ast) => ast._tag === tag;
 }
@@ -8583,8 +8510,7 @@ const unknownToStringTree = /*#__PURE__*/ new Link(/* @__PURE__ */ new Declarati
 	expected: "StringTree",
 	toCodecStringTree: () => void 0
 }), /*#__PURE__*/ passthrough());
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/interpreter.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/interpreter.js
 const flatMapTransformation = (result, current, f) => result === sameExit ? f(current) : flatMapEager(result, f);
 function compileTransformation(transformation) {
 	const apply = compileTransformationUnsafe(transformation);
@@ -8729,8 +8655,7 @@ function compile(ast, compile, compileField, base, specialize) {
 		});
 	};
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/compilerRegistry.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/compilerRegistry.js
 const invalid$1 = /*#__PURE__*/ Symbol();
 const cache = /*#__PURE__*/ new WeakMap();
 const decodeChild = (ast) => resolve(ast).parser;
@@ -8758,8 +8683,7 @@ function resolve(ast) {
 	cache.set(ast, entry);
 	return entry;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaParser.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaParser.js
 function makeEffect(schema) {
 	const ast = schema.ast;
 	let parser;
@@ -8835,7 +8759,7 @@ function run$1(ast) {
 function parserResult(result, input) {
 	if (result === sameExit) return succeed$3(input);
 	if (!effectIsExit(result)) return flatMapEager(result, getValue);
-	return result[args] === missing ? getValue(missing) : result;
+	return result["~effect/Effect/args"] === missing ? getValue(missing) : result;
 }
 function runWithCompiler(compiler, ast) {
 	let parser;
@@ -8843,7 +8767,7 @@ function runWithCompiler(compiler, ast) {
 		const result = (parser ??= compiler(ast))(input, options ?? defaultParseOptions);
 		if (result === sameExit) return succeed$3(input);
 		if (!effectIsExit(result)) return flatMapEager(result, getValue);
-		return result[args] === missing ? getValue(missing) : result;
+		return result["~effect/Effect/args"] === missing ? getValue(missing) : result;
 	};
 }
 function asExit(parser) {
@@ -8911,8 +8835,7 @@ function makeClassSync(ast, input, options, construct) {
 }
 const normalCompiler = (ast) => resolve(ast).parser;
 const constructorCompiler = (ast) => resolve(ast).makeEffect;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/make.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/make.js
 const TypeId$34 = "~effect/Schema/Schema";
 const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
@@ -8966,8 +8889,7 @@ function make$32(ast, options) {
 	self.ast = ast;
 	return self;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/jsonSchema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/jsonSchema.js
 function getSubschemaKind(keyword) {
 	switch (keyword) {
 		case "$defs":
@@ -8991,8 +8913,7 @@ function getSubschemaKind(keyword) {
 		case "contentSchema": return "schema";
 	}
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonPointer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonPointer.js
 function escapeToken(token) {
 	return token.replace(/~/g, "~0").replace(/\//g, "~1");
 }
@@ -9018,8 +8939,7 @@ function parseUriFragment(fragment) {
 	const pointer = decodeUriFragment(fragment);
 	return pointer === void 0 ? void 0 : pointer.length === 0 ? [] : pointer.slice(1).split("/").map(unescapeToken);
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonSchema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonSchema.js
 function getReferenceKey($ref) {
 	const path = $ref.startsWith("#") ? parseUriFragment($ref) : void 0;
 	return path !== void 0 && path.length === 2 && path[0] === "$defs" ? path[1] : void 0;
@@ -9083,8 +9003,7 @@ const PRE_2020_TO_2020_COLLISIONS = [
 ];
 [...PRE_2020_TO_2020_COLLISIONS];
 [...PRE_2020_TO_2020_COLLISIONS];
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toCodec.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toCodec.js
 function toCodecJson$1(schema) {
 	return make$32(toCodecJsonAST(schema.ast), { schema });
 }
@@ -9216,14 +9135,12 @@ const toCodecStringTreeAST = /*#__PURE__*/ makeCodecDerivation((ast, recur) => t
 }), { stopAt: isCodecArrayFromSingleLink });
 globalThis.RegExp;
 const escape = (string) => string.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/errors.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/errors.js
 function errorWithPath(message, path) {
 	if (path.length > 0) message += `\n  at ${formatPath(path)}`;
 	return new Error(message);
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
 function formatDefinitionReference(key) {
 	return `#/$defs/${formatUriFragmentToken(key)}`;
 }
@@ -9836,8 +9753,7 @@ function toJsonSchemaDocument$1(document, options) {
 		definitions: output.definitions
 	};
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toRepresentation.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toRepresentation.js
 const defaultReferencePolicy = ({ identifier }) => identifier;
 function annotationsField(annotations) {
 	return annotations === void 0 ? void 0 : { annotations };
@@ -10079,8 +9995,7 @@ function toRepresentations(asts, options) {
 		};
 	}
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Struct.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Struct.js
 const omit = /*#__PURE__*/ dual(2, (self, keys) => {
 	return buildStruct(self, (k, v) => !hasPropertyKey(keys, k) ? [k, v] : void 0);
 });
@@ -10100,8 +10015,7 @@ function buildStruct(source, f) {
 	}
 	return out;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schemaError.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schemaError.js
 const SchemaErrorTypeId = "~effect/Schema/SchemaError";
 function isSchemaError$1(u) {
 	return hasProperty(u, "~effect/Schema/SchemaError") && u["~effect/Schema/SchemaError"] === "~effect/Schema/SchemaError";
@@ -10114,8 +10028,7 @@ function isSchemaError$1(u) {
 ({ ...BaseProto });
 ({ ...BaseProto });
 ({ ...BaseProto });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schema.js
 const TypeId$31 = TypeId$34;
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
@@ -11009,11 +10922,9 @@ const MutableJson = /*#__PURE__*/ make$31(/*#__PURE__*/ annotate(MutableJson$1, 
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Latch.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Latch.js
 const makeUnsafe$1 = makeLatchUnsafe;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableRef.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableRef.js
 const TypeId$30 = "~effect/MutableRef";
 const MutableRefProto = {
 	[TypeId$30]: TypeId$30,
@@ -11040,8 +10951,7 @@ const set = /*#__PURE__*/ dual(2, (self, value) => {
 	self.current = value;
 	return self;
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PubSub.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PubSub.js
 const TypeId$29 = "~effect/PubSub";
 const SubscriptionTypeId = "~effect/PubSub/Subscription";
 const make$29 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$1(false), make$30(false), options.strategy(), make$30(none())));
@@ -11432,8 +11342,7 @@ const emptyReplayWindow = {
 	takeAll: () => [],
 	close: () => void 0
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Channel.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Channel.js
 const TypeId$28 = "~effect/Channel";
 const isChannel = (u) => hasProperty(u, TypeId$28);
 const ChannelProto = {
@@ -11669,14 +11578,12 @@ const runLast$1 = (self) => suspend$3(() => {
 	}), { disableYield: true }), () => last === absent ? succeedNone : succeedSome(last));
 });
 const toPullScoped = (self, scope) => toTransform(self)(done$1(), scope);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ChannelSchema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ChannelSchema.js
 const decode$2 = (schema, options) => () => {
 	const decode = decodeEffect(NonEmptyArray(schema), options);
 	return fromTransform$1((upstream, _scope) => succeed$3(flatMap(upstream, (chunk) => decode(chunk))));
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PlatformError.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PlatformError.js
 const TypeId$27 = "~effect/PlatformError";
 var BadArgument = class extends (/*#__PURE__*/ TaggedError$1("BadArgument")) {
 	get message() {
@@ -11703,8 +11610,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 };
 const systemError = (options) => new PlatformError(new SystemError(options));
 const badArgument = (options) => new PlatformError(new BadArgument(options));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stream.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stream.js
 const TypeId$26 = "~effect/Stream";
 const streamVariance = {
 	_R: identity,
@@ -11721,8 +11627,7 @@ Stream$2.prototype = {
 	}
 };
 const fromChannel$2 = (channel) => new Stream$2(channel);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Sink.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Sink.js
 const TypeId$25 = "~effect/Sink";
 const endVoid = /*#__PURE__*/ succeed$3([void 0]);
 const sinkVariance = {
@@ -11748,8 +11653,7 @@ const toChannel$1 = (self) => fromTransform$1((upstream, scope) => succeed$3(fla
 const forEach = (f) => forEachArray(forEach$1((_) => f(_), { discard: true }));
 const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f), forever({ disableYield: true }), catchDone(() => endVoid)));
 const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$4(effect, toChannel$1)));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/RcMap.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/RcMap.js
 const TypeId$24 = "~effect/RcMap";
 const makeUnsafe = (options) => ({
 	[TypeId$24]: TypeId$24,
@@ -11859,8 +11763,7 @@ const release = (self, key, entry) => withFiber((fiber) => {
 	})), runForkWith(fiber.context), runIn(self.scope));
 	return void_$1;
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stream.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stream.js
 const TypeId$23 = "~effect/Stream";
 const isStream = (u) => hasProperty(u, TypeId$23);
 const fromChannel = fromChannel$2;
@@ -11949,8 +11852,7 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 	}, options?.strategy);
 });
 const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$4(context(), (context) => toReadableStreamWith(self, context, options)));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/FileSystem.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/FileSystem.js
 const TypeId$22 = "~effect/FileSystem";
 const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
 const make$27 = (impl) => FileSystem.of({
@@ -12001,8 +11903,7 @@ const make$27 = (impl) => FileSystem.of({
 });
 const FileTypeId = "~effect/FileSystem/File";
 var WatchBackend = class extends (/*#__PURE__*/ Service$1()("effect/FileSystem/WatchBackend")) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ConfigProvider.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ConfigProvider.js
 function makeValue(value) {
 	return {
 		_tag: "Value",
@@ -12090,8 +11991,7 @@ function trieNodeAt(root, path) {
 	return node;
 }
 const isGreaterThanOrEqualTo = /*#__PURE__*/ isGreaterThanOrEqualTo$2(LogLevelOrder);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Config.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Config.js
 const TypeId$21 = "~effect/Config";
 var ConfigError = class {
 	_tag = "ConfigError";
@@ -12237,18 +12137,15 @@ function String$1(name) {
 function Redacted$1(name) {
 	return schema$1(Redacted$2(String$2), name);
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ErrorReporter.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ErrorReporter.js
 const report = (cause) => withFiber((fiber) => {
 	reportCauseUnsafe(fiber, cause);
 	return void_$1;
 });
 const ignore = "~effect/ErrorReporter/ignore";
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PrimaryKey.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PrimaryKey.js
 const symbol$1 = "~effect/PrimaryKey";
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Logger.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Logger.js
 const LogToStderr = LogToStderr$1;
 const ValueMatcherProto = {
 	["~effect/Match/Matcher"]: {
@@ -12360,19 +12257,16 @@ const exhaustive$1 = (self) => {
 		throw new Error(getExhaustiveAbsurdErrorMessage);
 	};
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Match.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Match.js
 const value = value$1;
 const when = when$1;
 const tag = tag$1;
 const tags = tags$1;
 const is = is$1;
 const exhaustive = exhaustive$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/UndefinedOr.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/UndefinedOr.js
 const map = /*#__PURE__*/ dual(2, (self, f) => self === void 0 ? void 0 : f(self));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Runtime.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Runtime.js
 const defaultTeardown = (exit, onExit) => {
 	if (isSuccess(exit)) return onExit(0);
 	if (hasInterruptsOnly(exit.cause)) return onExit(130);
@@ -12414,8 +12308,7 @@ const getErrorReported = (u) => {
 	}
 	return true;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stdio.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stdio.js
 const TypeId$19 = "~effect/Stdio";
 const Stdio = /*#__PURE__*/ Service$1(TypeId$19);
 const make$24 = (options) => ({
@@ -12425,8 +12318,7 @@ const make$24 = (options) => ({
 	stderrIsTerminal: succeed$3(false),
 	...options
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpBody.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpBody.js
 const TypeId$18 = "~effect/http/HttpBody";
 const isHttpBody = (u) => hasProperty(u, TypeId$18);
 const HttpBodyErrorTypeId = "~effect/http/HttpBody/HttpBodyError";
@@ -12539,8 +12431,7 @@ var Stream$1 = class extends Proto$10 {
 	}
 };
 const stream = (body, contentType, contentLength) => new Stream$1(body, contentType ?? "application/octet-stream", contentLength);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientError.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientError.js
 const TypeId$17 = "~effect/http/HttpClientError";
 const isHttpClientError = (u) => hasProperty(u, TypeId$17);
 var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientError")) {
@@ -12635,8 +12526,7 @@ var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError"
 		return reasonToJSON(this, super.toJSON());
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMethod.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMethod.js
 const hasBody = (method) => method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE";
 const allShort = [
 	["GET", "get"],
@@ -12649,8 +12539,7 @@ const allShort = [
 	["TRACE", "trace"],
 	["QUERY", "query"]
 ];
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/httpBody.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/httpBody.js
 const updateHeaders = (headers, body) => {
 	if (body._tag === "Empty" || body._tag === "FormData") return remove$1(remove$1(headers, "content-type"), "content-length");
 	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set$1(headers, "content-type", body.contentType);
@@ -12660,8 +12549,7 @@ const updateContentLength = (headers, body) => {
 	const contentLength = body._tag === "Empty" || body._tag === "FormData" ? void 0 : body.contentLength;
 	return contentLength === void 0 ? remove$1(headers, "content-length") : set$1(headers, "content-length", contentLength.toString());
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Url.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Url.js
 var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
 const make$23 = (url, params, hash) => try_$2({
 	try: () => {
@@ -12685,8 +12573,7 @@ const baseUrl = () => {
 		}
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientRequest.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientRequest.js
 const TypeId$16 = "~effect/http/HttpClientRequest";
 const Proto$9 = {
 	[TypeId$16]: TypeId$16,
@@ -12773,8 +12660,7 @@ function toUrl(self) {
 	if (isSuccess$1(r)) return some(r.success);
 	return none();
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpIncomingMessage.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpIncomingMessage.js
 const TypeId$15 = "~effect/http/HttpIncomingMessage";
 const schemaBodyJson = (schema, options) => {
 	const decode = decodeEffect(toCodecJson(schema));
@@ -12788,12 +12674,10 @@ const inspect = (self, that) => {
 		remoteAddress: self.remoteAddress
 	};
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/webResponse.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/webResponse.js
 const WebSourceSymbol = "~effect/http/HttpClientResponse/WebSource";
 const getWebSource = (self) => self[WebSourceSymbol]?.();
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientResponse.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientResponse.js
 const TypeId$14 = "~effect/http/HttpClientResponse";
 const fromWeb = (request, source) => new WebHttpClientResponse(request, source);
 const schemaJson = (schema, options) => {
@@ -12926,8 +12810,7 @@ var WebHttpClientResponse = class extends Class$2 {
 		return pipeArguments(this, arguments);
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpTraceContext.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpTraceContext.js
 const toHeaders = (span) => fromRecordUnsafe({
 	b3: `${span.traceId}-${span.spanId}-${span.sampled ? "1" : "0"}${match$3(span.parent, {
 		onNone: () => "",
@@ -12935,8 +12818,7 @@ const toHeaders = (span) => fromRecordUnsafe({
 	})}`,
 	traceparent: `00-${span.traceId.padStart(32, "0")}-${span.spanId}-${span.sampled ? "01" : "00"}`
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/tracing.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/tracing.js
 const defaultPorts = {
 	"http:": 80,
 	"https:": 443,
@@ -12965,8 +12847,7 @@ const addHeaderAttributes = (span, phase, headers, filter, redactedNames) => {
 		span.attribute(`http.${phase}.header.${name}`, isRedactedName$1(name, redactedNames) ? "<redacted>" : headers[name]);
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClient.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClient.js
 const TypeId$13 = "~effect/http/HttpClient";
 const HttpClient = /*#__PURE__*/ Service$1("effect/HttpClient");
 const transformResponse$1 = /*#__PURE__*/ dual(2, (self, f) => makeWith$1((request) => f(self.postprocess(request)), self.preprocess));
@@ -13206,8 +13087,7 @@ const withRetryAfter = (schedule) => fromStep(map$4(toStep(schedule), (step) => 
 	return map$4(step(now, input), ([output, delay]) => [output, max(delay, retryAfter)]);
 }));
 const isTransientResponse = (response) => response.status === 408 || response.status === 429 || response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FetchHttpClient.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FetchHttpClient.js
 const Fetch = /*#__PURE__*/ Reference("effect/http/FetchHttpClient/Fetch", { defaultValue: () => globalThis.fetch });
 var RequestInit = class extends (/*#__PURE__*/ Service$1()("effect/http/FetchHttpClient/RequestInit")) {};
 const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$21((request, url, signal, fiber) => {
@@ -13270,8 +13150,7 @@ const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__P
 	}
 	return send(void 0);
 })));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
 const plusRegex = /\+/g;
 const Empty$1 = function() {};
 Empty$1.prototype = /*#__PURE__*/ Object.create(null);
@@ -13332,8 +13211,7 @@ function parse$1(input) {
 	}
 	return result;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/router.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/router.js
 const FULL_PATH_REGEXP = /^https?:\/\/.*?\//;
 const OPTIONAL_PARAM_REGEXP = /(\/:[^/()]*?)\?(\/?)/;
 const emptyParamsArray = [];
@@ -13947,15 +13825,12 @@ const httpMethods = [
 	"UNLOCK",
 	"UNSUBSCRIBE"
 ];
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay.js
 const make$19 = make$20;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/headers.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/headers.js
 const Proto$7 = /*#__PURE__*/ Object.getPrototypeOf(empty$6);
 const emptyMutableUnsafe = () => Object.create(Proto$7);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpServerResponse.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpServerResponse.js
 const TypeId$12 = "~effect/http/HttpServerResponse";
 const empty = (options) => makeResponse({
 	status: options?.status ?? 204,
@@ -14009,8 +13884,7 @@ const makeResponse = (options, ownedHeaders) => {
 	} else self.headers = ownedHeaders ?? options.headers ?? empty$6;
 	return self;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/socket/Socket.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/socket/Socket.js
 const TypeId$10 = "~effect/socket/Socket";
 const isSocket = (u) => hasProperty(u, TypeId$10);
 const constNameChars = /*#__PURE__*/ new Uint8Array(256);
@@ -14020,8 +13894,7 @@ constValueChars[9] = 1;
 for (let i = 32; i <= 126; i++) constValueChars[i] = 1;
 for (let i = 128; i <= 255; i++) constValueChars[i] = 1;
 const HttpServerRequest = /*#__PURE__*/ Service$1("effect/http/HttpServerRequest");
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/requestState.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/requestState.js
 const CurrentRequestState = /*#__PURE__*/ Service$1("effect/http/HttpEffect/CurrentRequestState");
 const appendPreResponseHandlerUnsafe$1 = (context, handler) => {
 	const state = getOrUndefined(context, CurrentRequestState);
@@ -14029,18 +13902,15 @@ const appendPreResponseHandlerUnsafe$1 = (context, handler) => {
 	const prev = state.preResponseHandler;
 	state.preResponseHandler = prev ? (request, response) => flatMap(prev(request, response), (response) => handler(request, response)) : handler;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMiddleware.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMiddleware.js
 const withLoggerDisabled = (self) => withFiber((fiber) => {
 	const state = getOrUndefined(fiber.context, CurrentRequestState);
 	if (state !== void 0) state.loggerDisabled = true;
 	return self;
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpEffect.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpEffect.js
 const appendPreResponseHandlerUnsafe = appendPreResponseHandlerUnsafe$1;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpRouter.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpRouter.js
 const HttpRouter = /*#__PURE__*/ Service$1("effect/http/HttpRouter");
 const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, -1) : path;
 const prefixPath = /*#__PURE__*/ dual(2, (self, prefix) => {
@@ -14106,8 +13976,7 @@ const getMiddleware = (context) => {
 	return arr;
 };
 (/*#__PURE__*/ middleware(withLoggerDisabled)).layer;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpStatus.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpStatus.js
 const codeByLiteral = {
 	Continue: 100,
 	SwitchingProtocols: 101,
@@ -14173,8 +14042,7 @@ const codeByLiteral = {
 	NetworkAuthenticationRequired: 511
 };
 const fromLiteral = (literal) => codeByLiteral[literal];
-//#endregion
-//#region ../../packages/core/src/Reasons.ts
+// ../../packages/core/src/Reasons.ts
 const saying = (summary, body, otherwise) => body === "" ? `${summary}: ${otherwise}` : `${summary}: ${body}`;
 var ApiKeyRejected = class extends TaggedError()("ApiKeyRejected", { body: String$2 }) {
 	get message() {
@@ -14267,8 +14135,7 @@ const TipeeErrorReason = Union([
 	NotConfigured,
 	Internal
 ]);
-//#endregion
-//#region ../../packages/core/src/Rights.ts
+// ../../packages/core/src/Rights.ts
 const SETTINGS = "the tipee settings in Claude (Claude Desktop: Settings → Extensions → tipee for Claude → Configure; Claude Code: /plugin → Installed → tipee)";
 const pages = (instance) => {
 	const base = `https://${instance}.tipee.net`;
@@ -14310,8 +14177,7 @@ const rightFor = (target) => {
 	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
 	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
 };
-//#endregion
-//#region ../../packages/core/src/Errors.ts
+// ../../packages/core/src/Errors.ts
 const JsonObject = fromJsonString(Record(String$2, Unknown));
 const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
 const quoted = (body) => decodeOption(JsonObject)(body).pipe(flatMap$4((json) => {
@@ -14417,8 +14283,7 @@ var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", {
 		return `tipee is not set up: enter your tipee instance (acme for acme.tipee.net) and an API key in ${SETTINGS}.\n${detail}`;
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Sse.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Sse.js
 const SseErrorTypeId = "~effect/encoding/Sse/SseError";
 var EventTooLarge = class extends (/*#__PURE__*/ TaggedError$1("EventTooLarge")) {
 	get message() {
@@ -14593,15 +14458,13 @@ var Retry = class Retry extends (/*#__PURE__*/ TaggedClass("Retry")) {
 		return Retry.is(u) ? succeed$8(u) : fail$7(u);
 	}
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/mediaType.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/mediaType.js
 function normalize(contentType) {
 	const normalized = contentType.toLowerCase().trim();
 	const index = normalized.indexOf(";");
 	return index === -1 ? normalized : normalized.slice(0, index).trim();
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiSchema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiSchema.js
 const StreamSchemaTypeId$1 = "~effect/http-api/HttpApiSchema/Stream";
 function status(code) {
 	const statusCode = typeof code === "string" ? fromLiteral(code) : code;
@@ -14723,8 +14586,7 @@ function getStatusErrorSchema(schema) {
 	if (isWithHeaders(schema)) return resolveHttpApiStatus(schema.ast) ?? getStatusError(schema.schema.ast);
 	return getStatusError(schema.ast);
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/toCodecHttpProperties.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/toCodecHttpProperties.js
 function toCodecHttpProperties(schema) {
 	const codec = toCodecStringTree(schema);
 	return codec.rebuild(normalizeProperties(codec.ast));
@@ -14751,8 +14613,7 @@ const normalizeProperties = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempoten
 	});
 	return properties === ast.propertySignatures ? ast : new Objects(properties, ast.indexSignatures, ast.annotations, ast.checks, void 0, ast.context, ast.encodingChecks);
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiEndpoint.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiEndpoint.js
 const TypeId$7 = "~effect/http-api/HttpApiEndpoint";
 function getPayloadSchemas(endpoint) {
 	const result = [];
@@ -15039,8 +14900,7 @@ function transformPayload(schema, method) {
 	}
 }
 const post = /*#__PURE__*/ make$14("POST");
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApi.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApi.js
 const TypeId$6 = "~effect/http-api/HttpApi";
 const Proto$4 = {
 	[TypeId$6]: TypeId$6,
@@ -15162,8 +15022,7 @@ const getSlotParseOptions = (annotations) => {
 		error: getOrUndefined(annotations, ErrorParseOptions) ?? fallback
 	};
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Ndjson.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Ndjson.js
 const NdjsonErrorTypeId = "~effect/encoding/Ndjson/NdjsonError";
 const encoder = /*#__PURE__*/ new TextEncoder();
 const utf8Decoder = /*#__PURE__*/ new TextDecoder("utf-8", {
@@ -15303,8 +15162,7 @@ const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
 	const flush = (out) => pendingBytes === 0 ? void 0 : decodeLine(takeLine(emptyBytes, 0, 0), out, true);
 	return makeDecodePull(upstream, step, flush);
 }));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/path.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/path.js
 const emptyParamNames = /*#__PURE__*/ new Set();
 function getParamNames(schema) {
 	if (schema === void 0) return emptyParamNames;
@@ -15331,15 +15189,13 @@ function replaceParams(path, paramNames, replace) {
 	}
 	return out + path.slice(last);
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/OpenApi.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/OpenApi.js
 var Identifier = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Identifier")) {};
 var Title$1 = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Title")) {};
 var Version = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Version")) {};
 var Description = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Description")) {};
 var Summary = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Summary")) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiClient.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiClient.js
 const makeClient = (api, options) => gen(function* () {
 	const services = yield* context();
 	const httpClient = options.httpClient.pipe(options?.baseUrl === void 0 ? identity : mapRequest(prependUrl(options.baseUrl.toString())));
@@ -15732,8 +15588,7 @@ function getEncodePayloadSchemaFromBody(schema, method) {
 	bodyFromPayloadCache.set(ast, out);
 	return out;
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiGroup.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiGroup.js
 const TypeId$5 = "~effect/http-api/HttpApiGroup";
 const Proto$3 = {
 	[TypeId$5]: TypeId$5,
@@ -15803,8 +15658,7 @@ const make$12 = (identifier, options) => makeProto$3({
 	endpoints: {},
 	annotations: empty$10()
 });
-//#endregion
-//#region ../../packages/core/src/generated/TipeeApi.ts
+// ../../packages/core/src/generated/TipeeApi.ts
 const Snowflake = String$2.annotate({
 	"format": "snowflake",
 	"identifier": "Snowflake"
@@ -17961,8 +17815,7 @@ var TimeclockGroup = class extends make$12("Timeclock").add(post("postAppUiApiTi
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
 var Tipee = class extends make$13("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
-//#endregion
-//#region ../../packages/core/src/TipeeClient.ts
+// ../../packages/core/src/TipeeClient.ts
 const TIPEE_API_VERSION = "26.06.25";
 const RETRY_ATTEMPTS = 3;
 const RETRY_SCHEDULE = exponential("250 millis");
@@ -18016,8 +17869,7 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 		instance: instanceConfig
 	}).pipe(map$4((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
 };
-//#endregion
-//#region ../../packages/core/src/Operations.ts
+// ../../packages/core/src/Operations.ts
 const nameOf = (path) => path.replace(/^\/api\/[^/]+\//u, "").replaceAll(/[.-]/gu, "_");
 const verbOf = (path) => path.slice(path.lastIndexOf(".") + 1);
 const isBody = (schema) => !isNoContent(schema.ast);
@@ -18063,8 +17915,7 @@ const operation = (name) => {
 	if (found === void 0) throw new Error(`tipee has no operation named ${name}`);
 	return found;
 };
-//#endregion
-//#region ../../packages/core/src/Invoke.ts
+// ../../packages/core/src/Invoke.ts
 const call = (target, params) => gen(function* () {
 	const { api } = yield* TipeeClient;
 	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => new TipeeError({ reason: new InvalidRequest$1({ details: cause.message }) })));
@@ -18131,8 +17982,7 @@ const explain = (error, target) => gen(function* () {
 	return fix === void 0 ? error : fixed(fix);
 });
 const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target), fail$3)));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/AiError.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/AiError.js
 const HttpRequestDetails = /*#__PURE__*/ Struct({
 	method: Literals([
 		"GET",
@@ -18548,8 +18398,7 @@ var AiError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/AiError")(
 const isAiError = (u) => hasProperty(u, TypeId$4);
 const isAiErrorReason = (u) => hasProperty(u, ReasonTypeId);
 const make$11 = (params) => new AiError(params);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Tool.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Tool.js
 const TypeId$3 = "~effect/ai/Tool";
 const DynamicTypeId = "~effect/ai/Tool/Dynamic";
 const isDynamic = (u) => hasProperty(u, DynamicTypeId);
@@ -18659,6 +18508,7 @@ const failureResultSchema = (tool) => Union([
 	ExecutionFailure
 ]);
 const EmptyParams = /*#__PURE__*/ Record(String$2, Never);
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/structured-output.js
 function resolveReference($ref, definitions) {
 	const key = getReferenceKey($ref);
 	if (key === void 0) throw new Error(`Unsupported reference ${JSON.stringify($ref)}`);
@@ -18672,8 +18522,7 @@ function resolveTopLevelReference(document) {
 		schema: resolveReference(document.schema.$ref, document.definitions)
 	};
 }
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Toolkit.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Toolkit.js
 const TypeId$2 = "~effect/ai/Toolkit";
 const FailureOrigin = /*#__PURE__*/ Reference("effect/ai/Toolkit/FailureOrigin", { defaultValue: () => "result" });
 const PreliminaryBuffer = /*#__PURE__*/ Reference("effect/ai/Toolkit/PreliminaryBuffer", { defaultValue: () => "unbounded" });
@@ -18839,8 +18688,7 @@ const resolveInput = (...tools) => {
 	return output;
 };
 const make$9 = (...tools) => makeProto$2(resolveInput(...tools));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/workers/Transferable.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/workers/Transferable.js
 var Collector = class extends (/*#__PURE__*/ Service$1()("effect/workers/Transferable/Collector")) {};
 const makeCollectorUnsafe = () => {
 	let tranferables = [];
@@ -18862,16 +18710,14 @@ const makeCollectorUnsafe = () => {
 		clear: sync(unsafeClear)
 	});
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/internal/tracing.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/internal/tracing.js
 const spanName = (spanPrefix, tag) => spanPrefix === void 0 ? tag : `${spanPrefix}.${tag}`;
 const spanAttributes = (tag, attributes) => ({
 	"rpc.system.name": "effect_rpc",
 	"rpc.method": tag,
 	...attributes
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSchema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSchema.js
 const StreamSchemaTypeId = "~effect/rpc/RpcSchema/StreamSchema";
 function isStreamSchema(schema) {
 	return hasProperty(schema, StreamSchemaTypeId);
@@ -18897,8 +18743,7 @@ var ClientAbort = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcSchema
 		parent: void 0
 	}));
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Rpc.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Rpc.js
 const TypeId$1 = "~effect/rpc/Rpc";
 var ServerClient = class {
 	id;
@@ -19038,8 +18883,7 @@ const exitSchema = (self) => {
 const ParseOptions = /*#__PURE__*/ Reference("effect/rpc/Rpc/ParseOptions", { defaultValue: () => defaultParseOptions });
 const WrapperTypeId = "~effect/rpc/Rpc/Wrapper";
 const isWrapper = (u) => WrapperTypeId in u;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMessage.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMessage.js
 const RequestId$2 = (id) => id;
 const constEof = { _tag: "Eof" };
 const ResponseDefectEncoded = (encodedDefect) => ({
@@ -19047,8 +18891,7 @@ const ResponseDefectEncoded = (encodedDefect) => ({
 	defect: encodedDefect
 });
 const constPong = { _tag: "Pong" };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSerialization.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSerialization.js
 const codecForJson = toCodecJson;
 let sharedTextDecoder;
 const decodeText = (bytes) => (sharedTextDecoder ??= new TextDecoder()).decode(bytes);
@@ -19301,8 +19144,7 @@ function encodeJsonRpcMessage(response) {
 	}
 }
 const jsonRpcInternalError = -32603;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Utils.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Utils.js
 const withRun = () => (f) => suspend$3(() => {
 	const semaphore = makeUnsafe$3(1);
 	let buffer = [];
@@ -19363,8 +19205,7 @@ const withRunClient = (f) => suspend$3(() => {
 		}
 	}));
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcClient.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcClient.js
 let requestIdCounter = 0;
 const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const spanPrefix = options.spanPrefix;
@@ -19716,8 +19557,7 @@ const CurrentHeaders = /*#__PURE__*/ Reference("effect/rpc/RpcClient/CurrentHead
 var Protocol$1 = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcClient/Protocol")) {
 	static make = withRunClient;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcGroup.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcGroup.js
 const RpcGroupProto = {
 	add(...rpcs) {
 		const requests = new Map(this.requests);
@@ -19844,8 +19684,7 @@ const make$6 = (...rpcs) => makeProto({
 	requests: new Map(rpcs.map((rpc) => [rpc._tag, rpc])),
 	annotations: empty$10()
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMiddleware.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMiddleware.js
 const TypeId = "~effect/rpc/RpcMiddleware";
 const Service = () => (id, options) => {
 	const limit = getStackTraceLimit();
@@ -19867,8 +19706,7 @@ const Service = () => (id, options) => {
 	ServiceClass_.requiredForClient = options?.requiredForClient ?? false;
 	return ServiceClass;
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpSchema.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpSchema.js
 const optionalWithDefault = (schema, defaultValue) => {
 	const effect = sync(defaultValue);
 	return optionalKey(schema).pipe(decode$3({
@@ -20400,8 +20238,7 @@ var McpServerClient = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSch
 var McpServerClientMiddleware = class extends (/*#__PURE__*/ Service()("effect/ai/McpSchema/McpServerClientMiddleware")) {};
 var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
 var EnabledWhen = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/EnabledWhen")) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpCore.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpCore.js
 const OperationOutcome = {
 	Complete: (value) => ({
 		_tag: "Complete",
@@ -20502,8 +20339,7 @@ const make$5 = /*#__PURE__*/ sync(() => {
 		}))
 	};
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol.js
 const LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE = -32002;
 const BASE64_SENTINEL_PREFIX = "=?base64?";
 const routingHeaderDecoder = /*#__PURE__*/ new TextDecoder("utf-8", {
@@ -20727,8 +20563,7 @@ const make$4 = (options) => {
 		makeReverseClient
 	};
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
 const prefix = (protocol) => `@effect/mcp/${encodeURIComponent(protocol.protocolVersion)}/`;
 const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 	if (protocols.length === 0) return yield* new IllegalArgumentError("MCP protocol declaration must contain at least one MCP protocol");
@@ -20763,8 +20598,7 @@ const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 		})
 	};
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
 const MCP_SESSION_ID_HEADER$2 = "mcp-session-id";
 const makeSession = (registration) => ({
 	initializePayload: registration.initializePayload,
@@ -20844,8 +20678,7 @@ const make$2 = () => {
 		}
 	};
 };
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpRuntime.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpRuntime.js
 const MCP_SESSION_ID_HEADER$1 = "mcp-session-id";
 const MCP_PROTOCOL_VERSION_HEADER$1 = "mcp-protocol-version";
 const MCP_METHOD_HEADER = "mcp-method";
@@ -21180,8 +21013,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 	});
 });
 const layer$4 = (protocols) => effect(ServerRuntime)(make$1(protocols));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
 const protocolVersion$3 = "2024-11-05";
 const optional$3 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$5(schema)), {
 	decode: passthrough$1(),
@@ -21562,8 +21394,7 @@ var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$3
 var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
 var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$3, ListRoots$1)) {};
 var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification$1, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
 const ClientRpcs$3 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$3.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$3);
 const AdapterRpcs$3 = /*#__PURE__*/ ClientRpcs$3.omit("ping");
 const profileFromInitialize$2 = (initialize) => ({
@@ -21762,8 +21593,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 		metadata: request._meta
 	})))
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
 const protocolVersion$2 = "2025-03-26";
 const optional$2 = optional$3;
 const UnknownObject$2 = UnknownObject$3;
@@ -21898,8 +21728,7 @@ var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$2
 var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
 var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$2, ListRoots$1)) {};
 var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
 const ClientRpcs$2 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$2.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$2);
 const AdapterRpcs$2 = /*#__PURE__*/ ClientRpcs$2.omit("ping");
 const profileFromInitialize$1 = (initialize) => ({
@@ -22118,8 +21947,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 		metadata: request._meta
 	})))
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
 const protocolVersion$1 = "2025-06-18";
 const optional$1 = optional$3;
 const UnknownObject$1 = UnknownObject$3;
@@ -22436,8 +22264,7 @@ var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$1
 var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
 var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
 var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
 const ClientRpcs$1 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$1.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$1);
 const AdapterRpcs$1 = /*#__PURE__*/ ClientRpcs$1.omit("ping");
 const isToolOutputSchema$1 = (schema) => {
@@ -22659,8 +22486,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 		metadata: request._meta
 	})))
 });
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
 const protocolVersion = "2025-11-25";
 const optional = optional$3;
 const UnknownObject = UnknownObject$3;
@@ -22992,8 +22818,7 @@ var ClientRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, Initialize, Co
 var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
 var ServerRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage, ListRoots, Elicit)) {};
 var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
 const ClientRpcs = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs);
 const AdapterRpcs = /*#__PURE__*/ ClientRpcs.omit("ping");
 const isToolOutputSchema = (schema) => {
@@ -23049,8 +22874,7 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 });
 const projectStructuredContent = (content) => content === void 0 || isObject(content) ? content : void 0;
 const isObject = (value) => isReadonlyObject(value);
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpProtocol.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpProtocol.js
 const v2025_11_25 = /* @__PURE__ */ make$4({
 	protocolVersion,
 	runtime: /*#__PURE__*/ stateful({
@@ -23238,8 +23062,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 const v2025_06_18 = protocol$1;
 const v2025_03_26 = protocol$2;
 const v2024_11_05 = protocol$3;
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcServer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcServer.js
 const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const enableTracing = options.disableTracing !== true;
 	const enableSpanPropagation = options.disableSpanPropagation !== true;
@@ -23709,8 +23532,7 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 		};
 	}));
 }));
-//#endregion
-//#region ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpServer.js
+// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpServer.js
 const internalState = /*#__PURE__*/ new WeakMap();
 const RequestNotificationQueue = /*#__PURE__*/ Reference("effect/ai/McpServer/RequestNotificationQueue", { defaultValue: () => void 0 });
 const isRequestNotification = (notification) => notification._tag === "Progress" || notification._tag === "LoggingMessage";
@@ -24682,8 +24504,7 @@ const decodeInvalidBatchExit = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__ */
 	exit: /*#__PURE__*/ TaggedStruct("Failure", { cause: Unknown })
 }));
 const isProtocolVersion = (version) => version === "2024-11-05" || version === "2025-03-26" || version === "2025-06-18" || version === "2025-11-25" || version === "2026-07-28";
-//#endregion
-//#region ../../packages/mcp/src/Install.ts
+// ../../packages/mcp/src/Install.ts
 const UUID_PARTS = [
 	8,
 	4,
@@ -24713,8 +24534,7 @@ const username = () => {
 	}
 };
 const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${username()}`).digest("hex"));
-//#endregion
-//#region ../../packages/mcp/src/Telemetry.ts
+// ../../packages/mcp/src/Telemetry.ts
 const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
 const POSTHOG_HOST = "https://eu.i.posthog.com";
 const INTERVAL = "2 seconds";
@@ -24851,8 +24671,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		};
 	}));
 };
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/utils.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/utils.js
 const handleErrnoException = (module, method) => (err, [path]) => {
 	let reason = "Unknown";
 	switch (err.code) {
@@ -24886,8 +24705,7 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 		cause: err
 	});
 };
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
 const handleBadArgument = (method) => (err) => badArgument({
 	module: "FileSystem",
 	method,
@@ -25296,11 +25114,9 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	},
 	writeFile
 }));
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeFileSystem.js
 const layer$2 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
-//#endregion
-//#region ../../packages/mcp/src/Updates.ts
+// ../../packages/mcp/src/Updates.ts
 const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
 const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
 var Update = class extends Class("Update")({
@@ -25440,8 +25256,7 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 		};
 	})).pipe(provide$2(layer$2));
 };
-//#endregion
-//#region ../../packages/mcp/src/Check.ts
+// ../../packages/mcp/src/Check.ts
 const PAGE_SIZE = 100;
 const defaultRange = map$4(now, (now) => ({
 	from: formatIsoDate(now),
@@ -25550,8 +25365,7 @@ const check = (report) => gen(function* () {
 		version: updates.current
 	};
 });
-//#endregion
-//#region ../../packages/mcp/src/Tools.ts
+// ../../packages/mcp/src/Tools.ts
 const Done = Struct({ done: Literal(true) });
 const LocalDate = String$2.check(isPattern(/^\d{4}-\d{2}-\d{2}$/u));
 const EndpointReport = Struct({
@@ -25617,8 +25431,7 @@ const toolFor = (operation) => dynamic(operation.name, {
 	success: operation.success ?? Done
 }).annotate(Title, titleOf(operation.path)).annotate(Strict, true).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
 const TipeeToolkit = make$9(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)));
-//#endregion
-//#region ../../packages/mcp/src/Handlers.ts
+// ../../packages/mcp/src/Handlers.ts
 const said = (outcome) => {
 	if (outcome.status === "opened") return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
 	if (outcome.status === "downloaded") return `Version ${outcome.version} is downloaded to ${outcome.path}: open that file and confirm the update in Claude Desktop.`;
@@ -25721,8 +25534,7 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	return TipeeToolkit.of(handlers);
 }));
 const TipeeToolkitLayerConfig = unwrap$4(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$2(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$7(missing))));
-//#endregion
-//#region ../../packages/mcp/src/Prompts.ts
+// ../../packages/mcp/src/Prompts.ts
 const SETUP_PROMPT = {
 	description: "Check that the tipee connection works and explain any missing authorization.",
 	name: "check-tipee-setup",
@@ -25735,8 +25547,7 @@ const SetupPrompt = prompt({
 	name: SETUP_PROMPT.name,
 	title: SETUP_PROMPT.title
 });
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/stream.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/stream.js
 const destroyStream = (stream, cleanup, onDestroyed) => {
 	if (!("closed" in stream)) {
 		cleanup();
@@ -25763,8 +25574,7 @@ const destroyStream = (stream, cleanup, onDestroyed) => {
 	cleanup();
 	if (!stream.closed) stream.destroy();
 };
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeSink.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeSink.js
 const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
 const fromWritableChannel = (options) => fromTransform$1((pull) => {
 	const writable = options.evaluate();
@@ -25846,8 +25656,7 @@ const pullIntoWritable = (options) => withFiber((fiber) => {
 		} else removeErrorListener();
 	})));
 });
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeStream.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeStream.js
 const fromReadable = (options) => fromChannel(fromReadableChannel(options));
 const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
 	scope,
@@ -25895,8 +25704,7 @@ const readableToPullUnsafe = (options) => {
 	})), pull);
 };
 const defaultOnError = (error) => new UnknownError$1(error);
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeStdio.js
+// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeStdio.js
 const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
@@ -25933,17 +25741,15 @@ const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 		closeOnDone: false
 	})
 }));
-//#endregion
-//#region ../../packages/mcp/src/Icon.ts
+// ../../packages/mcp/src/Icon.ts
 const SERVER_ICON = new Icon$1({
 	mimeType: "image/png",
 	sizes: ["128x128"],
 	src: "data:image/png;base64,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"
 });
-//#endregion
-//#region ../../packages/mcp/src/Server.ts
+// ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.6";
+const SERVER_VERSION = "1.0.7";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
@@ -25982,8 +25788,7 @@ const reportCrash = (cause) => gen(function* () {
 	yield* telemetry.flush;
 }).pipe(provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, ignore$1);
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
-//#endregion
-//#region ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeRuntime.js
+// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeRuntime.js
 const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
 	let receivedSignal = false;
 	fiber.addObserver((exit) => {
@@ -26000,8 +25805,7 @@ const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
 	process.on("SIGINT", onSigint);
 	process.on("SIGTERM", onSigint);
 });
-//#endregion
-//#region ../../packages/mcp/src/Start.ts
+// ../../packages/mcp/src/Start.ts
 const EXIT_CRASHED = 1;
 const trustSystemCertificates = () => {
 	tls.setDefaultCACertificates?.([...tls.getCACertificates("default"), ...tls.getCACertificates("system")]);
@@ -26018,8 +25822,6 @@ const start = () => {
 	trustSystemCertificates();
 	runMain(main.pipe(tapCause((cause) => hasInterruptsOnly(cause) ? void_$1 : logError(cause)), provideService(LogToStderr, true)), { disableErrorReporting: true });
 };
-//#endregion
-//#region src/main.ts
+// src/main.ts
 start();
-//#endregion
 export {};
