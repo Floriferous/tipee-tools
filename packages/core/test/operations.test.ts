@@ -48,11 +48,15 @@ describe('operations', () => {
     expect(operation('teams_list').description).toMatch(/team/iu);
   });
 
-  // An admin changes rights in tipee; a refresh of the document must not
-  // hand Claude the power to raise anyone's, its own integration's included.
-  it('never offers to grant or revoke roles', () => {
+  // An admin changes rights and passwords in tipee, and shift templates are
+  // history: a refresh of the document must not hand Claude any of these.
+  it('never offers to grant or revoke roles, force a password change or delete a template', () => {
     expect(
-      operations.filter((candidate) => /grant_roles|revoke_roles/u.test(candidate.name)),
+      operations.filter((candidate) =>
+        /grant_roles|revoke_roles|must_change_password|schedule_templates_delete/u.test(
+          candidate.name,
+        ),
+      ),
     ).toEqual([]);
     expect(operation('resources_list_roles').readOnly).toBe(true);
   });

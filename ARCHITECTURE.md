@@ -12,7 +12,7 @@ tipee-tools/
 ├── packages/
 │   ├── core/                      # generated HttpApi, TipeeClient, operation catalogue, errors, test kit
 │   │   ├── spec/                  # tipee's OpenAPI document, one pinned version
-│   │   └── scripts/               # generate.ts (patch + generate), refresh.ts (pnpm spec:refresh)
+│   │   └── scripts/               # generate.ts (patch + generate), refresh.ts (pnpm spec:refresh), spec.ts
 │   └── mcp/                       # toolkit, handlers, check, updates, telemetry, stdio server
 ├── plugins/
 │   └── tipee/                     # the plugin, also workspace package @tipee-tools/plugin
@@ -50,10 +50,12 @@ out of Bash commands, so a CLI would need key storage of its own for no gain.
 strict `Tool.dynamic`, plus `check_setup` and `update_plugin`, read-only or
 destructive by its verb. Wherever the document disagrees with tipee or with
 what Claude needs, the fix is a JSON Patch in `packages/core/scripts/generate.ts`,
-nowhere else; granting and revoking roles are left out. Every Monday a
-workflow runs `pnpm spec:refresh --bump`, which fetches tipee's newest stable
-document and regenerates, and opens one PR with what moved and the version
-bumped (a `needs-major` label when an operation disappears).
+nowhere else; granting and revoking roles, forcing a password change and
+deleting a shift template are left out (`EXCLUDED` in `scripts/spec.ts`).
+Every Monday a workflow runs `pnpm spec:refresh --bump`, which fetches
+tipee's newest stable document and regenerates, and opens one PR with what
+moved and the version bumped (a `needs-major` label when an operation
+disappears).
 
 ## One bundle, two channels
 

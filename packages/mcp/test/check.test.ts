@@ -92,6 +92,37 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
     }),
   );
 
+  it.effect('looks the integration up once, however many endpoints are refused', () =>
+    Effect.gen(function* () {
+      let kinds = 0;
+      const refused = ['schedules', 'absences', 'on-calls'].map((name) =>
+        http.post(
+          `${BASE}/api/schedule/${name}.list`,
+          () => HttpResponse.json({ message: 'Access denied.' }, { status: HTTP_FORBIDDEN }),
+          { once: true },
+        ),
+      );
+      server.use(
+        ...refused,
+        // Counted, then answered by the fake tipee.
+        http.post(`${BASE}/api/directory/kinds.list`, () => {
+          kinds += 1;
+        }),
+      );
+      const report = (yield* call('check_setup', {})) as {
+        endpoints: Array<{ status: string; error?: string }>;
+      };
+      const skipped = report.endpoints.filter((endpoint) => endpoint.status === 'skipped');
+
+      expect(skipped).toHaveLength(3);
+      for (const endpoint of skipped) {
+        expect(endpoint.error).toContain(`/hr-core/profile/${INTEGRATION_ID}/roles`);
+      }
+      // The kinds_list probe, and one lookup of the integration.
+      expect(kinds).toBe(2);
+    }),
+  );
+
   it.effect('flags an endpoint whose response no longer matches', () =>
     Effect.gen(function* () {
       server.use(

@@ -2,10 +2,12 @@
 // nothing more can be done: reads and rate limits are retried, writes never.
 
 import { expect, layer } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
+import { HttpClient, HttpClientResponse } from 'effect/http';
 import { delay } from 'msw';
 import { HttpResponse, http } from 'msw/http';
 
+import { TipeeClient } from '../src/index.ts';
 import {
   HTTP_GATEWAY_TIMEOUT,
   HTTP_NOT_FOUND,
@@ -16,6 +18,7 @@ import {
   SCHEDULES_CREATE_URL,
   TestClient,
   call,
+  credentials,
   failure,
   settled,
   status,
@@ -163,6 +166,35 @@ layer(TestClient)('retries', (it) => {
       expect(error.reason._tag).toBe('Unreachable');
       expect(error.message).toMatch(/did not answer within 20 s/u);
       expect(error.message).toMatch(/may have applied it/u);
+    }),
+  );
+
+  it.effect('stops retrying slow server errors before the client gives up', () =>
+    Effect.gen(function* () {
+      let sent = 0;
+      // Every answer is a 504 that takes 19 s, on the test clock: four of
+      // them would take 80 s, past the minute MCP clients wait.
+      const slow = HttpClient.make((request) =>
+        Effect.sync(() => {
+          sent += 1;
+        }).pipe(
+          Effect.andThen(Effect.sleep('19 seconds')),
+          Effect.as(
+            HttpClientResponse.fromWeb(
+              request,
+              Response.json({ message: 'Gateway timeout' }, { status: HTTP_GATEWAY_TIMEOUT }),
+            ),
+          ),
+        ),
+      );
+      const client = TipeeClient.layer(credentials).pipe(
+        Layer.provide(Layer.succeed(HttpClient.HttpClient, slow)),
+      );
+      const error = yield* settled(failure(call('kinds_list', {}))).pipe(Effect.provide(client));
+
+      expect(sent).toBe(3);
+      expect(error.reason._tag).toBe('Unreachable');
+      expect(error.message).toMatch(/no usable answer within 50 s, retries included/u);
     }),
   );
 });

@@ -3,7 +3,7 @@
 // day tipee changes a response shape, without the check ever aborting on a
 // refusal it can describe.
 
-import type { IntegrationLink, TipeeClient } from '@tipee-tools/core';
+import type { IntegrationLink, IntegrationLookup, TipeeClient } from '@tipee-tools/core';
 import { TipeeError, integrationLink, operation, rightFor, invoke } from '@tipee-tools/core';
 import { DateTime, Effect, Fiber, Option } from 'effect';
 
@@ -42,39 +42,6 @@ interface Probe {
   readonly report: typeof EndpointReport.Type;
 }
 
-// One report line per endpoint. Shape mismatches are reported as failures,
-// and to the telemetry, since they mean tipee changed; a module that is off
-// or a missing right is skipped; auth and network errors abort the whole
-// check so the user sees their explanation once.
-const probe = (
-  name: string,
-  params: unknown,
-): Effect.Effect<Probe, TipeeError, TipeeClient | Telemetry> =>
-  invoke(operation(name), params).pipe(
-    Effect.map((result): Probe => ({
-      report: { count: countOf(result), name, status: 'ok' },
-      result,
-    })),
-    Effect.catchReason('TipeeError', 'UnexpectedShape', (reason, failure) =>
-      Effect.as(
-        Effect.flatMap(Telemetry, (telemetry) =>
-          telemetry.exception(failure, { handled: true, properties: { tool: 'check_setup' } }),
-        ),
-        {
-          report: { error: reason.message, name, status: 'failed' },
-          result: undefined,
-        } satisfies Probe,
-      ),
-    ),
-    // The whole message, with the right to tick and where.
-    Effect.catchReason('TipeeError', 'Forbidden', (_reason, failure) =>
-      Effect.succeed<Probe>({
-        report: { error: failure.message, name, status: 'skipped' },
-        result: undefined,
-      }),
-    ),
-  );
-
 const ORDER = [{ attribute: 'last_name', direction: 'asc', key: 'resource.attribute' }];
 
 // Why a probe that needs an id from an earlier one was not called.
@@ -88,20 +55,57 @@ const unavailable = ({ report }: Probe): string => {
   return `Not called: it needs an id from ${report.name}, which needs ${rightFor(operation(report.name))}.`;
 };
 
-// Probes an endpoint with parameters built from an earlier probe's answer, or
-// reports it skipped when that answer had no id to build them from (undefined
-// parameters): a refused list never aborts the check.
-const probeWith = (
-  name: string,
-  source: Probe,
-  params: unknown,
-): Effect.Effect<Probe, TipeeError, TipeeClient | Telemetry> =>
-  params === undefined
-    ? Effect.succeed({
-        report: { error: unavailable(source), name, status: 'skipped' },
-        result: undefined,
-      })
-    : probe(name, params);
+type Probing = Effect.Effect<Probe, TipeeError, TipeeClient | Telemetry>;
+
+// The probes of one check, sharing its lookup of the integration that
+// refusals link to.
+const prober = (
+  lookup: IntegrationLookup,
+): {
+  readonly probe: (name: string, params: unknown) => Probing;
+  readonly probeWith: (name: string, source: Probe, params: unknown) => Probing;
+} => {
+  // One report line per endpoint. Shape mismatches are reported as failures,
+  // and to the telemetry, since they mean tipee changed; a module that is off
+  // or a missing right is skipped; auth and network errors abort the whole
+  // check so the user sees their explanation once.
+  const probe = (name: string, params: unknown): Probing =>
+    invoke(operation(name), params, lookup).pipe(
+      Effect.map((result): Probe => ({
+        report: { count: countOf(result), name, status: 'ok' },
+        result,
+      })),
+      Effect.catchReason('TipeeError', 'UnexpectedShape', (reason, failure) =>
+        Effect.as(
+          Effect.flatMap(Telemetry, (telemetry) =>
+            telemetry.exception(failure, { handled: true, properties: { tool: 'check_setup' } }),
+          ),
+          {
+            report: { error: reason.message, name, status: 'failed' },
+            result: undefined,
+          } satisfies Probe,
+        ),
+      ),
+      // The whole message, with the right to tick and where.
+      Effect.catchReason('TipeeError', 'Forbidden', (_reason, failure) =>
+        Effect.succeed<Probe>({
+          report: { error: failure.message, name, status: 'skipped' },
+          result: undefined,
+        }),
+      ),
+    );
+  // Probes an endpoint with parameters built from an earlier probe's answer,
+  // or reports it skipped when that answer had no id to build them from
+  // (undefined parameters): a refused list never aborts the check.
+  const probeWith = (name: string, source: Probe, params: unknown): Probing =>
+    params === undefined
+      ? Effect.succeed({
+          report: { error: unavailable(source), name, status: 'skipped' },
+          result: undefined,
+        })
+      : probe(name, params);
+  return { probe, probeWith };
+};
 
 // What the probes found: one line per endpoint, and the integration.
 export interface Report {
@@ -120,6 +124,10 @@ export const probes = Effect.fn('check_setup.probes')(function* ({
 }) {
   const range = from !== undefined && to !== undefined ? { from, to } : yield* defaultRange;
   const dateRange = `${range.from}/${range.to}`;
+  // Looked up once, the first time a probe is refused or at the end: each
+  // lookup costs two calls.
+  const lookup = yield* Effect.cached(integrationLink);
+  const { probe, probeWith } = prober(lookup);
   const kinds = yield* probe('kinds_list', {});
   const employee = (
     kinds.result as ReadonlyArray<{ id: string; machine_name: string }> | undefined
@@ -151,7 +159,7 @@ export const probes = Effect.fn('check_setup.probes')(function* ({
   for (const one of next) {
     reports.push((yield* one).report);
   }
-  const integration = yield* integrationLink;
+  const integration = yield* lookup;
   return {
     date_range: dateRange,
     endpoints: reports,

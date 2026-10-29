@@ -164,11 +164,11 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
           .join(': ');
         return new TipeeError({ reason: new Unreachable({ description }) });
       }
-      // An attempt that outlasted its timeout (see TipeeClient).
+      // An attempt or a call that outlasted its timeout; TipeeClient's
+      // message says how long tipee was given.
       if (Cause.isTimeoutError(cause)) {
-        return new TipeeError({
-          reason: new Unreachable({ description: 'tipee did not answer within 20 s' }),
-        });
+        const description = cause.message === '' ? 'tipee did not answer in time' : cause.message;
+        return new TipeeError({ reason: new Unreachable({ description }) });
       }
       if (Schema.isSchemaError(cause)) {
         return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });

@@ -44,12 +44,17 @@ export const vendored = (): { readonly file: string; readonly document: Document
   return { document: JSON.parse(readFileSync(file, 'utf8')) as Document, file };
 };
 
-// Operations left out of the tools on purpose. Granting and revoking roles
-// would let Claude raise anyone's rights, its own integration's included: an
-// admin does that in tipee. Listing roles is a read and stays.
+// Operations left out of the tools on purpose, listed before tipee's stable
+// document has them (a route it lacks is skipped). Granting and revoking roles
+// would let Claude raise anyone's rights, its own integration's included, and
+// forcing a password change is account security: an admin does those in
+// tipee. Deleting a shift template would rewrite who worked when, since past
+// plannings refer to it. Listing roles is a read and stays.
 export const EXCLUDED: ReadonlySet<string> = new Set([
   '/api/directory/resources.grant-roles',
   '/api/directory/resources.revoke-roles',
+  '/api/schedule/schedule-templates.delete',
+  '/api/security/credentials.update-must-change-password',
 ]);
 
 // A JSON Pointer segment.

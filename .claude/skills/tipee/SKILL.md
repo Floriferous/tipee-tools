@@ -6,8 +6,8 @@ description: Working on tipee-tools (Effect 4 core client, MCP server, Claude Co
 # tipee API via tipee-tools
 
 tipee is a Swiss HR tool (employees, shifts, absences, activities). This
-repo exposes its API to agents, every operation but granting and revoking
-roles, for any tipee instance: `@tipee-tools/core` (the HttpApi generated
+repo exposes its API to agents, every operation but the few in `EXCLUDED`,
+for any tipee instance: `@tipee-tools/core` (the HttpApi generated
 from tipee's OpenAPI document, the derived client, the operation
 catalogue, errors), `@tipee-tools/mcp` (one MCP tool per operation, built
 from the catalogue, plus `check_setup` and `update_plugin`), and the Claude
@@ -22,10 +22,13 @@ the repo.
   and every write but a create as destructive, and each write's description
   asks Claude to confirm first (Claude Desktop never loads the plugin's
   skill). Don't add server-side gates or deny lists.
-  The one exception: `resources.grant-roles` and `resources.revoke-roles`
-  are left out of the generated API (`EXCLUDED` in
-  `packages/core/scripts/spec.ts`), since they would let Claude raise
-  anyone's rights, its own integration's included; a test keeps them out.
+  The one exception: `EXCLUDED` in `packages/core/scripts/spec.ts` leaves
+  operations out of the generated API. `resources.grant-roles` and
+  `resources.revoke-roles` would let Claude raise anyone's rights, its own
+  integration's included; `credentials.update-must-change-password` is
+  account security; `schedule-templates.delete` would rewrite history (next
+  point). The last two are still in tipee's preview and listed ahead: a
+  route the document lacks is skipped. A test keeps them all out.
 - **Shift templates are history.** Old templates are referenced by past
   plannings; never delete or modify them (that rewrites who worked when).
   A new need means a new template.
@@ -146,12 +149,12 @@ in. Spec-versus-reality fixes belong in the patch, nowhere else.
   the plugin bundles, the same bundle as the Claude Desktop extension, the
   repo as its own marketplace) and what is not planned. Check it before
   adding a distribution channel or a configuration source.
-- Effect 4 is at 4.0.0 stable, pinned exactly; the `effect-v4` skill
-  in `.claude/skills` lists the idioms and v4 gotchas. Read Effect's sources
-  in `packages/core/node_modules/effect/src` (exact version; pnpm does not
-  link `effect` at the root) and its agent docs in
-  `packages/core/node_modules/effect/AGENTS.md` and `.../effect/ai-docs`
-  rather than memory.
+- Effect 4 is stable, pinned exactly (see `packages/core/package.json`);
+  the `effect-v4` skill in `.claude/skills` lists the idioms and v4
+  gotchas. Read Effect's sources in `packages/core/node_modules/effect/src`
+  (exact version; pnpm does not link `effect` at the root) and its agent
+  docs in `packages/core/node_modules/effect/AGENTS.md` and
+  `.../effect/ai-docs` rather than memory.
 - TypeScript 7 (native compiler) with `@effect/tsgo`: `pnpm install` runs
   `effect-tsgo patch`, after which `tsc` and the type-aware lint report
   Effect diagnostics (for example preferTypedSchemaDecoder). Fix them rather

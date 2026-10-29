@@ -23,8 +23,9 @@ export const EndpointReport = Schema.Struct({
   status: Schema.Literals(['ok', 'failed', 'skipped']).annotate({
     description:
       'ok: the endpoint answered as expected. skipped: the module is off or a right is ' +
-      'missing; the error names the right and the page where it is ticked. failed: tipee ' +
-      'answered in a shape this version cannot read.',
+      'missing, and the error names the right and the page where it is ticked; or it was ' +
+      'not called, for want of an id from an earlier endpoint, and the error says which. ' +
+      'failed: tipee answered in a shape this version cannot read.',
   }),
 });
 

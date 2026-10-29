@@ -3186,11 +3186,11 @@ const exitPrimitive = /*#__PURE__*/ makePrimitive({
 		return fiber.succeedWith(exit ?? exitFailCause(cause));
 	}
 });
-const timeoutOrElse = /*#__PURE__*/ dual(2, (self, options) => flatMap$2(timeoutOption(self, options.duration), (option) => isNone(option) ? options.orElse() : succeed$7(option.value)));
-const timeoutErrorFromDuration = (duration) => new TimeoutError(`Operation timed out after '${format$1(duration)}'`);
+const timeoutOrElse$1 = /*#__PURE__*/ dual(2, (self, options) => flatMap$2(timeoutOption(self, options.duration), (option) => isNone(option) ? options.orElse() : succeed$7(option.value)));
+const timeoutErrorFromDuration = (duration) => new TimeoutError$1(`Operation timed out after '${format$1(duration)}'`);
 const timeout$1 = /*#__PURE__*/ dual(2, (self, duration) => {
 	const decoded = fromInputUnsafe$1(duration);
-	return timeoutOrElse(self, {
+	return timeoutOrElse$1(self, {
 		duration: decoded,
 		orElse: () => fail$6(timeoutErrorFromDuration(decoded))
 	});
@@ -3970,7 +3970,7 @@ const sleep$1 = (duration) => clockWith((clock) => clock.sleep(fromInputUnsafe$1
 const currentTimeMillis$1 = /*#__PURE__*/ clockWith((clock) => clock.currentTimeMillis);
 const TimeoutErrorTypeId = "~effect/Cause/TimeoutError";
 const isTimeoutError$1 = (u) => hasProperty(u, TimeoutErrorTypeId);
-var TimeoutError = class extends (/*#__PURE__*/ TaggedError$2("TimeoutError")) {
+var TimeoutError$1 = class extends (/*#__PURE__*/ TaggedError$2("TimeoutError")) {
 	[TimeoutErrorTypeId] = TimeoutErrorTypeId;
 	constructor(message) {
 		super({ message });
@@ -4152,6 +4152,7 @@ const isDone = isDone$1;
 const Done$1 = Done$2;
 const done$1 = done$2;
 const isTimeoutError = isTimeoutError$1;
+const TimeoutError = TimeoutError$1;
 const IllegalArgumentError = IllegalArgumentError$1;
 const ExceededCapacityError = ExceededCapacityError$1;
 const UnknownError$1 = UnknownError$2;
@@ -4908,6 +4909,7 @@ const ignore$1 = ignore$2;
 const ignoreCause = ignoreCause$1;
 const orElseSucceed = orElseSucceed$1;
 const timeout = timeout$1;
+const timeoutOrElse = timeoutOrElse$1;
 const sleep = sleep$1;
 const timed = timed$1;
 const raceFirst = raceFirst$1;
@@ -14263,7 +14265,10 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			const description = [cause.message, chain(reason.cause)].filter((part) => part !== "").join(": ");
 			return new TipeeError({ reason: new Unreachable({ description }) });
 		}
-		if (isTimeoutError(cause)) return new TipeeError({ reason: new Unreachable({ description: "tipee did not answer within 20 s" }) });
+		if (isTimeoutError(cause)) {
+			const description = cause.message === "" ? "tipee did not answer in time" : cause.message;
+			return new TipeeError({ reason: new Unreachable({ description }) });
+		}
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
 		if (typeof cause === "object" && cause !== null && !(cause instanceof Error)) {
 			const code = codeOf(decodeOption(ErrorCode)(cause));
@@ -17828,10 +17833,15 @@ const TRANSIENT_STATUSES = /* @__PURE__ */ new Set([
 	503,
 	504
 ]);
-const REQUEST_TIMEOUT = "20 seconds";
+const ATTEMPT_TIMEOUT_SECONDS = 20;
+const CALL_TIMEOUT_SECONDS = 50;
+const within = (seconds, message) => timeoutOrElse({
+	duration: `${seconds} seconds`,
+	orElse: () => fail$3(new TimeoutError(message))
+});
 const readsOnly = (path) => /^(?:list|show)/u.test(path.slice(path.lastIndexOf(".") + 1));
 const resendable = (request, status) => status === HTTP_TOO_MANY_REQUESTS || readsOnly(new URL(request.url).pathname) && (status === void 0 || TRANSIENT_STATUSES.has(status));
-const retried = (response) => response.pipe(timeout(REQUEST_TIMEOUT), repeat({
+const retried = (response) => response.pipe(within(ATTEMPT_TIMEOUT_SECONDS, `tipee did not answer within ${ATTEMPT_TIMEOUT_SECONDS} s`), repeat({
 	schedule: RETRY_SCHEDULE,
 	times: RETRY_ATTEMPTS,
 	while: (answer) => TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status)
@@ -17839,7 +17849,7 @@ const retried = (response) => response.pipe(timeout(REQUEST_TIMEOUT), repeat({
 	schedule: RETRY_SCHEDULE,
 	times: RETRY_ATTEMPTS,
 	while: (error) => isHttpClientError(error) && error.reason._tag === "TransportError" && resendable(error.request)
-}));
+}), within(CALL_TIMEOUT_SECONDS, `tipee gave no usable answer within ${CALL_TIMEOUT_SECONDS} s, retries included`));
 const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const normalizeInstance = (raw) => {
 	const [host = ""] = raw.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//u, "").split("/");
@@ -17950,9 +17960,9 @@ const integrationLink = gen(function* () {
 		roles_page: pages(instance).roles(only.id)
 	} : void 0;
 });
-const rolesPage = gen(function* () {
+const rolesPage = (lookup) => gen(function* () {
 	const { instance } = yield* TipeeClient;
-	return (yield* integrationLink)?.roles_page ?? pages(instance).integrations;
+	return (yield* lookup)?.roles_page ?? pages(instance).integrations;
 });
 const FIXES = {
 	Internal: "Please report it at https://github.com/Floriferous/tipee-tools/issues.",
@@ -17962,7 +17972,7 @@ const FIXES = {
 	UnexpectedShape: "Run check_setup and suggest updating tipee for Claude."
 };
 const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
-const explain = (error, target) => gen(function* () {
+const explain = (error, target, lookup) => gen(function* () {
 	const { instance } = yield* TipeeClient;
 	const { reason } = error;
 	const fixed = (fix) => new TipeeError({
@@ -17977,11 +17987,11 @@ const explain = (error, target) => gen(function* () {
 	if (!target.readOnly && (reason._tag === "Unreachable" || serverError)) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
 	if (reason._tag === "Unreachable") return fixed(`Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`);
 	if (serverError) return fixed("Try again in a moment; run check_setup if it persists.");
-	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage}`);
+	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage(lookup)}`);
 	const fix = FIXES[reason._tag];
 	return fix === void 0 ? error : fixed(fix);
 });
-const invoke = (target, params) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target), fail$3)));
+const invoke = (target, params, lookup = integrationLink) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target, lookup), fail$3)));
 // ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/AiError.js
 const HttpRequestDetails = /*#__PURE__*/ Struct({
 	method: Literals([
@@ -25267,31 +25277,6 @@ const countOf = (result) => {
 	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
 	return 1;
 };
-const probe = (name, params) => invoke(operation(name), params).pipe(map$4((result) => ({
-	report: {
-		count: countOf(result),
-		name,
-		status: "ok"
-	},
-	result
-})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
-	handled: true,
-	properties: { tool: "check_setup" }
-})), {
-	report: {
-		error: reason.message,
-		name,
-		status: "failed"
-	},
-	result: void 0
-})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
-	report: {
-		error: failure.message,
-		name,
-		status: "skipped"
-	},
-	result: void 0
-})));
 const ORDER = [{
 	attribute: "last_name",
 	direction: "asc",
@@ -25302,20 +25287,53 @@ const unavailable = ({ report }) => {
 	if (report.status === "failed") return `Not called: it needs an id from ${report.name}, which failed.`;
 	return `Not called: it needs an id from ${report.name}, which needs ${rightFor(operation(report.name))}.`;
 };
-const probeWith = (name, source, params) => params === void 0 ? succeed$3({
-	report: {
-		error: unavailable(source),
-		name,
-		status: "skipped"
-	},
-	result: void 0
-}) : probe(name, params);
+const prober = (lookup) => {
+	const probe = (name, params) => invoke(operation(name), params, lookup).pipe(map$4((result) => ({
+		report: {
+			count: countOf(result),
+			name,
+			status: "ok"
+		},
+		result
+	})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
+		handled: true,
+		properties: { tool: "check_setup" }
+	})), {
+		report: {
+			error: reason.message,
+			name,
+			status: "failed"
+		},
+		result: void 0
+	})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
+		report: {
+			error: failure.message,
+			name,
+			status: "skipped"
+		},
+		result: void 0
+	})));
+	const probeWith = (name, source, params) => params === void 0 ? succeed$3({
+		report: {
+			error: unavailable(source),
+			name,
+			status: "skipped"
+		},
+		result: void 0
+	}) : probe(name, params);
+	return {
+		probe,
+		probeWith
+	};
+};
 const probes = fn("check_setup.probes")(function* ({ from, to }) {
 	const range = from !== void 0 && to !== void 0 ? {
 		from,
 		to
 	} : yield* defaultRange;
 	const dateRange = `${range.from}/${range.to}`;
+	const lookup = yield* cached(integrationLink);
+	const { probe, probeWith } = prober(lookup);
 	const kinds = yield* probe("kinds_list", {});
 	const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
 	const people = yield* probeWith("resources_list", kinds, employee && {
@@ -25342,7 +25360,7 @@ const probes = fn("check_setup.probes")(function* ({ from, to }) {
 		}] })
 	];
 	for (const one of next) reports.push((yield* one).report);
-	const integration = yield* integrationLink;
+	const integration = yield* lookup;
 	return {
 		date_range: dateRange,
 		endpoints: reports,
@@ -25376,7 +25394,7 @@ const EndpointReport = Struct({
 		"ok",
 		"failed",
 		"skipped"
-	]).annotate({ description: "ok: the endpoint answered as expected. skipped: the module is off or a right is missing; the error names the right and the page where it is ticked. failed: tipee answered in a shape this version cannot read." })
+	]).annotate({ description: "ok: the endpoint answered as expected. skipped: the module is off or a right is missing, and the error names the right and the page where it is ticked; or it was not called, for want of an id from an earlier endpoint, and the error says which. failed: tipee answered in a shape this version cannot read." })
 });
 const IntegrationReport = Struct({
 	label: String$2,
@@ -25749,7 +25767,7 @@ const SERVER_ICON = new Icon$1({
 });
 // ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.7";
+const SERVER_VERSION = "1.0.8";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",

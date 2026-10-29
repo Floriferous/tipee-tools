@@ -5,8 +5,9 @@ teams, shifts, absences, on-call duties, activities and time clock. Claude
 can look things up and, when you ask, change them.
 
 Every operation of tipee's API is available as a tool, except granting and
-revoking roles, which stays with an admin in tipee. Which tools Claude may
-use, and which need your approval, is up to you in Claude's own settings.
+revoking roles, forcing a password change and deleting a shift template,
+which stay with an admin in tipee. Which tools Claude may use, and which
+need your approval, is up to you in Claude's own settings.
 An independent project, not made or endorsed by tipee.
 
 ## 1. Get an API key from tipee

@@ -5,7 +5,8 @@ description: tipee HR plannings and timesheets through the tipee for Claude tool
 
 # tipee through the MCP tools
 
-Every operation of tipee's API but granting and revoking roles is a tool
+Every operation of tipee's API but granting and revoking roles, forcing a
+password change and deleting a shift template is a tool
 named `<resource>_<verb>`: `schedules_list`, `absences_create`,
 `resources_show_activity_rates`. The tool's schema is the truth about what
 tipee accepts and returns; this file carries only what the schema cannot
@@ -31,12 +32,14 @@ follow it and give the user any link as is.
 ## What the schema cannot say
 
 - **Setup**: `check_setup` first when the tools are new to this machine. A
-  `skipped` endpoint was refused: either the module is not enabled on this
-  instance, or the integration lacks the right, and then its error names the
-  right and links the Roles tab. `ok` stays true with skipped endpoints and
-  is false only when an endpoint failed (tipee answered in a shape this
-  version of tipee for Claude cannot read). The report names the integration
-  the key belongs to and links its Roles tab. When it reports an `update`,
+  `skipped` endpoint was refused or not called: the module is not enabled on
+  this instance, or the integration lacks the right (its error names the
+  right and links the Roles tab), or it needed an id from an endpoint that
+  was skipped, failed or returned nothing (its error says which). `ok`
+  stays true with skipped endpoints and is false only when an endpoint
+  failed (tipee answered in a shape this version of tipee for Claude cannot
+  read). When it can tell which integration the key belongs to, the report
+  names it and links its Roles tab. When it reports an `update`,
   tell the user the version once and ask whether to install it; on a yes,
   call `update_plugin` and relay its message (Claude Desktop asks the user to
   confirm in its own dialog). Which rights an integration needs for which
