@@ -1,10 +1,11 @@
 // How failures come back through `invoke`: each one explained, and the ones
 // a user can fix by hand ending with the page to open on their instance.
 
-import { expect, layer } from '@effect/vitest';
+import { describe, expect, it as plain, layer } from '@effect/vitest';
 import { Effect } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
+import { fieldsOf } from '../src/Errors.ts';
 import { SETTINGS } from '../src/Rights.ts';
 import {
   HTTP_BAD_REQUEST,
@@ -28,6 +29,45 @@ import {
 import { BASE } from './handlers.ts';
 import { server } from './server.ts';
 import { INTEGRATION_ID } from './tables.ts';
+
+// What a refusal names can be recorded: paths, never messages or values.
+describe('fields a refusal names', () => {
+  plain('reads the path lines of a validation detail', () => {
+    expect(
+      fieldsOf(
+        JSON.stringify({
+          detail:
+            'hour_ranges[0].hour_range: This value is not valid.\n' +
+            'options.allow_partial: This value should not be null.',
+          status: 422,
+          title: 'Validation Failed',
+        }),
+      ),
+    ).toEqual(['hour_ranges[].hour_range', 'options.allow_partial']);
+  });
+
+  plain('reads violations and maps of errors', () => {
+    expect(
+      fieldsOf(JSON.stringify({ violations: [{ message: 'Too long.', propertyPath: 'remark' }] })),
+    ).toEqual(['remark']);
+    expect(
+      fieldsOf(
+        JSON.stringify({
+          details: { options: { schedule_on_bank_holidays: 'Required.' }, when: 'Locked.' },
+          message: 'Invalid request',
+        }),
+      ),
+    ).toEqual(['options.schedule_on_bank_holidays', 'when']);
+  });
+
+  plain('keeps nothing that is not a path', () => {
+    expect(fieldsOf(JSON.stringify({ details: { 'Chloé Martin': 'Already booked.' } }))).toEqual(
+      [],
+    );
+    expect(fieldsOf(JSON.stringify({ message: 'Note: this is not a field.' }))).toEqual([]);
+    expect(fieldsOf('not json')).toEqual([]);
+  });
+});
 
 layer(TestClient)('errors', (it) => {
   it.effect('explains a response that does not match the API description', () =>

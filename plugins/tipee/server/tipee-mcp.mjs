@@ -3295,7 +3295,7 @@ const makeScope = (finalizerStrategy = "sequential", parent) => ({
 });
 const constScopeEmpty = { _tag: "Empty" };
 const scopeMake = (finalizerStrategy) => sync$1(() => scopeMakeUnsafe(finalizerStrategy));
-const scope = scopeTag;
+const scope$1 = scopeTag;
 const provideScope = /*#__PURE__*/ provideService$1(scopeTag);
 const scoped$1 = (self) => withFiber$1((fiber) => {
 	const prev = fiber.context;
@@ -3311,8 +3311,8 @@ const scopedWith$1 = (f) => suspend$4(() => {
 	const scope = scopeMakeUnsafe();
 	return onExit$2(f(scope), (exit) => suspend$4(() => scopeCloseUnsafe(scope, exit) ?? void_$3));
 });
-const acquireRelease$1 = (acquire, release, options) => contextWith$1((context) => uninterruptibleMask$1((restore) => flatMap$2(scope, (scope) => tap$1(options?.interruptible ? restore(acquire) : acquire, (a) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(release(a, exit), context))))));
-const addFinalizer$2 = (finalizer) => flatMap$2(scope, (scope) => contextWith$1((context) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(finalizer(exit), context))));
+const acquireRelease$1 = (acquire, release, options) => contextWith$1((context) => uninterruptibleMask$1((restore) => flatMap$2(scope$1, (scope) => tap$1(options?.interruptible ? restore(acquire) : acquire, (a) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(release(a, exit), context))))));
+const addFinalizer$2 = (finalizer) => flatMap$2(scope$1, (scope) => contextWith$1((context) => scopeAddFinalizerExit(scope, (exit) => provideContext$3(finalizer(exit), context))));
 const OnExitImpl = /*#__PURE__*/ function() {
 	const Proto = /*#__PURE__*/ makePrimitiveProto({
 		op: "OnExit",
@@ -3660,7 +3660,7 @@ const forkIn$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, scope,
 	}
 	return succeed$7(fiber);
 }));
-const forkScoped$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => flatMap$2(scope, (scope) => forkIn$1(self, scope, options)));
+const forkScoped$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => flatMap$2(scope$1, (scope) => forkIn$1(self, scope, options)));
 const runForkWith$1 = (context) => (effect, options) => {
 	const fiber = new FiberImpl(options?.scheduler ? add$2(context, Scheduler, options.scheduler) : context, options?.uninterruptible !== true);
 	fiber.evaluate(effect);
@@ -4692,6 +4692,14 @@ const exponential = (base, factor = 2) => {
 		return succeed$7([duration, duration]);
 	}));
 };
+const modifyDelay = /*#__PURE__*/ dual(2, (self, f) => fromStep(map$6(toStep(self), (step) => {
+	const meta = metadataFn();
+	return (now, input) => flatMap$2(step(now, input), ([output, duration]) => map$6(f({
+		...meta(now, input),
+		output,
+		duration
+	}), (replacement) => [output, fromInputUnsafe$1(replacement)]));
+})));
 const passthrough$2 = (self) => fromStep(map$6(toStep(self), (step) => (now, input) => matchEffect$1(step(now, input), {
 	onSuccess: (result) => succeed$7([input, result[1]]),
 	onFailure: failCause$6,
@@ -4924,6 +4932,7 @@ const service = service$1;
 const serviceOption = serviceOption$1;
 const updateContext = updateContext$1;
 const provideService = provideService$1;
+const scope = scope$1;
 const scoped = scoped$1;
 const scopedWith = scopedWith$1;
 const acquireRelease = acquireRelease$1;
@@ -6221,8 +6230,8 @@ const nanosPerSecond = /*#__PURE__*/ BigInt(1e9);
 const parseRetryAfter$1 = (input) => {
 	const trimmed = input.trim();
 	if (wholeSeconds.test(trimmed)) {
-		const seconds$1 = Number(trimmed);
-		const duration = Number.isSafeInteger(seconds$1 * 1e3) ? seconds(seconds$1) : nanos(BigInt(trimmed) * nanosPerSecond);
+		const seconds$2 = Number(trimmed);
+		const duration = Number.isSafeInteger(seconds$2 * 1e3) ? seconds(seconds$2) : nanos(BigInt(trimmed) * nanosPerSecond);
 		return succeed$8({
 			_tag: "Duration",
 			duration
@@ -14071,12 +14080,13 @@ var RateLimited = class extends TaggedError()("RateLimited", {
 	retryAfter: optionalKey(String$2)
 }) {
 	get message() {
-		return `tipee's rate limit was still reached after retrying (HTTP 429). ${this.retryAfter === void 0 ? "Wait a moment before trying again." : `tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`}${this.body === "" ? "" : ` tipee said: ${this.body}`}`;
+		return `tipee's rate limit was reached (HTTP 429), and nothing was applied. ${this.retryAfter === void 0 ? "Wait a moment before trying again." : `tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`}${this.body === "" ? "" : ` tipee said: ${this.body}`}`;
 	}
 };
 var Rejected = class extends TaggedError()("Rejected", {
 	body: String$2,
 	code: optionalKey(String$2),
+	fields: optionalKey(ArraySchema(String$2)),
 	status: Int
 }) {
 	get message() {
@@ -14206,6 +14216,30 @@ const ErrorCode = Struct({
 	warning_type: optionalKey(String$2)
 });
 const codeOf = (found) => getOrUndefined$1(flatMap$4(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
+const MAX_FIELDS = 10;
+const PROPERTY_PATH = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*|\[\d*\])*$/u;
+const PATH_LINE = /^\s*(?<path>[A-Za-z_][\w.[\]]*):\s/gmu;
+const keyPaths = (value, prefix) => {
+	if (typeof value !== "object" || value === null) return [prefix];
+	if (Array.isArray(value)) return value.flatMap((item) => keyPaths(item, `${prefix}[]`));
+	const entries = Object.entries(value);
+	return entries.length === 0 ? [prefix] : entries.flatMap(([key, item]) => keyPaths(item, prefix === "" ? key : `${prefix}.${key}`));
+};
+const fieldsOf = (rawBody) => {
+	const json = getOrUndefined$1(decodeOption(JsonObject)(rawBody));
+	if (json === void 0) return [];
+	const found = [];
+	const { details, errors, violations } = json;
+	if (Array.isArray(violations)) for (const violation of violations) {
+		const { propertyPath } = violation ?? {};
+		if (typeof propertyPath === "string") found.push(propertyPath);
+	}
+	for (const map of [details, errors]) if (typeof map === "object" && map !== null && !Array.isArray(map)) found.push(...keyPaths(map, ""));
+	const { detail } = json;
+	if (typeof detail === "string") found.push(...[...detail.matchAll(PATH_LINE)].map((match) => match.groups?.path ?? ""));
+	const paths = found.filter((candidate) => PROPERTY_PATH.test(candidate)).map((candidate) => candidate.replaceAll(/\[\d*\]/gu, "[]"));
+	return [...new Set(paths)].slice(0, MAX_FIELDS);
+};
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
 const INSTANCE_NOT_FOUND_MARKER = "instance_not_found";
 const HTTP_OK_MIN = 200;
@@ -14217,7 +14251,7 @@ const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 const HTTP_GONE = 410;
 const HTTP_UNPROCESSABLE = 422;
-const HTTP_TOO_MANY_REQUESTS$1 = 429;
+const HTTP_TOO_MANY_REQUESTS = 429;
 const statusReason = (status, rawBody, retryAfter) => {
 	const body = quoted(rawBody);
 	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing({ body }) : new ApiKeyRejected({ body });
@@ -14226,13 +14260,15 @@ const statusReason = (status, rawBody, retryAfter) => {
 	if (status === HTTP_GONE && rawBody.includes(INSTANCE_NOT_FOUND_MARKER)) return new InstanceNotFound({ body });
 	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
 		const code = codeOf(decodeOption(fromJsonString(ErrorCode))(rawBody));
+		const fields = fieldsOf(rawBody);
 		return new Rejected({
 			body,
 			status,
-			...code === void 0 ? {} : { code }
+			...code === void 0 ? {} : { code },
+			...fields.length === 0 ? {} : { fields }
 		});
 	}
-	if (status === HTTP_TOO_MANY_REQUESTS$1) return new RateLimited({
+	if (status === HTTP_TOO_MANY_REQUESTS) return new RateLimited({
 		body,
 		...retryAfter === void 0 ? {} : { retryAfter }
 	});
@@ -17764,7 +17800,7 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 	payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson,
 	success: Empty(201),
 	error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(status(409))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. tipee answers with no body: read the day back with schedules_list to get the id of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule").annotate(Summary, "Create").annotate(Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. To do the same on several days, send one call per person with a date interval (2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day. tipee answers with no body: read the days back with schedules_list to get the ids of what was created."), post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson,
 	success: Empty(204),
 	error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(status(409))
@@ -17772,16 +17808,16 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 	payload: PostAppUiApiScheduleSchedulecommandDeleteschedulesRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandDeleteschedules200,
 	error: PostAppUiApiScheduleSchedulecommandDeleteschedules409.pipe(status(409))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_deleteschedules").annotate(Summary, "Delete").annotate(Description, "Deletes one or several schedules. If you provide 'all' or 'future' as group action and if you allow it through 'allow_partial=true', only the schedules that come after team's lock date (if it exists) will be deleted."), post("postAppUiApiScheduleSchedulecommandCreateabsence", "/api/schedule/absences.create", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_deleteschedules").annotate(Summary, "Delete").annotate(Description, "Deletes one or several schedules. If you provide 'all' or 'future' as group action and if you allow it through 'allow_partial=true', only the schedules that come after team's lock date (if it exists) will be deleted. Pass every id to delete in one call."), post("postAppUiApiScheduleSchedulecommandCreateabsence", "/api/schedule/absences.create", {
 	payload: PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandCreateabsence201.pipe(status(201))
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence").annotate(Summary, "Create").annotate(Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); tipee refuses an absence with neither."), post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence").annotate(Summary, "Create").annotate(Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); tipee refuses an absence with neither. To do the same on several days, send one call per person with a date interval (2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day."), post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", {
 	payload: PostAppUiApiScheduleSchedulecommandUpdateabsenceRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandUpdateabsence200
 }).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_updateabsence").annotate(Summary, "Update").annotate(Description, "Updates one absence, or an entire group of repeating absences."), post("postAppUiApiScheduleSchedulecommandDeleteabsences", "/api/schedule/absences.delete", {
 	payload: PostAppUiApiScheduleSchedulecommandDeleteabsencesRequestJson,
 	success: PostAppUiApiScheduleSchedulecommandDeleteabsences200
-}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_deleteabsences").annotate(Summary, "Delete").annotate(Description, "Deletes one or multiple absences, possibly including their entire group of repeating absences."), post("postAppUiApiScheduleSchedulequeryListschedules", "/api/schedule/schedules.list", {
+}).annotate(Identifier, "post_app_ui_api_schedule_schedulecommand_deleteabsences").annotate(Summary, "Delete").annotate(Description, "Deletes one or multiple absences, possibly including their entire group of repeating absences. Pass every id to delete in one call."), post("postAppUiApiScheduleSchedulequeryListschedules", "/api/schedule/schedules.list", {
 	payload: PostAppUiApiScheduleSchedulequeryListschedulesRequestJson,
 	success: PostAppUiApiScheduleSchedulequeryListschedules200
 }).annotate(Identifier, "post_app_ui_api_schedule_schedulequery_listschedules").annotate(Summary, "List").annotate(Description, "Retrieves all schedules (or the ones corresponding to the provided `ids`) within a date range."), post("postAppUiApiScheduleSchedulequeryListabsences", "/api/schedule/absences.list", {
@@ -17824,15 +17860,22 @@ var Tipee = class extends make$13("Tipee").annotate(Title$1, "tipee").annotate(V
 const TIPEE_API_VERSION = "26.06.25";
 const RETRY_ATTEMPTS = 3;
 const RETRY_SCHEDULE = exponential("250 millis");
-const HTTP_TOO_MANY_REQUESTS = 429;
 const TRANSIENT_STATUSES = /* @__PURE__ */ new Set([
 	408,
 	429,
 	500,
 	502,
 	503,
-	504
+	504,
+	508
 ]);
+const REPLAYABLE_STATUSES = /* @__PURE__ */ new Set([
+	429,
+	503,
+	508
+]);
+const MAX_RETRY_AFTER_SECONDS = 10;
+const MILLIS_PER_SECOND = 1e3;
 const ATTEMPT_TIMEOUT_SECONDS = 20;
 const CALL_TIMEOUT_SECONDS = 50;
 const within = (seconds, message) => timeoutOrElse({
@@ -17840,11 +17883,26 @@ const within = (seconds, message) => timeoutOrElse({
 	orElse: () => fail$3(new TimeoutError(message))
 });
 const readsOnly = (path) => /^(?:list|show)/u.test(path.slice(path.lastIndexOf(".") + 1));
-const resendable = (request, status) => status === HTTP_TOO_MANY_REQUESTS || readsOnly(new URL(request.url).pathname) && (status === void 0 || TRANSIENT_STATUSES.has(status));
+const resendable = (request, status) => status !== void 0 && REPLAYABLE_STATUSES.has(status) || readsOnly(new URL(request.url).pathname) && (status === void 0 || TRANSIENT_STATUSES.has(status));
+const retryAfterSeconds = (header, now) => {
+	if (header === void 0) return;
+	const trimmed = header.trim();
+	if (/^\d+$/u.test(trimmed)) return Number(trimmed);
+	const date = Date.parse(trimmed);
+	return Number.isNaN(date) ? void 0 : Math.max(0, (date - now) / MILLIS_PER_SECOND);
+};
+const ANSWER_SCHEDULE = RETRY_SCHEDULE.pipe(modifyDelay(({ duration, input, now }) => {
+	const seconds$1 = retryAfterSeconds(input.headers["retry-after"], now);
+	return succeed$3(seconds$1 === void 0 ? duration : max(duration, seconds(seconds$1)));
+}));
+const worthRetrying = (answer, now) => {
+	const seconds = retryAfterSeconds(answer.headers["retry-after"], now);
+	return TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status) && (seconds === void 0 || seconds <= MAX_RETRY_AFTER_SECONDS);
+};
 const retried = (response) => response.pipe(within(ATTEMPT_TIMEOUT_SECONDS, `tipee did not answer within ${ATTEMPT_TIMEOUT_SECONDS} s`), repeat({
-	schedule: RETRY_SCHEDULE,
+	schedule: ANSWER_SCHEDULE,
 	times: RETRY_ATTEMPTS,
-	while: (answer) => TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status)
+	while: (answer) => map$4(currentTimeMillis, (now) => worthRetrying(answer, now))
 }), retry({
 	schedule: RETRY_SCHEDULE,
 	times: RETRY_ATTEMPTS,
@@ -17935,6 +17993,9 @@ const call = (target, params) => gen(function* () {
 });
 const PAGE_SIZE$1 = 100;
 const HTTP_SERVER_ERROR = 500;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+const HTTP_LOOP_DETECTED = 508;
+const GATEWAY_STATUSES = /* @__PURE__ */ new Set([502, 504]);
 const integrations = gen(function* () {
 	const kind = (yield* call(operation("kinds_list"), {})).find((candidate) => candidate.machine_name === "integration");
 	if (kind === void 0) return [];
@@ -17971,6 +18032,11 @@ const FIXES = {
 	Rejected: "Nothing was changed. If a parameter was malformed, fix it and call again; if tipee refused the change itself, tell the user — a different change needs their yes first.",
 	UnexpectedShape: "Run check_setup and suggest updating tipee for Claude."
 };
+const serverFix = (status, target) => {
+	if (status === HTTP_LOOP_DETECTED) return "A change to the same data running at the same time interrupted this one, and nothing was applied. Wait a few seconds and send it again; make changes one after another, and cover a date range in one call rather than one call per day.";
+	if (status === HTTP_SERVICE_UNAVAILABLE) return "tipee is down for maintenance, usually for a couple of minutes, and nothing was applied: try again shortly.";
+	return `${target.readOnly ? "" : "Nothing was applied: tipee guarantees an error changes nothing. "}Try again in a moment; run check_setup if it persists.`;
+};
 const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
 const explain = (error, target, lookup) => gen(function* () {
 	const { instance } = yield* TipeeClient;
@@ -17983,10 +18049,11 @@ const explain = (error, target, lookup) => gen(function* () {
 	if (reason._tag === "ApiKeyRejected") return fixed(`Check the instance name, then the integration and its key at ${pages(instance).integrations}, and re-enter them in ${SETTINGS}.`);
 	if (reason._tag === "InstanceNotFound" || reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return fixed(`${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`);
 	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
-	const serverError = reason._tag === "UnexpectedStatus" && reason.status >= HTTP_SERVER_ERROR;
-	if (!target.readOnly && (reason._tag === "Unreachable" || serverError)) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
+	const status = reason._tag === "UnexpectedStatus" ? reason.status : void 0;
+	const outcomeUnknown = reason._tag === "Unreachable" || status !== void 0 && GATEWAY_STATUSES.has(status);
+	if (!target.readOnly && outcomeUnknown) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
 	if (reason._tag === "Unreachable") return fixed(`Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`);
-	if (serverError) return fixed("Try again in a moment; run check_setup if it persists.");
+	if (status !== void 0 && status >= HTTP_SERVER_ERROR) return fixed(serverFix(status, target));
 	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage(lookup)}`);
 	const fix = FIXES[reason._tag];
 	return fix === void 0 ? error : fixed(fix);
@@ -24440,7 +24507,6 @@ const toolJsonSchema = (schema, strict) => {
 		$defs: document.definitions
 	};
 };
-const toolkit = (toolkit) => effectDiscard(registerToolkit(toolkit)).pipe(provide$2(McpServer.layer));
 const registerPrompt = (options) => {
 	const args = empty$9();
 	const props = options.parameters ?? {};
@@ -24592,6 +24658,11 @@ const withheld = (reason) => {
 	if (reason._tag === "UnexpectedShape" || reason._tag === "InvalidRequest") {
 		const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
 		return paths.size === 0 ? reason._tag : `${reason._tag} at ${[...paths].join(", ")}`;
+	}
+	if (reason._tag === "Rejected") {
+		const at = reason.fields === void 0 ? "" : ` at ${reason.fields.join(", ")}`;
+		const code = reason.code === void 0 ? "" : `, ${reason.code}`;
+		return `Rejected (HTTP ${reason.status}${code})${at}`;
 	}
 	if (reason._tag === "Internal") return reason.message;
 	return "status" in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
@@ -25268,6 +25339,7 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 };
 // ../../packages/mcp/src/Check.ts
 const PAGE_SIZE = 100;
+const CONCURRENCY = 4;
 const defaultRange = map$4(now, (now) => ({
 	from: formatIsoDate(now),
 	to: formatIsoDate(add(now, { days: 6 }))
@@ -25334,32 +25406,49 @@ const probes = fn("check_setup.probes")(function* ({ from, to }) {
 	const dateRange = `${range.from}/${range.to}`;
 	const lookup = yield* cached(integrationLink);
 	const { probe, probeWith } = prober(lookup);
-	const kinds = yield* probe("kinds_list", {});
-	const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
-	const people = yield* probeWith("resources_list", kinds, employee && {
-		kind_id: employee.id,
-		orders: ORDER,
-		pagination: {
-			limit: PAGE_SIZE,
-			next_token: null
-		},
-		with_teams: true
+	const chain = gen(function* () {
+		const kinds = yield* probe("kinds_list", {});
+		const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
+		const people = yield* probeWith("resources_list", kinds, employee && {
+			kind_id: employee.id,
+			orders: ORDER,
+			pagination: {
+				limit: PAGE_SIZE,
+				next_token: null
+			},
+			with_teams: true
+		});
+		const [somebody] = people.result?.data ?? [];
+		return [
+			kinds,
+			people,
+			yield* probeWith("resources_show_activity_rates", people, somebody && { resource_id: somebody.id })
+		];
 	});
-	const [somebody] = people.result?.data ?? [];
-	const reports = [kinds.report, people.report];
-	const next = [
+	const [[kinds, people, rates], teams, templates, schedules, absences, onCalls, timechecks] = yield* all$1([
+		chain,
 		probe("teams_list", {}),
 		probe("schedule_templates_list", {}),
 		probe("schedules_list", { date_range: dateRange }),
 		probe("absences_list", { date_range: dateRange }),
 		probe("on_calls_list", { date_range: dateRange }),
-		probeWith("resources_show_activity_rates", people, somebody && { resource_id: somebody.id }),
 		probe("timechecks_list", { filters: [{
 			key: "timecheck.date_range",
 			value: dateRange
-		}] })
-	];
-	for (const one of next) reports.push((yield* one).report);
+		}] }),
+		lookup
+	], { concurrency: CONCURRENCY });
+	const reports = [
+		kinds,
+		people,
+		teams,
+		templates,
+		schedules,
+		absences,
+		onCalls,
+		rates,
+		timechecks
+	].map((one) => one.report);
 	const integration = yield* lookup;
 	return {
 		date_range: dateRange,
@@ -25461,11 +25550,18 @@ const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) =
 	outcome
 }));
 const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
+const MAX_PARAMS = 30;
+const paramsOf = (params, prefix = "") => typeof params === "object" && params !== null && !Array.isArray(params) ? Object.entries(params).flatMap(([key, value]) => {
+	const name = prefix === "" ? key : `${prefix}.${key}`;
+	const nested = paramsOf(value, name);
+	return nested.length === 0 ? [name] : nested;
+}).toSorted().slice(0, MAX_PARAMS) : [];
 const detailOf = (failure) => {
 	if (!(failure instanceof TipeeError)) return {};
 	const { reason } = failure;
 	if (reason._tag === "Rejected") return {
 		error_code: reason.code,
+		error_fields: reason.fields,
 		http_status: reason.status
 	};
 	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
@@ -25476,6 +25572,8 @@ const REPORTED = /* @__PURE__ */ new Set([
 	"InvalidRequest",
 	"Internal"
 ]);
+const INVALID_STATUSES = /* @__PURE__ */ new Set([400, 422]);
+const reported = (failure) => failure instanceof TipeeError && (REPORTED.has(failure.reason._tag) || failure.reason._tag === "Rejected" && INVALID_STATUSES.has(failure.reason.status));
 const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
 	onNone: () => ({}),
 	onSome: ({ clientInfo, protocolVersion }) => ({
@@ -25503,15 +25601,20 @@ const observed = ({ announce, telemetry }, tool, run) => fn("observed")(function
 	const failure = findError(exit$2.cause);
 	if (isSuccess$1(failure)) {
 		const reason = reasonOf(failure.success);
+		const sent = paramsOf(params);
 		yield* telemetry.capture("tool_called", {
 			...common,
 			...detailOf(failure.success),
 			outcome: "failed",
+			params_sent: sent,
 			reason
 		});
-		if (REPORTED.has(reason)) yield* telemetry.exception(failure.success, {
+		if (reported(failure.success)) yield* telemetry.exception(failure.success, {
 			handled: true,
-			properties: { tool }
+			properties: {
+				params_sent: sent,
+				tool
+			}
 		});
 	} else {
 		yield* telemetry.capture("tool_called", {
@@ -25552,6 +25655,51 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	return TipeeToolkit.of(handlers);
 }));
 const TipeeToolkitLayerConfig = unwrap$4(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$2(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$7(missing))));
+// ../../packages/mcp/src/Notice.ts
+const SPEAKING_OF_UPDATES = /* @__PURE__ */ new Set(["check_setup", "update_plugin"]);
+const updateNote = (update, current) => `tipee for Claude ${update.version} is available (this is ${current}). When the current task allows, tell the user in one sentence and offer to install it with update_plugin; say it once.`;
+const NotifiedToolkit = effectDiscard(gen(function* () {
+	const server = yield* McpServer;
+	const updates = yield* Updates;
+	const telemetry = yield* Telemetry;
+	const scope$2 = yield* scope;
+	const state = { told: false };
+	const start = suspend$3(() => state.lookup === void 0 ? map$4(forkIn(updates.available, scope$2), (fiber) => {
+		state.lookup = fiber;
+	}) : void_$1);
+	const noted = (tool, result) => suspend$3(() => {
+		if (state.told || !(result instanceof CallToolResult$4)) return succeed$3(result);
+		if (SPEAKING_OF_UPDATES.has(tool)) {
+			state.told = true;
+			return succeed$3(result);
+		}
+		const exit = state.lookup?.pollUnsafe();
+		if (exit === void 0) return succeed$3(result);
+		state.told = true;
+		if (isFailure(exit) || isNone(exit.value)) return succeed$3(result);
+		const update = exit.value.value;
+		return as(telemetry.capture("update_offered", {
+			tool,
+			version: update.version
+		}), new CallToolResult$4({
+			_meta: result._meta,
+			content: [...result.content, {
+				text: updateNote(update, updates.current),
+				type: "text"
+			}],
+			isError: result.isError,
+			structuredContent: result.structuredContent
+		}));
+	});
+	const wrapping = McpServer.of({
+		...server,
+		addTool: (options) => server.addTool({
+			...options,
+			handle: (payload) => start.pipe(andThen(options.handle(payload)), flatMap((result) => noted(options.tool.name, result)))
+		})
+	});
+	yield* registerToolkit(TipeeToolkit).pipe(provideService(McpServer, wrapping));
+})).pipe(provide$2(McpServer.layer));
 // ../../packages/mcp/src/Prompts.ts
 const SETUP_PROMPT = {
 	description: "Check that the tipee connection works and explain any missing authorization.",
@@ -25767,12 +25915,13 @@ const SERVER_ICON = new Icon$1({
 });
 // ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.0.8";
+const SERVER_VERSION = "1.1.0";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
 	"Every id in a call comes from an earlier result: kinds_list (the employee kind), then resources_list for people; teams_list for teams; schedule_templates_list for templates.",
 	"Read the current state before writing, and describe the change against it. When tipee refuses a change, never route around it with a different change without asking the user.",
+	"Bulk changes: one call per person and pattern, not per day. schedules_create and absences_create take a date interval or an RRULE in when; schedules_delete and absences_delete take every id at once. Send writes one after another, never in parallel.",
 	"Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds (2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).",
 	"{\"redacted\": …} in place of a value means tipee withheld it from this integration: say so, never guess it.",
 	"A failing tool's message names the cause and the fix: follow it, and give the user any link as is."
@@ -25781,7 +25930,7 @@ const TelemetryLive = Telemetry.layer({
 	$lib_version: SERVER_VERSION,
 	server_version: SERVER_VERSION
 });
-const ServerLayer = mergeAll(toolkit(TipeeToolkit), SetupPrompt).pipe(provide$2(TipeeToolkitLayerConfig), provide$2(layerStdio({
+const ServerLayer = mergeAll(NotifiedToolkit, SetupPrompt).pipe(provide$2(TipeeToolkitLayerConfig), provide$2(layerStdio({
 	description: "tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	icons: [SERVER_ICON],
 	instructions: INSTRUCTIONS,

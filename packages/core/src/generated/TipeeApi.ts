@@ -925,7 +925,7 @@ class ScheduleGroup extends HttpApiGroup.make("Schedule")
   .add(HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandCreateschedule", "/api/schedule/schedules.create", { payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson, success: HttpApiSchema.Empty(201), error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(HttpApiSchema.status(409)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_createschedule")
       .annotate(OpenApi.Summary, "Create")
-      .annotate(OpenApi.Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. tipee answers with no body: read the day back with schedules_list to get the id of what was created."), 
+      .annotate(OpenApi.Description, "Creates one schedule, or multiple schedules if `when` is a LocalDateInterval or an RRULE. The person you're scheduling and the schedule template should belong to the team provided. To do the same on several days, send one call per person with a date interval (2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day. tipee answers with no body: read the days back with schedules_list to get the ids of what was created."), 
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandUpdateschedule", "/api/schedule/schedules.update", { payload: PostAppUiApiScheduleSchedulecommandUpdatescheduleRequestJson, success: HttpApiSchema.Empty(204), error: PostAppUiApiScheduleSchedulecommandUpdateschedule409.pipe(HttpApiSchema.status(409)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_updateschedule")
       .annotate(OpenApi.Summary, "Update")
@@ -933,11 +933,11 @@ class ScheduleGroup extends HttpApiGroup.make("Schedule")
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandDeleteschedules", "/api/schedule/schedules.delete", { payload: PostAppUiApiScheduleSchedulecommandDeleteschedulesRequestJson, success: PostAppUiApiScheduleSchedulecommandDeleteschedules200, error: PostAppUiApiScheduleSchedulecommandDeleteschedules409.pipe(HttpApiSchema.status(409)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_deleteschedules")
       .annotate(OpenApi.Summary, "Delete")
-      .annotate(OpenApi.Description, "Deletes one or several schedules. If you provide 'all' or 'future' as group action and if you allow it through 'allow_partial=true', only the schedules that come after team's lock date (if it exists) will be deleted."), 
+      .annotate(OpenApi.Description, "Deletes one or several schedules. If you provide 'all' or 'future' as group action and if you allow it through 'allow_partial=true', only the schedules that come after team's lock date (if it exists) will be deleted. Pass every id to delete in one call."), 
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandCreateabsence", "/api/schedule/absences.create", { payload: PostAppUiApiScheduleSchedulecommandCreateabsenceRequestJson, success: PostAppUiApiScheduleSchedulecommandCreateabsence201.pipe(HttpApiSchema.status(201)) })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_createabsence")
       .annotate(OpenApi.Summary, "Create")
-      .annotate(OpenApi.Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); tipee refuses an absence with neither."), 
+      .annotate(OpenApi.Description, "Creates one absence, or multiple absences if `when` is a LocalDateInterval or an RRULE. Pass percentage (100 for a whole day) or time_ranges (for part of a day); tipee refuses an absence with neither. To do the same on several days, send one call per person with a date interval (2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day."), 
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandUpdateabsence", "/api/schedule/absences.update", { payload: PostAppUiApiScheduleSchedulecommandUpdateabsenceRequestJson, success: PostAppUiApiScheduleSchedulecommandUpdateabsence200 })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_updateabsence")
       .annotate(OpenApi.Summary, "Update")
@@ -945,7 +945,7 @@ class ScheduleGroup extends HttpApiGroup.make("Schedule")
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulecommandDeleteabsences", "/api/schedule/absences.delete", { payload: PostAppUiApiScheduleSchedulecommandDeleteabsencesRequestJson, success: PostAppUiApiScheduleSchedulecommandDeleteabsences200 })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulecommand_deleteabsences")
       .annotate(OpenApi.Summary, "Delete")
-      .annotate(OpenApi.Description, "Deletes one or multiple absences, possibly including their entire group of repeating absences."), 
+      .annotate(OpenApi.Description, "Deletes one or multiple absences, possibly including their entire group of repeating absences. Pass every id to delete in one call."), 
     HttpApiEndpoint.post("postAppUiApiScheduleSchedulequeryListschedules", "/api/schedule/schedules.list", { payload: PostAppUiApiScheduleSchedulequeryListschedulesRequestJson, success: PostAppUiApiScheduleSchedulequeryListschedules200 })
       .annotate(OpenApi.Identifier, "post_app_ui_api_schedule_schedulequery_listschedules")
       .annotate(OpenApi.Summary, "List")

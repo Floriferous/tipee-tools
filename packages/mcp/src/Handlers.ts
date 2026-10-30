@@ -47,21 +47,45 @@ type Handler = (params: unknown) => Effect.Effect<unknown, Failure>;
 const reasonOf = (failure: Failure): string =>
   failure instanceof TipeeError ? failure.reason._tag : failure._tag;
 
-// What else a refusal says about its cause: the HTTP status and tipee's own
-// constant for it, such as OVERLAPPING. Neither carries anything a user wrote.
+// The parameter names a call was sent with, nested ones as paths
+// (`options.allow_partial`), never their values: with the fields tipee
+// names, they tell an agent's mistake from a rule tipee added.
+const MAX_PARAMS = 30;
+const paramsOf = (params: unknown, prefix = ''): ReadonlyArray<string> =>
+  typeof params === 'object' && params !== null && !Array.isArray(params)
+    ? Object.entries(params)
+        .flatMap(([key, value]) => {
+          const name = prefix === '' ? key : `${prefix}.${key}`;
+          const nested = paramsOf(value, name);
+          return nested.length === 0 ? [name] : nested;
+        })
+        .toSorted()
+        .slice(0, MAX_PARAMS)
+    : [];
+
+// What else a refusal says about its cause: the HTTP status, tipee's own
+// constant for it (such as OVERLAPPING) and the fields it names. None
+// carries anything a user wrote.
 const detailOf = (failure: Failure): Properties => {
   if (!(failure instanceof TipeeError)) {
     return {};
   }
   const { reason } = failure;
   if (reason._tag === 'Rejected') {
-    return { error_code: reason.code, http_status: reason.status };
+    return { error_code: reason.code, error_fields: reason.fields, http_status: reason.status };
   }
   return reason._tag === 'UnexpectedStatus' ? { http_status: reason.status } : {};
 };
 
-// Failures that mean a bug here or a change at tipee, not a user's mistake.
+// Failures that may mean a bug here or a change at tipee rather than a user's
+// mistake, each worth an error-tracking issue of its own.
 const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest', 'Internal']);
+// Refused as invalid: an agent's mistake, or a rule tipee added.
+const INVALID_STATUSES = new Set([400, 422]);
+const reported = (failure: Failure): boolean =>
+  failure instanceof TipeeError &&
+  (REPORTED.has(failure.reason._tag) ||
+    (failure.reason._tag === 'Rejected' && INVALID_STATUSES.has(failure.reason.status)));
 
 // Which client is calling, for the record: Claude Desktop, Claude Code…
 const caller: Effect.Effect<Properties> = Effect.map(
@@ -104,14 +128,19 @@ const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler):
     const failure = Cause.findError(exit.cause);
     if (Result.isSuccess(failure)) {
       const reason = reasonOf(failure.success);
+      const sent = paramsOf(params);
       yield* telemetry.capture('tool_called', {
         ...common,
         ...detailOf(failure.success),
         outcome: 'failed',
+        params_sent: sent,
         reason,
       });
-      if (REPORTED.has(reason)) {
-        yield* telemetry.exception(failure.success, { handled: true, properties: { tool } });
+      if (reported(failure.success)) {
+        yield* telemetry.exception(failure.success, {
+          handled: true,
+          properties: { params_sent: sent, tool },
+        });
       }
     } else {
       yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });

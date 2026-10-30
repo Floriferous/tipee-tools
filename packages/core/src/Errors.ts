@@ -78,6 +78,61 @@ const codeOf = (found: Option.Option<typeof ErrorCode.Type>): string | undefined
     Option.flatMap(found, (code) => Option.fromNullishOr(code.error ?? code.warning_type)),
   );
 
+const MAX_FIELDS = 10;
+// A property path as tipee writes it (`when`, `options.allow_partial`,
+// `hour_ranges[0].hour_range`): names and indices, nothing anyone wrote.
+const PROPERTY_PATH = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*|\[\d*\])*$/u;
+// `path: message` lines, as in a validation error's `detail`.
+const PATH_LINE = /^\s*(?<path>[A-Za-z_][\w.[\]]*):\s/gmu;
+
+// The paths under an object of per-field errors (`details`, `errors`).
+const keyPaths = (value: unknown, prefix: string): ReadonlyArray<string> => {
+  if (typeof value !== 'object' || value === null) {
+    return [prefix];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => keyPaths(item, `${prefix}[]`));
+  }
+  const entries = Object.entries(value);
+  return entries.length === 0
+    ? [prefix]
+    : entries.flatMap(([key, item]) => keyPaths(item, prefix === '' ? key : `${prefix}.${key}`));
+};
+
+// The fields a refusal names, as property paths with their indices dropped
+// (`hour_ranges[].hour_range`), from a validation error's `violations`,
+// `details` or `errors`, or the `path: message` lines of its `detail`; never
+// a message or a value, so they can be recorded. At most ten, each once.
+export const fieldsOf = (rawBody: string): ReadonlyArray<string> => {
+  const json = Option.getOrUndefined(Schema.decodeOption(JsonObject)(rawBody));
+  if (json === undefined) {
+    return [];
+  }
+  const found: Array<string> = [];
+  const { details, errors, violations } = json;
+  if (Array.isArray(violations)) {
+    for (const violation of violations) {
+      const { propertyPath } = (violation ?? {}) as { readonly propertyPath?: unknown };
+      if (typeof propertyPath === 'string') {
+        found.push(propertyPath);
+      }
+    }
+  }
+  for (const map of [details, errors]) {
+    if (typeof map === 'object' && map !== null && !Array.isArray(map)) {
+      found.push(...keyPaths(map, ''));
+    }
+  }
+  const { detail } = json;
+  if (typeof detail === 'string') {
+    found.push(...[...detail.matchAll(PATH_LINE)].map((match) => match.groups?.path ?? ''));
+  }
+  const paths = found
+    .filter((candidate) => PROPERTY_PATH.test(candidate))
+    .map((candidate) => candidate.replaceAll(/\[\d*\]/gu, '[]'));
+  return [...new Set(paths)].slice(0, MAX_FIELDS);
+};
+
 // Tipee answers 401 (not 403) for a valid key whose integration was never
 // granted any rights, so the body is the only way to tell the cases apart.
 const RIGHTS_MISSING_MARKER = 'token_rights_missing';
@@ -115,7 +170,13 @@ const statusReason = (
   }
   if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
     const code = codeOf(Schema.decodeOption(Schema.fromJsonString(ErrorCode))(rawBody));
-    return new Rejected({ body, status, ...(code === undefined ? {} : { code }) });
+    const fields = fieldsOf(rawBody);
+    return new Rejected({
+      body,
+      status,
+      ...(code === undefined ? {} : { code }),
+      ...(fields.length === 0 ? {} : { fields }),
+    });
   }
   if (status === HTTP_TOO_MANY_REQUESTS) {
     return new RateLimited({ body, ...(retryAfter === undefined ? {} : { retryAfter }) });

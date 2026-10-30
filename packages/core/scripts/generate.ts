@@ -120,12 +120,22 @@ reword(
   ['components', 'schemas', 'ListDayTasksQuery', 'properties', 'task_ids', 'title'],
   (current) => swap(current, '<br />', ' '),
 );
+// Claude made one call per day for a month of shifts: hundreds of calls where
+// one per person would do, and the pattern that makes tipee answer 508.
+const ONE_CALL =
+  'To do the same on several days, send one call per person with a date interval ' +
+  '(2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;' +
+  'DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day.';
+describe('/api/schedule/schedules.create', (current) =>
+  `${current} ${ONE_CALL} tipee answers with no body: read the days back with ` +
+  'schedules_list to get the ids of what was created.');
 describe('/api/schedule/absences.create', (current) =>
   `${current} Pass percentage (100 for a whole day) or time_ranges (for part of a day); ` +
-  'tipee refuses an absence with neither.');
-describe('/api/schedule/schedules.create', (current) =>
-  `${current} tipee answers with no body: read the day back with schedules_list to get ` +
-  'the id of what was created.');
+  `tipee refuses an absence with neither. ${ONE_CALL}`);
+describe('/api/schedule/schedules.delete', (current) =>
+  `${current} Pass every id to delete in one call.`);
+describe('/api/schedule/absences.delete', (current) =>
+  `${current} Pass every id to delete in one call.`);
 
 // PHP serialises an empty map as [], so every map-typed property in a response
 // (deleted, failed, choices…) must also accept an empty array, or a delete

@@ -47,8 +47,10 @@ const manifest = {
     'Claude should have. After saving, use the "check-tipee-setup" prompt or ask Claude to ' +
     'run check_setup: it names the integration, links where its rights are set, and explains ' +
     'anything missing in plain words.\n\n' +
-    'The extension sends usage data to PostHog to help improve it: which tools ran, how they ' +
-    "failed (by reason, HTTP status, tipee's error code and field paths), crash messages and " +
+    'The extension sends usage data to PostHog to help improve it: which tools ran, whether ' +
+    'an update was offered, how they ' +
+    "failed (by reason, HTTP status, tipee's error code, and the names of the fields " +
+    'concerned and of the parameters sent, never their values), crash messages and ' +
     'stack traces, your instance name, your setup (system, Node and Claude versions), the ' +
     'approximate location PostHog derives from your IP address before discarding it, and a ' +
     'pseudonymous installation ID computed from your computer and account names (the names ' +

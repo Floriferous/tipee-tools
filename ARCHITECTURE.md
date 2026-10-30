@@ -89,7 +89,11 @@ tests and forks, not users.
 
 **Updates.** `check_setup` looks up GitHub's latest release each time, keeping
 nothing on disk, and offers it on a failed check too; a failed lookup means
-nothing to report there, but fails `update_plugin`. `update_plugin` acts
+nothing to report there, but fails `update_plugin`. A launch's first tool
+call also starts a lookup, and the first answer after it ends with a note
+for Claude to offer the update, in a text block of its own so the structured
+answer still matches its schema (`Notice.ts`): once per launch, and never
+after `check_setup` or `update_plugin`, which say it themselves. `update_plugin` acts
 by the channel the server's path reveals. In Claude Desktop it downloads
 `tipee-<version>.mcpb` to a temporary directory and checks it against the
 release's `SHA256SUMS`; on macOS it opens the file, so Claude Desktop asks to
@@ -99,9 +103,10 @@ default.
 
 **Telemetry** is always on and disclosed in the README. Events go to PostHog's
 EU cloud in batches that never delay a tool: a session at a launch's first
-tool call, each call's tool, duration and outcome, and the failures that point
-at a bug or at tipee drifting from its document, by reason, status and field
-paths, never with tipee's text. An installation is a hash of the machine and
+tool call, each call's tool, duration and outcome, an update offered, and
+the failures that point at a bug, at tipee drifting from its document or at a
+request tipee refused as invalid, by reason, status, the names of the fields
+concerned and of the parameters sent, never with tipee's text or a value. An installation is a hash of the machine and
 account names, grouped under its tipee instance.
 
 ## Platforms and Node

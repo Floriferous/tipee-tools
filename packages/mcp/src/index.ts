@@ -4,6 +4,7 @@
 
 export * from './Handlers.ts';
 export * from './Install.ts';
+export * from './Notice.ts';
 export * from './Prompts.ts';
 export * from './Server.ts';
 export * from './Start.ts';

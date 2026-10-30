@@ -6,6 +6,7 @@ import { TipeeClient } from '@tipee-tools/core';
 import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
 import { Effect, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
+import { delay } from 'msw';
 import { HttpResponse, http } from 'msw/http';
 
 import { SERVER_VERSION, Telemetry, TipeeToolkitLayer, Update, Updates } from '../src/index.ts';
@@ -120,6 +121,27 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       }
       // The kinds_list probe, and one lookup of the integration.
       expect(kinds).toBe(2);
+    }),
+  );
+
+  it.effect('probes a few endpoints at a time', () =>
+    Effect.gen(function* () {
+      let inFlight = 0;
+      let most = 0;
+      server.use(
+        // Counted, held a moment, then answered by the fake tipee.
+        http.post(`${BASE}/api/*`, async () => {
+          inFlight += 1;
+          most = Math.max(most, inFlight);
+          await delay(20);
+          inFlight -= 1;
+        }),
+      );
+      const report = (yield* call('check_setup', {})) as { ok: boolean };
+
+      expect(report.ok).toBe(true);
+      expect(most).toBeGreaterThan(1);
+      expect(most).toBeLessThanOrEqual(4);
     }),
   );
 

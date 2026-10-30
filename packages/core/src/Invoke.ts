@@ -40,6 +40,10 @@ const call = (
 
 const PAGE_SIZE = 100;
 const HTTP_SERVER_ERROR = 500;
+const HTTP_SERVICE_UNAVAILABLE = 503;
+const HTTP_LOOP_DETECTED = 508;
+// Answers a gateway gives for tipee: the request may still be running behind it.
+const GATEWAY_STATUSES = new Set([502, 504]);
 
 interface Kind {
   readonly id: string;
@@ -114,6 +118,28 @@ const FIXES: Partial<Record<TipeeErrorReason['_tag'], string>> = {
   UnexpectedShape: 'Run check_setup and suggest updating tipee for Claude.',
 };
 
+// The next step after a server error whose outcome is known: tipee
+// guarantees an error status changed nothing.
+const serverFix = (status: number, target: Operation): string => {
+  if (status === HTTP_LOOP_DETECTED) {
+    return (
+      'A change to the same data running at the same time interrupted this one, and nothing ' +
+      'was applied. Wait a few seconds and send it again; make changes one after another, ' +
+      'and cover a date range in one call rather than one call per day.'
+    );
+  }
+  if (status === HTTP_SERVICE_UNAVAILABLE) {
+    return (
+      'tipee is down for maintenance, usually for a couple of minutes, and nothing was ' +
+      'applied: try again shortly.'
+    );
+  }
+  const guarantee = target.readOnly
+    ? ''
+    : 'Nothing was applied: tipee guarantees an error changes nothing. ';
+  return `${guarantee}Try again in a moment; run check_setup if it persists.`;
+};
+
 // Node's names for a certificate it does not trust, which is what a network
 // that inspects HTTPS presents.
 const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
@@ -157,10 +183,13 @@ const explain = (
           `${instance}.tipee.net; retrying will not help.`,
       );
     }
-    const serverError = reason._tag === 'UnexpectedStatus' && reason.status >= HTTP_SERVER_ERROR;
-    // A write is never sent twice (see TipeeClient), but the one attempt may
-    // have been applied before the failure: only reading it back tells.
-    if (!target.readOnly && (reason._tag === 'Unreachable' || serverError)) {
+    const status = reason._tag === 'UnexpectedStatus' ? reason.status : undefined;
+    // Tipee guarantees an error status changed nothing. Only a lost answer
+    // (a timeout, a broken connection) or a gateway's leaves a write's
+    // outcome open, and such a write is never sent twice (see TipeeClient).
+    const outcomeUnknown =
+      reason._tag === 'Unreachable' || (status !== undefined && GATEWAY_STATUSES.has(status));
+    if (!target.readOnly && outcomeUnknown) {
       return fixed(
         'This write was not retried, and tipee may have applied it before failing: read it back before trying again.',
       );
@@ -170,8 +199,8 @@ const explain = (
         `Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`,
       );
     }
-    if (serverError) {
-      return fixed('Try again in a moment; run check_setup if it persists.');
+    if (status !== undefined && status >= HTTP_SERVER_ERROR) {
+      return fixed(serverFix(status, target));
     }
     if (reason._tag === 'Forbidden') {
       return /not activated/iu.test(reason.body)

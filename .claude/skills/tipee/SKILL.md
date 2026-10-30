@@ -87,13 +87,20 @@ the vendored document's version), `Accept: application/json`.
   and identical filters/orders on every page or tipee answers 422. The
   cursor can be non-null on the last full page (the next page is empty).
 - Team filter: `{key: "resource.team", value: {teams: [id], recursive: true}}`.
-- Rate limits are generous (500-token bucket, 4/s). Every operation is a
-  POST, so the client retries only reads (`*.list`, `*.show*`) on HTTP 408,
-  5xx and network failures, and anything on a 429 (`resendable` in
-  `TipeeClient.ts`): a write that failed may have been applied, so it is
-  never sent twice and its error says to read it back. Each attempt times
-  out after 20 s (MCP clients give up near 60 s), and one that timed out is
-  not sent again.
+- Rate limits are generous (500-token bucket, 4/s). tipee guarantees that
+  an error status (4xx or 5xx) changed nothing. Every operation is a POST,
+  so the client retries reads (`*.list`, `*.show*`) on HTTP 408, 5xx and
+  network failures, and anything on 429, 503 (maintenance) and 508 (a
+  concurrent change, which tipee says to replay), waiting at least the
+  Retry-After up to 10 s (`resendable` in `TipeeClient.ts`). A write whose
+  answer was lost (a timeout, a broken connection, a gateway's 502 or 504)
+  may have been applied: it is never sent twice and its error says to read
+  it back. Each attempt times out after 20 s and a whole call after 50 s
+  (MCP clients give up near 60 s); an attempt that timed out is not sent
+  again.
+- Bulk writes: Claude used to make one call per day for a month of shifts.
+  `when` takes a date interval or an RRULE, and the deletes take many ids;
+  the descriptions, the instructions and the plugin skill say so.
 - `*.tipee.net` has a wildcard DNS record: a mistyped instance never fails
   with ENOTFOUND but answers HTTP 410 `{"error":"instance_not_found"}`.
 - Error messages quote tipee's whole answer and the HTTP status: never trim

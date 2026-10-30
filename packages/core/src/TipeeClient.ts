@@ -5,9 +5,11 @@
 
 import {
   Cause,
+  Clock,
   Config,
   ConfigProvider,
   Context,
+  Duration,
   Effect,
   Layer,
   Option,
@@ -27,9 +29,17 @@ export const TIPEE_API_VERSION = '26.06.25';
 
 const RETRY_ATTEMPTS = 3;
 const RETRY_SCHEDULE = Schedule.exponential('250 millis');
-const HTTP_TOO_MANY_REQUESTS = 429;
-// Timeouts, rate limits and server errors that may pass on their own.
-const TRANSIENT_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+// Timeouts, rate limits and server errors that may pass on their own; 508 is
+// tipee's "Loop Detected", a concurrent change to the same data.
+const TRANSIENT_STATUSES = new Set([408, 429, 500, 502, 503, 504, 508]);
+// Answers after which tipee asks for the request again and guarantees it did
+// nothing, so even a write is sent again: its rate limit, maintenance (503)
+// and a concurrent change (508), per
+// https://api.tipee.ch/guides-and-resources/error-handling.
+const REPLAYABLE_STATUSES = new Set([429, 503, 508]);
+// The longest Retry-After waited for: a longer one goes back to the agent.
+const MAX_RETRY_AFTER_SECONDS = 10;
+const MILLIS_PER_SECOND = 1000;
 // Well under the minute after which MCP clients give up on a tool call, so
 // the agent hears what happened instead of a generic error: one attempt, and
 // all of them with their backoff (four slow server errors would take 80 s).
@@ -52,28 +62,69 @@ export const readsOnly = (path: string): boolean =>
 
 // Whether a failed request may be sent again. Every tipee operation is a
 // POST, and a write that timed out or lost its connection may already have
-// been applied: sending it again could create it twice. Only reads are
-// retried, plus a 429 for anything, since tipee then did nothing.
+// been applied: sending it again could create it twice. Reads are retried,
+// and anything after an answer tipee says to replay.
 const resendable = (request: HttpClientRequest.HttpClientRequest, status?: number): boolean =>
-  status === HTTP_TOO_MANY_REQUESTS ||
+  (status !== undefined && REPLAYABLE_STATUSES.has(status)) ||
   (readsOnly(new URL(request.url).pathname) &&
     (status === undefined || TRANSIENT_STATUSES.has(status)));
+
+// The seconds a Retry-After header asks to wait, given as seconds or as an
+// HTTP date (compared with `now`, in milliseconds); undefined without one.
+export const retryAfterSeconds = (header: string | undefined, now: number): number | undefined => {
+  if (header === undefined) {
+    return undefined;
+  }
+  const trimmed = header.trim();
+  if (/^\d+$/u.test(trimmed)) {
+    return Number(trimmed);
+  }
+  const date = Date.parse(trimmed);
+  return Number.isNaN(date) ? undefined : Math.max(0, (date - now) / MILLIS_PER_SECOND);
+};
+
+// Waits at least as long as the answer's Retry-After asks.
+const ANSWER_SCHEDULE = RETRY_SCHEDULE.pipe(
+  Schedule.modifyDelay(
+    ({
+      duration,
+      input,
+      now,
+    }: Schedule.Metadata<Duration.Duration, HttpClientResponse.HttpClientResponse>) => {
+      const seconds = retryAfterSeconds(input.headers['retry-after'], now);
+      return Effect.succeed(
+        seconds === undefined ? duration : Duration.max(duration, Duration.seconds(seconds)),
+      );
+    },
+  ),
+);
+
+// Whether an answer is worth sending the request again for: a transient
+// status, a request that may be resent, and a wait short enough to stay.
+const worthRetrying = (answer: HttpClientResponse.HttpClientResponse, now: number): boolean => {
+  const seconds = retryAfterSeconds(answer.headers['retry-after'], now);
+  return (
+    TRANSIENT_STATUSES.has(answer.status) &&
+    resendable(answer.request, answer.status) &&
+    (seconds === undefined || seconds <= MAX_RETRY_AFTER_SECONDS)
+  );
+};
 
 // Each attempt has its own timeout, and an attempt that timed out is not
 // sent again: three more would outlast the client's patience; the whole call
 // has a timeout too, for slow answers that are retried. Statuses are
 // handled by the repeat, on the answer itself (the client fails with a
-// StatusCodeError only after this), so only a lost connection is retried.
+// StatusCodeError only after this), honouring Retry-After; only a lost
+// connection is retried as an error.
 const retried = <E, R>(
   response: Effect.Effect<HttpClientResponse.HttpClientResponse, E, R>,
 ): Effect.Effect<HttpClientResponse.HttpClientResponse, E | Cause.TimeoutError, R> =>
   response.pipe(
     within(ATTEMPT_TIMEOUT_SECONDS, `tipee did not answer within ${ATTEMPT_TIMEOUT_SECONDS} s`),
     Effect.repeat({
-      schedule: RETRY_SCHEDULE,
+      schedule: ANSWER_SCHEDULE,
       times: RETRY_ATTEMPTS,
-      while: (answer) =>
-        TRANSIENT_STATUSES.has(answer.status) && resendable(answer.request, answer.status),
+      while: (answer) => Effect.map(Clock.currentTimeMillis, (now) => worthRetrying(answer, now)),
     }),
     Effect.retry({
       schedule: RETRY_SCHEDULE,
