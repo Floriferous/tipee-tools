@@ -8,7 +8,7 @@ import { Context, Effect } from 'effect';
 import { Tool } from 'effect/ai';
 import { HttpResponse, http } from 'msw/http';
 
-import { TipeeToolkit } from '../src/index.ts';
+import { BATCHED, TipeeToolkit } from '../src/index.ts';
 import { call, clientFor } from './toolkit.ts';
 
 const CHLOE = '1000000000000000104';
@@ -16,10 +16,10 @@ const WEEK = '2026-09-07/2026-09-13';
 const HTTP_NO_CONTENT = 204;
 
 describe('toolkit', () => {
-  it('has one tool per operation of the API document, plus check_setup and update_plugin', () => {
+  it('has one tool per operation, a batch tool per batched one, check_setup and update_plugin', () => {
     const tools = Object.values(TipeeToolkit.tools);
 
-    expect(tools).toHaveLength(operations.length + 2);
+    expect(tools).toHaveLength(operations.length + BATCHED.length + 2);
     expect(tools.map((tool) => tool.name)).toContain('schedules_create');
     expect(tools.map((tool) => tool.name)).toContain('day_tasks_submit_for_contributor');
     expect(tools.map((tool) => tool.name)).toContain('check_setup');

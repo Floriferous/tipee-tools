@@ -166,6 +166,77 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
     }),
   );
 
+  it.effect('records each item of a batch as a call of its operation, via the batch', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      let sent = 0;
+      server.use(
+        http.post(`${BASE}/api/schedule/schedules.update`, () => {
+          sent += 1;
+          return sent === 2
+            ? HttpResponse.json(
+                { description: 'Some schedules are locked.', warning_type: 'locked_schedules' },
+                { status: HTTP_CONFLICT },
+              )
+            : new HttpResponse(undefined, { status: 204 });
+        }),
+      );
+      yield* call('schedules_update_many', { items: [{ id: '1' }, { id: '2' }, { id: '3' }] });
+
+      const calls = recordedCalls();
+
+      expect(
+        calls.map(({ properties }) => [
+          properties.tool,
+          properties.via,
+          properties.index,
+          properties.outcome,
+          properties.error_code,
+        ]),
+      ).toEqual([
+        ['schedules_update', 'schedules_update_many', 0, 'ok', undefined],
+        ['schedules_update', 'schedules_update_many', 1, 'failed', 'locked_schedules'],
+        ['schedules_update_many', undefined, undefined, 'ok', undefined],
+      ]);
+      // The batch's own event counts how it ended, numbers only.
+      expect(calls[2]?.properties).toMatchObject({
+        applied: 1,
+        items: 3,
+        not_sent: 1,
+        stopped_by: 'failure_not_applied',
+      });
+      expect(JSON.stringify(recorded)).not.toContain('Some schedules are locked');
+    }),
+  );
+
+  it.effect('reports a batch whose first item fails once, on the item', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      server.use(
+        http.post(
+          `${BASE}/api/schedule/schedules.update`,
+          () =>
+            HttpResponse.json(
+              { detail: 'id: This schedule does not exist.', status: HTTP_UNPROCESSABLE },
+              { status: HTTP_UNPROCESSABLE },
+            ),
+          { once: true },
+        ),
+      );
+      yield* Effect.flip(call('schedules_update_many', { items: [{ id: '1' }, { id: '2' }] }));
+      const calls = recordedCalls();
+
+      expect(calls.map((entry) => [entry.event, entry.properties.tool])).toEqual([
+        ['tool_called', 'schedules_update'],
+        ['$exception', 'schedules_update'],
+        ['tool_called', 'schedules_update_many'],
+      ]);
+      expect(calls[2]?.properties).toMatchObject({ outcome: 'failed', reason: 'Rejected' });
+      expect(calls[2]?.properties).not.toHaveProperty('error_fields');
+      expect(calls[2]?.properties).not.toHaveProperty('params_sent');
+    }),
+  );
+
   it.effect('records an instance that does not exist, without reporting an exception', () =>
     Effect.gen(function* () {
       recorded.length = 0;

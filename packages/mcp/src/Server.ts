@@ -15,7 +15,7 @@ import { Telemetry } from './Telemetry.ts';
 import { Updates } from './Updates.ts';
 
 const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '1.1.0';
+export const SERVER_VERSION = '1.2.0';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
@@ -32,7 +32,8 @@ export const INSTRUCTIONS = [
     'refuses a change, never route around it with a different change without asking the user.',
   'Bulk changes: one call per person and pattern, not per day. schedules_create and ' +
     'absences_create take a date interval or an RRULE in when; schedules_delete and ' +
-    'absences_delete take every id at once. Send writes one after another, never in parallel.',
+    'absences_delete take every id at once. For edits that differ per item, the *_many tools ' +
+    'apply up to 50 in one call. Never send writes in parallel.',
   'Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds ' +
     '(2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).',
   '{"redacted": …} in place of a value means tipee withheld it from this integration: say ' +

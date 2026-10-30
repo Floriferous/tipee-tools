@@ -48,8 +48,14 @@ out of Bash commands, so a CLI would need key storage of its own for no gain.
 `packages/core/src/generated/TipeeApi.ts`, committed and never edited.
 `HttpApi.reflect` yields the operation catalogue, and each operation becomes a
 strict `Tool.dynamic`, plus `check_setup` and `update_plugin`, read-only or
-destructive by its verb. Wherever the document disagrees with tipee or with
-what Claude needs, the fix is a JSON Patch in `packages/core/scripts/generate.ts`,
+destructive by its verb. The few operations agents edit in bulk also get a
+`<name>_many` tool (`Batch.ts`): up to 50 items applied one after another in
+one call, stopped at the first failure or after 30 s, with a report of what
+was applied, what failed and what was not sent. tipee has no batch endpoint
+or transaction, but each request is atomic, so that report is exact; an item
+whose answer was lost is reported as `unknown`, to read back. Wherever the
+document disagrees with tipee or with what Claude needs, the fix is a JSON
+Patch in `packages/core/scripts/generate.ts`,
 nowhere else; granting and revoking roles, forcing a password change and
 deleting a shift template are left out (`EXCLUDED` in `scripts/spec.ts`).
 Every Monday a workflow runs `pnpm spec:refresh --bump`, which fetches

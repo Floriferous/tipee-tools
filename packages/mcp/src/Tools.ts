@@ -1,14 +1,16 @@
 // The MCP tools: one per operation in tipee's API document, built from the
-// core's operation catalogue, plus `check_setup` and `update_plugin`. Names,
+// core's operation catalogue, a `*_many` tool for the few operations agents
+// edit in bulk (Batch.ts), plus `check_setup` and `update_plugin`. Names,
 // descriptions, parameter and result schemas all come from the document; the
 // annotations say what a tool does to tipee's data, so clients can decide what
 // to auto-approve. Every tool is strict: an unknown key is refused, not dropped.
 
-import { TipeeError, operations } from '@tipee-tools/core';
+import { TipeeError, operation as operationNamed, operations } from '@tipee-tools/core';
 import type { Operation } from '@tipee-tools/core';
 import { Schema } from 'effect';
 import { Tool, Toolkit } from 'effect/ai';
 
+import { BATCHED, BatchReport, MAX_ITEMS, START_DEADLINE_SECONDS } from './Batch.ts';
 import { Installed, UpdateFailed } from './Updates.ts';
 
 /** What a tool returns when tipee answers with no content (201/204). */
@@ -143,8 +145,44 @@ const toolFor = (operation: Operation) =>
     .annotate(Tool.Destructive, operation.destructive)
     .annotate(Tool.Idempotent, operation.readOnly);
 
+// The name of an operation's batch tool: `schedules_update_many`.
+export const batchName = (operation: Operation): string => `${operation.name}_many`;
+
+// The batch tool says what the single one does, then how a batch behaves.
+const describeBatch = (operation: Operation): string =>
+  `Applies ${operation.name} to each item in order, one after another, up to ${MAX_ITEMS} in ` +
+  `one call: for changes that differ per item (use ${operation.name} for a single change). ` +
+  'Changes tipee: first tell the user every change and for whom, and wait for one yes, ' +
+  'unless they asked for these precise changes. It stops at the first failure: the items ' +
+  'before it were applied, the failed one was not or may have been (its outcome says which; ' +
+  'read it back when unknown), and the rest were not sent; nothing is rolled back. It also ' +
+  `stops after ${START_DEADLINE_SECONDS} s and says which items to send again. Indices are ` +
+  `0-based. Each item is one ${operation.name} call: ${operation.description}`;
+
+const batchToolFor = (operation: Operation) =>
+  Tool.dynamic(batchName(operation), {
+    description: describeBatch(operation),
+    failure: TipeeError,
+    parameters: Schema.Struct({
+      items: Schema.Array(operation.parameters).check(
+        Schema.isMinLength(1),
+        Schema.isMaxLength(MAX_ITEMS),
+      ),
+    }),
+    success: BatchReport,
+  })
+    .annotate(Tool.Title, `${titleOf(operation.path)} many`)
+    .annotate(Tool.Strict, true)
+    .annotate(Tool.Readonly, false)
+    .annotate(Tool.Destructive, operation.destructive)
+    .annotate(Tool.Idempotent, false);
+
+/** The operations that have a batch tool. */
+export const batched: ReadonlyArray<Operation> = BATCHED.map((name) => operationNamed(name));
+
 export const TipeeToolkit = Toolkit.make(
   Check,
   InstallUpdate,
   ...operations.map((operation) => toolFor(operation)),
+  ...batched.map((operation) => batchToolFor(operation)),
 );

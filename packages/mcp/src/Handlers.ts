@@ -1,18 +1,21 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
-// `invoke`; `check_setup` runs the probes in Check.ts. Each call is timed
+// `invoke`, and a batch tool each of its items, in order (Batch.ts);
+// `check_setup` runs the probes in Check.ts. Each call is timed
 // and its outcome recorded by the telemetry, which never sees the parameters
 // or the answer. Without a usable setting every tipee call fails with what
 // to fix.
 
 import { NotConfigured, TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
-import type { ConfigurationMissing } from '@tipee-tools/core';
+import type { ConfigurationMissing, Operation } from '@tipee-tools/core';
 import { Cause, Duration, Effect, Exit, Layer, Option, Result } from 'effect';
 import { McpSchema } from 'effect/ai';
 
+import { runBatch } from './Batch.ts';
+import type { BatchReport } from './Batch.ts';
 import { check, probes } from './Check.ts';
 import { Telemetry } from './Telemetry.ts';
 import type { Properties, Sink } from './Telemetry.ts';
-import { TipeeToolkit } from './Tools.ts';
+import { TipeeToolkit, batchName, batched } from './Tools.ts';
 import { Updates } from './Updates.ts';
 import type { Installed, UpdateFailed } from './Updates.ts';
 
@@ -109,48 +112,99 @@ interface Watcher {
   readonly announce: Announce;
 }
 
+/**
+ * The tool a call is recorded under. An item of a batch also names the batch
+ * tool (`via`) and its position; a batch's own call carries its counts, and
+ * leaves the failure's details and error report to the item that failed.
+ */
+type Called =
+  | { readonly tool: string; readonly via?: undefined }
+  | { readonly tool: string; readonly via: string; readonly index: number }
+  | { readonly tool: string; readonly via?: undefined; readonly batch: true };
+
+// How a batch ended: by a failed item (outcome known or not), at its
+// deadline, or not at all.
+const stoppedBy = (report: BatchReport): string | undefined => {
+  if (report.failed !== undefined) {
+    return `failure_${report.failed.outcome}`;
+  }
+  return report.not_sent === 0 ? undefined : 'deadline';
+};
+
+// A batch's counts, numbers only.
+const countsOf = (report: BatchReport): Properties => ({
+  applied: report.applied,
+  items: report.applied + (report.failed === undefined ? 0 : 1) + report.not_sent,
+  not_sent: report.not_sent,
+  stopped_by: stoppedBy(report),
+});
+
 // Runs a handler and records one `tool_called` event: name, duration and
 // outcome, plus the failure's reason tag. Parameters and answers stay out.
-const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler): Handler =>
-  Effect.fn('observed')(function* (params: unknown) {
-    const who = yield* caller;
-    yield* announce(who);
-    const [duration, exit] = yield* Effect.timed(Effect.exit(run(params)));
-    const common = {
-      ...who,
-      duration_ms: Math.round(Duration.toMillis(duration)),
-      tool,
-    };
-    if (Exit.isSuccess(exit)) {
-      yield* telemetry.capture('tool_called', { ...common, outcome: 'ok' });
-      return exit.value;
-    }
-    const failure = Cause.findError(exit.cause);
-    if (Result.isSuccess(failure)) {
-      const reason = reasonOf(failure.success);
-      const sent = paramsOf(params);
-      yield* telemetry.capture('tool_called', {
-        ...common,
-        ...detailOf(failure.success),
-        outcome: 'failed',
-        params_sent: sent,
-        reason,
-      });
-      if (reported(failure.success)) {
-        yield* telemetry.exception(failure.success, {
-          handled: true,
-          properties: { params_sent: sent, tool },
+const observed =
+  <E extends Failure>(
+    { announce, telemetry }: Watcher,
+    called: Called,
+    run: (params: unknown) => Effect.Effect<unknown, E>,
+  ) =>
+  (params: unknown): Effect.Effect<unknown, E> =>
+    Effect.gen(function* () {
+      const { tool } = called;
+      const batch = 'batch' in called;
+      const who = yield* caller;
+      yield* announce(who);
+      const [duration, exit] = yield* Effect.timed(Effect.exit(run(params)));
+      const common = {
+        ...who,
+        duration_ms: Math.round(Duration.toMillis(duration)),
+        tool,
+        ...(called.via === undefined ? {} : { index: called.index, via: called.via }),
+      };
+      if (Exit.isSuccess(exit)) {
+        yield* telemetry.capture('tool_called', {
+          ...common,
+          ...(batch ? countsOf(exit.value as BatchReport) : {}),
+          outcome: 'ok',
         });
+        return exit.value;
       }
-    } else {
-      yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });
-      yield* telemetry.exception(Cause.squash(exit.cause), {
-        handled: false,
-        properties: { tool },
-      });
-    }
-    return yield* Effect.failCause(exit.cause);
-  });
+      const failure = Cause.findError(exit.cause);
+      if (Result.isSuccess(failure) && batch) {
+        yield* telemetry.capture('tool_called', {
+          ...common,
+          outcome: 'failed',
+          reason: reasonOf(failure.success),
+        });
+      } else if (Result.isSuccess(failure)) {
+        const reason = reasonOf(failure.success);
+        const sent = paramsOf(params);
+        yield* telemetry.capture('tool_called', {
+          ...common,
+          ...detailOf(failure.success),
+          outcome: 'failed',
+          params_sent: sent,
+          reason,
+        });
+        if (reported(failure.success)) {
+          yield* telemetry.exception(failure.success, {
+            handled: true,
+            properties: { params_sent: sent, tool },
+          });
+        }
+      } else if (Cause.hasInterruptsOnly(exit.cause)) {
+        // Cancelled by the client, or cut short by its batch's time: no crash.
+        yield* telemetry.capture('tool_called', { ...common, outcome: 'interrupted' });
+      } else {
+        yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });
+        if (!batch) {
+          yield* telemetry.exception(Cause.squash(exit.cause), {
+            handled: false,
+            properties: { tool },
+          });
+        }
+      }
+      return yield* Effect.failCause(exit.cause);
+    }).pipe(Effect.withSpan('observed'));
 
 // The handlers, given the tipee client or why the settings give none.
 const handlersFor = (connection: Result.Result<TipeeClient['Service'], ConfigurationMissing>) =>
@@ -194,15 +248,26 @@ const handlersFor = (connection: Result.Result<TipeeClient['Service'], Configura
             );
 
       const handlers: Record<string, Handler> = {
-        check_setup: observed(watcher, 'check_setup', (params) =>
+        check_setup: observed(watcher, { tool: 'check_setup' }, (params) =>
           provided(check(connected(probes(params as { from?: string; to?: string })))),
         ),
-        update_plugin: observed(watcher, 'update_plugin', () => provided(update)),
+        update_plugin: observed(watcher, { tool: 'update_plugin' }, () => provided(update)),
       };
+      const send =
+        (target: Operation) =>
+        (params: unknown): Effect.Effect<unknown, TipeeError> =>
+          provided(connected(invoke(target, params)));
       for (const target of operations) {
-        handlers[target.name] = observed(watcher, target.name, (params) =>
-          provided(connected(invoke(target, params))).pipe(
-            Effect.map((result) => result ?? { done: true }),
+        handlers[target.name] = observed(watcher, { tool: target.name }, (params) =>
+          Effect.map(send(target)(params), (result) => result ?? { done: true }),
+        );
+      }
+      // Each item is recorded as a call of its own operation, via the batch.
+      for (const target of batched) {
+        const tool = batchName(target);
+        handlers[tool] = observed(watcher, { batch: true, tool }, (params) =>
+          runBatch((params as { readonly items: ReadonlyArray<unknown> }).items, (item, index) =>
+            observed(watcher, { index, tool: target.name, via: tool }, send(target))(item),
           ),
         );
       }
