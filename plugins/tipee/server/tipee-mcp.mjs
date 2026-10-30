@@ -17954,14 +17954,14 @@ const successSchema = (successes) => {
 		if (body !== void 0) return body;
 	}
 };
-const describe$4 = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
+const describe$3 = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
 const collect = () => {
 	const found = [];
 	reflect(Tipee, {
 		onEndpoint: ({ endpoint, group, mergedAnnotations, successes }) => {
 			const readOnly = readsOnly(endpoint.path);
 			found.push({
-				description: describe$4(mergedAnnotations, endpoint.path),
+				description: describe$3(mergedAnnotations, endpoint.path),
 				destructive: !readOnly && verbOf(endpoint.path) !== "create",
 				endpoint: endpoint.identifier,
 				group: group.identifier,
@@ -17996,6 +17996,7 @@ const HTTP_SERVER_ERROR = 500;
 const HTTP_SERVICE_UNAVAILABLE = 503;
 const HTTP_LOOP_DETECTED = 508;
 const GATEWAY_STATUSES = /* @__PURE__ */ new Set([502, 504]);
+const outcomeUnknown = ({ reason }) => reason._tag === "Unreachable" || reason._tag === "UnexpectedStatus" && GATEWAY_STATUSES.has(reason.status);
 const integrations = gen(function* () {
 	const kind = (yield* call(operation("kinds_list"), {})).find((candidate) => candidate.machine_name === "integration");
 	if (kind === void 0) return [];
@@ -18050,8 +18051,7 @@ const explain = (error, target, lookup) => gen(function* () {
 	if (reason._tag === "InstanceNotFound" || reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return fixed(`${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`);
 	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
 	const status = reason._tag === "UnexpectedStatus" ? reason.status : void 0;
-	const outcomeUnknown = reason._tag === "Unreachable" || status !== void 0 && GATEWAY_STATUSES.has(status);
-	if (!target.readOnly && outcomeUnknown) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
+	if (!target.readOnly && outcomeUnknown(error)) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
 	if (reason._tag === "Unreachable") return fixed(`Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`);
 	if (status !== void 0 && status >= HTTP_SERVER_ERROR) return fixed(serverFix(status, target));
 	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage(lookup)}`);
@@ -24586,53 +24586,91 @@ const BATCHED = [
 	"schedules_update",
 	"resources_update"
 ];
-const DEADLINE_MILLIS = 3e4;
+const BUDGET_SECONDS = 50;
 const MILLIS_PER_SECOND = 1e3;
 const BatchReport = Struct({
-	applied: Int,
+	applied: Int.annotate({ description: "How many items were applied: items[0] up to items[applied - 1]." }),
 	failed: optionalKey(Struct({
 		error: String$2,
-		index: Int
+		index: Int.annotate({ description: "0-based position in items of the item that stopped the batch." }),
+		outcome: Literals(["not_applied", "unknown"]).annotate({ description: "not_applied: tipee changed nothing for this item. unknown: it may have been applied; read it back before sending it again." })
 	})),
 	message: String$2,
-	not_sent: Int
+	not_sent: Int.annotate({ description: "How many items after those were never sent." })
 });
 const plural = (count) => count === 1 ? "1 item" : `${count} items`;
-const describe$3 = (error) => error instanceof Error ? error.message : String(error);
-const stoppedAtFirst = (error, count) => count > 1 && error instanceof TipeeError ? new TipeeError({
+const SUFFIXES = {
+	few: "rd",
+	one: "st",
+	two: "nd"
+};
+const ordinals = new Intl.PluralRules("en", { type: "ordinal" });
+const nth = (index) => `items[${index}] (the ${index + 1}${SUFFIXES[ordinals.select(index + 1)] ?? "th"})`;
+const appliedPart = (count) => count === 1 ? "1 item applied (items[0])" : `${count} items applied (items[0] to items[${count - 1}])`;
+const cutShort = () => new TipeeError({
+	fix: "This write may have been applied: read it back before sending it again.",
+	reason: new Unreachable({ description: `no answer before the batch's ${BUDGET_SECONDS} s ran out` })
+});
+const failureOf = (cause) => {
+	const found = findError(cause);
+	if (isSuccess$1(found)) {
+		const error = found.success;
+		return {
+			error: error.message,
+			outcome: outcomeUnknown(error) ? "unknown" : "not_applied"
+		};
+	}
+	if (hasInterruptsOnly(cause)) return;
+	const crash = squash(cause);
+	return {
+		error: `it failed unexpectedly: ${crash instanceof Error ? crash.message : String(crash)}`,
+		outcome: "unknown"
+	};
+};
+const stoppedAtFirst = (error, count) => count === 1 ? error : new TipeeError({
 	fix: [error.fix, `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`].filter((part) => part !== void 0).join(" "),
 	reason: error.reason
-}) : error;
+});
 const runBatch = (items, send) => gen(function* () {
 	const started = yield* currentTimeMillis;
 	for (const [index, item] of items.entries()) {
-		const now = yield* currentTimeMillis;
-		if (index > 0 && now - started >= DEADLINE_MILLIS) {
+		const elapsed = (yield* currentTimeMillis) - started;
+		if (index > 0 && elapsed >= 30 * MILLIS_PER_SECOND) {
 			const left = items.length - index;
 			return {
 				applied: index,
-				message: `Applied the first ${plural(index)}, then stopped after ${DEADLINE_MILLIS / MILLIS_PER_SECOND} s to stay within the tool call's time: send the remaining ${plural(left)} (from index ${index}) in a new call.`,
+				message: `${appliedPart(index)}, then the batch stopped after 30 s to stay within the tool call's time: send the remaining ${plural(left)}, from ${nth(index)}, in a new call.`,
 				not_sent: left
 			};
 		}
-		const sent = yield* result$1(send(item));
-		if (isFailure$1(sent)) {
+		const exit$3 = yield* exit(send(item, index).pipe(timeoutOrElse({
+			duration: millis(BUDGET_SECONDS * MILLIS_PER_SECOND - elapsed),
+			orElse: () => fail$3(cutShort())
+		})));
+		if (isFailure(exit$3)) {
+			const failure = failureOf(exit$3.cause);
+			if (failure === void 0) return yield* failCause$3(exit$3.cause);
+			if (index === 0) {
+				const error = findError(exit$3.cause);
+				return yield* isSuccess$1(error) ? fail$3(stoppedAtFirst(error.success, items.length)) : failCause$3(exit$3.cause);
+			}
 			const left = items.length - index - 1;
-			if (index === 0) return yield* fail$3(stoppedAtFirst(sent.failure, items.length));
+			const what = failure.outcome === "unknown" ? `${nth(index)} may or may not have been applied: read it back before sending it again` : `${nth(index)} failed and changed nothing: fix it and send it again with the rest`;
 			return {
 				applied: index,
 				failed: {
-					error: describe$3(sent.failure),
-					index
+					error: failure.error,
+					index,
+					outcome: failure.outcome
 				},
-				message: `Applied the first ${plural(index)}; item ${index} failed and the batch stopped, so ${plural(left)} after it were not sent. Nothing is rolled back.`,
+				message: `${appliedPart(index)}. ${what}; the ${plural(left)} after it were not sent. Nothing is rolled back.`,
 				not_sent: left
 			};
 		}
 	}
 	return {
 		applied: items.length,
-		message: `Applied all ${plural(items.length)}.`,
+		message: `All ${plural(items.length)} applied.`,
 		not_sent: 0
 	};
 });
@@ -25594,7 +25632,7 @@ const toolFor = (operation) => dynamic(operation.name, {
 	success: operation.success ?? Done
 }).annotate(Title, titleOf(operation.path)).annotate(Strict, true).annotate(Readonly, operation.readOnly).annotate(Destructive, operation.destructive).annotate(Idempotent, operation.readOnly);
 const batchName = (operation) => `${operation.name}_many`;
-const describeBatch = (operation) => `Applies ${operation.name} to each item in order, one after another, up to 50 in one call: for changes that differ per item (use ${operation.name} for a single change). Changes tipee: first tell the user every change and for whom, and wait for one yes, unless they asked for these precise changes. It stops at the first failure: the items before it were applied, the failed item's error says what happened to it, and the rest were not sent; nothing is rolled back. It also stops after 30 s and says which items to send again. Each item is one ${operation.name} call: ${operation.description}`;
+const describeBatch = (operation) => `Applies ${operation.name} to each item in order, one after another, up to 50 in one call: for changes that differ per item (use ${operation.name} for a single change). Changes tipee: first tell the user every change and for whom, and wait for one yes, unless they asked for these precise changes. It stops at the first failure: the items before it were applied, the failed one was not or may have been (its outcome says which; read it back when unknown), and the rest were not sent; nothing is rolled back. It also stops after 30 s and says which items to send again. Indices are 0-based. Each item is one ${operation.name} call: ${operation.description}`;
 const batchToolFor = (operation) => dynamic(batchName(operation), {
 	description: describeBatch(operation),
 	failure: TipeeError,
@@ -25647,7 +25685,19 @@ const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client,
 		mcp_protocol: protocolVersion
 	})
 }));
-const observed = ({ announce, telemetry }, { tool, via }, run) => fn("observed")(function* (params) {
+const stoppedBy = (report) => {
+	if (report.failed !== void 0) return `failure_${report.failed.outcome}`;
+	return report.not_sent === 0 ? void 0 : "deadline";
+};
+const countsOf = (report) => ({
+	applied: report.applied,
+	items: report.applied + (report.failed === void 0 ? 0 : 1) + report.not_sent,
+	not_sent: report.not_sent,
+	stopped_by: stoppedBy(report)
+});
+const observed = ({ announce, telemetry }, called, run) => (params) => gen(function* () {
+	const { tool } = called;
+	const batch = "batch" in called;
 	const who = yield* caller;
 	yield* announce(who);
 	const [duration, exit$2] = yield* timed(exit(run(params)));
@@ -25655,17 +25705,26 @@ const observed = ({ announce, telemetry }, { tool, via }, run) => fn("observed")
 		...who,
 		duration_ms: Math.round(toMillis(duration)),
 		tool,
-		...via === void 0 ? {} : { via }
+		...called.via === void 0 ? {} : {
+			index: called.index,
+			via: called.via
+		}
 	};
 	if (isSuccess(exit$2)) {
 		yield* telemetry.capture("tool_called", {
 			...common,
+			...batch ? countsOf(exit$2.value) : {},
 			outcome: "ok"
 		});
 		return exit$2.value;
 	}
 	const failure = findError(exit$2.cause);
-	if (isSuccess$1(failure)) {
+	if (isSuccess$1(failure) && batch) yield* telemetry.capture("tool_called", {
+		...common,
+		outcome: "failed",
+		reason: reasonOf(failure.success)
+	});
+	else if (isSuccess$1(failure)) {
 		const reason = reasonOf(failure.success);
 		const sent = paramsOf(params);
 		yield* telemetry.capture("tool_called", {
@@ -25682,18 +25741,22 @@ const observed = ({ announce, telemetry }, { tool, via }, run) => fn("observed")
 				tool
 			}
 		});
-	} else {
+	} else if (hasInterruptsOnly(exit$2.cause)) yield* telemetry.capture("tool_called", {
+		...common,
+		outcome: "interrupted"
+	});
+	else {
 		yield* telemetry.capture("tool_called", {
 			...common,
 			outcome: "crashed"
 		});
-		yield* telemetry.exception(squash(exit$2.cause), {
+		if (!batch) yield* telemetry.exception(squash(exit$2.cause), {
 			handled: false,
 			properties: { tool }
 		});
 	}
 	return yield* failCause$3(exit$2.cause);
-});
+}).pipe(withSpan("observed"));
 const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	const telemetry = yield* Telemetry;
 	const updates = yield* Updates;
@@ -25721,11 +25784,14 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	for (const target of operations) handlers[target.name] = observed(watcher, { tool: target.name }, (params) => map$4(send(target)(params), (result) => result ?? { done: true }));
 	for (const target of batched) {
 		const tool = batchName(target);
-		const item = observed(watcher, {
+		handlers[tool] = observed(watcher, {
+			batch: true,
+			tool
+		}, (params) => runBatch(params.items, (item, index) => observed(watcher, {
+			index,
 			tool: target.name,
 			via: tool
-		}, send(target));
-		handlers[tool] = observed(watcher, { tool }, (params) => runBatch(params.items, item));
+		}, send(target))(item)));
 	}
 	return TipeeToolkit.of(handlers);
 }));

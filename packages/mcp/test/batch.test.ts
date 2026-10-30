@@ -89,7 +89,7 @@ layer(clientFor(API_KEY))('schedules_update_many', (it) => {
       const report = (yield* call('schedules_update_many', { items: ids(3) })) as BatchReport;
 
       expect(sent).toEqual(['1', '2', '3']);
-      expect(report).toEqual({ applied: 3, message: 'Applied all 3 items.', not_sent: 0 });
+      expect(report).toEqual({ applied: 3, message: 'All 3 items applied.', not_sent: 0 });
     }),
   );
 
@@ -127,11 +127,15 @@ layer(clientFor(API_KEY))('schedules_update_many', (it) => {
       const report = (yield* call('schedules_update_many', { items: ids(4) })) as BatchReport;
 
       expect(sent).toEqual(['1', '2']);
-      expect(report).toMatchObject({ applied: 1, failed: { index: 1 }, not_sent: 2 });
+      expect(report).toMatchObject({
+        applied: 1,
+        failed: { index: 1, outcome: 'not_applied' },
+        not_sent: 2,
+      });
       expect(report.failed?.error).toMatch(/HTTP 409, locked_schedules/u);
       expect(report.message).toBe(
-        'Applied the first 1 item; item 1 failed and the batch stopped, so 2 items after it ' +
-          'were not sent. Nothing is rolled back.',
+        '1 item applied (items[0]). items[1] (the 2nd) failed and changed nothing: fix it and ' +
+          'send it again with the rest; the 2 items after it were not sent. Nothing is rolled back.',
       );
     }),
   );
@@ -173,8 +177,27 @@ layer(clientFor(API_KEY))('schedules_update_many', (it) => {
       const report = (yield* call('schedules_update_many', { items: ids(3) })) as BatchReport;
 
       expect(sent).toEqual(['1', '2']);
-      expect(report).toMatchObject({ applied: 1, failed: { index: 1 }, not_sent: 1 });
+      expect(report).toMatchObject({
+        applied: 1,
+        failed: { index: 1, outcome: 'unknown' },
+        not_sent: 1,
+      });
       expect(report.failed?.error).toMatch(/may have applied it/u);
+      expect(report.message).toMatch(
+        /items\[1\] \(the 2nd\) may or may not have been applied: read it back/u,
+      );
+      expect(report.message).not.toMatch(/send it again with the rest/u);
+    }),
+  );
+
+  it.effect('fails when the first write is lost, saying it may have been applied', () =>
+    Effect.gen(function* () {
+      const sent = scheduleUpdates(() => HttpResponse.error());
+      const error = yield* Effect.flip(call('schedules_update_many', { items: ids(3) }));
+
+      expect(sent).toEqual(['1']);
+      expect(String(error)).toMatch(/may have applied it/u);
+      expect(String(error)).toMatch(/stopped at its first item: the other 2 items were not sent/u);
     }),
   );
 });
@@ -202,7 +225,11 @@ describe('the deadline', () => {
       expect(report.applied).toBe(2);
       expect(report.not_sent).toBe(3);
       expect(report.failed).toBeUndefined();
-      expect(report.message).toMatch(/send the remaining 3 items \(from index 2\) in a new call/u);
+      expect(report.message).toBe(
+        '2 items applied (items[0] to items[1]), then the batch stopped after 30 s to stay ' +
+          "within the tool call's time: send the remaining 3 items, from items[2] (the 3rd), in " +
+          'a new call.',
+      );
     }),
   );
 });

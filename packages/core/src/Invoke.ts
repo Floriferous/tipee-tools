@@ -45,6 +45,13 @@ const HTTP_LOOP_DETECTED = 508;
 // Answers a gateway gives for tipee: the request may still be running behind it.
 const GATEWAY_STATUSES = new Set([502, 504]);
 
+// Whether a write that failed this way may still have been applied. tipee
+// guarantees an error status changed nothing; only a lost answer (a timeout,
+// a broken connection) or a gateway's leaves the outcome open.
+export const outcomeUnknown = ({ reason }: TipeeError): boolean =>
+  reason._tag === 'Unreachable' ||
+  (reason._tag === 'UnexpectedStatus' && GATEWAY_STATUSES.has(reason.status));
+
 interface Kind {
   readonly id: string;
   readonly machine_name: string;
@@ -184,12 +191,9 @@ const explain = (
       );
     }
     const status = reason._tag === 'UnexpectedStatus' ? reason.status : undefined;
-    // Tipee guarantees an error status changed nothing. Only a lost answer
-    // (a timeout, a broken connection) or a gateway's leaves a write's
-    // outcome open, and such a write is never sent twice (see TipeeClient).
-    const outcomeUnknown =
-      reason._tag === 'Unreachable' || (status !== undefined && GATEWAY_STATUSES.has(status));
-    if (!target.readOnly && outcomeUnknown) {
+    // Such a write is never sent twice (see TipeeClient): only reading it
+    // back tells whether it was applied.
+    if (!target.readOnly && outcomeUnknown(error)) {
       return fixed(
         'This write was not retried, and tipee may have applied it before failing: read it back before trying again.',
       );

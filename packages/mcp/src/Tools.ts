@@ -10,7 +10,7 @@ import type { Operation } from '@tipee-tools/core';
 import { Schema } from 'effect';
 import { Tool, Toolkit } from 'effect/ai';
 
-import { BATCHED, BatchReport, MAX_ITEMS } from './Batch.ts';
+import { BATCHED, BatchReport, MAX_ITEMS, START_DEADLINE_SECONDS } from './Batch.ts';
 import { Installed, UpdateFailed } from './Updates.ts';
 
 /** What a tool returns when tipee answers with no content (201/204). */
@@ -154,9 +154,10 @@ const describeBatch = (operation: Operation): string =>
   `one call: for changes that differ per item (use ${operation.name} for a single change). ` +
   'Changes tipee: first tell the user every change and for whom, and wait for one yes, ' +
   'unless they asked for these precise changes. It stops at the first failure: the items ' +
-  "before it were applied, the failed item's error says what happened to it, and the rest " +
-  'were not sent; nothing is rolled back. It also stops after 30 s and says which items to ' +
-  `send again. Each item is one ${operation.name} call: ${operation.description}`;
+  'before it were applied, the failed one was not or may have been (its outcome says which; ' +
+  'read it back when unknown), and the rest were not sent; nothing is rolled back. It also ' +
+  `stops after ${START_DEADLINE_SECONDS} s and says which items to send again. Indices are ` +
+  `0-based. Each item is one ${operation.name} call: ${operation.description}`;
 
 const batchToolFor = (operation: Operation) =>
   Tool.dynamic(batchName(operation), {

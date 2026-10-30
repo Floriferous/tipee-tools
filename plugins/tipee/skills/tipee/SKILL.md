@@ -61,8 +61,10 @@ follow it and give the user any link as is.
   that differ per item (each shift its own hours), `schedules_create_many`,
   `schedules_update_many` and `resources_update_many` apply up to 50 items
   in one call, in order, after one yes for the whole list. They stop at the
-  first failure: report `applied`, the `failed` item's error and what was
-  `not_sent`, and send the rest again once the cause is fixed; after 30 s
-  they stop and say which items to send in a new call. Never send writes
+  first failure and report `applied`, the `failed` item (`index` is 0-based)
+  and how many were `not_sent`. When its `outcome` is `not_applied`, fix it
+  and send it with the rest; when `unknown`, read it back first, since it
+  may have been applied. After 30 s they stop and say which items to send
+  in a new call. Never send writes
   several at once: changes to the same person at the same time make tipee
   interrupt one (HTTP 508), which the tools retry.
