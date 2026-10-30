@@ -10,7 +10,8 @@ repo exposes its API to agents, every operation but the few in `EXCLUDED`,
 for any tipee instance: `@tipee-tools/core` (the HttpApi generated
 from tipee's OpenAPI document, the derived client, the operation
 catalogue, errors), `@tipee-tools/mcp` (one MCP tool per operation, built
-from the catalogue, plus `check_setup` and `update_plugin`), and the Claude
+from the catalogue, a `*_many` batch tool for a few, plus `check_setup` and
+`update_plugin`), and the Claude
 Code plugin in `plugins/tipee` that bundles the server. The user-facing
 skill lives in `plugins/tipee/skills/tipee`; this one is for developing
 the repo.
@@ -100,7 +101,13 @@ the vendored document's version), `Accept: application/json`.
   again.
 - Bulk writes: Claude used to make one call per day for a month of shifts.
   `when` takes a date interval or an RRULE, and the deletes take many ids;
-  the descriptions, the instructions and the plugin skill say so.
+  the descriptions, the instructions and the plugin skill say so. For edits
+  that differ per item, `BATCHED` operations (`packages/mcp/src/Batch.ts`)
+  get a `<name>_many` tool: up to 50 items, sent one after another through
+  `invoke`, stopped at the first failure (tipee's per-request atomicity
+  makes the report exact) or after 30 s, each item recorded as a call of
+  its operation `via` the batch. Add an operation there only when
+  telemetry shows bulk use.
 - `*.tipee.net` has a wildcard DNS record: a mistyped instance never fails
   with ENOTFOUND but answers HTTP 410 `{"error":"instance_not_found"}`.
 - Error messages quote tipee's whole answer and the HTTP status: never trim

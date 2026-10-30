@@ -166,6 +166,39 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
     }),
   );
 
+  it.effect('records each item of a batch as a call of its operation, via the batch', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      let sent = 0;
+      server.use(
+        http.post(`${BASE}/api/schedule/schedules.update`, () => {
+          sent += 1;
+          return sent === 2
+            ? HttpResponse.json(
+                { description: 'Some schedules are locked.', warning_type: 'locked_schedules' },
+                { status: HTTP_CONFLICT },
+              )
+            : new HttpResponse(undefined, { status: 204 });
+        }),
+      );
+      yield* call('schedules_update_many', { items: [{ id: '1' }, { id: '2' }, { id: '3' }] });
+
+      expect(
+        recordedCalls().map(({ properties }) => [
+          properties.tool,
+          properties.via,
+          properties.outcome,
+          properties.error_code,
+        ]),
+      ).toEqual([
+        ['schedules_update', 'schedules_update_many', 'ok', undefined],
+        ['schedules_update', 'schedules_update_many', 'failed', 'locked_schedules'],
+        ['schedules_update_many', undefined, 'ok', undefined],
+      ]);
+      expect(JSON.stringify(recorded)).not.toContain('Some schedules are locked');
+    }),
+  );
+
   it.effect('records an instance that does not exist, without reporting an exception', () =>
     Effect.gen(function* () {
       recorded.length = 0;

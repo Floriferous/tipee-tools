@@ -7,7 +7,9 @@ can look things up and, when you ask, change them.
 Every operation of tipee's API is available as a tool, except granting and
 revoking roles, forcing a password change and deleting a shift template,
 which stay with an admin in tipee. Which tools Claude may use, and which
-need your approval, is up to you in Claude's own settings.
+need your approval, is up to you in Claude's own settings. For bulk edits,
+creating and updating shifts and updating people also come as batch tools
+that apply up to 50 changes in one call, after you approve the whole list.
 An independent project, not made or endorsed by tipee.
 
 ## 1. Get an API key from tipee

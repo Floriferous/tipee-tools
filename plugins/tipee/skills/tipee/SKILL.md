@@ -57,7 +57,12 @@ follow it and give the user any link as is.
   `schedules_create` and `absences_create` take a date interval
   (`2026-11-02/2026-11-06`) or an RRULE (`RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;DTSTART=20261102T000000;UNTIL=20261127T000000`)
   in `when`, with `options.schedule_on_bank_holidays` set;
-  `schedules_delete` and `absences_delete` take every id at once. Send
-  calls one after another, never several at once: changes to the same
-  person at the same time make tipee interrupt one (HTTP 508), which the
-  tools retry.
+  `schedules_delete` and `absences_delete` take every id at once. For edits
+  that differ per item (each shift its own hours), `schedules_create_many`,
+  `schedules_update_many` and `resources_update_many` apply up to 50 items
+  in one call, in order, after one yes for the whole list. They stop at the
+  first failure: report `applied`, the `failed` item's error and what was
+  `not_sent`, and send the rest again once the cause is fixed; after 30 s
+  they stop and say which items to send in a new call. Never send writes
+  several at once: changes to the same person at the same time make tipee
+  interrupt one (HTTP 508), which the tools retry.

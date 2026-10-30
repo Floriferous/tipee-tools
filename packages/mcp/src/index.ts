@@ -3,6 +3,7 @@
 // telemetry, updates, and the install channel.
 
 export * from './Handlers.ts';
+export * from './Batch.ts';
 export * from './Install.ts';
 export * from './Notice.ts';
 export * from './Prompts.ts';

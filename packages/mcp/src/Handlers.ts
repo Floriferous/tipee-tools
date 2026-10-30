@@ -1,18 +1,20 @@
 // Tool handlers: every operation tool forwards its decoded parameters to
-// `invoke`; `check_setup` runs the probes in Check.ts. Each call is timed
+// `invoke`, and a batch tool each of its items, in order (Batch.ts);
+// `check_setup` runs the probes in Check.ts. Each call is timed
 // and its outcome recorded by the telemetry, which never sees the parameters
 // or the answer. Without a usable setting every tipee call fails with what
 // to fix.
 
 import { NotConfigured, TipeeClient, TipeeError, invoke, operations } from '@tipee-tools/core';
-import type { ConfigurationMissing } from '@tipee-tools/core';
+import type { ConfigurationMissing, Operation } from '@tipee-tools/core';
 import { Cause, Duration, Effect, Exit, Layer, Option, Result } from 'effect';
 import { McpSchema } from 'effect/ai';
 
+import { runBatch } from './Batch.ts';
 import { check, probes } from './Check.ts';
 import { Telemetry } from './Telemetry.ts';
 import type { Properties, Sink } from './Telemetry.ts';
-import { TipeeToolkit } from './Tools.ts';
+import { TipeeToolkit, batchName, batched } from './Tools.ts';
 import { Updates } from './Updates.ts';
 import type { Installed, UpdateFailed } from './Updates.ts';
 
@@ -109,9 +111,15 @@ interface Watcher {
   readonly announce: Announce;
 }
 
+/** The tool a call is recorded under, and the batch tool it ran in, if any. */
+interface Called {
+  readonly tool: string;
+  readonly via?: string;
+}
+
 // Runs a handler and records one `tool_called` event: name, duration and
 // outcome, plus the failure's reason tag. Parameters and answers stay out.
-const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler): Handler =>
+const observed = ({ announce, telemetry }: Watcher, { tool, via }: Called, run: Handler): Handler =>
   Effect.fn('observed')(function* (params: unknown) {
     const who = yield* caller;
     yield* announce(who);
@@ -120,6 +128,7 @@ const observed = ({ announce, telemetry }: Watcher, tool: string, run: Handler):
       ...who,
       duration_ms: Math.round(Duration.toMillis(duration)),
       tool,
+      ...(via === undefined ? {} : { via }),
     };
     if (Exit.isSuccess(exit)) {
       yield* telemetry.capture('tool_called', { ...common, outcome: 'ok' });
@@ -194,16 +203,26 @@ const handlersFor = (connection: Result.Result<TipeeClient['Service'], Configura
             );
 
       const handlers: Record<string, Handler> = {
-        check_setup: observed(watcher, 'check_setup', (params) =>
+        check_setup: observed(watcher, { tool: 'check_setup' }, (params) =>
           provided(check(connected(probes(params as { from?: string; to?: string })))),
         ),
-        update_plugin: observed(watcher, 'update_plugin', () => provided(update)),
+        update_plugin: observed(watcher, { tool: 'update_plugin' }, () => provided(update)),
       };
+      const send =
+        (target: Operation): Handler =>
+        (params) =>
+          provided(connected(invoke(target, params)));
       for (const target of operations) {
-        handlers[target.name] = observed(watcher, target.name, (params) =>
-          provided(connected(invoke(target, params))).pipe(
-            Effect.map((result) => result ?? { done: true }),
-          ),
+        handlers[target.name] = observed(watcher, { tool: target.name }, (params) =>
+          Effect.map(send(target)(params), (result) => result ?? { done: true }),
+        );
+      }
+      // Each item is recorded as a call of its own operation, via the batch.
+      for (const target of batched) {
+        const tool = batchName(target);
+        const item = observed(watcher, { tool: target.name, via: tool }, send(target));
+        handlers[tool] = observed(watcher, { tool }, (params) =>
+          runBatch((params as { readonly items: ReadonlyArray<unknown> }).items, item),
         );
       }
       return TipeeToolkit.of(handlers as unknown as Handlers);

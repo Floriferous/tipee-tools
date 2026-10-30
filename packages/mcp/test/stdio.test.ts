@@ -139,6 +139,7 @@ describe('stdio transport', () => {
         }>;
         expect(tools.map((tool) => tool.name)).toContain('check_setup');
         expect(tools.map((tool) => tool.name)).toContain('schedules_create');
+        expect(tools.map((tool) => tool.name)).toContain('schedules_update_many');
         expect(tools.filter((tool) => tool.annotations.title === undefined)).toEqual([]);
         const titled = (name: string) => tools.find((tool) => tool.name === name)?.annotations;
         expect(titled('absences_list')?.title).toBe('Absences: list');
