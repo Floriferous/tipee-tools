@@ -4,6 +4,9 @@
 // start and say what to fix through its tools.
 
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
@@ -175,6 +178,51 @@ describe('stdio transport', () => {
         expect(server.stderr.join('')).toMatch(/not set up/u);
       } finally {
         server.stop();
+      }
+    },
+    TIMEOUT_MS,
+  );
+
+  // Users hear of a newer version without running check_setup: once a launch,
+  // after a tool's answer, which keeps its own content first.
+  it(
+    'notes a newer version after a tool answer, once',
+    async () => {
+      const github = createServer((_request, response) => {
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify({ html_url: 'https://example.test/v99', tag_name: 'v99.0.0' }));
+      });
+      github.listen(0, '127.0.0.1');
+      await once(github, 'listening');
+      const { port } = github.address() as AddressInfo;
+      const server = serve({
+        TIPEE_API_KEY: 'unused-in-this-test',
+        TIPEE_INSTANCE: 'acme corp',
+        TIPEE_RELEASES_URL: `http://127.0.0.1:${port}/releases`,
+      });
+      try {
+        await initialize(server);
+        const answers: Array<ReadonlyArray<string>> = [];
+        // The first call starts the lookup; a later answer carries the note.
+        for (let call = 0; call < 5; call += 1) {
+          const answered = await server.request('tools/call', {
+            arguments: {},
+            name: 'teams_list',
+          });
+          const { content } = answered.result as { content: Array<{ text: string }> };
+          answers.push(content.map((block) => block.text));
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, 100);
+          });
+        }
+        const noted = answers.filter((texts) => texts.some((text) => /update_plugin/u.test(text)));
+
+        expect(noted).toHaveLength(1);
+        expect(noted[0]?.[0]).toMatch(/not a tipee instance/u);
+        expect(noted[0]?.[1]).toMatch(/^tipee for Claude 99\.0\.0 is available/u);
+      } finally {
+        server.stop();
+        github.close();
       }
     },
     TIMEOUT_MS,

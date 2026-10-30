@@ -127,6 +127,11 @@ describe('telemetry', () => {
         new UnexpectedStatus({ body: 'Alice Martin is on leave', status: 502 }),
         new UnexpectedShape({ details: 'Expected string, got "Alice Martin"\n  at [0]["label"]' }),
         new Rejected({ body: 'Alice Martin overlaps', code: 'OVERLAPPING', status: 409 }),
+        new Rejected({
+          body: 'when: Alice Martin is locked',
+          fields: ['when', 'options.allow_partial'],
+          status: 422,
+        }),
       ];
       yield* Effect.gen(function* () {
         const telemetry = yield* Telemetry;
@@ -142,7 +147,8 @@ describe('telemetry', () => {
       expect(values).toEqual([
         'UnexpectedStatus (HTTP 502)',
         'UnexpectedShape at [0]["label"]',
-        'Rejected (HTTP 409)',
+        'Rejected (HTTP 409, OVERLAPPING)',
+        'Rejected (HTTP 422) at when, options.allow_partial',
       ]);
       expect(JSON.stringify(received)).not.toContain('Alice');
     }),

@@ -126,12 +126,18 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
     .slice(0, FRAME_LIMIT);
 
 // A tipee failure told without anything tipee answered or anyone wrote: its
-// reason, the HTTP status, and where a schema mismatch is (field paths such
-// as [0]["id"], never the values found there).
+// reason, the HTTP status, and where a schema mismatch or a refusal is
+// (field paths such as [0]["id"] or options.allow_partial, never the values
+// found there).
 const withheld = (reason: TipeeErrorReason): string => {
   if (reason._tag === 'UnexpectedShape' || reason._tag === 'InvalidRequest') {
     const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
     return paths.size === 0 ? reason._tag : `${reason._tag} at ${[...paths].join(', ')}`;
+  }
+  if (reason._tag === 'Rejected') {
+    const at = reason.fields === undefined ? '' : ` at ${reason.fields.join(', ')}`;
+    const code = reason.code === undefined ? '' : `, ${reason.code}`;
+    return `Rejected (HTTP ${reason.status}${code})${at}`;
   }
   if (reason._tag === 'Internal') {
     return reason.message;

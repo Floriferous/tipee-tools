@@ -65,7 +65,7 @@ export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited'
         ? 'Wait a moment before trying again.'
         : `tipee asks to wait before trying again (Retry-After: ${this.retryAfter}).`;
     const said = this.body === '' ? '' : ` tipee said: ${this.body}`;
-    return `tipee's rate limit was still reached after retrying (HTTP 429). ${wait}${said}`;
+    return `tipee's rate limit was reached (HTTP 429), and nothing was applied. ${wait}${said}`;
   }
 }
 
@@ -74,6 +74,8 @@ export class Rejected extends Schema.TaggedError<Rejected>()('Rejected', {
   body: Schema.String,
   /** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
   code: Schema.optionalKey(Schema.String),
+  /** The fields tipee's answer names, as paths without values (see `fieldsOf`). */
+  fields: Schema.optionalKey(Schema.Array(Schema.String)),
   status: Schema.Int,
 }) {
   public override get message(): string {

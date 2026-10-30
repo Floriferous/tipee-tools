@@ -22,7 +22,8 @@ say.
    for the person, so the change is described against what is there now.
 3. **Confirm the change, once.** State exactly what will change and for whom,
    in one sentence, and wait for a yes. Skip the wait only when the user
-   already asked for that precise change. Then make one precise call.
+   already asked for that precise change. Then make as few calls as the
+   change allows (see Bulk changes), one after another.
 4. **Report tipee's answer**: the created id and what changed. Done when the
    user can see the outcome without opening tipee.
 
@@ -52,3 +53,11 @@ follow it and give the user any link as is.
   side (`2026-08-01/-`); durations can carry negative parts (`PT-15M`).
 - **Templates are history.** Past plannings reference old templates; a new
   need means a new template.
+- **Bulk changes**: one call per person and pattern, never one per day.
+  `schedules_create` and `absences_create` take a date interval
+  (`2026-11-02/2026-11-06`) or an RRULE (`RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;DTSTART=20261102T000000;UNTIL=20261127T000000`)
+  in `when`, with `options.schedule_on_bank_holidays` set;
+  `schedules_delete` and `absences_delete` take every id at once. Send
+  calls one after another, never several at once: changes to the same
+  person at the same time make tipee interrupt one (HTTP 508), which the
+  tools retry.

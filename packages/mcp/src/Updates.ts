@@ -4,9 +4,9 @@
 // the bundle from this repository's releases, verifies its checksum, and
 // opens it, which makes Claude Desktop ask the user to confirm the update;
 // the instance and key are kept. GitHub's latest release is looked up afresh
-// each time, since only a check or an update the user asked for looks; a
-// failed lookup is "nothing to report" for the check and a failure for the
-// update. Nothing is kept on disk but the downloaded bundle, in a temporary
+// each time: by a check, an update the user asked for, or a launch's first
+// tool call (Notice.ts); a failed lookup is "nothing to report" for the
+// check and the note, and a failure for the update. Nothing is kept on disk but the downloaded bundle, in a temporary
 // directory.
 
 import { spawn } from 'node:child_process';

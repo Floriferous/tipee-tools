@@ -9,13 +9,13 @@ import { FetchHttpClient } from 'effect/http';
 
 import { TipeeToolkitLayerConfig } from './Handlers.ts';
 import { SERVER_ICON } from './Icon.ts';
+import { NotifiedToolkit } from './Notice.ts';
 import { SetupPrompt } from './Prompts.ts';
 import { Telemetry } from './Telemetry.ts';
-import { TipeeToolkit } from './Tools.ts';
 import { Updates } from './Updates.ts';
 
 const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '1.0.8';
+export const SERVER_VERSION = '1.1.0';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
@@ -30,6 +30,9 @@ export const INSTRUCTIONS = [
     'resources_list for people; teams_list for teams; schedule_templates_list for templates.',
   'Read the current state before writing, and describe the change against it. When tipee ' +
     'refuses a change, never route around it with a different change without asking the user.',
+  'Bulk changes: one call per person and pattern, not per day. schedules_create and ' +
+    'absences_create take a date interval or an RRULE in when; schedules_delete and ' +
+    'absences_delete take every id at once. Send writes one after another, never in parallel.',
   'Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds ' +
     '(2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).',
   '{"redacted": …} in place of a value means tipee withheld it from this integration: say ' +
@@ -46,7 +49,7 @@ const TelemetryLive = Telemetry.layer({
 // Nothing is recorded on a start: Claude launches the server many times over
 // on its own. The first tool call of a launch reports the session instead,
 // and a start without usable settings reports `server_failed`.
-export const ServerLayer = Layer.mergeAll(McpServer.toolkit(TipeeToolkit), SetupPrompt).pipe(
+export const ServerLayer = Layer.mergeAll(NotifiedToolkit, SetupPrompt).pipe(
   Layer.provide(TipeeToolkitLayerConfig),
   Layer.provide(
     McpServer.layerStdio({

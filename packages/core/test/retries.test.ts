@@ -1,5 +1,6 @@
 // What is sent again after a failure, and what the agent is told when
-// nothing more can be done: reads and rate limits are retried, writes never.
+// nothing more can be done: reads are retried, and writes only after an
+// answer tipee says to replay (429, 503, 508), which changed nothing.
 
 import { expect, layer } from '@effect/vitest';
 import { Effect, Layer } from 'effect';
@@ -24,6 +25,9 @@ import {
   status,
 } from './answers.ts';
 import { server } from './server.ts';
+
+const HTTP_CREATED = 201;
+const HTTP_LOOP_DETECTED = 508;
 
 layer(TestClient)('retries', (it) => {
   it.effect('passes on what tipee says about its rate limit', () =>
@@ -195,6 +199,58 @@ layer(TestClient)('retries', (it) => {
       expect(sent).toBe(3);
       expect(error.reason._tag).toBe('Unreachable');
       expect(error.message).toMatch(/no usable answer within 50 s, retries included/u);
+    }),
+  );
+
+  it.effect('sends a write again after a concurrent change, which changed nothing', () =>
+    Effect.gen(function* () {
+      let sent = 0;
+      server.use(
+        http.post(SCHEDULES_CREATE_URL, () => {
+          sent += 1;
+          return sent === 1
+            ? HttpResponse.json(
+                { message: 'Loop detected' },
+                { headers: { 'Retry-After': '1' }, status: HTTP_LOOP_DETECTED },
+              )
+            : new HttpResponse(undefined, { status: HTTP_CREATED });
+        }),
+      );
+      yield* settled(call('schedules_create', NEW_SCHEDULE));
+
+      expect(sent).toBe(2);
+    }),
+  );
+
+  it.effect('says a write tipee refused with a server error changed nothing', () =>
+    Effect.gen(function* () {
+      let sent = 0;
+      server.use(
+        http.post(SCHEDULES_CREATE_URL, () => {
+          sent += 1;
+          return HttpResponse.json({ message: 'Oops' }, { status: HTTP_SERVER_ERROR });
+        }),
+      );
+      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
+
+      expect(sent).toBe(1);
+      expect(error.message).toMatch(/Nothing was applied/u);
+      expect(error.message).not.toMatch(/may have applied it/u);
+    }),
+  );
+
+  it.effect('explains a concurrent change it could not get past', () =>
+    Effect.gen(function* () {
+      server.use(
+        http.post(SCHEDULES_CREATE_URL, () =>
+          HttpResponse.json({ message: 'Loop detected' }, { status: HTTP_LOOP_DETECTED }),
+        ),
+      );
+      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
+
+      expect(error.message).toMatch(/HTTP 508/u);
+      expect(error.message).toMatch(/nothing was applied/u);
+      expect(error.message).toMatch(/one call per day/u);
     }),
   );
 });

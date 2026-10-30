@@ -44,7 +44,9 @@ Effect's own agent docs shipped beside them:
 - MCP (`effect/ai`): `Tool.make(name, { description, parameters, success, failure })`
   `.annotate(Tool.Readonly, true)`, `Toolkit.make(...)`, handlers with
   `toolkit.toLayer(Effect.gen(…))`, server with `McpServer.toolkit(toolkit)`
-  provided `McpServer.layerStdio({ name, version, protocols: [McpProtocol.v2025_11_25, …] })`
+  (here `McpServer.registerToolkit` under a wrapped `addTool`, to append a
+  text block to answers: `Notice.ts`) provided
+  `McpServer.layerStdio({ name, version, protocols: [McpProtocol.v2025_11_25, …] })`
   and `NodeStdio.layer`. Entry point: `NodeRuntime.runMain(Layer.launch(layer))`,
   the effect wrapped in `Effect.provideService(Logger.LogToStderr, true)` and
   logging its own failure, with `{ disableErrorReporting: true }`: stdout is

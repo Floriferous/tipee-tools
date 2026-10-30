@@ -86,8 +86,9 @@ each tool: choose **Allow once** to approve every change yourself.
 
 ## Updating
 
-When you run Check tipee setup, Claude tells you whether a newer version
-exists and offers to install it. Say yes, then:
+When a newer version exists, Claude tells you once while you work with it,
+and again whenever you run Check tipee setup, and offers to install it. Say
+yes, then:
 
 - **Claude Desktop on a Mac** shows its update dialog: click Update. Your
   instance and key are kept.
@@ -134,11 +135,14 @@ The plugin sends usage data to PostHog's EU cloud (`eu.i.posthog.com`) to
 help improve it. PostHog discards IP addresses, after deriving an approximate
 location (country and city) from them:
 
-- which tools were called, how long they took and how they ended;
+- which tools were called, how long they took and how they ended, and
+  whether an update was offered;
 - errors, by their reason, HTTP status, tipee's error code (such as
-  `OVERLAPPING`) and, for an answer that changed shape, the paths of the
-  fields concerned; never with tipee's text. Crashes carry their message and
-  stack trace, with file paths cut down to file names;
+  `OVERLAPPING`), the names of the fields concerned (those tipee names when
+  it refuses a request, and those of an answer that changed shape) and the
+  names of the parameters the failed call was sent with; never with tipee's
+  text or any value. Crashes carry their message and stack trace, with file
+  paths cut down to file names;
 - with each event: your tipee instance name, so companies can be told apart,
   the operating system, CPU architecture, Node.js version, how the plugin was
   installed, which Claude app and version calls it, the plugin and tipee API

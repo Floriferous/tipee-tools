@@ -14,6 +14,8 @@ import type { Update } from './Updates.ts';
 
 const DAYS_PER_WEEK = 7;
 const PAGE_SIZE = 100;
+// Probes in flight at once: tipee allows 4 requests a second, after a burst.
+const CONCURRENCY = 4;
 
 interface Range {
   readonly from: string;
@@ -124,41 +126,64 @@ export const probes = Effect.fn('check_setup.probes')(function* ({
 }) {
   const range = from !== undefined && to !== undefined ? { from, to } : yield* defaultRange;
   const dateRange = `${range.from}/${range.to}`;
-  // Looked up once, the first time a probe is refused or at the end: each
-  // lookup costs two calls.
+  // Looked up once for the whole check, refusals included: each lookup
+  // costs two calls.
   const lookup = yield* Effect.cached(integrationLink);
   const { probe, probeWith } = prober(lookup);
-  const kinds = yield* probe('kinds_list', {});
-  const employee = (
-    kinds.result as ReadonlyArray<{ id: string; machine_name: string }> | undefined
-  )?.find((kind) => kind.machine_name === 'employee');
-  const people = yield* probeWith(
-    'resources_list',
+  // People come in a chain, each probe needing an id from the one before.
+  const chain = Effect.gen(function* () {
+    const kinds = yield* probe('kinds_list', {});
+    const employee = (
+      kinds.result as ReadonlyArray<{ id: string; machine_name: string }> | undefined
+    )?.find((kind) => kind.machine_name === 'employee');
+    const people = yield* probeWith(
+      'resources_list',
+      kinds,
+      employee && {
+        kind_id: employee.id,
+        orders: ORDER,
+        pagination: { limit: PAGE_SIZE, next_token: null },
+        with_teams: true,
+      },
+    );
+    const [somebody] =
+      (people.result as { data?: ReadonlyArray<{ id: string }> } | undefined)?.data ?? [];
+    const rates = yield* probeWith(
+      'resources_show_activity_rates',
+      people,
+      somebody && { resource_id: somebody.id },
+    );
+    return [kinds, people, rates] as const;
+  });
+  // A few at a time, well within tipee's rate limit; the integration is
+  // looked up alongside, since the report names it anyway.
+  const [[kinds, people, rates], teams, templates, schedules, absences, onCalls, timechecks] =
+    yield* Effect.all(
+      [
+        chain,
+        probe('teams_list', {}),
+        probe('schedule_templates_list', {}),
+        probe('schedules_list', { date_range: dateRange }),
+        probe('absences_list', { date_range: dateRange }),
+        probe('on_calls_list', { date_range: dateRange }),
+        probe('timechecks_list', {
+          filters: [{ key: 'timecheck.date_range', value: dateRange }],
+        }),
+        lookup,
+      ],
+      { concurrency: CONCURRENCY },
+    );
+  const reports = [
     kinds,
-    employee && {
-      kind_id: employee.id,
-      orders: ORDER,
-      pagination: { limit: PAGE_SIZE, next_token: null },
-      with_teams: true,
-    },
-  );
-  const [somebody] =
-    (people.result as { data?: ReadonlyArray<{ id: string }> } | undefined)?.data ?? [];
-  const reports = [kinds.report, people.report];
-  const next = [
-    probe('teams_list', {}),
-    probe('schedule_templates_list', {}),
-    probe('schedules_list', { date_range: dateRange }),
-    probe('absences_list', { date_range: dateRange }),
-    probe('on_calls_list', { date_range: dateRange }),
-    probeWith('resources_show_activity_rates', people, somebody && { resource_id: somebody.id }),
-    probe('timechecks_list', {
-      filters: [{ key: 'timecheck.date_range', value: dateRange }],
-    }),
-  ];
-  for (const one of next) {
-    reports.push((yield* one).report);
-  }
+    people,
+    teams,
+    templates,
+    schedules,
+    absences,
+    onCalls,
+    rates,
+    timechecks,
+  ].map((one) => one.report);
   const integration = yield* lookup;
   return {
     date_range: dateRange,
