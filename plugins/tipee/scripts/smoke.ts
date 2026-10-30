@@ -1,7 +1,8 @@
 // Runs the committed bundle the way Claude runs it, on whichever Node runs
 // this script (in CI the oldest one the extension declares), so it uses
 // node: builtins only. The MCP handshake must report plugin.json's version,
-// list one tool per operation plus check_setup and update_plugin, and offer
+// list one tool per operation, the batch tools of a few (`<operation>_many`),
+// check_setup and update_plugin, and offer
 // the setup prompt, with nothing but JSON on stdout. Usage: node scripts/smoke.ts
 
 import { spawn } from 'node:child_process';
@@ -128,10 +129,13 @@ try {
     `serverInfo.version is ${serverInfo?.version}, plugin.json says ${version}`,
   );
   const names = ((listed.result?.tools ?? []) as Array<{ name: string }>).map(({ name }) => name);
-  check(names.length === expected.size, `${names.length} tools listed, ${expected.size} expected`);
   const missing = [...expected].filter((name) => !names.includes(name));
   check(missing.length === 0, `missing tools: ${missing.join(', ')}`);
-  const unexpected = names.filter((name) => !expected.has(name));
+  // A batch tool is fine for any operation; which ones have one is the mcp
+  // package's choice, tested there.
+  const batches = names.filter((name) => name.endsWith('_many') && expected.has(name.slice(0, -5)));
+  check(batches.length > 0, 'no batch tools listed');
+  const unexpected = names.filter((name) => !expected.has(name) && !batches.includes(name));
   check(unexpected.length === 0, `unexpected tools: ${unexpected.join(', ')}`);
   const promptNames = ((prompts.result?.prompts ?? []) as Array<{ name: string }>).map(
     ({ name }) => name,
@@ -154,6 +158,6 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   process.stdout.write(
-    `Smoke test passed on Node ${process.version}: v${version}, ${expected.size} tools.\n`,
+    `Smoke test passed on Node ${process.version}: v${version}, ${expected.size} tools and batch tools.\n`,
   );
 }
