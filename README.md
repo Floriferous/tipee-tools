@@ -79,6 +79,7 @@ Some things people ask:
 - What is Alice's activity rate, and how has it changed?
 - Plan Bruno on the morning shift on Monday and Tuesday.
 - Record Chloé's vacation from the 3rd to the 7th.
+- Move the whole kitchen team to the late shift next week.
 - How many hours went into project X this month?
 
 Claude looks things up freely. Every tool that changes tipee instructs Claude
@@ -89,8 +90,10 @@ each tool: choose **Allow once** to approve every change yourself.
 ## Updating
 
 When a newer version exists, Claude tells you once while you work with it,
-and again whenever you run Check tipee setup, and offers to install it. Say
-yes, then:
+and again whenever you run Check tipee setup, and offers to install it
+(versions before 1.1.0 only tell you in Check tipee setup; or download
+[tipee.mcpb](https://github.com/Floriferous/tipee-tools/releases/latest/download/tipee.mcpb)
+again and open it). Say yes, then:
 
 - **Claude Desktop on a Mac** shows its update dialog: click Update. Your
   instance and key are kept.
@@ -169,7 +172,7 @@ Requires Node 24 and pnpm.
 
 ```bash
 pnpm install
-pnpm verify   # everything CI runs: lint, format, types, tests, bundle
+pnpm verify   # everything CI runs: lint, format, types, tests, bundle, smoke test
 pnpm fix      # apply the fixers and rebuild the plugin
 ```
 
