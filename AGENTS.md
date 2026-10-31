@@ -1,3 +1,3 @@
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) and the two skills in `.claude/skills` (`tipee`, `effect-v4`) before changing anything.
-- `pnpm verify` checks everything CI checks; `pnpm fix` applies the fixers and rebuilds the generated code and the bundle.
+- `pnpm verify` checks everything CI checks (CI runs the bundle's smoke test on Node 22.19 too); `pnpm fix` applies the fixers and rebuilds the generated code and the bundle.
 - Never edit the generated code (`packages/core/src/generated`) or the bundle (`plugins/tipee/server`) by hand.

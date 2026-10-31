@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/Floriferous/tipee-tools/security/advisories/new
+    about: Privately, never in a public issue.
+  - name: Setup help
+    url: https://github.com/Floriferous/tipee-tools#1-get-an-api-key-from-tipee
+    about: Getting the API key and the rights the integration needs.

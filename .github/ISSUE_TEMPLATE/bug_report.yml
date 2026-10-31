@@ -1,0 +1,33 @@
+name: Something doesn't work
+description: A tool fails, gives a wrong answer, or the setup won't complete.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste your API key**, or anything from your company's tipee (names, schedules, absences). A security problem goes [privately](https://github.com/Floriferous/tipee-tools/security/advisories/new), not here.
+  - type: textarea
+    id: check
+    attributes:
+      label: Check tipee setup
+      description: In Claude, run **Check tipee setup** (the check-tipee-setup prompt, or ask Claude to run check_setup) and paste its answer. It names most problems and the version you run.
+    validations:
+      required: true
+  - type: dropdown
+    id: app
+    attributes:
+      label: Claude app
+      options:
+        - Claude Desktop on macOS
+        - Claude Desktop on Windows
+        - Claude Code
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you asked Claude, what you expected, and what happened instead. Paste the tool's error message as is, without data about people.
+    validations:
+      required: true

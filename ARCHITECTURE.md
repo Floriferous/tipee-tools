@@ -132,7 +132,8 @@ system's certificates where a network inspects HTTPS. Contributors use Node
   transit nodes carry a dependency's change to its dependents.
 - The pre-commit hook runs `pnpm fix` (fixers, regeneration), then `check` and
   `test`; `pnpm verify`, what CI runs, only checks (generate, lint, format,
-  types, tests, bundle, pack, freshness of committed files).
+  types, tests, bundle, pack, freshness of committed files, and the smoke
+  test of the bundle, which CI also runs on Node 22.19).
 - `.claude/skills/tipee` and `.claude/skills/effect-v4` brief contributors;
   `plugins/tipee/skills/tipee` explains the _product_ to Claude Code users.
 - Every package is tested against the MSW fake of tipee in
