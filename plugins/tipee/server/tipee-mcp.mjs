@@ -15880,9 +15880,9 @@ const TeamPeriodOperator = Literals([
 	"none"
 ]).annotate({ "identifier": "TeamPeriodOperator" });
 const ListKindsQuery = Record(String$2, Never).annotate({ "identifier": "ListKindsQuery" });
-const ContentType = String$2.annotate({
-	"description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, month-day/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain.",
-	"identifier": "ContentType"
+const ContentType250901 = String$2.annotate({
+	"description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain.",
+	"identifier": "ContentType250901"
 });
 const ChoicesInputType = String$2.annotate({
 	"description": "Known values: select, combobox, radio.",
@@ -16080,7 +16080,7 @@ const KindSummaryView = StructWithRest(Struct({
 	"id": Snowflake,
 	"machine_name": String$2
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindSummaryView" });
-const ShowKindQuery = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowKindQuery" });
+const ShowKindQuery250901 = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowKindQuery250901" });
 const ListTeamQuery = Struct({
 	"team_ids": optionalKey(ArraySchema(Snowflake)),
 	"with_ancestors": optionalKey(Boolean$1),
@@ -17138,15 +17138,15 @@ const TeamFilterValue = Struct({
 	"recursive": optionalKey(Boolean$1.annotate({ "default": false })),
 	"head": optionalKey(Union([Boolean$1, Null]))
 }).annotate({ "identifier": "TeamFilterValue" });
-const AttributeSummaryView = StructWithRest(Struct({
+const AttributeSummaryView250901 = StructWithRest(Struct({
 	"id": String$2,
-	"content_type": ContentType,
+	"content_type": ContentType250901,
 	"label": TranslatedString,
 	"choices": Union([AttributeChoices, Null], { mode: "oneOf" }),
 	"icon": Union([AttributeIcon, Null], { mode: "oneOf" }),
 	"type": AttributeType,
 	"format": Union([AttributeFormatType, Null], { mode: "oneOf" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AttributeSummaryView" });
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AttributeSummaryView250901" });
 const AbsenceView250901 = StructWithRest(Struct({
 	"id": Snowflake,
 	"absence_type": AbsenceTypeSummary250901,
@@ -17377,13 +17377,13 @@ const ListResourcesQueryFilter = Union([
 		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 	})
 ], { mode: "oneOf" }).annotate({ "identifier": "ListResourcesQueryFilter" });
-const KindAttributeView = StructWithRest(Struct({
-	"attribute": AttributeSummaryView,
+const KindAttributeView250901 = StructWithRest(Struct({
+	"attribute": AttributeSummaryView250901,
 	"classification_level": ClassificationLevel,
 	"access_level": AccessLevel,
 	"searchable": Boolean$1,
 	"sortable": Boolean$1
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindAttributeView" });
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindAttributeView250901" });
 const CreateScheduleCommand260625 = Struct({
 	"resource_id": Snowflake,
 	"team_id": Snowflake,
@@ -17492,14 +17492,14 @@ const ListResourcesQuery = Struct({
 	})], { mode: "oneOf" })),
 	"pagination": Pagination
 }).annotate({ "identifier": "ListResourcesQuery" });
-const KindView = StructWithRest(Struct({
+const KindView250901 = StructWithRest(Struct({
 	"id": Snowflake,
 	"machine_name": String$2,
-	"attributes": ArraySchema(KindAttributeView),
+	"attributes": ArraySchema(KindAttributeView250901),
 	"relation_types": ArraySchema(KindRelationTypeView),
 	"sections": ArraySchema(KindSectionView),
 	"sorting_attribute_ids": ArraySchema(String$2)
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindView" });
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindView250901" });
 const PostAppUiApiActivityConfigurationProjectcommandCreateprojectRequestJson = CreateProjectCommand;
 const PostAppUiApiActivityConfigurationProjectcommandCreateproject201 = StructWithRest(Struct({ "id": Snowflake }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]);
 const PostAppUiApiActivityConfigurationProjectcommandDeleteprojectRequestJson = DeleteProjectCommand;
@@ -17572,8 +17572,8 @@ const PostAppUiApiDirectoryDirectoryqueryResourceslistRequestJson = ListResource
 const PostAppUiApiDirectoryDirectoryqueryResourceslist200 = ResourceListView;
 const PostAppUiApiDirectoryDirectoryqueryKindslistRequestJson = ListKindsQuery;
 const PostAppUiApiDirectoryDirectoryqueryKindslist200 = ArraySchema(KindSummaryView);
-const PostAppUiApiDirectoryDirectoryqueryKindsshowRequestJson = ShowKindQuery;
-const PostAppUiApiDirectoryDirectoryqueryKindsshow200 = KindView;
+const PostAppUiApiDirectoryDirectoryqueryKindsshowRequestJson = ShowKindQuery250901;
+const PostAppUiApiDirectoryDirectoryqueryKindsshow200 = KindView250901;
 const PostAppUiApiDirectoryDirectoryqueryTeamslistRequestJson = ListTeamQuery;
 const PostAppUiApiDirectoryDirectoryqueryTeamslist200 = ArraySchema(TeamView);
 const PostAppUiApiDirectoryDirectoryqueryShowteamRequestJson = ShowTeamQuery;
@@ -26056,7 +26056,7 @@ const SERVER_ICON = new Icon$1({
 });
 // ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.2.1";
 const INSTRUCTIONS = [
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
