@@ -190,6 +190,20 @@ layer(clientFor(API_KEY))('schedules_update_many', (it) => {
     }),
   );
 
+  it.effect('counts an item tipee applied with an undeclared 200 as applied', () =>
+    Effect.gen(function* () {
+      const sent = scheduleUpdates((id) =>
+        id === '2'
+          ? HttpResponse.json({ warnings: [] })
+          : new HttpResponse(undefined, { status: HTTP_NO_CONTENT }),
+      );
+      const report = (yield* call('schedules_update_many', { items: ids(3) })) as BatchReport;
+
+      expect(sent).toEqual(['1', '2', '3']);
+      expect(report).toEqual({ applied: 3, message: 'All 3 items applied.', not_sent: 0 });
+    }),
+  );
+
   it.effect('fails when the first write is lost, saying it may have been applied', () =>
     Effect.gen(function* () {
       const sent = scheduleUpdates(() => HttpResponse.error());
@@ -230,6 +244,35 @@ describe('the deadline', () => {
           "within the tool call's time: send the remaining 3 items, from items[2] (the 3rd), in " +
           'a new call.',
       );
+    }),
+  );
+});
+
+layer(clientFor(API_KEY))('absences_update_many', (it) => {
+  it.effect("returns each applied item's answer, in order", () =>
+    Effect.gen(function* () {
+      server.use(
+        http.post(`${BASE}/api/schedule/absences.update`, async ({ request }) => {
+          const { id } = (await request.json()) as { id: string };
+          // The count stands in for a per-item answer.
+          return HttpResponse.json({
+            failed: [],
+            failed_count: 0,
+            updated: [],
+            updated_count: Number(id),
+          });
+        }),
+      );
+      const item = (id: string) => ({ id, options: { group_action: 'single' }, percentage: 50 });
+      const report = (yield* call('absences_update_many', {
+        items: [item('7'), item('8')],
+      })) as BatchReport;
+
+      expect(report.applied).toBe(2);
+      expect(report.results).toEqual([
+        { failed: [], failed_count: 0, updated: [], updated_count: 7 },
+        { failed: [], failed_count: 0, updated: [], updated_count: 8 },
+      ]);
     }),
   );
 });

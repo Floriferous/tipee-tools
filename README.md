@@ -8,8 +8,9 @@ Every operation of tipee's API is available as a tool, except granting and
 revoking roles, forcing a password change and deleting a shift template,
 which stay with an admin in tipee. Which tools Claude may use, and which
 need your approval, is up to you in Claude's own settings. For bulk edits,
-creating and updating shifts and updating people also come as batch tools
-that apply up to 50 changes in one call, after you approve the whole list.
+creating and updating shifts, updating absences and people, and proposing
+and validating time checks also come as batch tools that apply up to 50
+changes in one call, after you approve the whole list.
 An independent project, not made or endorsed by tipee.
 
 ## 1. Get an API key from tipee
@@ -140,8 +141,9 @@ The plugin sends usage data to PostHog's EU cloud (`eu.i.posthog.com`) to
 help improve it. PostHog discards IP addresses, after deriving an approximate
 location (country and city) from them:
 
-- which tools were called, how long they took and how they ended, and
-  whether an update was offered;
+- which tools were called, how long they took and how they ended (including
+  the HTTP status when tipee answers a change with one its documentation does
+  not list), and whether an update was offered;
 - errors, by their reason, HTTP status, tipee's error code (such as
   `OVERLAPPING`), the names of the fields concerned (those tipee names when
   it refuses a request, and those of an answer that changed shape) and the
@@ -182,6 +184,8 @@ published version, so a workflow runs `pnpm spec:refresh` every Monday: it
 downloads the newest stable document, regenerates the tools and, when
 anything changed, opens a PR listing the operations and schemas that moved,
 with the version bumped. Review it and merge it: merging a version bump
-publishes the release. Run `pnpm spec:refresh` yourself to do the same
+publishes the release. Other changes can merge without one; users only get
+them with the next release, since Claude Code installs the plugin from the
+release tag the marketplace names, not from `main`. Run `pnpm spec:refresh` yourself to do the same
 locally. [ARCHITECTURE.md](ARCHITECTURE.md) explains the design, and the
 skills in `.claude/skills` brief agents working in this repository.
