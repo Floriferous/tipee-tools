@@ -8,7 +8,12 @@
   "plugins": [
     {
       "name": "tipee",
-      "source": "./plugins/tipee"
+      "source": {
+        "source": "git-subdir",
+        "url": "Floriferous/tipee-tools",
+        "path": "plugins/tipee",
+        "ref": "v1.2.0"
+      }
     }
   ]
 }
