@@ -15,6 +15,9 @@ export const BATCHED: ReadonlyArray<string> = [
   'schedules_create',
   'schedules_update',
   'resources_update',
+  'absences_update',
+  'timechecks_propose',
+  'timechecks_validate',
 ];
 
 /** At most this many items per call: about 15 s of writes at today's latency. */
@@ -49,7 +52,15 @@ export const BatchReport = Schema.Struct({
   message: Schema.String,
   not_sent: Schema.Int.annotate({ description: 'How many items after those were never sent.' }),
 });
-export type BatchReport = typeof BatchReport.Type;
+/**
+ * The report, plus each applied item's answer in order when the operation
+ * answers with a body: results[i] is the answer to items[i].
+ */
+export type BatchReport = typeof BatchReport.Type & { readonly results?: ReadonlyArray<unknown> };
+
+/** The description of `results`, for the output schema of a batch tool. */
+export const RESULTS_DESCRIPTION =
+  "Each applied item's answer, in order: results[i] is the answer to items[i].";
 
 /** Applies one item; its index is for the record. */
 export type Send = (item: unknown, index: number) => Effect.Effect<unknown, TipeeError>;
@@ -113,25 +124,30 @@ const stoppedAtFirst = (error: TipeeError, count: number): TipeeError =>
 // Sends each item in order, each within what is left of the batch's time,
 // and stops at the first failure or once the start deadline has passed. When
 // the very first item fails, the batch fails with its error (a crash
-// propagates), so the client shows an error: nothing else was sent.
+// propagates), so the client shows an error: nothing else was sent. With
+// `withResults`, the report carries the applied items' answers.
 export const runBatch = (
   items: ReadonlyArray<unknown>,
   send: Send,
+  withResults = false,
 ): Effect.Effect<BatchReport, TipeeError> =>
   Effect.gen(function* () {
     const started = yield* Clock.currentTimeMillis;
+    const answers: Array<unknown> = [];
+    const answered = (report: BatchReport): BatchReport =>
+      withResults ? { ...report, results: answers } : report;
     for (const [index, item] of items.entries()) {
       const elapsed = (yield* Clock.currentTimeMillis) - started;
       if (index > 0 && elapsed >= START_DEADLINE_SECONDS * MILLIS_PER_SECOND) {
         const left = items.length - index;
-        return {
+        return answered({
           applied: index,
           message:
             `${appliedPart(index)}, then the batch stopped after ${START_DEADLINE_SECONDS} s to ` +
             `stay within the tool call's time: send the remaining ${plural(left)}, from ` +
             `${nth(index)}, in a new call.`,
           not_sent: left,
-        } satisfies BatchReport;
+        });
       }
       const exit = yield* Effect.exit(
         send(item, index).pipe(
@@ -141,7 +157,9 @@ export const runBatch = (
           }),
         ),
       );
-      if (Exit.isFailure(exit)) {
+      if (Exit.isSuccess(exit)) {
+        answers.push(exit.value);
+      } else {
         const failure = failureOf(exit.cause);
         if (failure === undefined) {
           return yield* Effect.failCause(exit.cause);
@@ -157,19 +175,19 @@ export const runBatch = (
           failure.outcome === 'unknown'
             ? `${nth(index)} may or may not have been applied: read it back before sending it again`
             : `${nth(index)} failed and changed nothing: fix it and send it again with the rest`;
-        return {
+        return answered({
           applied: index,
           failed: { error: failure.error, index, outcome: failure.outcome },
           message:
             `${appliedPart(index)}. ${what}; the ${plural(left)} after it were not sent. ` +
             'Nothing is rolled back.',
           not_sent: left,
-        } satisfies BatchReport;
+        });
       }
     }
-    return {
+    return answered({
       applied: items.length,
       message: `All ${plural(items.length)} applied.`,
       not_sent: 0,
-    } satisfies BatchReport;
+    });
   });

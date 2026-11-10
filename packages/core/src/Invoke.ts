@@ -4,6 +4,7 @@
 // to tick.
 
 import { Effect, Option, Schema } from 'effect';
+import { HttpClientError } from 'effect/http';
 
 import { InvalidRequest, TipeeError } from './Errors.ts';
 import type { TipeeErrorReason } from './Errors.ts';
@@ -13,6 +14,35 @@ import { SETTINGS, pages, rightFor } from './Rights.ts';
 import { TipeeClient } from './TipeeClient.ts';
 
 type Method = (request: { readonly payload: unknown }) => Effect.Effect<unknown, unknown>;
+
+/**
+ * A write tipee applied while answering with a success status its document
+ * does not declare (200 where it says 204, say): a success, kept apart so the
+ * telemetry can tell tipee drifted.
+ */
+export class AcceptedOffSpec {
+  public readonly status: number;
+
+  public constructor(status: number) {
+    this.status = status;
+  }
+}
+
+const HTTP_OK_MIN = 200;
+const HTTP_OK_MAX = 299;
+
+// The success status of an answer the client refused only for its status.
+const undeclaredSuccess = (error: unknown): number | undefined => {
+  if (!HttpClientError.isHttpClientError(error)) {
+    return undefined;
+  }
+  const { reason } = error;
+  if (reason._tag !== 'DecodeError' || reason.description !== 'undeclared status code') {
+    return undefined;
+  }
+  const { status } = reason.response;
+  return status >= HTTP_OK_MIN && status <= HTTP_OK_MAX ? status : undefined;
+};
 
 // The call itself: decoded request in, decoded response out, TipeeError on failure.
 const call = (
@@ -34,7 +64,14 @@ const call = (
       return yield* Effect.die(new Error(`the client has no method for ${target.name}`));
     }
     return yield* method({ payload: params }).pipe(
-      Effect.catch((error) => Effect.flatMap(TipeeError.fromCause(error), Effect.fail)),
+      Effect.catch((error) => {
+        // An operation documented without a body has nothing to misread: any
+        // success status means tipee applied it.
+        const status = target.success === undefined ? undeclaredSuccess(error) : undefined;
+        return status === undefined
+          ? Effect.flatMap(TipeeError.fromCause(error), Effect.fail)
+          : Effect.succeed(new AcceptedOffSpec(status));
+      }),
     );
   });
 

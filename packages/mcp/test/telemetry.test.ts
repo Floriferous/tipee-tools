@@ -126,6 +126,7 @@ describe('telemetry', () => {
       const failures = [
         new UnexpectedStatus({ body: 'Alice Martin is on leave', status: 502 }),
         new UnexpectedShape({ details: 'Expected string, got "Alice Martin"\n  at [0]["label"]' }),
+        new UnexpectedShape({ details: 'undeclared status code', status: 201 }),
         new Rejected({ body: 'Alice Martin overlaps', code: 'OVERLAPPING', status: 409 }),
         new Rejected({
           body: 'when: Alice Martin is locked',
@@ -147,6 +148,7 @@ describe('telemetry', () => {
       expect(values).toEqual([
         'UnexpectedStatus (HTTP 502)',
         'UnexpectedShape at [0]["label"]',
+        'UnexpectedShape (HTTP 201)',
         'Rejected (HTTP 409, OVERLAPPING)',
         'Rejected (HTTP 422) at when, options.allow_partial',
       ]);

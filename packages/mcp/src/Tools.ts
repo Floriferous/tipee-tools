@@ -10,7 +10,13 @@ import type { Operation } from '@tipee-tools/core';
 import { Schema } from 'effect';
 import { Tool, Toolkit } from 'effect/ai';
 
-import { BATCHED, BatchReport, MAX_ITEMS, START_DEADLINE_SECONDS } from './Batch.ts';
+import {
+  BATCHED,
+  BatchReport,
+  MAX_ITEMS,
+  RESULTS_DESCRIPTION,
+  START_DEADLINE_SECONDS,
+} from './Batch.ts';
 import { Installed, UpdateFailed } from './Updates.ts';
 
 /** What a tool returns when tipee answers with no content (201/204). */
@@ -169,7 +175,13 @@ const batchToolFor = (operation: Operation) =>
         Schema.isMaxLength(MAX_ITEMS),
       ),
     }),
-    success: BatchReport,
+    success:
+      operation.success === undefined
+        ? BatchReport
+        : Schema.Struct({
+            ...BatchReport.fields,
+            results: Schema.Array(operation.success).annotate({ description: RESULTS_DESCRIPTION }),
+          }),
   })
     .annotate(Tool.Title, `${titleOf(operation.path)} many`)
     .annotate(Tool.Strict, true)

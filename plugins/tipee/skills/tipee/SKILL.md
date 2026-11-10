@@ -59,10 +59,12 @@ follow it and give the user any link as is.
   in `when`, with `options.schedule_on_bank_holidays` set;
   `schedules_delete` and `absences_delete` take every id at once. For edits
   that differ per item (each shift its own hours), `schedules_create_many`,
-  `schedules_update_many` and `resources_update_many` apply up to 50 items
-  in one call, in order, after one yes for the whole list. They stop at the
-  first failure and report `applied`, the `failed` item (`index` is 0-based)
-  and how many were `not_sent`. When its `outcome` is `not_applied`, fix it
+  `schedules_update_many`, `resources_update_many`, `absences_update_many`,
+  `timechecks_propose_many` and `timechecks_validate_many` apply up to 50
+  items in one call, in order, after one yes for the whole list. They stop
+  at the first failure and report `applied`, the `failed` item (`index` is
+  0-based), how many were `not_sent` and, for operations that answer,
+  `results` (`results[i]` answers `items[i]`). When its `outcome` is `not_applied`, fix it
   and send it with the rest; when `unknown`, read it back first, since it
   may have been applied. After 30 s they stop and say which items to send
   in a new call. Never send writes

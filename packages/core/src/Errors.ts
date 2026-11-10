@@ -214,7 +214,7 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
             const details = Schema.isSchemaError(reason.cause)
               ? reason.cause.message
               : (reason.description ?? cause.message);
-            return new TipeeError({ reason: new UnexpectedShape({ details }) });
+            return new TipeeError({ reason: new UnexpectedShape({ details, status }) });
           }
           const body = yield* reason.response.text.pipe(Effect.orElseSucceed(() => ''));
           const retryAfter = reason.response.headers['retry-after'];

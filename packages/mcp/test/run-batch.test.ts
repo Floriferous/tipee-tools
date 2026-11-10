@@ -97,9 +97,21 @@ describe('runBatch', () => {
     }),
   );
 
-  it('batches only operations that answer with no body, since it returns no results', () => {
+  it.effect("carries the applied items' answers when asked, in order", () =>
+    Effect.gen(function* () {
+      const send: Send = (_item, index) =>
+        index === 2 ? Effect.fail(refused) : Effect.succeed({ index });
+      const report = yield* runBatch(items(4), send, true);
+      const plain = yield* runBatch(items(2), () => Effect.succeed({ ignored: true }));
+
+      expect(report).toMatchObject({ applied: 2, results: [{ index: 0 }, { index: 1 }] });
+      expect(plain).not.toHaveProperty('results');
+    }),
+  );
+
+  it('batches only write operations that exist', () => {
     for (const name of BATCHED) {
-      expect(operations.find((target) => target.name === name)?.success).toBeUndefined();
+      expect(operations.find((target) => target.name === name)?.readOnly).toBe(false);
     }
   });
 });

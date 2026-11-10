@@ -3,13 +3,11 @@
 // values) of the fields concerned and of the parameters sent.
 
 import { expect, layer } from '@effect/vitest';
-import { TipeeClient } from '@tipee-tools/core';
-import { API_KEY, BASE, server } from '@tipee-tools/core/testing';
-import { Effect, Layer, Redacted } from 'effect';
-import { FetchHttpClient } from 'effect/http';
+import { BASE, server } from '@tipee-tools/core/testing';
+import { Effect } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
-import { SERVER_VERSION, Telemetry, TipeeToolkitLayer, Updates } from '../src/index.ts';
+import { recorded, recordedCalls, recordingClient } from './recording.ts';
 import { call } from './toolkit.ts';
 
 const CHLOE = '1000000000000000104';
@@ -17,35 +15,6 @@ const WEEK = '2026-09-07/2026-09-13';
 const HTTP_CONFLICT = 409;
 const HTTP_GONE = 410;
 const HTTP_UNPROCESSABLE = 422;
-
-interface Recorded {
-  readonly event: string;
-  readonly properties: Record<string, unknown>;
-}
-const recorded: Array<Recorded> = [];
-const recording = Layer.succeed(Telemetry, {
-  capture: (event, properties) =>
-    Effect.sync(() => {
-      recorded.push({ event, properties: { ...properties } });
-    }),
-  exception: (error, { handled, properties }) =>
-    Effect.sync(() => {
-      recorded.push({
-        event: '$exception',
-        properties: { ...properties, handled, message: String(error) },
-      });
-    }),
-  flush: Effect.void,
-});
-// What a call recorded, without the session event of whichever call came first.
-const recordedCalls = (): ReadonlyArray<Recorded> =>
-  recorded.filter((entry) => entry.event !== 'session_started');
-const recordingClient = TipeeToolkitLayer.pipe(
-  Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
-  Layer.provide(recording),
-  Layer.provide(Updates.layerNone(SERVER_VERSION)),
-  Layer.provide(FetchHttpClient.layer),
-);
 
 // A layer of its own, so its first call is the session's first.
 layer(recordingClient)('telemetry of a session', (it) => {
@@ -234,6 +203,30 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       expect(calls[2]?.properties).toMatchObject({ outcome: 'failed', reason: 'Rejected' });
       expect(calls[2]?.properties).not.toHaveProperty('error_fields');
       expect(calls[2]?.properties).not.toHaveProperty('params_sent');
+    }),
+  );
+
+  it.effect('answers done for a write tipee applied with an undeclared 200, and notes it', () =>
+    Effect.gen(function* () {
+      recorded.length = 0;
+      server.use(
+        http.post(`${BASE}/api/directory/resources.assign-activity-rate`, () =>
+          HttpResponse.json({ warnings: [] }),
+        ),
+      );
+      const answer = yield* call('resources_assign_activity_rate', {
+        average_rate: 80,
+        date_range: '2026-11-01/-',
+        resource_id: '1',
+      });
+
+      expect(answer).toEqual({ done: true });
+      expect(recordedCalls().map((entry) => entry.event)).toEqual(['tool_called']);
+      expect(recordedCalls()[0]?.properties).toMatchObject({
+        off_spec_status: 200,
+        outcome: 'ok',
+        tool: 'resources_assign_activity_rate',
+      });
     }),
   );
 

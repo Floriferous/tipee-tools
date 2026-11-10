@@ -110,6 +110,11 @@ the vendored document's version), `Accept: application/json`.
   telemetry shows bulk use.
 - `*.tipee.net` has a wildcard DNS record: a mistyped instance never fails
   with ENOTFOUND but answers HTTP 410 `{"error":"instance_not_found"}`.
+- tipee sometimes answers a change with a success status its document does
+  not declare (200 where it says 204). For an operation documented without
+  a body, `invoke` takes any 2xx as applied (`AcceptedOffSpec`, recorded as
+  `off_spec_status`), rather than reporting an applied write as failed; an
+  operation with a body still needs the shape it declares.
 - Error messages quote tipee's whole answer and the HTTP status: never trim
   or paraphrase what tipee said, the agent acts on it.
 - Versions are date-based and supported ≥ 6 months after the next release;
