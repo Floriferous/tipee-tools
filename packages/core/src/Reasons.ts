@@ -104,6 +104,8 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
  */
 export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
   details: Schema.String,
+  /** The success status of the answer, when one was read. */
+  status: Schema.optionalKey(Schema.Int),
 }) {
   public override get message(): string {
     return (

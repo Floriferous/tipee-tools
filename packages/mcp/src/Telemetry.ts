@@ -132,7 +132,13 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
 const withheld = (reason: TipeeErrorReason): string => {
   if (reason._tag === 'UnexpectedShape' || reason._tag === 'InvalidRequest') {
     const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
-    return paths.size === 0 ? reason._tag : `${reason._tag} at ${[...paths].join(', ')}`;
+    const status =
+      reason._tag === 'UnexpectedShape' && reason.status !== undefined
+        ? ` (HTTP ${reason.status})`
+        : '';
+    return paths.size === 0
+      ? `${reason._tag}${status}`
+      : `${reason._tag}${status} at ${[...paths].join(', ')}`;
   }
   if (reason._tag === 'Rejected') {
     const at = reason.fields === undefined ? '' : ` at ${reason.fields.join(', ')}`;
