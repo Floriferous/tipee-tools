@@ -1,7 +1,8 @@
 name: Verify
 
 # Checks every pull request and every push to main. On main, a version that
-# has no tag yet is then released, from the very bytes verify tested.
+# has no tag yet is then released, from the very bytes verify tested. Merging
+# without a version bump releases nothing: users only ever get a tag.
 on:
   pull_request:
   push:
@@ -26,37 +27,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      version: ${{ steps.drift.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      # Claude Code installs from main and caches the plugin by version, and
-      # Claude Desktop updates from the release's .mcpb: a change to what
-      # ships (the plugin, or the manifest, icon and licence the .mcpb is built
-      # with) under a version already released never reaches existing installs.
-      # An untagged version is a pending release and passes.
-      - name: Check plugins/tipee against its released version
-        id: drift
-        run: |
-          set -euo pipefail
-          v=$(jq -r .version plugins/tipee/.claude-plugin/plugin.json)
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          # ls-remote exits 2 when the tag does not exist.
-          tagged=0
-          git ls-remote --exit-code --tags origin "refs/tags/v$v" > /dev/null || tagged=$?
-          if [ "$tagged" = 2 ]; then
-            exit 0
-          elif [ "$tagged" != 0 ]; then
-            exit "$tagged"
-          fi
-          git fetch --depth=1 --no-tags origin "refs/tags/v$v:refs/tags/v$v"
-          if ! git diff --quiet "v$v" HEAD -- plugins/tipee/server plugins/tipee/skills plugins/tipee/.mcp.json plugins/tipee/.claude-plugin plugins/tipee/scripts/pack-mcpb.ts plugins/tipee/icon.png plugins/tipee/LICENSE; then
-            echo "::error::plugins/tipee differs from released v$v: bump plugin.json and SERVER_VERSION, or existing installs never get this change"
-            exit 1
-          fi
+      # The version the release job publishes when it has no tag yet. What
+      # users get is only ever a tag: Claude Code installs the plugin at the
+      # ref the marketplace names (version.test.ts keeps it on this version),
+      # and Claude Desktop the .mcpb of a release.
+      - name: Read the version
+        id: version
+        run: echo "version=$(jq -r .version plugins/tipee/.claude-plugin/plugin.json)" >> "$GITHUB_OUTPUT"
 
       # No version pinned here on purpose: the action reads the `packageManager`
       # field in package.json, so the version only has to be bumped in one place.
