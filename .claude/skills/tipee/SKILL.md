@@ -181,11 +181,13 @@ in. Spec-versus-reality fixes belong in the patch, nowhere else.
   against the `effect-v4` skill. `@effect/tsgo`, oxlint, oxlint-tsgolint and
   TypeScript move together as the TypeScript toolchain. No Dependabot: its
   updater cannot run pnpm 12.
-- Releases: the version lives in `plugins/tipee/.claude-plugin/plugin.json`
-  and `SERVER_VERSION` only (the packages carry none, and core and mcp are
-  private). A change to what ships bumps both; `verify.yml` fails a change
-  under a version already tagged, and on main releases an untagged version
-  from the `.mcpb` it built. It also runs `plugins/tipee/scripts/smoke.ts`
+- Releases: users only ever get a tag. The version lives in
+  `plugins/tipee/.claude-plugin/plugin.json`, `SERVER_VERSION` and the `ref`
+  of the plugin's `git-subdir` source in `.claude-plugin/marketplace.json`
+  (the packages carry none, and core and mcp are private); `version.test.ts`
+  keeps the three together. Merging work without a bump ships nothing; a
+  release is a PR bumping all three, and `verify.yml` on main tags an
+  untagged version and releases the `.mcpb` it built. It also runs `plugins/tipee/scripts/smoke.ts`
   on the committed bundle with Node 22.19.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the

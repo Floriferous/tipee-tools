@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "npm dependencies (Dependabot cannot run pnpm 12 in its sandbox) and GitHub Actions, pinned to digests. A PR that fails build:check needs `pnpm fix` committed on its branch; one that changes plugins/tipee/server also needs a version bump in plugin.json and SERVER_VERSION, which CI enforces once the version is released.",
+  "description": "npm dependencies (Dependabot cannot run pnpm 12 in its sandbox) and GitHub Actions, pinned to digests. A PR that fails build:check needs `pnpm fix` committed on its branch. No version bump: users get the change with the next release.",
   "extends": [
     "config:recommended",
     ":pinAllExceptPeerDependencies",
