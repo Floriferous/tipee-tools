@@ -110,6 +110,11 @@ the vendored document's version), `Accept: application/json`.
   telemetry shows bulk use.
 - `*.tipee.net` has a wildcard DNS record: a mistyped instance never fails
   with ENOTFOUND but answers HTTP 410 `{"error":"instance_not_found"}`.
+- tipee sometimes answers a change with a success status its document does
+  not declare (200 where it says 204). For an operation documented without
+  a body, `invoke` takes any 2xx as applied (`AcceptedOffSpec`, recorded as
+  `off_spec_status`), rather than reporting an applied write as failed; an
+  operation with a body still needs the shape it declares.
 - Error messages quote tipee's whole answer and the HTTP status: never trim
   or paraphrase what tipee said, the agent acts on it.
 - Versions are date-based and supported ≥ 6 months after the next release;
@@ -181,11 +186,13 @@ in. Spec-versus-reality fixes belong in the patch, nowhere else.
   against the `effect-v4` skill. `@effect/tsgo`, oxlint, oxlint-tsgolint and
   TypeScript move together as the TypeScript toolchain. No Dependabot: its
   updater cannot run pnpm 12.
-- Releases: the version lives in `plugins/tipee/.claude-plugin/plugin.json`
-  and `SERVER_VERSION` only (the packages carry none, and core and mcp are
-  private). A change to what ships bumps both; `verify.yml` fails a change
-  under a version already tagged, and on main releases an untagged version
-  from the `.mcpb` it built. It also runs `plugins/tipee/scripts/smoke.ts`
+- Releases: users only ever get a tag. The version lives in
+  `plugins/tipee/.claude-plugin/plugin.json`, `SERVER_VERSION` and the `ref`
+  of the plugin's `git-subdir` source in `.claude-plugin/marketplace.json`
+  (the packages carry none, and core and mcp are private); `version.test.ts`
+  keeps the three together. Merging work without a bump ships nothing; a
+  release is a PR bumping all three, and `verify.yml` on main tags an
+  untagged version and releases the `.mcpb` it built. It also runs `plugins/tipee/scripts/smoke.ts`
   on the committed bundle with Node 22.19.
 - No build step: Node 24 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the

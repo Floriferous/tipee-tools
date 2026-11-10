@@ -14102,7 +14102,10 @@ var UnexpectedStatus = class extends TaggedError()("UnexpectedStatus", {
 		return saying(`tipee answered with an unexpected error (HTTP ${this.status})`, this.body, "no explanation given.");
 	}
 };
-var UnexpectedShape = class extends TaggedError()("UnexpectedShape", { details: String$2 }) {
+var UnexpectedShape = class extends TaggedError()("UnexpectedShape", {
+	details: String$2,
+	status: optionalKey(Int)
+}) {
 	get message() {
 		return `tipee accepted the request but answered with a shape that does not match its API description (a write may still have gone through; read it back to be sure):\n${this.details}`;
 	}
@@ -14242,8 +14245,8 @@ const fieldsOf = (rawBody) => {
 };
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
 const INSTANCE_NOT_FOUND_MARKER = "instance_not_found";
-const HTTP_OK_MIN = 200;
-const HTTP_OK_MAX = 299;
+const HTTP_OK_MIN$1 = 200;
+const HTTP_OK_MAX$1 = 299;
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
@@ -14290,9 +14293,12 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			const { reason } = cause;
 			if (reason instanceof StatusCodeError || reason instanceof DecodeError) {
 				const { status } = reason.response;
-				if (status >= HTTP_OK_MIN && status <= HTTP_OK_MAX) {
+				if (status >= HTTP_OK_MIN$1 && status <= HTTP_OK_MAX$1) {
 					const details = isSchemaError(reason.cause) ? reason.cause.message : reason.description ?? cause.message;
-					return new TipeeError({ reason: new UnexpectedShape({ details }) });
+					return new TipeeError({ reason: new UnexpectedShape({
+						details,
+						status
+					}) });
 				}
 				const body = yield* reason.response.text.pipe(orElseSucceed(() => ""));
 				const retryAfter = reason.response.headers["retry-after"];
@@ -17984,12 +17990,30 @@ const operation = (name) => {
 	return found;
 };
 // ../../packages/core/src/Invoke.ts
+var AcceptedOffSpec = class {
+	status;
+	constructor(status) {
+		this.status = status;
+	}
+};
+const HTTP_OK_MIN = 200;
+const HTTP_OK_MAX = 299;
+const undeclaredSuccess = (error) => {
+	if (!isHttpClientError(error)) return;
+	const { reason } = error;
+	if (reason._tag !== "DecodeError" || reason.description !== "undeclared status code") return;
+	const { status } = reason.response;
+	return status >= HTTP_OK_MIN && status <= HTTP_OK_MAX ? status : void 0;
+};
 const call = (target, params) => gen(function* () {
 	const { api } = yield* TipeeClient;
 	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => new TipeeError({ reason: new InvalidRequest$1({ details: cause.message }) })));
 	const method = api[target.group]?.[target.endpoint];
 	if (method === void 0) return yield* die$2(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
-	return yield* method({ payload: params }).pipe(catch_$2((error) => flatMap(TipeeError.fromCause(error), fail$3)));
+	return yield* method({ payload: params }).pipe(catch_$2((error) => {
+		const status = target.success === void 0 ? undeclaredSuccess(error) : void 0;
+		return status === void 0 ? flatMap(TipeeError.fromCause(error), fail$3) : succeed$3(new AcceptedOffSpec(status));
+	}));
 });
 const PAGE_SIZE$1 = 100;
 const HTTP_SERVER_ERROR = 500;
@@ -18059,6 +18083,1003 @@ const explain = (error, target, lookup) => gen(function* () {
 	return fix === void 0 ? error : fixed(fix);
 });
 const invoke = (target, params, lookup = integrationLink) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target, lookup), fail$3)));
+// ../../packages/mcp/src/Batch.ts
+const BATCHED = [
+	"schedules_create",
+	"schedules_update",
+	"resources_update",
+	"absences_update",
+	"timechecks_propose",
+	"timechecks_validate"
+];
+const BUDGET_SECONDS = 50;
+const MILLIS_PER_SECOND = 1e3;
+const BatchReport = Struct({
+	applied: Int.annotate({ description: "How many items were applied: items[0] up to items[applied - 1]." }),
+	failed: optionalKey(Struct({
+		error: String$2,
+		index: Int.annotate({ description: "0-based position in items of the item that stopped the batch." }),
+		outcome: Literals(["not_applied", "unknown"]).annotate({ description: "not_applied: tipee changed nothing for this item. unknown: it may have been applied; read it back before sending it again." })
+	})),
+	message: String$2,
+	not_sent: Int.annotate({ description: "How many items after those were never sent." })
+});
+const RESULTS_DESCRIPTION = "Each applied item's answer, in order: results[i] is the answer to items[i].";
+const plural = (count) => count === 1 ? "1 item" : `${count} items`;
+const SUFFIXES = {
+	few: "rd",
+	one: "st",
+	two: "nd"
+};
+const ordinals = new Intl.PluralRules("en", { type: "ordinal" });
+const nth = (index) => `items[${index}] (the ${index + 1}${SUFFIXES[ordinals.select(index + 1)] ?? "th"})`;
+const appliedPart = (count) => count === 1 ? "1 item applied (items[0])" : `${count} items applied (items[0] to items[${count - 1}])`;
+const cutShort = () => new TipeeError({
+	fix: "This write may have been applied: read it back before sending it again.",
+	reason: new Unreachable({ description: `no answer before the batch's ${BUDGET_SECONDS} s ran out` })
+});
+const failureOf = (cause) => {
+	const found = findError(cause);
+	if (isSuccess$1(found)) {
+		const error = found.success;
+		return {
+			error: error.message,
+			outcome: outcomeUnknown(error) ? "unknown" : "not_applied"
+		};
+	}
+	if (hasInterruptsOnly(cause)) return;
+	const crash = squash(cause);
+	return {
+		error: `it failed unexpectedly: ${crash instanceof Error ? crash.message : String(crash)}`,
+		outcome: "unknown"
+	};
+};
+const stoppedAtFirst = (error, count) => count === 1 ? error : new TipeeError({
+	fix: [error.fix, `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`].filter((part) => part !== void 0).join(" "),
+	reason: error.reason
+});
+const runBatch = (items, send, withResults = false) => gen(function* () {
+	const started = yield* currentTimeMillis;
+	const answers = [];
+	const answered = (report) => withResults ? {
+		...report,
+		results: answers
+	} : report;
+	for (const [index, item] of items.entries()) {
+		const elapsed = (yield* currentTimeMillis) - started;
+		if (index > 0 && elapsed >= 30 * MILLIS_PER_SECOND) {
+			const left = items.length - index;
+			return answered({
+				applied: index,
+				message: `${appliedPart(index)}, then the batch stopped after 30 s to stay within the tool call's time: send the remaining ${plural(left)}, from ${nth(index)}, in a new call.`,
+				not_sent: left
+			});
+		}
+		const exit$3 = yield* exit(send(item, index).pipe(timeoutOrElse({
+			duration: millis(BUDGET_SECONDS * MILLIS_PER_SECOND - elapsed),
+			orElse: () => fail$3(cutShort())
+		})));
+		if (isSuccess(exit$3)) answers.push(exit$3.value);
+		else {
+			const failure = failureOf(exit$3.cause);
+			if (failure === void 0) return yield* failCause$3(exit$3.cause);
+			if (index === 0) {
+				const error = findError(exit$3.cause);
+				return yield* isSuccess$1(error) ? fail$3(stoppedAtFirst(error.success, items.length)) : failCause$3(exit$3.cause);
+			}
+			const left = items.length - index - 1;
+			const what = failure.outcome === "unknown" ? `${nth(index)} may or may not have been applied: read it back before sending it again` : `${nth(index)} failed and changed nothing: fix it and send it again with the rest`;
+			return answered({
+				applied: index,
+				failed: {
+					error: failure.error,
+					index,
+					outcome: failure.outcome
+				},
+				message: `${appliedPart(index)}. ${what}; the ${plural(left)} after it were not sent. Nothing is rolled back.`,
+				not_sent: left
+			});
+		}
+	}
+	return answered({
+		applied: items.length,
+		message: `All ${plural(items.length)} applied.`,
+		not_sent: 0
+	});
+});
+// ../../packages/mcp/src/Install.ts
+const UUID_PARTS = [
+	8,
+	4,
+	4,
+	4,
+	12
+];
+const channelOf = (entry) => {
+	const unixy = entry.replaceAll("\\", "/");
+	if (unixy.includes("Claude Extensions")) return "desktop";
+	return unixy.includes(".claude/plugins/") ? "plugin" : "dev";
+};
+const channel = channelOf(argv[1] ?? "");
+const shaped = (hex) => {
+	let at = 0;
+	return UUID_PARTS.map((length) => {
+		const part = hex.slice(at, at + length);
+		at += length;
+		return part;
+	}).join("-");
+};
+const username = () => {
+	try {
+		return userInfo().username;
+	} catch {
+		return env.USER ?? env.USERNAME ?? "";
+	}
+};
+const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${username()}`).digest("hex"));
+// ../../packages/mcp/src/Telemetry.ts
+const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
+const POSTHOG_HOST = "https://eu.i.posthog.com";
+const INTERVAL = "2 seconds";
+const SEND_TIMEOUT = "5 seconds";
+const DRAIN_TIMEOUT = "2 seconds";
+const SEND_RETRIES = 2;
+const FRAME_LIMIT = 30;
+const settings$1 = all({
+	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
+	instance: String$1("TIPEE_INSTANCE").pipe(map$1((raw) => getOrElse(normalizeInstance(raw), () => "")), withDefault("")),
+	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY))
+});
+const silent = {
+	capture: () => void_$1,
+	exception: () => void_$1,
+	flush: void_$1
+};
+const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
+const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
+const scrubbed = (file) => {
+	const ours = OURS.exec(file)?.groups?.tail;
+	if (ours !== void 0) return {
+		filename: ours,
+		inApp: true
+	};
+	return {
+		filename: file.startsWith("node:") ? file : path.basename(file),
+		inApp: false
+	};
+};
+const framesOf = (stack) => (stack ?? "").split("\n").flatMap((line) => {
+	const groups = FRAME.exec(line)?.groups;
+	if (groups?.file === void 0) return [];
+	const { filename, inApp } = scrubbed(groups.file);
+	return [{
+		...groups.col === void 0 ? {} : { colno: Number(groups.col) },
+		filename,
+		function: groups.fn ?? "<anonymous>",
+		in_app: inApp,
+		...groups.line === void 0 ? {} : { lineno: Number(groups.line) },
+		platform: "node:javascript"
+	}];
+}).slice(0, FRAME_LIMIT);
+const withheld = (reason) => {
+	if (reason._tag === "UnexpectedShape" || reason._tag === "InvalidRequest") {
+		const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
+		const status = reason._tag === "UnexpectedShape" && reason.status !== void 0 ? ` (HTTP ${reason.status})` : "";
+		return paths.size === 0 ? `${reason._tag}${status}` : `${reason._tag}${status} at ${[...paths].join(", ")}`;
+	}
+	if (reason._tag === "Rejected") {
+		const at = reason.fields === void 0 ? "" : ` at ${reason.fields.join(", ")}`;
+		const code = reason.code === void 0 ? "" : `, ${reason.code}`;
+		return `Rejected (HTTP ${reason.status}${code})${at}`;
+	}
+	if (reason._tag === "Internal") return reason.message;
+	return "status" in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
+};
+const describe$2 = (error) => {
+	if (error instanceof TipeeError) return {
+		frames: [],
+		type: `Tipee${error.reason._tag}`,
+		value: withheld(error.reason)
+	};
+	if (error instanceof Error) return {
+		frames: framesOf(error.stack),
+		type: error.name,
+		value: error.message
+	};
+	return {
+		frames: [],
+		type: "Unknown",
+		value: String(error)
+	};
+};
+var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
+	static layerOff = succeed$4(Telemetry, silent);
+	static layer = (base) => effect(Telemetry, gen(function* () {
+		const config = yield* orDie(settings$1);
+		const http = (yield* HttpClient).pipe(retryTransient({
+			schedule: exponential("500 millis"),
+			times: SEND_RETRIES
+		}));
+		const distinctId = installationId();
+		const launchId = randomUUID();
+		const queue = yield* unbounded$1();
+		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
+			api_key: config.key,
+			batch: batch.map((event) => ({
+				...event,
+				distinct_id: distinctId
+			}))
+		}), flatMap((request) => http.execute(request)), timeout(SEND_TIMEOUT), ignore$1);
+		const drain = flatMap(clear(queue), (batch) => send(batch));
+		yield* forkScoped(forever(andThen(sleep(INTERVAL), drain)));
+		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
+		const profile = {
+			arch,
+			channel,
+			instance: config.instance,
+			node_version: version,
+			os: platform,
+			tipee_api_version: TIPEE_API_VERSION,
+			...base
+		};
+		const properties = (own) => ({
+			$groups: { instance: config.instance },
+			$lib: "tipee-mcp",
+			$set: profile,
+			launch_id: launchId,
+			...profile,
+			...own
+		});
+		const enqueue = (event, own) => asVoid(offer(queue, {
+			event,
+			properties: properties(own),
+			timestamp: (/* @__PURE__ */ new Date()).toISOString()
+		}));
+		return {
+			capture: enqueue,
+			exception: (error, { handled, properties: own }) => {
+				const { frames, type, value } = describe$2(error);
+				return enqueue("$exception", {
+					...own,
+					$exception_level: "error",
+					$exception_list: [{
+						mechanism: {
+							handled,
+							type: "generic"
+						},
+						...frames.length === 0 ? {} : { stacktrace: {
+							frames,
+							type: "raw"
+						} },
+						type,
+						value
+					}]
+				});
+			},
+			flush: drain
+		};
+	}));
+};
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/utils.js
+const handleErrnoException = (module, method) => (err, [path]) => {
+	let reason = "Unknown";
+	switch (err.code) {
+		case "ENOENT":
+			reason = "NotFound";
+			break;
+		case "EACCES":
+		case "EPERM":
+			reason = "PermissionDenied";
+			break;
+		case "EEXIST":
+			reason = "AlreadyExists";
+			break;
+		case "EISDIR":
+			reason = "BadResource";
+			break;
+		case "ENOTDIR":
+			reason = "BadResource";
+			break;
+		case "EBUSY":
+			reason = "Busy";
+			break;
+		case "ELOOP": reason = "BadResource";
+	}
+	return systemError({
+		_tag: reason,
+		module,
+		method,
+		pathOrDescriptor: path,
+		syscall: err.syscall,
+		cause: err
+	});
+};
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
+const handleBadArgument = (method) => (err) => badArgument({
+	module: "FileSystem",
+	method,
+	description: err.message ?? String(err)
+});
+const bigintToNumber = (value, field) => {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number)) throw new RangeError(`${field} exceeds the safe integer range: ${value}`);
+	return number;
+};
+const bigintToNumberOption = (value) => flatMap$4(fromNullishOr(value), toNumber$1);
+const toUint64 = (value) => BigInt.asUintN(64, value);
+const toUint64Option = (value) => map$10(fromNullishOr(value), toUint64);
+const positionToNumber = (position, method) => try_({
+	try: () => bigintToNumber(position, "position"),
+	catch: handleBadArgument(method)
+});
+const access = /*#__PURE__*/ (() => {
+	const nodeAccess = /*#__PURE__*/ effectify(NFS.access, /*#__PURE__*/ handleErrnoException("FileSystem", "access"), /*#__PURE__*/ handleBadArgument("access"));
+	return (path, options) => {
+		let mode = NFS.constants.F_OK;
+		if (options?.readable) mode |= NFS.constants.R_OK;
+		if (options?.writable) mode |= NFS.constants.W_OK;
+		return nodeAccess(path, mode);
+	};
+})();
+const copy = /*#__PURE__*/ (() => {
+	const nodeCp = /*#__PURE__*/ effectify(NFS.cp, /*#__PURE__*/ handleErrnoException("FileSystem", "copy"), /*#__PURE__*/ handleBadArgument("copy"));
+	return (fromPath, toPath, options) => nodeCp(fromPath, toPath, {
+		force: options?.overwrite ?? false,
+		preserveTimestamps: options?.preserveTimestamps ?? false,
+		recursive: true
+	});
+})();
+const copyFile = /*#__PURE__*/ (() => {
+	const nodeCopyFile = /*#__PURE__*/ effectify(NFS.copyFile, /*#__PURE__*/ handleErrnoException("FileSystem", "copyFile"), /*#__PURE__*/ handleBadArgument("copyFile"));
+	return (fromPath, toPath) => nodeCopyFile(fromPath, toPath);
+})();
+const chmod = /*#__PURE__*/ (() => {
+	const nodeChmod = /*#__PURE__*/ effectify(NFS.chmod, /*#__PURE__*/ handleErrnoException("FileSystem", "chmod"), /*#__PURE__*/ handleBadArgument("chmod"));
+	return (path, mode) => nodeChmod(path, mode);
+})();
+const chown = /*#__PURE__*/ (() => {
+	const nodeChown = /*#__PURE__*/ effectify(NFS.chown, /*#__PURE__*/ handleErrnoException("FileSystem", "chown"), /*#__PURE__*/ handleBadArgument("chown"));
+	return (path, uid, gid) => nodeChown(path, uid, gid);
+})();
+const glob = /*#__PURE__*/ (() => {
+	const nodeGlob = /*#__PURE__*/ effectify(NFS.glob, /*#__PURE__*/ handleErrnoException("FileSystem", "glob"), /*#__PURE__*/ handleBadArgument("glob"));
+	return (pattern, options) => nodeGlob(pattern, {
+		cwd: options?.root,
+		exclude: options?.exclude
+	});
+})();
+const link = /*#__PURE__*/ (() => {
+	const nodeLink = /*#__PURE__*/ effectify(NFS.link, /*#__PURE__*/ handleErrnoException("FileSystem", "link"), /*#__PURE__*/ handleBadArgument("link"));
+	return (existingPath, newPath) => nodeLink(existingPath, newPath);
+})();
+const makeDirectory = /*#__PURE__*/ (() => {
+	const nodeMkdir = /*#__PURE__*/ effectify(NFS.mkdir, /*#__PURE__*/ handleErrnoException("FileSystem", "makeDirectory"), /*#__PURE__*/ handleBadArgument("makeDirectory"));
+	return (path, options) => nodeMkdir(path, {
+		recursive: options?.recursive ?? false,
+		mode: options?.mode
+	});
+})();
+const makeTempDirectoryFactory = (method) => {
+	const nodeMkdtemp = effectify(NFS.mkdtemp, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (options) => suspend$3(() => {
+		const prefix = options?.prefix ?? "";
+		const directory = typeof options?.directory === "string" ? Path.join(options.directory, ".") : OS.tmpdir();
+		return nodeMkdtemp(prefix ? Path.join(directory, prefix) : directory + "/");
+	});
+};
+const makeTempDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectory");
+const removeFactory = (method) => {
+	const nodeRm = effectify(NFS.rm, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (path, options) => nodeRm(path, {
+		recursive: options?.recursive ?? false,
+		force: options?.force ?? false
+	});
+};
+const remove = /*#__PURE__*/ removeFactory("remove");
+const makeTempDirectoryScoped = /*#__PURE__*/ (() => {
+	const makeDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectoryScoped");
+	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempDirectoryScoped");
+	return (options) => acquireRelease(makeDirectory(options), (directory) => orDie(removeDirectory(directory, {
+		recursive: true,
+		force: true
+	})));
+})();
+const openFlagBits = (flag) => {
+	const { O_APPEND, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY } = NFS.constants;
+	switch (flag) {
+		case "r": return O_RDONLY;
+		case "r+": return O_RDWR;
+		case "w": return O_TRUNC | O_CREAT | O_WRONLY;
+		case "wx": return O_TRUNC | O_CREAT | O_WRONLY | O_EXCL;
+		case "w+": return O_TRUNC | O_CREAT | O_RDWR;
+		case "wx+": return O_TRUNC | O_CREAT | O_RDWR | O_EXCL;
+		case "a": return O_APPEND | O_CREAT | O_WRONLY;
+		case "ax": return O_APPEND | O_CREAT | O_WRONLY | O_EXCL;
+		case "a+": return O_APPEND | O_CREAT | O_RDWR;
+		case "ax+": return O_APPEND | O_CREAT | O_RDWR | O_EXCL;
+	}
+};
+const noFollowFlags = (method, flag) => suspend$3(() => {
+	const { O_NOFOLLOW } = NFS.constants;
+	if (process.platform === "win32" || typeof O_NOFOLLOW !== "number" || O_NOFOLLOW === 0) return fail$3(badArgument({
+		module: "FileSystem",
+		method,
+		description: "noFollow is not supported on this platform"
+	}));
+	return succeed$3(openFlagBits(flag) | O_NOFOLLOW);
+});
+const openFactory = (method) => {
+	const nodeOpen = effectify(NFS.open, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeClose = effectify(NFS.close, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (path, options) => pipe(acquireRelease(options?.noFollow === true ? flatMap(noFollowFlags(method, options.flag ?? "r"), (flags) => nodeOpen(path, flags, options.mode)) : nodeOpen(path, options?.flag ?? "r", options?.mode), (fd) => orDie(nodeClose(fd))), map$4((fd) => makeFile(fd, options?.flag?.startsWith("a") ?? false)));
+};
+const open = /*#__PURE__*/ openFactory("open");
+const negativePosition = (method) => badArgument({
+	module: "FileSystem",
+	method,
+	description: "Cannot read before the start of the file"
+});
+const makeFile = /*#__PURE__*/ (() => {
+	const nodeReadFactory = (method) => effectify(NFS.read, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeRead = /*#__PURE__*/ nodeReadFactory("read");
+	const nodeReadAlloc = /*#__PURE__*/ nodeReadFactory("readAlloc");
+	const nodeStat = /*#__PURE__*/ effectify(NFS.fstat, /*#__PURE__*/ handleErrnoException("FileSystem", "stat"), /*#__PURE__*/ handleBadArgument("stat"));
+	const nodeTruncate = /*#__PURE__*/ effectify(NFS.ftruncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
+	const nodeSync = /*#__PURE__*/ effectify(NFS.fsync, /*#__PURE__*/ handleErrnoException("FileSystem", "sync"), /*#__PURE__*/ handleBadArgument("sync"));
+	const nodeWriteFactory = (method) => effectify(NFS.write, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeWrite = /*#__PURE__*/ nodeWriteFactory("write");
+	const nodeWriteAll = /*#__PURE__*/ nodeWriteFactory("writeAll");
+	class FileImpl {
+		[FileTypeId];
+		fd;
+		append;
+		position = /*#__PURE__*/ BigInt(0);
+		constructor(fd, append) {
+			this[FileTypeId] = FileTypeId;
+			this.fd = fd;
+			this.append = append;
+		}
+		get stat() {
+			return flatMap(nodeStat(this.fd, { bigint: true }), makeFileInfo);
+		}
+		get sync() {
+			return nodeSync(this.fd);
+		}
+		seek(offset, from) {
+			return suspend$3(() => {
+				const position = from === "start" ? offset : this.position + offset;
+				if (position < BigInt(0)) return fail$3(badArgument({
+					module: "FileSystem",
+					method: "seek",
+					description: "Cannot seek before the start of the file"
+				}));
+				this.position = position;
+				return succeed$3(position);
+			});
+		}
+		read(buffer, options) {
+			return suspend$3(() => {
+				const explicit = options?.position;
+				if (explicit !== void 0) return explicit < BigInt(0) ? fail$3(negativePosition("read")) : nodeRead(this.fd, {
+					buffer,
+					position: explicit
+				});
+				const position = this.position;
+				return map$4(nodeRead(this.fd, {
+					buffer,
+					position
+				}), (bytesRead) => {
+					this.position = position + BigInt(bytesRead);
+					return bytesRead;
+				});
+			});
+		}
+		readAlloc(size, options) {
+			return suspend$3(() => {
+				try {
+					if (!Number.isInteger(size) || size < 0) throw new RangeError("size must be a non-negative integer");
+					const explicit = options?.position;
+					if (explicit !== void 0 && explicit < BigInt(0)) return fail$3(negativePosition("readAlloc"));
+					const buffer = Buffer.allocUnsafeSlow(size);
+					const position = explicit ?? this.position;
+					return map$4(nodeReadAlloc(this.fd, {
+						buffer,
+						position
+					}), (bytesRead) => {
+						if (bytesRead === 0) return none();
+						if (explicit === void 0) this.position = position + BigInt(bytesRead);
+						if (bytesRead === size) return some(buffer);
+						const dst = Buffer.allocUnsafeSlow(bytesRead);
+						buffer.copy(dst, 0, 0, bytesRead);
+						return some(dst);
+					});
+				} catch (cause) {
+					return fail$3(handleBadArgument("readAlloc")(cause));
+				}
+			});
+		}
+		truncate(length) {
+			return map$4(nodeTruncate(this.fd, length || void 0), () => {
+				if (!this.append) {
+					const len = BigInt(length ?? 0);
+					if (this.position > len) this.position = len;
+				}
+			});
+		}
+		write(buffer) {
+			return suspend$3(() => {
+				const position = this.position;
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$4(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+					if (!this.append) this.position = position + BigInt(bytesWritten);
+					return bytesWritten;
+				}));
+			});
+		}
+		writeAllChunk(buffer) {
+			return suspend$3(() => {
+				const position = this.position;
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "writeAll"), (nodePosition) => flatMap(nodeWriteAll(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+					if (bytesWritten === 0) return fail$3(systemError({
+						module: "FileSystem",
+						method: "writeAll",
+						_tag: "WriteZero",
+						pathOrDescriptor: this.fd,
+						description: "write returned 0 bytes written"
+					}));
+					if (!this.append) this.position = position + BigInt(bytesWritten);
+					return bytesWritten < buffer.length ? this.writeAllChunk(buffer.subarray(bytesWritten)) : void_$1;
+				}));
+			});
+		}
+		writeAll(buffer) {
+			return buffer.length === 0 ? void_$1 : this.writeAllChunk(buffer);
+		}
+	}
+	return (fd, append) => new FileImpl(fd, append);
+})();
+const makeTempFileFactory = (method) => {
+	const makeDirectory = makeTempDirectoryFactory(method);
+	return fnUntraced(function* (options) {
+		const directory = yield* makeDirectory(options);
+		const random = Crypto.randomBytes(6).toString("hex");
+		const name = Path.join(directory, options?.suffix ? `${random}${options.suffix}` : random);
+		yield* writeFile(name, /* @__PURE__ */ new Uint8Array(0));
+		return name;
+	});
+};
+const makeTempFile = /*#__PURE__*/ makeTempFileFactory("makeTempFile");
+const makeTempFileScoped = /*#__PURE__*/ (() => {
+	const makeFile = /*#__PURE__*/ makeTempFileFactory("makeTempFileScoped");
+	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempFileScoped");
+	return (options) => acquireRelease(makeFile(options), (file) => orDie(removeDirectory(Path.dirname(file), {
+		recursive: true,
+		force: true
+	})));
+})();
+const readDirectory = (path, options) => tryPromise({
+	try: () => NFS.promises.readdir(path, options),
+	catch: (err) => handleErrnoException("FileSystem", "readDirectory")(err, [path])
+});
+const readFile = (path) => callback$1((resume, signal) => {
+	try {
+		NFS.readFile(path, { signal }, (err, data) => {
+			if (err) resume(fail$3(handleErrnoException("FileSystem", "readFile")(err, [path])));
+			else resume(succeed$3(data));
+		});
+	} catch (err) {
+		resume(fail$3(handleBadArgument("readFile")(err)));
+	}
+});
+const readLink = /*#__PURE__*/ (() => {
+	const nodeReadLink = /*#__PURE__*/ effectify(NFS.readlink, /*#__PURE__*/ handleErrnoException("FileSystem", "readLink"), /*#__PURE__*/ handleBadArgument("readLink"));
+	return (path) => nodeReadLink(path);
+})();
+const realPath = /*#__PURE__*/ (() => {
+	const nodeRealPath = /*#__PURE__*/ effectify(process.platform === "win32" ? NFS.realpath.native : NFS.realpath, /*#__PURE__*/ handleErrnoException("FileSystem", "realPath"), /*#__PURE__*/ handleBadArgument("realPath"));
+	return (path) => nodeRealPath(path);
+})();
+const rename = /*#__PURE__*/ (() => {
+	const nodeRename = /*#__PURE__*/ effectify(NFS.rename, /*#__PURE__*/ handleErrnoException("FileSystem", "rename"), /*#__PURE__*/ handleBadArgument("rename"));
+	return (oldPath, newPath) => nodeRename(oldPath, newPath);
+})();
+const makeFileInfo = (stat, method = "stat") => try_({
+	try: () => ({
+		type: stat.isFile() ? "File" : stat.isDirectory() ? "Directory" : stat.isSymbolicLink() ? "SymbolicLink" : stat.isBlockDevice() ? "BlockDevice" : stat.isCharacterDevice() ? "CharacterDevice" : stat.isFIFO() ? "FIFO" : stat.isSocket() ? "Socket" : "Unknown",
+		mtime: fromNullishOr(stat.mtime),
+		atime: fromNullishOr(stat.atime),
+		birthtime: fromNullishOr(stat.birthtime),
+		dev: toUint64(stat.dev),
+		rdev: toUint64Option(stat.rdev),
+		ino: toUint64Option(stat.ino),
+		mode: bigintToNumber(stat.mode, "mode"),
+		nlink: toUint64Option(stat.nlink),
+		uid: bigintToNumberOption(stat.uid),
+		gid: bigintToNumberOption(stat.gid),
+		size: bytes(stat.size),
+		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none(),
+		blocks: fromNullishOr(stat.blocks)
+	}),
+	catch: handleBadArgument(method)
+});
+const statFactory = (method, nodeStatFn) => {
+	const nodeStat = effectify(nodeStatFn, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	return (path) => flatMap(nodeStat(path, { bigint: true }), (stat) => makeFileInfo(stat, method));
+};
+const stat = /*#__PURE__*/ statFactory("stat", NFS.stat);
+const lstat = /*#__PURE__*/ statFactory("lstat", NFS.lstat);
+const symlink = /*#__PURE__*/ (() => {
+	const nodeSymlink = /*#__PURE__*/ effectify(NFS.symlink, /*#__PURE__*/ handleErrnoException("FileSystem", "symlink"), /*#__PURE__*/ handleBadArgument("symlink"));
+	return (target, path) => nodeSymlink(target, path);
+})();
+const truncate = /*#__PURE__*/ (() => {
+	const nodeTruncate = /*#__PURE__*/ effectify(NFS.truncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
+	return (path, length) => nodeTruncate(path, length);
+})();
+const utimes = /*#__PURE__*/ (() => {
+	const nodeUtimes = /*#__PURE__*/ effectify(NFS.utimes, /*#__PURE__*/ handleErrnoException("FileSystem", "utime"), /*#__PURE__*/ handleBadArgument("utime"));
+	return (path, atime, mtime) => nodeUtimes(path, atime, mtime);
+})();
+const watchNode = (path, info, options) => callback((queue) => acquireRelease(sync(() => {
+	const directory = info.type === "Directory" ? path : Path.dirname(path);
+	const watcher = NFS.watch(path, { recursive: options?.recursive ?? false }, (event, path) => {
+		if (!path) return;
+		switch (event) {
+			case "rename":
+				runFork(matchEffect(stat(Path.resolve(directory, path)), {
+					onSuccess: (_) => offer(queue, {
+						_tag: "Create",
+						path
+					}),
+					onFailure: (_) => offer(queue, {
+						_tag: "Remove",
+						path
+					})
+				}));
+				return;
+			case "change":
+				offerUnsafe(queue, {
+					_tag: "Update",
+					path
+				});
+				return;
+		}
+	});
+	watcher.on("error", (error) => {
+		failCauseUnsafe(queue, fail$5(systemError({
+			module: "FileSystem",
+			_tag: "Unknown",
+			method: "watch",
+			pathOrDescriptor: path,
+			cause: error
+		})));
+	});
+	watcher.on("close", () => {
+		endUnsafe(queue);
+	});
+	return watcher;
+}), (watcher) => sync(() => watcher.close())).pipe(tap(() => sync(() => options?.onReady?.()))));
+const watch = (backend, path, options) => all$1([stat(path), serviceOption(WatchBackend)]).pipe(map$4(([stat, callerBackend]) => orElse(callerBackend, () => backend).pipe(flatMap$4((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
+const writeFile = (path, data, options) => callback$1((resume, signal) => {
+	try {
+		NFS.writeFile(path, data, {
+			signal,
+			flag: options?.flag,
+			mode: options?.mode
+		}, (err) => {
+			if (err) resume(fail$3(handleErrnoException("FileSystem", "writeFile")(err, [path])));
+			else resume(void_$1);
+		});
+	} catch (err) {
+		resume(fail$3(handleBadArgument("writeFile")(err)));
+	}
+});
+const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$27({
+	access,
+	chmod,
+	chown,
+	copy,
+	copyFile,
+	glob,
+	link,
+	lstat,
+	makeDirectory,
+	makeTempDirectory,
+	makeTempDirectoryScoped,
+	makeTempFile,
+	makeTempFileScoped,
+	open,
+	readDirectory,
+	readFile,
+	readLink,
+	realPath,
+	remove,
+	rename,
+	stat,
+	symlink,
+	truncate,
+	utimes,
+	watch(path, options) {
+		return watch(backend, path, options);
+	},
+	writeFile
+}));
+// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+const layer$3 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
+// ../../packages/mcp/src/Updates.ts
+const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
+const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
+var Update = class extends Class("Update")({
+	url: String$2,
+	version: String$2
+}) {};
+var UpdateFailed = class extends TaggedError()("UpdateFailed", { detail: String$2 }) {
+	get message() {
+		return `The update could not be installed: ${this.detail}. Download tipee.mcpb from https://github.com/Floriferous/tipee-tools/releases/latest and open it.`;
+	}
+};
+const Installed = Union([
+	Struct({ status: Literal("up_to_date") }),
+	Struct({
+		path: String$2,
+		status: Literal("opened"),
+		version: String$2
+	}),
+	Struct({
+		path: String$2,
+		status: Literal("downloaded"),
+		version: String$2
+	}),
+	Struct({
+		status: Literal("instructions"),
+		url: String$2,
+		version: String$2
+	})
+]);
+const Release = Struct({ body: Struct({
+	html_url: String$2,
+	tag_name: String$2
+}) });
+const FETCH_TIMEOUT = "3 seconds";
+const DOWNLOAD_TIMEOUT = "60 seconds";
+const CHECKSUMS = "SHA256SUMS";
+const settings = all({
+	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(channel)),
+	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
+	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
+	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL))
+});
+const PART = /^\d+$/u;
+const isNewer = (candidate, current) => {
+	const parse = (version) => {
+		const parts = version.replace(/^v/u, "").split(".");
+		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
+	};
+	const left = parse(candidate);
+	const right = parse(current);
+	if (left === void 0 || right === void 0) return false;
+	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+		const difference = (left[index] ?? 0) - (right[index] ?? 0);
+		if (difference !== 0) return difference > 0;
+	}
+	return false;
+};
+const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
+const failed = (detail) => new UpdateFailed({ detail });
+const describe$1 = (error) => error instanceof Error ? error.message : String(error);
+var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
+	static layerNone = (current) => succeed$4(Updates, {
+		available: succeedNone,
+		current,
+		install: succeed$3({ status: "up_to_date" })
+	});
+	static layer = (current) => effect(Updates, gen(function* () {
+		const fs = yield* FileSystem;
+		const http = (yield* HttpClient).pipe(filterStatusOk);
+		const { channel, downloadBase, opener, releasesUrl } = yield* orDie(settings);
+		const latest = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
+			const version = body.tag_name.replace(/^v/u, "");
+			return isNewer(version, current) ? some(new Update({
+				url: body.html_url,
+				version
+			})) : none();
+		}));
+		const available = latest.pipe(orElseSucceed(() => none()));
+		const download = (version) => gen(function* () {
+			const asset = `tipee-${version}.mcpb`;
+			const base = `${downloadBase}/v${version}`;
+			const sums = yield* http.get(`${base}/${CHECKSUMS}`).pipe(flatMap((response) => response.text));
+			const expected = checksumOf(sums, asset);
+			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
+			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
+			const content = new Uint8Array(bytes);
+			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
+			const directory = yield* fs.makeTempDirectory({ prefix: "tipee-update-" });
+			const target = path.join(directory, asset);
+			yield* fs.writeFile(target, content);
+			return target;
+		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
+		const open = (target) => gen(function* () {
+			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
+			const child = yield* try_({
+				catch: cannotOpen,
+				try: () => spawn(opener, [target], {
+					detached: true,
+					stdio: "ignore"
+				})
+			});
+			yield* callback$1((resume) => {
+				child.once("spawn", () => {
+					child.unref();
+					resume(void_$1);
+				});
+				child.once("error", (cause) => {
+					resume(fail$3(cannotOpen(cause)));
+				});
+			});
+		});
+		return {
+			available,
+			current,
+			install: gen(function* () {
+				const found = yield* latest.pipe(mapError$2((cause) => failed(`could not look up the latest release on GitHub (${describe$1(cause)})`)));
+				if (isNone(found)) return { status: "up_to_date" };
+				const { url, version } = found.value;
+				if (channel !== "desktop") return {
+					status: "instructions",
+					url,
+					version
+				};
+				const target = yield* download(version);
+				if (opener === "") return {
+					path: target,
+					status: "downloaded",
+					version
+				};
+				yield* open(target);
+				return {
+					path: target,
+					status: "opened",
+					version
+				};
+			})
+		};
+	})).pipe(provide$2(layer$3));
+};
+// ../../packages/mcp/src/Check.ts
+const PAGE_SIZE = 100;
+const CONCURRENCY = 4;
+const defaultRange = map$4(now, (now) => ({
+	from: formatIsoDate(now),
+	to: formatIsoDate(add(now, { days: 6 }))
+}));
+const countOf = (result) => {
+	if (Array.isArray(result)) return result.length;
+	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
+	return 1;
+};
+const ORDER = [{
+	attribute: "last_name",
+	direction: "asc",
+	key: "resource.attribute"
+}];
+const unavailable = ({ report }) => {
+	if (report.status === "ok") return `Not called: ${report.name} returned nothing to call it with.`;
+	if (report.status === "failed") return `Not called: it needs an id from ${report.name}, which failed.`;
+	return `Not called: it needs an id from ${report.name}, which needs ${rightFor(operation(report.name))}.`;
+};
+const prober = (lookup) => {
+	const probe = (name, params) => invoke(operation(name), params, lookup).pipe(map$4((result) => ({
+		report: {
+			count: countOf(result),
+			name,
+			status: "ok"
+		},
+		result
+	})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
+		handled: true,
+		properties: { tool: "check_setup" }
+	})), {
+		report: {
+			error: reason.message,
+			name,
+			status: "failed"
+		},
+		result: void 0
+	})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
+		report: {
+			error: failure.message,
+			name,
+			status: "skipped"
+		},
+		result: void 0
+	})));
+	const probeWith = (name, source, params) => params === void 0 ? succeed$3({
+		report: {
+			error: unavailable(source),
+			name,
+			status: "skipped"
+		},
+		result: void 0
+	}) : probe(name, params);
+	return {
+		probe,
+		probeWith
+	};
+};
+const probes = fn("check_setup.probes")(function* ({ from, to }) {
+	const range = from !== void 0 && to !== void 0 ? {
+		from,
+		to
+	} : yield* defaultRange;
+	const dateRange = `${range.from}/${range.to}`;
+	const lookup = yield* cached(integrationLink);
+	const { probe, probeWith } = prober(lookup);
+	const chain = gen(function* () {
+		const kinds = yield* probe("kinds_list", {});
+		const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
+		const people = yield* probeWith("resources_list", kinds, employee && {
+			kind_id: employee.id,
+			orders: ORDER,
+			pagination: {
+				limit: PAGE_SIZE,
+				next_token: null
+			},
+			with_teams: true
+		});
+		const [somebody] = people.result?.data ?? [];
+		return [
+			kinds,
+			people,
+			yield* probeWith("resources_show_activity_rates", people, somebody && { resource_id: somebody.id })
+		];
+	});
+	const [[kinds, people, rates], teams, templates, schedules, absences, onCalls, timechecks] = yield* all$1([
+		chain,
+		probe("teams_list", {}),
+		probe("schedule_templates_list", {}),
+		probe("schedules_list", { date_range: dateRange }),
+		probe("absences_list", { date_range: dateRange }),
+		probe("on_calls_list", { date_range: dateRange }),
+		probe("timechecks_list", { filters: [{
+			key: "timecheck.date_range",
+			value: dateRange
+		}] }),
+		lookup
+	], { concurrency: CONCURRENCY });
+	const reports = [
+		kinds,
+		people,
+		teams,
+		templates,
+		schedules,
+		absences,
+		onCalls,
+		rates,
+		timechecks
+	].map((one) => one.report);
+	const integration = yield* lookup;
+	return {
+		date_range: dateRange,
+		endpoints: reports,
+		...integration === void 0 ? {} : { integration },
+		ok: reports.every((report) => report.status !== "failed")
+	};
+});
+const offering = (error, update) => new TipeeError({
+	fix: [error.fix, `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`].filter((part) => part !== void 0).join(" "),
+	reason: error.reason
+});
+const check = (report) => gen(function* () {
+	const updates = yield* Updates;
+	const lookup = yield* forkChild(updates.available);
+	const found = yield* report.pipe(catchTag("TipeeError", (error) => flatMap(join(lookup), (update) => fail$3(isSome(update) ? offering(error, update.value) : error))));
+	const update = yield* join(lookup);
+	return {
+		...found,
+		...isSome(update) ? { update: update.value } : {},
+		version: updates.current
+	};
+});
 // ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/AiError.js
 const HttpRequestDetails = /*#__PURE__*/ Struct({
 	method: Literals([
@@ -21089,7 +22110,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 		})
 	});
 });
-const layer$4 = (protocols) => effect(ServerRuntime)(make$1(protocols));
+const layer$2 = (protocols) => effect(ServerRuntime)(make$1(protocols));
 // ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
 const protocolVersion$3 = "2024-11-05";
 const optional$3 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$5(schema)), {
@@ -24302,7 +25323,7 @@ const layerWithRuntime = (options, transport) => effectDiscard(gen(function* () 
 	const runtime = yield* ServerRuntime;
 	yield* forkScoped(runWithRuntime(options, runtime, transport));
 })).pipe(provideMerge(McpServer.layer));
-const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$2(layer$4(options.protocols)), provide$2(layerProtocolStdio), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
+const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$2(layer$2(options.protocols)), provide$2(layerProtocolStdio), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
 const mcpStdioSerialization = (protocols) => {
 	const serialization = mcpJsonRpcSerialization({ contentType: "application/json-rpc" });
 	return RpcSerialization.of({
@@ -24580,992 +25601,114 @@ const decodeInvalidBatchExit = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__ */
 	exit: /*#__PURE__*/ TaggedStruct("Failure", { cause: Unknown })
 }));
 const isProtocolVersion = (version) => version === "2024-11-05" || version === "2025-03-26" || version === "2025-06-18" || version === "2025-11-25" || version === "2026-07-28";
-// ../../packages/mcp/src/Batch.ts
-const BATCHED = [
-	"schedules_create",
-	"schedules_update",
-	"resources_update"
-];
-const BUDGET_SECONDS = 50;
-const MILLIS_PER_SECOND = 1e3;
-const BatchReport = Struct({
-	applied: Int.annotate({ description: "How many items were applied: items[0] up to items[applied - 1]." }),
-	failed: optionalKey(Struct({
-		error: String$2,
-		index: Int.annotate({ description: "0-based position in items of the item that stopped the batch." }),
-		outcome: Literals(["not_applied", "unknown"]).annotate({ description: "not_applied: tipee changed nothing for this item. unknown: it may have been applied; read it back before sending it again." })
-	})),
-	message: String$2,
-	not_sent: Int.annotate({ description: "How many items after those were never sent." })
-});
-const plural = (count) => count === 1 ? "1 item" : `${count} items`;
-const SUFFIXES = {
-	few: "rd",
-	one: "st",
-	two: "nd"
-};
-const ordinals = new Intl.PluralRules("en", { type: "ordinal" });
-const nth = (index) => `items[${index}] (the ${index + 1}${SUFFIXES[ordinals.select(index + 1)] ?? "th"})`;
-const appliedPart = (count) => count === 1 ? "1 item applied (items[0])" : `${count} items applied (items[0] to items[${count - 1}])`;
-const cutShort = () => new TipeeError({
-	fix: "This write may have been applied: read it back before sending it again.",
-	reason: new Unreachable({ description: `no answer before the batch's ${BUDGET_SECONDS} s ran out` })
-});
-const failureOf = (cause) => {
-	const found = findError(cause);
-	if (isSuccess$1(found)) {
-		const error = found.success;
-		return {
-			error: error.message,
-			outcome: outcomeUnknown(error) ? "unknown" : "not_applied"
-		};
-	}
-	if (hasInterruptsOnly(cause)) return;
-	const crash = squash(cause);
-	return {
-		error: `it failed unexpectedly: ${crash instanceof Error ? crash.message : String(crash)}`,
-		outcome: "unknown"
+// ../../packages/mcp/src/Observed.ts
+const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
+const MAX_PARAMS = 30;
+const paramsOf = (params, prefix = "") => typeof params === "object" && params !== null && !Array.isArray(params) ? Object.entries(params).flatMap(([key, value]) => {
+	const name = prefix === "" ? key : `${prefix}.${key}`;
+	const nested = paramsOf(value, name);
+	return nested.length === 0 ? [name] : nested;
+}).toSorted().slice(0, MAX_PARAMS) : [];
+const detailOf = (failure) => {
+	if (!(failure instanceof TipeeError)) return {};
+	const { reason } = failure;
+	if (reason._tag === "Rejected") return {
+		error_code: reason.code,
+		error_fields: reason.fields,
+		http_status: reason.status
 	};
+	if (reason._tag === "UnexpectedShape") return { http_status: reason.status };
+	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
 };
-const stoppedAtFirst = (error, count) => count === 1 ? error : new TipeeError({
-	fix: [error.fix, `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`].filter((part) => part !== void 0).join(" "),
-	reason: error.reason
-});
-const runBatch = (items, send) => gen(function* () {
-	const started = yield* currentTimeMillis;
-	for (const [index, item] of items.entries()) {
-		const elapsed = (yield* currentTimeMillis) - started;
-		if (index > 0 && elapsed >= 30 * MILLIS_PER_SECOND) {
-			const left = items.length - index;
-			return {
-				applied: index,
-				message: `${appliedPart(index)}, then the batch stopped after 30 s to stay within the tool call's time: send the remaining ${plural(left)}, from ${nth(index)}, in a new call.`,
-				not_sent: left
-			};
-		}
-		const exit$3 = yield* exit(send(item, index).pipe(timeoutOrElse({
-			duration: millis(BUDGET_SECONDS * MILLIS_PER_SECOND - elapsed),
-			orElse: () => fail$3(cutShort())
-		})));
-		if (isFailure(exit$3)) {
-			const failure = failureOf(exit$3.cause);
-			if (failure === void 0) return yield* failCause$3(exit$3.cause);
-			if (index === 0) {
-				const error = findError(exit$3.cause);
-				return yield* isSuccess$1(error) ? fail$3(stoppedAtFirst(error.success, items.length)) : failCause$3(exit$3.cause);
-			}
-			const left = items.length - index - 1;
-			const what = failure.outcome === "unknown" ? `${nth(index)} may or may not have been applied: read it back before sending it again` : `${nth(index)} failed and changed nothing: fix it and send it again with the rest`;
-			return {
-				applied: index,
-				failed: {
-					error: failure.error,
-					index,
-					outcome: failure.outcome
-				},
-				message: `${appliedPart(index)}. ${what}; the ${plural(left)} after it were not sent. Nothing is rolled back.`,
-				not_sent: left
-			};
-		}
-	}
-	return {
-		applied: items.length,
-		message: `All ${plural(items.length)} applied.`,
-		not_sent: 0
-	};
-});
-// ../../packages/mcp/src/Install.ts
-const UUID_PARTS = [
-	8,
-	4,
-	4,
-	4,
-	12
-];
-const channelOf = (entry) => {
-	const unixy = entry.replaceAll("\\", "/");
-	if (unixy.includes("Claude Extensions")) return "desktop";
-	return unixy.includes(".claude/plugins/") ? "plugin" : "dev";
-};
-const channel = channelOf(argv[1] ?? "");
-const shaped = (hex) => {
-	let at = 0;
-	return UUID_PARTS.map((length) => {
-		const part = hex.slice(at, at + length);
-		at += length;
-		return part;
-	}).join("-");
-};
-const username = () => {
-	try {
-		return userInfo().username;
-	} catch {
-		return env.USER ?? env.USERNAME ?? "";
-	}
-};
-const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${username()}`).digest("hex"));
-// ../../packages/mcp/src/Telemetry.ts
-const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
-const POSTHOG_HOST = "https://eu.i.posthog.com";
-const INTERVAL = "2 seconds";
-const SEND_TIMEOUT = "5 seconds";
-const DRAIN_TIMEOUT = "2 seconds";
-const SEND_RETRIES = 2;
-const FRAME_LIMIT = 30;
-const settings$1 = all({
-	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
-	instance: String$1("TIPEE_INSTANCE").pipe(map$1((raw) => getOrElse(normalizeInstance(raw), () => "")), withDefault("")),
-	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY))
-});
-const silent = {
-	capture: () => void_$1,
-	exception: () => void_$1,
-	flush: void_$1
-};
-const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
-const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
-const scrubbed = (file) => {
-	const ours = OURS.exec(file)?.groups?.tail;
-	if (ours !== void 0) return {
-		filename: ours,
-		inApp: true
-	};
-	return {
-		filename: file.startsWith("node:") ? file : path.basename(file),
-		inApp: false
-	};
-};
-const framesOf = (stack) => (stack ?? "").split("\n").flatMap((line) => {
-	const groups = FRAME.exec(line)?.groups;
-	if (groups?.file === void 0) return [];
-	const { filename, inApp } = scrubbed(groups.file);
-	return [{
-		...groups.col === void 0 ? {} : { colno: Number(groups.col) },
-		filename,
-		function: groups.fn ?? "<anonymous>",
-		in_app: inApp,
-		...groups.line === void 0 ? {} : { lineno: Number(groups.line) },
-		platform: "node:javascript"
-	}];
-}).slice(0, FRAME_LIMIT);
-const withheld = (reason) => {
-	if (reason._tag === "UnexpectedShape" || reason._tag === "InvalidRequest") {
-		const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
-		return paths.size === 0 ? reason._tag : `${reason._tag} at ${[...paths].join(", ")}`;
-	}
-	if (reason._tag === "Rejected") {
-		const at = reason.fields === void 0 ? "" : ` at ${reason.fields.join(", ")}`;
-		const code = reason.code === void 0 ? "" : `, ${reason.code}`;
-		return `Rejected (HTTP ${reason.status}${code})${at}`;
-	}
-	if (reason._tag === "Internal") return reason.message;
-	return "status" in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
-};
-const describe$2 = (error) => {
-	if (error instanceof TipeeError) return {
-		frames: [],
-		type: `Tipee${error.reason._tag}`,
-		value: withheld(error.reason)
-	};
-	if (error instanceof Error) return {
-		frames: framesOf(error.stack),
-		type: error.name,
-		value: error.message
-	};
-	return {
-		frames: [],
-		type: "Unknown",
-		value: String(error)
-	};
-};
-var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
-	static layerOff = succeed$4(Telemetry, silent);
-	static layer = (base) => effect(Telemetry, gen(function* () {
-		const config = yield* orDie(settings$1);
-		const http = (yield* HttpClient).pipe(retryTransient({
-			schedule: exponential("500 millis"),
-			times: SEND_RETRIES
-		}));
-		const distinctId = installationId();
-		const launchId = randomUUID();
-		const queue = yield* unbounded$1();
-		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
-			api_key: config.key,
-			batch: batch.map((event) => ({
-				...event,
-				distinct_id: distinctId
-			}))
-		}), flatMap((request) => http.execute(request)), timeout(SEND_TIMEOUT), ignore$1);
-		const drain = flatMap(clear(queue), (batch) => send(batch));
-		yield* forkScoped(forever(andThen(sleep(INTERVAL), drain)));
-		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
-		const profile = {
-			arch,
-			channel,
-			instance: config.instance,
-			node_version: version,
-			os: platform,
-			tipee_api_version: TIPEE_API_VERSION,
-			...base
-		};
-		const properties = (own) => ({
-			$groups: { instance: config.instance },
-			$lib: "tipee-mcp",
-			$set: profile,
-			launch_id: launchId,
-			...profile,
-			...own
-		});
-		const enqueue = (event, own) => asVoid(offer(queue, {
-			event,
-			properties: properties(own),
-			timestamp: (/* @__PURE__ */ new Date()).toISOString()
-		}));
-		return {
-			capture: enqueue,
-			exception: (error, { handled, properties: own }) => {
-				const { frames, type, value } = describe$2(error);
-				return enqueue("$exception", {
-					...own,
-					$exception_level: "error",
-					$exception_list: [{
-						mechanism: {
-							handled,
-							type: "generic"
-						},
-						...frames.length === 0 ? {} : { stacktrace: {
-							frames,
-							type: "raw"
-						} },
-						type,
-						value
-					}]
-				});
-			},
-			flush: drain
-		};
-	}));
-};
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/utils.js
-const handleErrnoException = (module, method) => (err, [path]) => {
-	let reason = "Unknown";
-	switch (err.code) {
-		case "ENOENT":
-			reason = "NotFound";
-			break;
-		case "EACCES":
-		case "EPERM":
-			reason = "PermissionDenied";
-			break;
-		case "EEXIST":
-			reason = "AlreadyExists";
-			break;
-		case "EISDIR":
-			reason = "BadResource";
-			break;
-		case "ENOTDIR":
-			reason = "BadResource";
-			break;
-		case "EBUSY":
-			reason = "Busy";
-			break;
-		case "ELOOP": reason = "BadResource";
-	}
-	return systemError({
-		_tag: reason,
-		module,
-		method,
-		pathOrDescriptor: path,
-		syscall: err.syscall,
-		cause: err
-	});
-};
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
-const handleBadArgument = (method) => (err) => badArgument({
-	module: "FileSystem",
-	method,
-	description: err.message ?? String(err)
-});
-const bigintToNumber = (value, field) => {
-	const number = Number(value);
-	if (!Number.isSafeInteger(number)) throw new RangeError(`${field} exceeds the safe integer range: ${value}`);
-	return number;
-};
-const bigintToNumberOption = (value) => flatMap$4(fromNullishOr(value), toNumber$1);
-const toUint64 = (value) => BigInt.asUintN(64, value);
-const toUint64Option = (value) => map$10(fromNullishOr(value), toUint64);
-const positionToNumber = (position, method) => try_({
-	try: () => bigintToNumber(position, "position"),
-	catch: handleBadArgument(method)
-});
-const access = /*#__PURE__*/ (() => {
-	const nodeAccess = /*#__PURE__*/ effectify(NFS.access, /*#__PURE__*/ handleErrnoException("FileSystem", "access"), /*#__PURE__*/ handleBadArgument("access"));
-	return (path, options) => {
-		let mode = NFS.constants.F_OK;
-		if (options?.readable) mode |= NFS.constants.R_OK;
-		if (options?.writable) mode |= NFS.constants.W_OK;
-		return nodeAccess(path, mode);
-	};
-})();
-const copy = /*#__PURE__*/ (() => {
-	const nodeCp = /*#__PURE__*/ effectify(NFS.cp, /*#__PURE__*/ handleErrnoException("FileSystem", "copy"), /*#__PURE__*/ handleBadArgument("copy"));
-	return (fromPath, toPath, options) => nodeCp(fromPath, toPath, {
-		force: options?.overwrite ?? false,
-		preserveTimestamps: options?.preserveTimestamps ?? false,
-		recursive: true
-	});
-})();
-const copyFile = /*#__PURE__*/ (() => {
-	const nodeCopyFile = /*#__PURE__*/ effectify(NFS.copyFile, /*#__PURE__*/ handleErrnoException("FileSystem", "copyFile"), /*#__PURE__*/ handleBadArgument("copyFile"));
-	return (fromPath, toPath) => nodeCopyFile(fromPath, toPath);
-})();
-const chmod = /*#__PURE__*/ (() => {
-	const nodeChmod = /*#__PURE__*/ effectify(NFS.chmod, /*#__PURE__*/ handleErrnoException("FileSystem", "chmod"), /*#__PURE__*/ handleBadArgument("chmod"));
-	return (path, mode) => nodeChmod(path, mode);
-})();
-const chown = /*#__PURE__*/ (() => {
-	const nodeChown = /*#__PURE__*/ effectify(NFS.chown, /*#__PURE__*/ handleErrnoException("FileSystem", "chown"), /*#__PURE__*/ handleBadArgument("chown"));
-	return (path, uid, gid) => nodeChown(path, uid, gid);
-})();
-const glob = /*#__PURE__*/ (() => {
-	const nodeGlob = /*#__PURE__*/ effectify(NFS.glob, /*#__PURE__*/ handleErrnoException("FileSystem", "glob"), /*#__PURE__*/ handleBadArgument("glob"));
-	return (pattern, options) => nodeGlob(pattern, {
-		cwd: options?.root,
-		exclude: options?.exclude
-	});
-})();
-const link = /*#__PURE__*/ (() => {
-	const nodeLink = /*#__PURE__*/ effectify(NFS.link, /*#__PURE__*/ handleErrnoException("FileSystem", "link"), /*#__PURE__*/ handleBadArgument("link"));
-	return (existingPath, newPath) => nodeLink(existingPath, newPath);
-})();
-const makeDirectory = /*#__PURE__*/ (() => {
-	const nodeMkdir = /*#__PURE__*/ effectify(NFS.mkdir, /*#__PURE__*/ handleErrnoException("FileSystem", "makeDirectory"), /*#__PURE__*/ handleBadArgument("makeDirectory"));
-	return (path, options) => nodeMkdir(path, {
-		recursive: options?.recursive ?? false,
-		mode: options?.mode
-	});
-})();
-const makeTempDirectoryFactory = (method) => {
-	const nodeMkdtemp = effectify(NFS.mkdtemp, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	return (options) => suspend$3(() => {
-		const prefix = options?.prefix ?? "";
-		const directory = typeof options?.directory === "string" ? Path.join(options.directory, ".") : OS.tmpdir();
-		return nodeMkdtemp(prefix ? Path.join(directory, prefix) : directory + "/");
-	});
-};
-const makeTempDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectory");
-const removeFactory = (method) => {
-	const nodeRm = effectify(NFS.rm, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	return (path, options) => nodeRm(path, {
-		recursive: options?.recursive ?? false,
-		force: options?.force ?? false
-	});
-};
-const remove = /*#__PURE__*/ removeFactory("remove");
-const makeTempDirectoryScoped = /*#__PURE__*/ (() => {
-	const makeDirectory = /*#__PURE__*/ makeTempDirectoryFactory("makeTempDirectoryScoped");
-	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempDirectoryScoped");
-	return (options) => acquireRelease(makeDirectory(options), (directory) => orDie(removeDirectory(directory, {
-		recursive: true,
-		force: true
-	})));
-})();
-const openFlagBits = (flag) => {
-	const { O_APPEND, O_CREAT, O_EXCL, O_RDONLY, O_RDWR, O_TRUNC, O_WRONLY } = NFS.constants;
-	switch (flag) {
-		case "r": return O_RDONLY;
-		case "r+": return O_RDWR;
-		case "w": return O_TRUNC | O_CREAT | O_WRONLY;
-		case "wx": return O_TRUNC | O_CREAT | O_WRONLY | O_EXCL;
-		case "w+": return O_TRUNC | O_CREAT | O_RDWR;
-		case "wx+": return O_TRUNC | O_CREAT | O_RDWR | O_EXCL;
-		case "a": return O_APPEND | O_CREAT | O_WRONLY;
-		case "ax": return O_APPEND | O_CREAT | O_WRONLY | O_EXCL;
-		case "a+": return O_APPEND | O_CREAT | O_RDWR;
-		case "ax+": return O_APPEND | O_CREAT | O_RDWR | O_EXCL;
-	}
-};
-const noFollowFlags = (method, flag) => suspend$3(() => {
-	const { O_NOFOLLOW } = NFS.constants;
-	if (process.platform === "win32" || typeof O_NOFOLLOW !== "number" || O_NOFOLLOW === 0) return fail$3(badArgument({
-		module: "FileSystem",
-		method,
-		description: "noFollow is not supported on this platform"
-	}));
-	return succeed$3(openFlagBits(flag) | O_NOFOLLOW);
-});
-const openFactory = (method) => {
-	const nodeOpen = effectify(NFS.open, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	const nodeClose = effectify(NFS.close, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	return (path, options) => pipe(acquireRelease(options?.noFollow === true ? flatMap(noFollowFlags(method, options.flag ?? "r"), (flags) => nodeOpen(path, flags, options.mode)) : nodeOpen(path, options?.flag ?? "r", options?.mode), (fd) => orDie(nodeClose(fd))), map$4((fd) => makeFile(fd, options?.flag?.startsWith("a") ?? false)));
-};
-const open = /*#__PURE__*/ openFactory("open");
-const negativePosition = (method) => badArgument({
-	module: "FileSystem",
-	method,
-	description: "Cannot read before the start of the file"
-});
-const makeFile = /*#__PURE__*/ (() => {
-	const nodeReadFactory = (method) => effectify(NFS.read, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	const nodeRead = /*#__PURE__*/ nodeReadFactory("read");
-	const nodeReadAlloc = /*#__PURE__*/ nodeReadFactory("readAlloc");
-	const nodeStat = /*#__PURE__*/ effectify(NFS.fstat, /*#__PURE__*/ handleErrnoException("FileSystem", "stat"), /*#__PURE__*/ handleBadArgument("stat"));
-	const nodeTruncate = /*#__PURE__*/ effectify(NFS.ftruncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
-	const nodeSync = /*#__PURE__*/ effectify(NFS.fsync, /*#__PURE__*/ handleErrnoException("FileSystem", "sync"), /*#__PURE__*/ handleBadArgument("sync"));
-	const nodeWriteFactory = (method) => effectify(NFS.write, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	const nodeWrite = /*#__PURE__*/ nodeWriteFactory("write");
-	const nodeWriteAll = /*#__PURE__*/ nodeWriteFactory("writeAll");
-	class FileImpl {
-		[FileTypeId];
-		fd;
-		append;
-		position = /*#__PURE__*/ BigInt(0);
-		constructor(fd, append) {
-			this[FileTypeId] = FileTypeId;
-			this.fd = fd;
-			this.append = append;
-		}
-		get stat() {
-			return flatMap(nodeStat(this.fd, { bigint: true }), makeFileInfo);
-		}
-		get sync() {
-			return nodeSync(this.fd);
-		}
-		seek(offset, from) {
-			return suspend$3(() => {
-				const position = from === "start" ? offset : this.position + offset;
-				if (position < BigInt(0)) return fail$3(badArgument({
-					module: "FileSystem",
-					method: "seek",
-					description: "Cannot seek before the start of the file"
-				}));
-				this.position = position;
-				return succeed$3(position);
-			});
-		}
-		read(buffer, options) {
-			return suspend$3(() => {
-				const explicit = options?.position;
-				if (explicit !== void 0) return explicit < BigInt(0) ? fail$3(negativePosition("read")) : nodeRead(this.fd, {
-					buffer,
-					position: explicit
-				});
-				const position = this.position;
-				return map$4(nodeRead(this.fd, {
-					buffer,
-					position
-				}), (bytesRead) => {
-					this.position = position + BigInt(bytesRead);
-					return bytesRead;
-				});
-			});
-		}
-		readAlloc(size, options) {
-			return suspend$3(() => {
-				try {
-					if (!Number.isInteger(size) || size < 0) throw new RangeError("size must be a non-negative integer");
-					const explicit = options?.position;
-					if (explicit !== void 0 && explicit < BigInt(0)) return fail$3(negativePosition("readAlloc"));
-					const buffer = Buffer.allocUnsafeSlow(size);
-					const position = explicit ?? this.position;
-					return map$4(nodeReadAlloc(this.fd, {
-						buffer,
-						position
-					}), (bytesRead) => {
-						if (bytesRead === 0) return none();
-						if (explicit === void 0) this.position = position + BigInt(bytesRead);
-						if (bytesRead === size) return some(buffer);
-						const dst = Buffer.allocUnsafeSlow(bytesRead);
-						buffer.copy(dst, 0, 0, bytesRead);
-						return some(dst);
-					});
-				} catch (cause) {
-					return fail$3(handleBadArgument("readAlloc")(cause));
-				}
-			});
-		}
-		truncate(length) {
-			return map$4(nodeTruncate(this.fd, length || void 0), () => {
-				if (!this.append) {
-					const len = BigInt(length ?? 0);
-					if (this.position > len) this.position = len;
-				}
-			});
-		}
-		write(buffer) {
-			return suspend$3(() => {
-				const position = this.position;
-				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$4(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
-					if (!this.append) this.position = position + BigInt(bytesWritten);
-					return bytesWritten;
-				}));
-			});
-		}
-		writeAllChunk(buffer) {
-			return suspend$3(() => {
-				const position = this.position;
-				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "writeAll"), (nodePosition) => flatMap(nodeWriteAll(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
-					if (bytesWritten === 0) return fail$3(systemError({
-						module: "FileSystem",
-						method: "writeAll",
-						_tag: "WriteZero",
-						pathOrDescriptor: this.fd,
-						description: "write returned 0 bytes written"
-					}));
-					if (!this.append) this.position = position + BigInt(bytesWritten);
-					return bytesWritten < buffer.length ? this.writeAllChunk(buffer.subarray(bytesWritten)) : void_$1;
-				}));
-			});
-		}
-		writeAll(buffer) {
-			return buffer.length === 0 ? void_$1 : this.writeAllChunk(buffer);
-		}
-	}
-	return (fd, append) => new FileImpl(fd, append);
-})();
-const makeTempFileFactory = (method) => {
-	const makeDirectory = makeTempDirectoryFactory(method);
-	return fnUntraced(function* (options) {
-		const directory = yield* makeDirectory(options);
-		const random = Crypto.randomBytes(6).toString("hex");
-		const name = Path.join(directory, options?.suffix ? `${random}${options.suffix}` : random);
-		yield* writeFile(name, /* @__PURE__ */ new Uint8Array(0));
-		return name;
-	});
-};
-const makeTempFile = /*#__PURE__*/ makeTempFileFactory("makeTempFile");
-const makeTempFileScoped = /*#__PURE__*/ (() => {
-	const makeFile = /*#__PURE__*/ makeTempFileFactory("makeTempFileScoped");
-	const removeDirectory = /*#__PURE__*/ removeFactory("makeTempFileScoped");
-	return (options) => acquireRelease(makeFile(options), (file) => orDie(removeDirectory(Path.dirname(file), {
-		recursive: true,
-		force: true
-	})));
-})();
-const readDirectory = (path, options) => tryPromise({
-	try: () => NFS.promises.readdir(path, options),
-	catch: (err) => handleErrnoException("FileSystem", "readDirectory")(err, [path])
-});
-const readFile = (path) => callback$1((resume, signal) => {
-	try {
-		NFS.readFile(path, { signal }, (err, data) => {
-			if (err) resume(fail$3(handleErrnoException("FileSystem", "readFile")(err, [path])));
-			else resume(succeed$3(data));
-		});
-	} catch (err) {
-		resume(fail$3(handleBadArgument("readFile")(err)));
-	}
-});
-const readLink = /*#__PURE__*/ (() => {
-	const nodeReadLink = /*#__PURE__*/ effectify(NFS.readlink, /*#__PURE__*/ handleErrnoException("FileSystem", "readLink"), /*#__PURE__*/ handleBadArgument("readLink"));
-	return (path) => nodeReadLink(path);
-})();
-const realPath = /*#__PURE__*/ (() => {
-	const nodeRealPath = /*#__PURE__*/ effectify(process.platform === "win32" ? NFS.realpath.native : NFS.realpath, /*#__PURE__*/ handleErrnoException("FileSystem", "realPath"), /*#__PURE__*/ handleBadArgument("realPath"));
-	return (path) => nodeRealPath(path);
-})();
-const rename = /*#__PURE__*/ (() => {
-	const nodeRename = /*#__PURE__*/ effectify(NFS.rename, /*#__PURE__*/ handleErrnoException("FileSystem", "rename"), /*#__PURE__*/ handleBadArgument("rename"));
-	return (oldPath, newPath) => nodeRename(oldPath, newPath);
-})();
-const makeFileInfo = (stat, method = "stat") => try_({
-	try: () => ({
-		type: stat.isFile() ? "File" : stat.isDirectory() ? "Directory" : stat.isSymbolicLink() ? "SymbolicLink" : stat.isBlockDevice() ? "BlockDevice" : stat.isCharacterDevice() ? "CharacterDevice" : stat.isFIFO() ? "FIFO" : stat.isSocket() ? "Socket" : "Unknown",
-		mtime: fromNullishOr(stat.mtime),
-		atime: fromNullishOr(stat.atime),
-		birthtime: fromNullishOr(stat.birthtime),
-		dev: toUint64(stat.dev),
-		rdev: toUint64Option(stat.rdev),
-		ino: toUint64Option(stat.ino),
-		mode: bigintToNumber(stat.mode, "mode"),
-		nlink: toUint64Option(stat.nlink),
-		uid: bigintToNumberOption(stat.uid),
-		gid: bigintToNumberOption(stat.gid),
-		size: bytes(stat.size),
-		blksize: stat.blksize !== void 0 ? some(bytes(stat.blksize)) : none(),
-		blocks: fromNullishOr(stat.blocks)
-	}),
-	catch: handleBadArgument(method)
-});
-const statFactory = (method, nodeStatFn) => {
-	const nodeStat = effectify(nodeStatFn, handleErrnoException("FileSystem", method), handleBadArgument(method));
-	return (path) => flatMap(nodeStat(path, { bigint: true }), (stat) => makeFileInfo(stat, method));
-};
-const stat = /*#__PURE__*/ statFactory("stat", NFS.stat);
-const lstat = /*#__PURE__*/ statFactory("lstat", NFS.lstat);
-const symlink = /*#__PURE__*/ (() => {
-	const nodeSymlink = /*#__PURE__*/ effectify(NFS.symlink, /*#__PURE__*/ handleErrnoException("FileSystem", "symlink"), /*#__PURE__*/ handleBadArgument("symlink"));
-	return (target, path) => nodeSymlink(target, path);
-})();
-const truncate = /*#__PURE__*/ (() => {
-	const nodeTruncate = /*#__PURE__*/ effectify(NFS.truncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
-	return (path, length) => nodeTruncate(path, length);
-})();
-const utimes = /*#__PURE__*/ (() => {
-	const nodeUtimes = /*#__PURE__*/ effectify(NFS.utimes, /*#__PURE__*/ handleErrnoException("FileSystem", "utime"), /*#__PURE__*/ handleBadArgument("utime"));
-	return (path, atime, mtime) => nodeUtimes(path, atime, mtime);
-})();
-const watchNode = (path, info, options) => callback((queue) => acquireRelease(sync(() => {
-	const directory = info.type === "Directory" ? path : Path.dirname(path);
-	const watcher = NFS.watch(path, { recursive: options?.recursive ?? false }, (event, path) => {
-		if (!path) return;
-		switch (event) {
-			case "rename":
-				runFork(matchEffect(stat(Path.resolve(directory, path)), {
-					onSuccess: (_) => offer(queue, {
-						_tag: "Create",
-						path
-					}),
-					onFailure: (_) => offer(queue, {
-						_tag: "Remove",
-						path
-					})
-				}));
-				return;
-			case "change":
-				offerUnsafe(queue, {
-					_tag: "Update",
-					path
-				});
-				return;
-		}
-	});
-	watcher.on("error", (error) => {
-		failCauseUnsafe(queue, fail$5(systemError({
-			module: "FileSystem",
-			_tag: "Unknown",
-			method: "watch",
-			pathOrDescriptor: path,
-			cause: error
-		})));
-	});
-	watcher.on("close", () => {
-		endUnsafe(queue);
-	});
-	return watcher;
-}), (watcher) => sync(() => watcher.close())).pipe(tap(() => sync(() => options?.onReady?.()))));
-const watch = (backend, path, options) => all$1([stat(path), serviceOption(WatchBackend)]).pipe(map$4(([stat, callerBackend]) => orElse(callerBackend, () => backend).pipe(flatMap$4((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
-const writeFile = (path, data, options) => callback$1((resume, signal) => {
-	try {
-		NFS.writeFile(path, data, {
-			signal,
-			flag: options?.flag,
-			mode: options?.mode
-		}, (err) => {
-			if (err) resume(fail$3(handleErrnoException("FileSystem", "writeFile")(err, [path])));
-			else resume(void_$1);
-		});
-	} catch (err) {
-		resume(fail$3(handleBadArgument("writeFile")(err)));
-	}
-});
-const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$27({
-	access,
-	chmod,
-	chown,
-	copy,
-	copyFile,
-	glob,
-	link,
-	lstat,
-	makeDirectory,
-	makeTempDirectory,
-	makeTempDirectoryScoped,
-	makeTempFile,
-	makeTempFileScoped,
-	open,
-	readDirectory,
-	readFile,
-	readLink,
-	realPath,
-	remove,
-	rename,
-	stat,
-	symlink,
-	truncate,
-	utimes,
-	watch(path, options) {
-		return watch(backend, path, options);
-	},
-	writeFile
-}));
-// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeFileSystem.js
-const layer$2 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
-// ../../packages/mcp/src/Updates.ts
-const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
-const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
-var Update = class extends Class("Update")({
-	url: String$2,
-	version: String$2
-}) {};
-var UpdateFailed = class extends TaggedError()("UpdateFailed", { detail: String$2 }) {
-	get message() {
-		return `The update could not be installed: ${this.detail}. Download tipee.mcpb from https://github.com/Floriferous/tipee-tools/releases/latest and open it.`;
-	}
-};
-const Installed = Union([
-	Struct({ status: Literal("up_to_date") }),
-	Struct({
-		path: String$2,
-		status: Literal("opened"),
-		version: String$2
-	}),
-	Struct({
-		path: String$2,
-		status: Literal("downloaded"),
-		version: String$2
-	}),
-	Struct({
-		status: Literal("instructions"),
-		url: String$2,
-		version: String$2
-	})
+const offSpecOf = (value) => value instanceof AcceptedOffSpec ? { off_spec_status: value.status } : {};
+const REPORTED = /* @__PURE__ */ new Set([
+	"UnexpectedShape",
+	"UnexpectedStatus",
+	"InvalidRequest",
+	"Internal"
 ]);
-const Release = Struct({ body: Struct({
-	html_url: String$2,
-	tag_name: String$2
-}) });
-const FETCH_TIMEOUT = "3 seconds";
-const DOWNLOAD_TIMEOUT = "60 seconds";
-const CHECKSUMS = "SHA256SUMS";
-const settings = all({
-	channel: String$1("TIPEE_UPDATE_CHANNEL").pipe(withDefault(channel)),
-	downloadBase: String$1("TIPEE_DOWNLOAD_BASE").pipe(withDefault(DOWNLOAD_BASE)),
-	opener: String$1("TIPEE_OPENER").pipe(withDefault(platform === "darwin" ? "open" : "")),
-	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL))
-});
-const PART = /^\d+$/u;
-const isNewer = (candidate, current) => {
-	const parse = (version) => {
-		const parts = version.replace(/^v/u, "").split(".");
-		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
-	};
-	const left = parse(candidate);
-	const right = parse(current);
-	if (left === void 0 || right === void 0) return false;
-	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
-		const difference = (left[index] ?? 0) - (right[index] ?? 0);
-		if (difference !== 0) return difference > 0;
-	}
-	return false;
-};
-const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
-const failed = (detail) => new UpdateFailed({ detail });
-const describe$1 = (error) => error instanceof Error ? error.message : String(error);
-var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
-	static layerNone = (current) => succeed$4(Updates, {
-		available: succeedNone,
-		current,
-		install: succeed$3({ status: "up_to_date" })
-	});
-	static layer = (current) => effect(Updates, gen(function* () {
-		const fs = yield* FileSystem;
-		const http = (yield* HttpClient).pipe(filterStatusOk);
-		const { channel, downloadBase, opener, releasesUrl } = yield* orDie(settings);
-		const latest = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
-			const version = body.tag_name.replace(/^v/u, "");
-			return isNewer(version, current) ? some(new Update({
-				url: body.html_url,
-				version
-			})) : none();
-		}));
-		const available = latest.pipe(orElseSucceed(() => none()));
-		const download = (version) => gen(function* () {
-			const asset = `tipee-${version}.mcpb`;
-			const base = `${downloadBase}/v${version}`;
-			const sums = yield* http.get(`${base}/${CHECKSUMS}`).pipe(flatMap((response) => response.text));
-			const expected = checksumOf(sums, asset);
-			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
-			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
-			const content = new Uint8Array(bytes);
-			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
-			const directory = yield* fs.makeTempDirectory({ prefix: "tipee-update-" });
-			const target = path.join(directory, asset);
-			yield* fs.writeFile(target, content);
-			return target;
-		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
-		const open = (target) => gen(function* () {
-			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
-			const child = yield* try_({
-				catch: cannotOpen,
-				try: () => spawn(opener, [target], {
-					detached: true,
-					stdio: "ignore"
-				})
-			});
-			yield* callback$1((resume) => {
-				child.once("spawn", () => {
-					child.unref();
-					resume(void_$1);
-				});
-				child.once("error", (cause) => {
-					resume(fail$3(cannotOpen(cause)));
-				});
-			});
-		});
-		return {
-			available,
-			current,
-			install: gen(function* () {
-				const found = yield* latest.pipe(mapError$2((cause) => failed(`could not look up the latest release on GitHub (${describe$1(cause)})`)));
-				if (isNone(found)) return { status: "up_to_date" };
-				const { url, version } = found.value;
-				if (channel !== "desktop") return {
-					status: "instructions",
-					url,
-					version
-				};
-				const target = yield* download(version);
-				if (opener === "") return {
-					path: target,
-					status: "downloaded",
-					version
-				};
-				yield* open(target);
-				return {
-					path: target,
-					status: "opened",
-					version
-				};
-			})
-		};
-	})).pipe(provide$2(layer$2));
-};
-// ../../packages/mcp/src/Check.ts
-const PAGE_SIZE = 100;
-const CONCURRENCY = 4;
-const defaultRange = map$4(now, (now) => ({
-	from: formatIsoDate(now),
-	to: formatIsoDate(add(now, { days: 6 }))
+const INVALID_STATUSES = /* @__PURE__ */ new Set([400, 422]);
+const reported = (failure) => failure instanceof TipeeError && (REPORTED.has(failure.reason._tag) || failure.reason._tag === "Rejected" && INVALID_STATUSES.has(failure.reason.status));
+const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
+	onNone: () => ({}),
+	onSome: ({ clientInfo, protocolVersion }) => ({
+		mcp_client: clientInfo.name,
+		mcp_client_version: clientInfo.version,
+		mcp_protocol: protocolVersion
+	})
 }));
-const countOf = (result) => {
-	if (Array.isArray(result)) return result.length;
-	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
-	return 1;
+const stoppedBy = (report) => {
+	if (report.failed !== void 0) return `failure_${report.failed.outcome}`;
+	return report.not_sent === 0 ? void 0 : "deadline";
 };
-const ORDER = [{
-	attribute: "last_name",
-	direction: "asc",
-	key: "resource.attribute"
-}];
-const unavailable = ({ report }) => {
-	if (report.status === "ok") return `Not called: ${report.name} returned nothing to call it with.`;
-	if (report.status === "failed") return `Not called: it needs an id from ${report.name}, which failed.`;
-	return `Not called: it needs an id from ${report.name}, which needs ${rightFor(operation(report.name))}.`;
-};
-const prober = (lookup) => {
-	const probe = (name, params) => invoke(operation(name), params, lookup).pipe(map$4((result) => ({
-		report: {
-			count: countOf(result),
-			name,
-			status: "ok"
-		},
-		result
-	})), catchReason("TipeeError", "UnexpectedShape", (reason, failure) => as(flatMap(Telemetry, (telemetry) => telemetry.exception(failure, {
-		handled: true,
-		properties: { tool: "check_setup" }
-	})), {
-		report: {
-			error: reason.message,
-			name,
-			status: "failed"
-		},
-		result: void 0
-	})), catchReason("TipeeError", "Forbidden", (_reason, failure) => succeed$3({
-		report: {
-			error: failure.message,
-			name,
-			status: "skipped"
-		},
-		result: void 0
-	})));
-	const probeWith = (name, source, params) => params === void 0 ? succeed$3({
-		report: {
-			error: unavailable(source),
-			name,
-			status: "skipped"
-		},
-		result: void 0
-	}) : probe(name, params);
-	return {
-		probe,
-		probeWith
+const countsOf = (report) => ({
+	applied: report.applied,
+	items: report.applied + (report.failed === void 0 ? 0 : 1) + report.not_sent,
+	not_sent: report.not_sent,
+	stopped_by: stoppedBy(report)
+});
+const observed = ({ announce, telemetry }, called, run) => (params) => gen(function* () {
+	const { tool } = called;
+	const batch = "batch" in called;
+	const who = yield* caller;
+	yield* announce(who);
+	const [duration, exit$2] = yield* timed(exit(run(params)));
+	const common = {
+		...who,
+		duration_ms: Math.round(toMillis(duration)),
+		tool,
+		...called.via === void 0 ? {} : {
+			index: called.index,
+			via: called.via
+		}
 	};
-};
-const probes = fn("check_setup.probes")(function* ({ from, to }) {
-	const range = from !== void 0 && to !== void 0 ? {
-		from,
-		to
-	} : yield* defaultRange;
-	const dateRange = `${range.from}/${range.to}`;
-	const lookup = yield* cached(integrationLink);
-	const { probe, probeWith } = prober(lookup);
-	const chain = gen(function* () {
-		const kinds = yield* probe("kinds_list", {});
-		const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
-		const people = yield* probeWith("resources_list", kinds, employee && {
-			kind_id: employee.id,
-			orders: ORDER,
-			pagination: {
-				limit: PAGE_SIZE,
-				next_token: null
-			},
-			with_teams: true
+	if (isSuccess(exit$2)) {
+		yield* telemetry.capture("tool_called", {
+			...common,
+			...batch ? countsOf(exit$2.value) : offSpecOf(exit$2.value),
+			outcome: "ok"
 		});
-		const [somebody] = people.result?.data ?? [];
-		return [
-			kinds,
-			people,
-			yield* probeWith("resources_show_activity_rates", people, somebody && { resource_id: somebody.id })
-		];
+		return exit$2.value;
+	}
+	const failure = findError(exit$2.cause);
+	if (isSuccess$1(failure) && batch) yield* telemetry.capture("tool_called", {
+		...common,
+		outcome: "failed",
+		reason: reasonOf(failure.success)
 	});
-	const [[kinds, people, rates], teams, templates, schedules, absences, onCalls, timechecks] = yield* all$1([
-		chain,
-		probe("teams_list", {}),
-		probe("schedule_templates_list", {}),
-		probe("schedules_list", { date_range: dateRange }),
-		probe("absences_list", { date_range: dateRange }),
-		probe("on_calls_list", { date_range: dateRange }),
-		probe("timechecks_list", { filters: [{
-			key: "timecheck.date_range",
-			value: dateRange
-		}] }),
-		lookup
-	], { concurrency: CONCURRENCY });
-	const reports = [
-		kinds,
-		people,
-		teams,
-		templates,
-		schedules,
-		absences,
-		onCalls,
-		rates,
-		timechecks
-	].map((one) => one.report);
-	const integration = yield* lookup;
-	return {
-		date_range: dateRange,
-		endpoints: reports,
-		...integration === void 0 ? {} : { integration },
-		ok: reports.every((report) => report.status !== "failed")
-	};
-});
-const offering = (error, update) => new TipeeError({
-	fix: [error.fix, `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`].filter((part) => part !== void 0).join(" "),
-	reason: error.reason
-});
-const check = (report) => gen(function* () {
-	const updates = yield* Updates;
-	const lookup = yield* forkChild(updates.available);
-	const found = yield* report.pipe(catchTag("TipeeError", (error) => flatMap(join(lookup), (update) => fail$3(isSome(update) ? offering(error, update.value) : error))));
-	const update = yield* join(lookup);
-	return {
-		...found,
-		...isSome(update) ? { update: update.value } : {},
-		version: updates.current
-	};
-});
+	else if (isSuccess$1(failure)) {
+		const reason = reasonOf(failure.success);
+		const sent = paramsOf(params);
+		yield* telemetry.capture("tool_called", {
+			...common,
+			...detailOf(failure.success),
+			outcome: "failed",
+			params_sent: sent,
+			reason
+		});
+		if (reported(failure.success)) yield* telemetry.exception(failure.success, {
+			handled: true,
+			properties: {
+				params_sent: sent,
+				tool
+			}
+		});
+	} else if (hasInterruptsOnly(exit$2.cause)) yield* telemetry.capture("tool_called", {
+		...common,
+		outcome: "interrupted"
+	});
+	else {
+		yield* telemetry.capture("tool_called", {
+			...common,
+			outcome: "crashed"
+		});
+		if (!batch) yield* telemetry.exception(squash(exit$2.cause), {
+			handled: false,
+			properties: { tool }
+		});
+	}
+	return yield* failCause$3(exit$2.cause);
+}).pipe(withSpan("observed"));
 // ../../packages/mcp/src/Tools.ts
 const Done = Struct({ done: Literal(true) });
 const LocalDate = String$2.check(isPattern(/^\d{4}-\d{2}-\d{2}$/u));
@@ -25637,7 +25780,10 @@ const batchToolFor = (operation) => dynamic(batchName(operation), {
 	description: describeBatch(operation),
 	failure: TipeeError,
 	parameters: Struct({ items: ArraySchema(operation.parameters).check(isMinLength(1), isMaxLength(50)) }),
-	success: BatchReport
+	success: operation.success === void 0 ? BatchReport : Struct({
+		...BatchReport.fields,
+		results: ArraySchema(operation.success).annotate({ description: RESULTS_DESCRIPTION })
+	})
 }).annotate(Title, `${titleOf(operation.path)} many`).annotate(Strict, true).annotate(Readonly, false).annotate(Destructive, operation.destructive).annotate(Idempotent, false);
 const batched = BATCHED.map((name) => operation(name));
 const TipeeToolkit = make$9(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)), ...batched.map((operation) => batchToolFor(operation)));
@@ -25652,111 +25798,7 @@ const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) =
 	message: said(outcome),
 	outcome
 }));
-const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
-const MAX_PARAMS = 30;
-const paramsOf = (params, prefix = "") => typeof params === "object" && params !== null && !Array.isArray(params) ? Object.entries(params).flatMap(([key, value]) => {
-	const name = prefix === "" ? key : `${prefix}.${key}`;
-	const nested = paramsOf(value, name);
-	return nested.length === 0 ? [name] : nested;
-}).toSorted().slice(0, MAX_PARAMS) : [];
-const detailOf = (failure) => {
-	if (!(failure instanceof TipeeError)) return {};
-	const { reason } = failure;
-	if (reason._tag === "Rejected") return {
-		error_code: reason.code,
-		error_fields: reason.fields,
-		http_status: reason.status
-	};
-	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
-};
-const REPORTED = /* @__PURE__ */ new Set([
-	"UnexpectedShape",
-	"UnexpectedStatus",
-	"InvalidRequest",
-	"Internal"
-]);
-const INVALID_STATUSES = /* @__PURE__ */ new Set([400, 422]);
-const reported = (failure) => failure instanceof TipeeError && (REPORTED.has(failure.reason._tag) || failure.reason._tag === "Rejected" && INVALID_STATUSES.has(failure.reason.status));
-const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
-	onNone: () => ({}),
-	onSome: ({ clientInfo, protocolVersion }) => ({
-		mcp_client: clientInfo.name,
-		mcp_client_version: clientInfo.version,
-		mcp_protocol: protocolVersion
-	})
-}));
-const stoppedBy = (report) => {
-	if (report.failed !== void 0) return `failure_${report.failed.outcome}`;
-	return report.not_sent === 0 ? void 0 : "deadline";
-};
-const countsOf = (report) => ({
-	applied: report.applied,
-	items: report.applied + (report.failed === void 0 ? 0 : 1) + report.not_sent,
-	not_sent: report.not_sent,
-	stopped_by: stoppedBy(report)
-});
-const observed = ({ announce, telemetry }, called, run) => (params) => gen(function* () {
-	const { tool } = called;
-	const batch = "batch" in called;
-	const who = yield* caller;
-	yield* announce(who);
-	const [duration, exit$2] = yield* timed(exit(run(params)));
-	const common = {
-		...who,
-		duration_ms: Math.round(toMillis(duration)),
-		tool,
-		...called.via === void 0 ? {} : {
-			index: called.index,
-			via: called.via
-		}
-	};
-	if (isSuccess(exit$2)) {
-		yield* telemetry.capture("tool_called", {
-			...common,
-			...batch ? countsOf(exit$2.value) : {},
-			outcome: "ok"
-		});
-		return exit$2.value;
-	}
-	const failure = findError(exit$2.cause);
-	if (isSuccess$1(failure) && batch) yield* telemetry.capture("tool_called", {
-		...common,
-		outcome: "failed",
-		reason: reasonOf(failure.success)
-	});
-	else if (isSuccess$1(failure)) {
-		const reason = reasonOf(failure.success);
-		const sent = paramsOf(params);
-		yield* telemetry.capture("tool_called", {
-			...common,
-			...detailOf(failure.success),
-			outcome: "failed",
-			params_sent: sent,
-			reason
-		});
-		if (reported(failure.success)) yield* telemetry.exception(failure.success, {
-			handled: true,
-			properties: {
-				params_sent: sent,
-				tool
-			}
-		});
-	} else if (hasInterruptsOnly(exit$2.cause)) yield* telemetry.capture("tool_called", {
-		...common,
-		outcome: "interrupted"
-	});
-	else {
-		yield* telemetry.capture("tool_called", {
-			...common,
-			outcome: "crashed"
-		});
-		if (!batch) yield* telemetry.exception(squash(exit$2.cause), {
-			handled: false,
-			properties: { tool }
-		});
-	}
-	return yield* failCause$3(exit$2.cause);
-}).pipe(withSpan("observed"));
+const answerOf = (result) => result === void 0 || result instanceof AcceptedOffSpec ? { done: true } : result;
 const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	const telemetry = yield* Telemetry;
 	const updates = yield* Updates;
@@ -25781,17 +25823,20 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 		update_plugin: observed(watcher, { tool: "update_plugin" }, () => provided(update))
 	};
 	const send = (target) => (params) => provided(connected(invoke(target, params)));
-	for (const target of operations) handlers[target.name] = observed(watcher, { tool: target.name }, (params) => map$4(send(target)(params), (result) => result ?? { done: true }));
+	for (const target of operations) {
+		const run = observed(watcher, { tool: target.name }, send(target));
+		handlers[target.name] = (params) => map$4(run(params), answerOf);
+	}
 	for (const target of batched) {
 		const tool = batchName(target);
 		handlers[tool] = observed(watcher, {
 			batch: true,
 			tool
-		}, (params) => runBatch(params.items, (item, index) => observed(watcher, {
+		}, (params) => runBatch(params.items, (item, index) => map$4(observed(watcher, {
 			index,
 			tool: target.name,
 			via: tool
-		}, send(target))(item)));
+		}, send(target))(item), (result) => result instanceof AcceptedOffSpec ? void 0 : result), target.success !== void 0));
 	}
 	return TipeeToolkit.of(handlers);
 }));

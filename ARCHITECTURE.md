@@ -144,14 +144,22 @@ system's certificates where a network inspects HTTPS. Contributors use Node
 
 ## Releases
 
-`main` is the Claude Code channel, which updates a plugin only when its
-version changes. A PR that changes what ships (the bundle, the skill,
-`.mcp.json`, the manifest) bumps `plugin.json` and `SERVER_VERSION`, Renovate
-and spec-refresh PRs included, and CI fails it otherwise once that version is
-tagged. Merging a bump publishes the release: `verify.yml` tags `v<version>`
-and uploads the `.mcpb` it tested as `tipee-<version>.mcpb` and `tipee.mcpb`
-with `SHA256SUMS`, names every installed update tool relies on. A broken
-release is fixed by a new patch; [SECURITY.md](SECURITY.md) covers reporting.
+Users only ever get a tag. The marketplace on `main` lists the plugin as
+`plugins/tipee` at tag `v<version>` (a `git-subdir` source), so Claude Code
+installs and updates from that tag, never from `main`; Claude Desktop gets
+the `.mcpb` of a release. Merging work releases nothing, and `main` may run
+ahead of the latest release.
+
+A release is a PR that bumps the version in its three places: `plugin.json`,
+`SERVER_VERSION` and the marketplace's `ref` (`version.test.ts` keeps them
+together; `pnpm spec:refresh --bump` moves all three). Merging it publishes
+the release: `verify.yml` tags `v<version>` on that commit and uploads the
+`.mcpb` it tested as `tipee-<version>.mcpb` and `tipee.mcpb` with
+`SHA256SUMS`, names every installed update tool relies on. Claude Code sees
+the new version once its marketplace refreshes; for the minute between the
+merge and the tag, an install of the new version fails and succeeds on a
+retry. A broken release is fixed by a new patch; [SECURITY.md](SECURITY.md)
+covers reporting.
 
 ## Not planned, and what would change that
 
