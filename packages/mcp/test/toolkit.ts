@@ -3,6 +3,7 @@
 // for a strict tool, run the handler, encode the result).
 
 import { TipeeClient } from '@tipee-tools/core';
+import type { Schema } from 'effect';
 import { Effect, Layer, Option, Redacted, Stream } from 'effect';
 import { Tool } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
@@ -28,7 +29,7 @@ export const clientFor = (apiKey: string): Layer.Layer<Toolkit> =>
 // Runs a tool as the server does and returns the JSON it would send back.
 type Handled = Effect.Effect<Stream.Stream<{ readonly encodedResult: unknown }, unknown>, unknown>;
 
-export const call = Effect.fn('call')(function* (name: string, params: unknown) {
+export const call = Effect.fn('call')(function* (name: string, params: Schema.Json) {
   const toolkit = yield* TipeeToolkit;
   const tool = TipeeToolkit.tools[name as keyof typeof TipeeToolkit.tools];
   // The options McpServer decodes with.
