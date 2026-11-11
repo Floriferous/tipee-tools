@@ -7,7 +7,7 @@
 // The note rides in a text block of its own: the answer's structured content
 // stays exactly what the tool's output schema says.
 
-import { Deferred, Effect, Layer, Option, Ref } from 'effect';
+import { Deferred, Effect, Layer, Option, Ref, Schema } from 'effect';
 import { McpSchema, McpServer } from 'effect/ai';
 
 import { Telemetry } from './Telemetry.ts';
@@ -48,7 +48,7 @@ export const NotifiedToolkit = Layer.effectDiscard(
     // nothing has told it yet; until the lookup is done, a later answer will.
     const noted = (tool: string, result: Result): Effect.Effect<Result> =>
       Effect.gen(function* () {
-        if (!(result instanceof McpSchema.CallToolResult)) {
+        if (!Schema.is(McpSchema.CallToolResult)(result)) {
           return result;
         }
         if (SPEAKING_OF_UPDATES.has(tool)) {

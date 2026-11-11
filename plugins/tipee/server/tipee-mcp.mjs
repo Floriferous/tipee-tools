@@ -3033,7 +3033,7 @@ const flatten$1 = (self) => flatMap$2(self, identity);
 const map$6 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, mapCont, f));
 const mapEager$1 = /*#__PURE__*/ dual(2, (self, f) => effectIsExit(self) ? exitMap(self, f) : map$6(self, f));
 const mapErrorEager$1 = /*#__PURE__*/ dual(2, (self, f) => effectIsExit(self) ? exitMapError(self, f) : mapError$3(self, f));
-const mapBothEager$1 = /*#__PURE__*/ dual(2, (self, options) => effectIsExit(self) ? exitMapBoth(self, options) : mapBoth(self, options));
+const mapBothEager$1 = /*#__PURE__*/ dual(2, (self, options) => effectIsExit(self) ? exitMapBoth(self, options) : mapBoth$1(self, options));
 const catchEager$1 = /*#__PURE__*/ dual(2, (self, f) => {
 	if (effectIsExit(self)) {
 		if (self._tag === "Success") return self;
@@ -3158,7 +3158,7 @@ const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, e
 	return orElse ? orElse(reason, e) : fail$6(e);
 }));
 const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catchCause$3(self, (cause) => failCause$6(causeMap(cause, f))));
-const mapBoth = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self, {
+const mapBoth$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self, {
 	onFailure: (cause) => failCause$6(causeMap(cause, options.onFailure)),
 	onSuccess: (a) => sync$1(() => options.onSuccess(a))
 }));
@@ -5018,6 +5018,7 @@ const catchDefect = catchDefect$1;
 const catchIf$2 = catchIf$3;
 const catchCauseIf = catchCauseIf$1;
 const mapError$2 = mapError$3;
+const mapBoth = mapBoth$1;
 const orDie = orDie$1;
 const tapError = tapError$1;
 const tapCause = tapCause$1;
@@ -15141,6 +15142,7 @@ const rightFor = (target) => {
 };
 // ../../packages/core/src/Errors.ts
 const JsonObject = fromJsonString(Record(String$2, Unknown));
+const JsonText = fromJsonString(Unknown);
 const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
 const quoted = (body) => decodeOption(JsonObject)(body).pipe(flatMap$4((json) => {
 	const key = ["detail", "message"].find((candidate) => typeof json[candidate] === "string");
@@ -15261,8 +15263,9 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
 		if (isObject$2(cause) && !(cause instanceof Error)) {
 			const code = codeOf(decodeOption(ErrorCode)(cause));
+			const body = yield* encodeUnknownEffect(JsonText)(cause).pipe(orElseSucceed(() => "(an answer that cannot be written as JSON)"));
 			return new TipeeError({ reason: new Rejected({
-				body: JSON.stringify(cause),
+				body,
 				status: HTTP_CONFLICT,
 				...code === void 0 ? {} : { code }
 			}) });
@@ -18898,7 +18901,10 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 	static layerConfig = unwrap$4(all({
 		apiKey: apiKeyConfig,
 		instance: instanceConfig
-	}).pipe(map$4((credentials) => TipeeClient.layer(credentials)), mapError$2((cause) => new ConfigurationMissing({ cause }))));
+	}).pipe(mapBoth({
+		onFailure: (cause) => new ConfigurationMissing({ cause }),
+		onSuccess: (credentials) => TipeeClient.layer(credentials)
+	})));
 };
 // ../../packages/core/src/Operations.ts
 const nameOf = (path) => path.replace(/^\/api\/[^/]+\//u, "").replaceAll(/[.-]/gu, "_");
@@ -19857,7 +19863,7 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			const target = path.join(directory, asset);
 			yield* fs.writeFile(target, content);
 			return target;
-		}, timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => isTagged(cause, "UpdateFailed") ? cause : failed(describe$1(cause))));
+		}, timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => isTagged(cause, "UpdateFailed") ? cause : new UpdateFailed({ detail: describe$1(cause) })));
 		const open = fnUntraced(function* (target) {
 			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
 			const child = yield* try_({
@@ -27358,10 +27364,10 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	const provided = (effect) => effect.pipe(provideService(Telemetry, telemetry), provideService(Updates, updates));
 	const connected = (effect) => isSuccess$1(connection) ? provideService(effect, TipeeClient, connection.success) : fail$3(new TipeeError({ reason: new NotConfigured({ description: connection.failure.message }) }));
 	const handlers = {
-		check_setup: observed(watcher, { tool: "check_setup" }, (params) => provided(check(connected(probes(params))))),
+		check_setup: observed(watcher, { tool: "check_setup" }, (params) => probes(params).pipe(connected, check, provided)),
 		update_plugin: observed(watcher, { tool: "update_plugin" }, () => provided(update))
 	};
-	const send = (target) => (params) => provided(connected(invoke(target, params)));
+	const send = (target) => (params) => invoke(target, params).pipe(connected, provided);
 	for (const target of operations) {
 		const run = observed(watcher, { tool: target.name }, send(target));
 		handlers[target.name] = (params) => map$4(run(params), answerOf);
@@ -27392,7 +27398,7 @@ const NotifiedToolkit = effectDiscard(gen(function* () {
 	const start = yield* cached(asVoid(forkIn(into(updates.available, found), scope$2)));
 	const told = yield* make$25(false);
 	const noted = (tool, result) => gen(function* () {
-		if (!(result instanceof CallToolResult$5)) return result;
+		if (!is$2(CallToolResult$5)(result)) return result;
 		if (SPEAKING_OF_UPDATES.has(tool)) {
 			yield* set(told, true);
 			return result;
