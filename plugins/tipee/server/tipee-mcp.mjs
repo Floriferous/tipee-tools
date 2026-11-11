@@ -8,7 +8,7 @@ import { spawn } from "node:child_process";
 import * as NFS from "node:fs";
 import { finished } from "node:stream";
 import tls from "node:tls";
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pipeable.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Pipeable.js
 const pipeArguments = (self, args) => {
 	switch (args.length) {
 		case 0: return self;
@@ -36,7 +36,7 @@ const Class$3 = /*#__PURE__*/ function() {
 	PipeableBase.prototype = Prototype$1;
 	return PipeableBase;
 }();
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Function.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Function.js
 const dual = function(arity, body) {
 	if (typeof arity === "function") return function() {
 		return arity(arguments) ? body.apply(this, arguments) : (self) => body(self, ...arguments);
@@ -124,11 +124,21 @@ function memoizeIdempotent(f) {
 		return result;
 	};
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/equal.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/equal.js
+const errorSiteKeys = [
+	"line",
+	"column",
+	"sourceURL",
+	"originalLine",
+	"originalColumn"
+];
 const getAllObjectKeys = (obj) => {
 	const keys = new Set(Reflect.ownKeys(obj));
 	if (obj.constructor === Object) return keys;
-	if (obj instanceof Error) keys.delete("stack");
+	if (obj instanceof Error) {
+		keys.delete("stack");
+		for (const key of errorSiteKeys) if (!Object.prototype.propertyIsEnumerable.call(obj, key)) keys.delete(key);
+	}
 	const proto = Object.getPrototypeOf(obj);
 	let current = proto;
 	while (current !== null && current !== Object.prototype) {
@@ -149,12 +159,12 @@ const bufferBytes = (buffer) => {
 		return;
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/hash.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/hash.js
 let backEdges = 0;
 const addBackEdge = () => {
 	backEdges++;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Predicate.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Predicate.js
 function isString$1(input) {
 	return typeof input === "string";
 }
@@ -212,7 +222,7 @@ function isIterable(input) {
 	return hasProperty(input, Symbol.iterator) || isString$1(input);
 }
 const or = /*#__PURE__*/ dual(2, (self, that) => (a) => self(a) || that(a));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Hash.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Hash.js
 const symbol$3 = "~effect/Hash";
 const hash = (self) => {
 	switch (typeof self) {
@@ -237,7 +247,7 @@ const hash = (self) => {
 			const seen = backEdges;
 			let h;
 			try {
-				if ("~effect/Hash" in self) h = self[symbol$3]();
+				if (isHash(self)) h = self[symbol$3]();
 				else if (typeof self === "function") h = random$1(self);
 				else if (isArrayBufferLike(self)) {
 					const bytes = bufferBytes(self);
@@ -269,6 +279,7 @@ const mix = (h) => {
 };
 const combine$1 = /*#__PURE__*/ dual(2, (self, b) => mix(Math.imul(self, 2654435761) + Math.imul(b, 2246822507)));
 const optimize = (n) => n & 3221225471 | n >>> 1 & 1073741824;
+const isHash = (u) => hasProperty(u, "~effect/Hash") && typeof u["~effect/Hash"] === "function";
 const float64 = /*#__PURE__*/ new DataView(/*#__PURE__*/ new ArrayBuffer(8));
 const number$1 = (n) => {
 	const h = n | 0;
@@ -303,7 +314,7 @@ const hashSet = /*#__PURE__*/ unordered(setSeed, (element) => combine$1(setSeed,
 const randomHashCache = /*#__PURE__*/ new WeakMap();
 const hashCache = /*#__PURE__*/ new WeakMap();
 const visitedObjects = /*#__PURE__*/ new WeakSet();
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equal.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Equal.js
 const symbol$2 = "~effect/Equal";
 function equals$1() {
 	if (arguments.length === 1) return (self) => compareBoth(self, arguments[0]);
@@ -417,9 +428,9 @@ function compareHashed(self, that, hashOf, equivalent) {
 }
 const entryHash = (entry) => hash(entry[0]);
 const equalEntries = (self, that) => compareBoth(self[0], that[0]) && compareBoth(self[1], that[1]);
-const isEqual = (u) => hasProperty(u, symbol$2);
+const isEqual = (u) => hasProperty(u, "~effect/Equal") && typeof u["~effect/Equal"] === "function";
 const asEquivalence = () => equals$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redactable.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Redactable.js
 const symbolRedactable = /*#__PURE__*/ Symbol.for("~effect/Redactable");
 const isRedactable = (u) => hasProperty(u, symbolRedactable);
 function redact$2(u) {
@@ -440,7 +451,7 @@ const emptyContext$1 = {
 		return pipeArguments(this, arguments);
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Formatter.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Formatter.js
 function format$2(input, options) {
 	const space = options?.space ?? 0;
 	const ancestors = /* @__PURE__ */ new WeakSet();
@@ -577,7 +588,7 @@ function isJsonPrimitiveWrapper(object) {
 	} catch {}
 	return false;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Inspectable.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Inspectable.js
 const NodeInspectSymbol = /*#__PURE__*/ Symbol.for("nodejs.util.inspect.custom");
 const toJson = (input) => {
 	try {
@@ -616,7 +627,7 @@ var Class$2 = class {
 		return format$2(this.toJSON());
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stackTraceLimit.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/stackTraceLimit.js
 const isStackTraceLimitWritable = () => {
 	const desc = Object.getOwnPropertyDescriptor(Error, "stackTraceLimit");
 	if (desc === void 0) return Object.isExtensible(Error);
@@ -627,7 +638,7 @@ const getStackTraceLimit = () => Error.stackTraceLimit;
 const setStackTraceLimit = (value) => {
 	if (canWriteStackTraceLimit) Error.stackTraceLimit = value;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Utils.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Utils.js
 var SingleShotGen = class {
 	constructor(self) {
 		this.value = self;
@@ -663,7 +674,7 @@ const pickInternalCall = () => {
 	return error.stack?.includes(InternalTypeId) === true ? standard[InternalTypeId] : forced[InternalTypeId];
 };
 const internalCall = /*#__PURE__*/ pickInternalCall();
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/record.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/record.js
 function assignProperty(self, key, value) {
 	if (key === "__proto__") Object.defineProperty(self, key, {
 		value,
@@ -680,7 +691,7 @@ function assignProperties(self, source) {
 	}
 	for (const key of Reflect.ownKeys(source)) if (Object.prototype.propertyIsEnumerable.call(source, key)) assignProperty(self, key, source[key]);
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/core.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/core.js
 const EffectTypeId = `~effect/Effect`;
 const ExitTypeId = `~effect/Exit`;
 const effectVariance = {
@@ -1038,30 +1049,30 @@ const done$2 = (value) => {
 	if (value === void 0) return doneVoid;
 	return exitFail(Done$2(value));
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effectable.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Effectable.js
 const Prototype = (options) => makePrimitiveProto({
 	op: options.label,
 	[evaluate]: options.evaluate
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Equivalence.js
-const make$50 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Equivalence.js
+const make$51 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 const strictEqual = () => isStrictEquivalent;
 function Tuple$1(elements) {
-	return make$50((self, that) => {
+	return make$51((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!elements[i](self[i], that[i])) return false;
 		return true;
 	});
 }
 function Array_(item) {
-	return make$50((self, that) => {
+	return make$51((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!item(self[i], that[i])) return false;
 		return true;
 	});
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/option.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/option.js
 const TypeId$52 = "~effect/Option";
 const CommonProto$1 = {
 	[TypeId$52]: { _A: (_) => _ },
@@ -1122,7 +1133,7 @@ const SomeImpl = function(value) {
 };
 SomeImpl.prototype = SomeProto;
 const some$1 = (value) => new SomeImpl(value);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/result.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/result.js
 const TypeId$51 = "~effect/Result";
 const CommonProto = {
 	[TypeId$51]: {
@@ -1188,24 +1199,24 @@ const SuccessImpl = function(success) {
 };
 SuccessImpl.prototype = SuccessProto;
 const succeed$9 = (success) => new SuccessImpl(success);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Order.js
-function make$49(compare) {
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Order.js
+function make$50(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
-const String$5 = /*#__PURE__*/ make$49((self, that) => self < that ? -1 : 1);
-const Number$4 = /*#__PURE__*/ make$49((self, that) => {
+const String$5 = /*#__PURE__*/ make$50((self, that) => self < that ? -1 : 1);
+const Number$4 = /*#__PURE__*/ make$50((self, that) => {
 	if (globalThis.Number.isNaN(self) && globalThis.Number.isNaN(that)) return 0;
 	if (globalThis.Number.isNaN(self)) return -1;
 	if (globalThis.Number.isNaN(that)) return 1;
 	return self < that ? -1 : 1;
 });
-const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$49((b1, b2) => self(f(b1), f(b2))));
+const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$50((b1, b2) => self(f(b1), f(b2))));
 const isLessThan$1 = (O) => dual(2, (self, that) => O(self, that) === -1);
 const isGreaterThan$1 = (O) => dual(2, (self, that) => O(self, that) === 1);
 const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1);
 const isGreaterThanOrEqualTo$2 = (O) => dual(2, (self, that) => O(self, that) !== -1);
 const max$1 = (O) => dual(2, (self, that) => self === that || O(self, that) > -1 ? self : that);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Option.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Option.js
 const none = () => none$1;
 const some = some$1;
 const isOption = isOption$1;
@@ -1230,8 +1241,8 @@ const getOrThrowWith$1 = /*#__PURE__*/ dual(2, (self, onNone) => {
 });
 const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
 const flatMap$4 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
-const filter = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Context.js
+const filter$3 = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Context.js
 const ServiceTypeId = "~effect/Context/Service";
 const Service$1 = function() {
 	function KeyClass() {}
@@ -1267,7 +1278,7 @@ const ServiceProto = {
 		return self;
 	},
 	context(self) {
-		return make$48(this, self);
+		return make$49(this, self);
 	},
 	use(f) {
 		return withFiber$1((fiber) => f(get$2(fiber.context, this)));
@@ -1279,9 +1290,8 @@ const ServiceProto = {
 const cacheKeys = /*#__PURE__*/ new Set();
 const ReferenceTypeId = "~effect/Context/Reference";
 const TypeId$50 = "~effect/Context";
-const MaxDepth = 8;
 const FlattenAfterBaseHits = 8;
-const makeImpl = (cacheRoot, base, overlay, depth) => {
+const makeImpl = (cacheRoot, base, overlay, depth, maxDepth) => {
 	const self = Object.create(Proto$18);
 	self.cacheRoot = cacheRoot ?? self;
 	self.base = base;
@@ -1289,6 +1299,7 @@ const makeImpl = (cacheRoot, base, overlay, depth) => {
 	self.depth = depth;
 	self._flat = void 0;
 	self.baseHits = 0;
+	self.maxDepth = maxDepth;
 	return self;
 };
 const applyOverlays = (map, overlay) => {
@@ -1306,14 +1317,14 @@ const flatten$2 = (self) => {
 const withFlat = (self, f) => {
 	const map = new Map(self.mapUnsafe);
 	f(map);
-	return makeUnsafe$7(map);
+	return makeImpl(void 0, map, void 0, 0, self.maxDepth);
 };
-const notFound = /*#__PURE__*/ Symbol();
+const notFound$1 = /*#__PURE__*/ Symbol();
 const lookup = (self, key) => {
 	const impl = self;
 	for (let overlay = impl.overlay; overlay; overlay = overlay.parent) if (overlay.key === key) return overlay.value;
 	const value = impl.base.get(key);
-	if (value === void 0 && !impl.base.has(key)) return notFound;
+	if (value === void 0 && !impl.base.has(key)) return notFound$1;
 	if (impl.overlay && ++impl.baseHits >= impl.base.size && impl.baseHits >= FlattenAfterBaseHits) {
 		impl.base = flatten$2(impl);
 		impl.overlay = void 0;
@@ -1321,7 +1332,10 @@ const lookup = (self, key) => {
 	}
 	return value;
 };
-const makeUnsafe$7 = (mapUnsafe) => makeImpl(void 0, mapUnsafe, void 0, 0);
+const makeUnsafe$7 = (mapUnsafe, options) => {
+	const maxDepth = options?.maxDepth;
+	return makeImpl(void 0, mapUnsafe, void 0, 0, Number.isInteger(maxDepth) && maxDepth >= 0 ? maxDepth : 8);
+};
 const Proto$18 = {
 	get mapUnsafe() {
 		return flatten$2(this);
@@ -1352,33 +1366,33 @@ const Proto$18 = {
 const hasSameCache = (self, that) => self.cacheRoot === that.cacheRoot;
 const isContext = (u) => hasProperty(u, TypeId$50);
 const isReference = (u) => !!u[ReferenceTypeId];
-const empty$10 = () => emptyContext;
+const empty$11 = () => emptyContext;
 const emptyContext = /*#__PURE__*/ makeUnsafe$7(/*#__PURE__*/ new Map());
-const make$48 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
+const make$49 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
 const add$2 = /*#__PURE__*/ dual(3, (self, key, service) => addUnsafe(self, key.key, service));
 const addUnsafe = (self, key, service) => {
 	const impl = self;
 	const cacheRoot = cacheKeys.has(key) ? void 0 : impl.cacheRoot;
-	if (impl.depth >= MaxDepth) {
+	if (impl.depth >= impl.maxDepth) {
 		const map = new Map(impl._flat ?? impl.base);
 		if (!impl._flat) applyOverlays(map, impl.overlay);
 		map.set(key, service);
-		return makeImpl(cacheRoot, map, void 0, 0);
+		return makeImpl(cacheRoot, map, void 0, 0, impl.maxDepth);
 	}
 	return makeImpl(cacheRoot, impl.base, {
 		key,
 		value: service,
 		parent: impl.overlay
-	}, impl.depth + 1);
+	}, impl.depth + 1, impl.maxDepth);
 };
 const getOrUndefined = /*#__PURE__*/ dual(2, (self, key) => getOrUndefinedUnsafe(self, key.key));
 const getOrUndefinedUnsafe = (self, key) => {
 	const value = lookup(self, key);
-	return value === notFound ? void 0 : value;
+	return value === notFound$1 ? void 0 : value;
 };
 const getUnsafe = /*#__PURE__*/ dual(2, (self, service) => {
 	const value = lookup(self, service.key);
-	if (value === notFound) {
+	if (value === notFound$1) {
 		if (isReference(service)) return getDefaultValue(service);
 		throw serviceNotFoundError(service);
 	}
@@ -1401,7 +1415,7 @@ const serviceNotFoundError = (service) => {
 };
 const getOption = /*#__PURE__*/ dual(2, (self, service) => {
 	const value = lookup(self, service.key);
-	if (value !== notFound) return some(value);
+	if (value !== notFound$1) return some(value);
 	return isReference(service) ? some(getDefaultValue(service)) : none();
 });
 const merge$2 = /*#__PURE__*/ dual(2, (self, that) => {
@@ -1416,15 +1430,12 @@ const mergeAll$1 = (...ctxs) => {
 	});
 	return makeUnsafe$7(map);
 };
-const omit$2 = (...keys) => (self) => withFlat(self, (map) => {
-	for (let i = 0; i < keys.length; i++) map.delete(keys[i].key);
-});
 const Reference = Service$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/array.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/array.js
 const isArrayNonEmpty$1 = (self) => self.length > 0;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/count.js
-const normalize$2 = (n) => n > 0 ? Math.floor(n) : 0;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Result.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/count.js
+const normalize$3 = (n) => n > 0 ? Math.floor(n) : 0;
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Result.js
 const succeed$8 = succeed$9;
 const fail$7 = fail$8;
 const try_$2 = (evaluate) => {
@@ -1462,10 +1473,16 @@ const all$3 = (input) => {
 	}
 	return succeed$8(out);
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tuple.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Tuple.js
 const makeEquivalence$3 = Tuple$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Record.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Record.js
 const has = /*#__PURE__*/ dual(2, (self, key) => Object.hasOwn(self, key));
+const remove$3 = /*#__PURE__*/ dual(2, (self, key) => {
+	if (!has(self, key)) return { ...self };
+	const out = { ...self };
+	delete out[key];
+	return out;
+});
 const map$8 = /*#__PURE__*/ dual(2, (self, f) => {
 	const out = { ...self };
 	for (const key of keys(self)) assignProperty(out, key, f(self[key], key));
@@ -1480,7 +1497,7 @@ const makeEquivalence$2 = (equivalence) => {
 	const is = isSubrecordBy(equivalence);
 	return (self, that) => is(self, that) && is(that, self);
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Array.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Array.js
 const Array$1 = globalThis.Array;
 const fromIterable$2 = (collection) => Array$1.isArray(collection) ? collection : Array$1.from(collection);
 const ensure = (self) => Array$1.isArray(self) ? self : [self];
@@ -1494,16 +1511,32 @@ function isCanonicalArrayIndex(key) {
 	return String(index) === key && Number.isInteger(index) && index >= 0 && index < 2 ** 32 - 1;
 }
 const lastNonEmpty = (self) => self[self.length - 1];
-const clampCount = (n, length) => Math.min(normalize$2(n), length);
+const clampCount = (n, length) => Math.min(normalize$3(n), length);
 const take$2 = /*#__PURE__*/ dual(2, (self, n) => {
 	const input = fromIterable$2(self);
 	return input.slice(0, clampCount(n, input.length));
 });
-const empty$9 = () => [];
+const sort = /*#__PURE__*/ dual(2, (self, O) => {
+	const out = Array$1.from(self);
+	out.sort(O);
+	return out;
+});
+const empty$10 = () => [];
 const of = (a) => [a];
 const map$7 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
+const getSomes = (self) => {
+	const out = [];
+	for (const a of self) if (isSome(a)) out.push(a.value);
+	return out;
+};
+const filter$2 = /*#__PURE__*/ dual(2, (self, predicate) => {
+	const as = fromIterable$2(self);
+	const out = [];
+	for (let i = 0; i < as.length; i++) if (predicate(as[i], i)) out.push(as[i]);
+	return out;
+});
 const makeEquivalence$1 = Array_;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Duration.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Duration.js
 const TypeId$49 = "~effect/Duration";
 const bigint0$3 = /*#__PURE__*/ BigInt(0);
 const bigint1$2 = /*#__PURE__*/ BigInt(1);
@@ -1520,7 +1553,7 @@ const bigintNanosPerDay = /*#__PURE__*/ BigInt(864e11);
 const bigintNanosPerWeek = /*#__PURE__*/ BigInt(6048e11);
 const roundTiesAwayFromZero = (input) => BigInt(Math.sign(input) * Math.round(Math.abs(input)));
 const roundMillisToNanos = (millis) => Number.isInteger(millis) ? BigInt(millis) * bigint1e6 : roundTiesAwayFromZero(millis * 1e6);
-const fromNanosNumber = (nanos) => make$47(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
+const fromNanosNumber = (nanos) => make$48(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
 const nanosToUnit = (nanos, divisor) => {
 	const value = Number(nanos);
 	if (Number.isFinite(value)) return value / divisor;
@@ -1543,9 +1576,9 @@ const divideTiesAwayFromZero = (numerator, denominator) => {
 };
 const fromMillisString = (input, scale) => {
 	const millis = Number(input) * scale;
-	if (!Number.isFinite(millis)) return make$47(millis);
+	if (!Number.isFinite(millis)) return make$48(millis);
 	const nanos = parseNanos(input, BigInt(scale) * bigint1e6);
-	return make$47(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
+	return make$48(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
 };
 const DURATION_REGEXP = /^(-?\d+(?:\.\d+)?)\s+(nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?)$/;
 const fromInputUnsafe$1 = (input) => {
@@ -1585,7 +1618,7 @@ const fromInputUnsafe$1 = (input) => {
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
 				const nanos = input[0] * 1e9 + input[1];
-				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$47(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
+				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$48(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
 			}
 			const obj = input;
 			let millis = 0;
@@ -1596,13 +1629,13 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
 			if (!obj.microseconds && !obj.nanoseconds) {
-				if (!Number.isFinite(millis)) return make$47(millis);
+				if (!Number.isFinite(millis)) return make$48(millis);
 				const exact = sumObjectNanos(obj);
-				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$47(millis) : make$47(exact);
+				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$48(millis) : make$48(exact);
 			}
 			const nanos = millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0);
 			const exact = Number.isFinite(nanos) ? sumObjectNanos(obj) : void 0;
-			return exact === void 0 ? fromNanosNumber(nanos) : make$47(exact);
+			return exact === void 0 ? fromNanosNumber(nanos) : make$48(exact);
 		}
 	}
 	return invalid$3(input);
@@ -1624,6 +1657,7 @@ const sumObjectNanos = (obj) => {
 const invalid$3 = (input) => {
 	throw new Error(`Invalid Input: ${input}`);
 };
+const fromInput$2 = /*#__PURE__*/ liftThrowable(fromInputUnsafe$1);
 const zeroDurationValue = {
 	_tag: "Millis",
 	millis: 0
@@ -1679,7 +1713,7 @@ const DurationProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const make$47 = (input) => {
+const make$48 = (input) => {
 	const duration = Object.create(DurationProto);
 	if (typeof input === "number") {
 		if (isNaN(input) || input === 0 || Object.is(input, -0)) duration.value = zeroDurationValue;
@@ -1721,16 +1755,16 @@ const abs = (self) => {
 	switch (self.value._tag) {
 		case "Infinity":
 		case "NegativeInfinity": return infinity;
-		case "Millis": return self.value.millis < 0 ? make$47(-self.value.millis) : self;
-		case "Nanos": return self.value.nanos < bigint0$3 ? make$47(-self.value.nanos) : self;
+		case "Millis": return self.value.millis < 0 ? make$48(-self.value.millis) : self;
+		case "Nanos": return self.value.nanos < bigint0$3 ? make$48(-self.value.nanos) : self;
 	}
 };
-const zero$1 = /*#__PURE__*/ make$47(0);
-const infinity = /*#__PURE__*/ make$47(Infinity);
-const negativeInfinity = /*#__PURE__*/ make$47(-Infinity);
-const nanos = (nanos) => make$47(nanos);
-const millis = (millis) => make$47(millis);
-const seconds = (seconds) => make$47(seconds * 1e3);
+const zero$1 = /*#__PURE__*/ make$48(0);
+const infinity = /*#__PURE__*/ make$48(Infinity);
+const negativeInfinity = /*#__PURE__*/ make$48(-Infinity);
+const nanos = (nanos) => make$48(nanos);
+const millis = (millis) => make$48(millis);
+const seconds = (seconds) => make$48(seconds * 1e3);
 const toMillis = (self) => match$1(fromInputUnsafe$1(self), {
 	onMillis: identity,
 	onNanos: (nanos) => nanosToUnit(nanos, 1e6),
@@ -1759,7 +1793,7 @@ const matchPair = /*#__PURE__*/ dual(3, (self, that, options) => {
 	if (self.value._tag === "Millis") return that.value._tag === "Millis" ? options.onMillis(self.value.millis, that.value.millis) : options.onNanos(toNanosUnsafe(self), that.value.nanos);
 	else return options.onNanos(self.value.nanos, toNanosUnsafe(that));
 });
-const Order$2 = /*#__PURE__*/ make$49((self, that) => matchPair(self, that, {
+const Order$2 = /*#__PURE__*/ make$50((self, that) => matchPair(self, that, {
 	onMillis: (self, that) => self < that ? -1 : self > that ? 1 : 0,
 	onNanos: (self, that) => self < that ? -1 : self > that ? 1 : 0,
 	onInfinity: (self, that) => {
@@ -1827,7 +1861,12 @@ const format$1 = (self) => {
 	if (fragments.nanos !== 0) pieces.push(`${fragments.nanos}ns`);
 	return pieces.join(" ");
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scheduler.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Filter.js
+const toOption$1 = (self) => (input) => {
+	const result = self(input);
+	return isFailure$1(result) ? none() : some(result.success);
+};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Scheduler.js
 const Scheduler = /*#__PURE__*/ Reference("effect/Scheduler", {
 	fiberCached: true,
 	defaultValue: () => new MixedScheduler()
@@ -1930,7 +1969,7 @@ const PreventSchedulerYield = /*#__PURE__*/ Reference("effect/Scheduler/PreventS
 	fiberCached: true,
 	defaultValue: () => false
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Data.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Data.js
 const Class$1 = class extends Class$3 {
 	constructor(props) {
 		super();
@@ -1960,7 +1999,7 @@ function taggedMatch() {
 }
 const Error$2 = Error$3;
 const TaggedError$1 = TaggedError$2;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/EncodingError.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/encoding/EncodingError.js
 const EncodingErrorTypeId = "~effect/encoding/EncodingError";
 var EncodingError = class extends (/*#__PURE__*/ TaggedError$1("EncodingError")) {
 	[EncodingErrorTypeId] = EncodingErrorTypeId;
@@ -1994,22 +2033,27 @@ const random32 = () => {
 	const d = randomWord();
 	return String.fromCharCode(hexCharCodes[a >>> 28], hexCharCodes[a >>> 24 & 15], hexCharCodes[a >>> 20 & 15], hexCharCodes[a >>> 16 & 15], hexCharCodes[a >>> 12 & 15], hexCharCodes[a >>> 8 & 15], hexCharCodes[a >>> 4 & 15], hexCharCodes[a & 15], hexCharCodes[b >>> 28], hexCharCodes[b >>> 24 & 15], hexCharCodes[b >>> 20 & 15], hexCharCodes[b >>> 16 & 15], hexCharCodes[b >>> 12 & 15], hexCharCodes[b >>> 8 & 15], hexCharCodes[b >>> 4 & 15], hexCharCodes[b & 15], hexCharCodes[c >>> 28], hexCharCodes[c >>> 24 & 15], hexCharCodes[c >>> 20 & 15], hexCharCodes[c >>> 16 & 15], hexCharCodes[c >>> 12 & 15], hexCharCodes[c >>> 8 & 15], hexCharCodes[c >>> 4 & 15], hexCharCodes[c & 15], hexCharCodes[d >>> 28], hexCharCodes[d >>> 24 & 15], hexCharCodes[d >>> 20 & 15], hexCharCodes[d >>> 16 & 15], hexCharCodes[d >>> 12 & 15], hexCharCodes[d >>> 8 & 15], hexCharCodes[d >>> 4 & 15], hexCharCodes[d & 15]);
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Tracer.js
+const hexCodes = /*#__PURE__*/ (/* @__PURE__ */ new Uint8Array(256)).fill(255);
+for (let i = 0; i < 16; i++) {
+	hexCodes[/*#__PURE__*/ "0123456789abcdef".charCodeAt(i)] = i;
+	hexCodes[/*#__PURE__*/ "0123456789ABCDEF".charCodeAt(i)] = i;
+}
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Tracer.js
 const ParentSpanKey = "effect/Tracer/ParentSpan";
 var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiberCached: true })) {};
-const make$46 = (options) => options;
+const make$47 = (options) => options;
 const externalSpan = (options) => ({
 	_tag: "ExternalSpan",
 	spanId: options.spanId,
 	traceId: options.traceId,
 	sampled: options.sampled ?? true,
-	annotations: options.annotations ?? empty$10()
+	annotations: options.annotations ?? empty$11()
 });
 const DisablePropagation = /*#__PURE__*/ Reference("effect/Tracer/DisablePropagation", { defaultValue: constFalse });
 const CurrentTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/CurrentTraceLevel", { defaultValue: () => "Info" });
 const MinimumTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/MinimumTraceLevel", { defaultValue: () => "All" });
 const TracerKey = "effect/Tracer";
-const nativeTracer = /*#__PURE__*/ make$46({ span: (options) => new NativeSpan(options) });
+const nativeTracer = /*#__PURE__*/ make$47({ span: (options) => new NativeSpan(options) });
 var NativeSpan = class {
 	_tag = "Span";
 	sampled;
@@ -2075,9 +2119,9 @@ var NativeSpan = class {
 		this.links.push(...links);
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/metric.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/metric.js
 const FiberRuntimeMetricsKey = "effect/Metric/FiberRuntimeMetrics";
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/references.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/references.js
 const CurrentErrorReporters = /*#__PURE__*/ Reference("effect/ErrorReporter/CurrentErrorReporters", { defaultValue: () => /* @__PURE__ */ new Set() });
 const CurrentStackFrame = /*#__PURE__*/ Reference("effect/References/CurrentStackFrame", {
 	fiberCached: true,
@@ -2099,8 +2143,9 @@ const MinimumLogLevel = /*#__PURE__*/ Reference("effect/References/MinimumLogLev
 	fiberCached: true,
 	defaultValue: () => "Info"
 });
+const UnhandledLogLevel = /*#__PURE__*/ Reference("effect/References/UnhandledLogLevel", { defaultValue: () => "Error" });
 const CurrentLogSpans = /*#__PURE__*/ Reference("effect/References/CurrentLogSpans", { defaultValue: () => [] });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/tracer.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/tracer.js
 const addSpanStackTrace = (options) => {
 	if (options?.captureStackTrace === false) return options;
 	else if (options?.captureStackTrace !== void 0 && typeof options.captureStackTrace !== "boolean") return options;
@@ -2131,7 +2176,7 @@ const makeStackCleaner = (line) => (stack) => {
 	};
 };
 const spanCleaner = /*#__PURE__*/ makeStackCleaner(3);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/effect.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/effect.js
 var Interrupt = class extends ReasonBase {
 	constructor(fiberId, annotations = constEmptyAnnotations) {
 		super("Interrupt", annotations, "Interrupted");
@@ -2167,6 +2212,7 @@ const findError$1 = (self) => {
 	}
 	return fail$7(self);
 };
+const findErrorOption$1 = /*#__PURE__*/ toOption$1(findError$1);
 const hasDies$1 = (self) => self.reasons.some(isDieReason$1);
 const causeElectDefects = (self) => hasDies$1(self) && hasFails(self) ? causeFromReasons(self.reasons.map((reason) => reason._tag === "Fail" && !isDone$1(reason.error) ? new Die(reason.error, reason.annotations) : reason)) : self;
 const findRecoverableError = (self) => hasDies$1(self) ? fail$7(causeElectDefects(self)) : findError$1(self);
@@ -2352,6 +2398,7 @@ var FiberImpl = class {
 		this._children = void 0;
 		this._interruptedCause = void 0;
 		this._yielded = void 0;
+		this._autoYielded = false;
 		this._running = false;
 		this._deferredInterrupt = false;
 		this._parent = void 0;
@@ -2384,7 +2431,7 @@ var FiberImpl = class {
 	interruptUnsafe(fiberId, annotations) {
 		if (this._exit) return;
 		let cause = causeInterrupt(fiberId);
-		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$48(StackTraceKey, this.cache.stackFrame));
+		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$49(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
 		this._interruptedCause = this._interruptedCause ? causeAddInterrupts(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
@@ -2430,7 +2477,13 @@ var FiberImpl = class {
 		}
 		this._stack.length = 0;
 		this._children = void 0;
-		this.context = empty$10();
+		this.context = empty$11();
+		const cache = this.cache;
+		if (cache.span !== void 0 || cache.stackFrame !== void 0) this.cache = {
+			...cache,
+			span: void 0,
+			stackFrame: void 0
+		};
 	}
 	runLoop(effect) {
 		const prevFiber = globalThis[currentFiberTypeId];
@@ -2438,8 +2491,10 @@ var FiberImpl = class {
 		const prevRunning = this._running;
 		this._running = true;
 		let yielding = false;
+		let resuming = this._autoYielded;
+		this._autoYielded = false;
 		let current = effect;
-		this.currentOpCount = 0;
+		this.currentOpCount = resuming ? 1 : 0;
 		try {
 			while (true) try {
 				if (this._deferredInterrupt) {
@@ -2448,12 +2503,13 @@ var FiberImpl = class {
 				}
 				this.currentOpCount++;
 				const cache = this.cache;
-				if (!yielding && !cache.preventYield && cache.scheduler.shouldYield(this)) {
+				if (!resuming && !yielding && !cache.preventYield && cache.scheduler.shouldYield(this)) {
 					yielding = true;
-					const prev = current;
-					current = flatMap$2(yieldNow, () => prev);
+					current = this.yieldNow(current, 0, true);
+				} else {
+					resuming = false;
+					current = cache.tracerContext ? cache.tracerContext(current, this) : current[evaluate](this);
 				}
-				current = cache.tracerContext ? cache.tracerContext(current, this) : current[evaluate](this);
 				if (current === Yield) {
 					const yielded = this._yielded;
 					if ("~effect/Exit" in yielded) {
@@ -2503,6 +2559,17 @@ var FiberImpl = class {
 	yieldWith(value) {
 		this._yielded = value;
 		return Yield;
+	}
+	yieldNow(effect, priority = 0, automatic = false) {
+		let resumed = false;
+		this.currentDispatcher.scheduleTask(() => {
+			if (resumed) return;
+			this._autoYielded = automatic;
+			this.evaluate(effect);
+		}, priority);
+		return this.yieldWith(() => {
+			resumed = true;
+		});
 	}
 	children() {
 		return this._children ??= /* @__PURE__ */ new Set();
@@ -2608,7 +2675,7 @@ const fiberInterruptAs = /*#__PURE__*/ dual((args) => hasProperty(args[0], Fiber
 }));
 const fiberInterruptAll = (fibers) => withFiber$1((parent) => {
 	const annotations = fiberStackAnnotations(parent);
-	let fiberArr = empty$9();
+	let fiberArr = empty$10();
 	for (const fiber of fibers) {
 		fiber.interruptUnsafe(parent.id, annotations);
 		fiberArr.push(fiber);
@@ -2642,14 +2709,7 @@ const fromResult$1 = /*#__PURE__*/ match$2({
 const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
 	op: "Yield",
 	[evaluate](fiber) {
-		let resumed = false;
-		fiber.currentDispatcher.scheduleTask(() => {
-			if (resumed) return;
-			fiber.evaluate(exitVoid);
-		}, this["~effect/Effect/args"] ?? 0);
-		return fiber.yieldWith(() => {
-			resumed = true;
-		});
+		return fiber.yieldNow(exitVoid, this["~effect/Effect/args"] ?? 0);
 	}
 }))(0);
 const succeedSome$1 = (a) => succeed$7(some(a));
@@ -2748,7 +2808,9 @@ const gen$1 = (...args) => {
 	const [options, body] = args;
 	return suspend$4(() => fromIteratorUnsafe(body.call(options.self)));
 };
-const fnUntraced$1 = (body, ...pipeables) => {
+const fnBody = (bodyOrOptions, pipeables) => typeof bodyOrOptions === "function" ? bodyOrOptions : pipeables.shift().bind(bodyOrOptions.self);
+const fnUntraced$1 = (bodyOrOptions, ...pipeables) => {
+	const body = fnBody(bodyOrOptions, pipeables);
 	const fn = pipeables.length === 0 ? function() {
 		return suspend$4(() => fromIteratorUnsafe(body.apply(this, arguments)));
 	} : function() {
@@ -2778,7 +2840,7 @@ const fn$1 = function() {
 	return makeFn(name, arguments[0], defError, Array.prototype.slice.call(arguments, 1), nameFirst, spanOptions);
 };
 const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) => {
-	const body = typeof bodyOrOptions === "function" ? bodyOrOptions : pipeables.shift().bind(bodyOrOptions.self);
+	const body = fnBody(bodyOrOptions, pipeables);
 	const definitionName = `${name} (definition)`;
 	const definitionStack = defError ? fnStackCleaner(() => defError.stack) : constUndefined;
 	const makeCallFrame = (callError) => (prev) => ({
@@ -2807,13 +2869,16 @@ const makeFn = (name, bodyOrOptions, defError, pipeables, addSpan, spanOptions) 
 		return updateService(addSpan ? useSpan$1(name, spanOptions, (span) => provideParentSpan(result, span)) : result, CurrentStackFrame, makeCallFrame(callError));
 	});
 };
-const fnUntracedEager$1 = (body, ...pipeables) => defineFunctionLength(body.length, pipeables.length === 0 ? function() {
-	return fromIteratorEagerUnsafe(() => body.apply(this, arguments));
-} : function() {
-	let effect = fromIteratorEagerUnsafe(() => body.apply(this, arguments));
-	for (const pipeable of pipeables) effect = pipeable(effect, ...arguments);
-	return effect;
-});
+const fnUntracedEager$1 = (bodyOrOptions, ...pipeables) => {
+	const body = fnBody(bodyOrOptions, pipeables);
+	return defineFunctionLength(body.length, pipeables.length === 0 ? function() {
+		return fromIteratorEagerUnsafe(() => body.apply(this, arguments));
+	} : function() {
+		let effect = fromIteratorEagerUnsafe(() => body.apply(this, arguments));
+		for (const pipeable of pipeables) effect = pipeable(effect, ...arguments);
+		return effect;
+	});
+};
 const fromIteratorEagerUnsafe = (evaluate) => {
 	try {
 		const iterator = evaluate();
@@ -2937,15 +3002,22 @@ const raceAllFirst = (all, options) => withFiber$1((parent) => {
 				const isWinner = !done;
 				done = true;
 				resume(exit);
-				if (isWinner && options?.onWinner) options.onWinner({
-					fiber,
-					index,
-					parentFiber: parent
-				});
+				if (isWinner) {
+					interruptRaceLosers(fibers, parent);
+					options?.onWinner?.({
+						fiber,
+						index,
+						parentFiber: parent
+					});
+				}
 			});
 		}
 	});
 });
+const interruptRaceLosers = (fibers, parent) => {
+	const annotations = fiberStackAnnotations(parent);
+	for (const fiber of fibers) fiber.interruptUnsafe(parent.id, annotations);
+};
 const raceFirst$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[1]), (self, that, options) => raceAllFirst([self, that], options));
 const flatMap$2 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, andThenCont, f));
 const effectIsExit = (effect) => effect[ExitTypeId] !== void 0;
@@ -3018,6 +3090,7 @@ const provideService$1 = function() {
 	return dual(3, (self, service, impl) => provideServiceImpl(self, service, impl)).apply(this, arguments);
 };
 const provideServiceImpl = (self, service, implementation) => updateContext$1(self, add$2(service, implementation));
+const zipWith$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[1]), (self, that, f, options) => options?.concurrent ? map$6(all$2([self, that], { concurrency: 2 }), ([a, a2]) => f(a, a2)) : flatMap$2(self, (a) => map$6(that, (a2) => f(a, a2))));
 const when$3 = /*#__PURE__*/ dual(2, (self, condition) => flatMap$2(condition, (pass) => pass ? asSome(self) : succeedNone$1));
 const forever$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => whileLoop$1({
 	while: constTrue,
@@ -3051,7 +3124,7 @@ const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$3(s
 	return andThen$1(f(result.success, cause), failCause$6(cause));
 }));
 const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
-const catchIf$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$3(self, (cause) => {
+const catchIf$3 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$3(self, (cause) => {
 	const error = findRecoverableError(cause);
 	if (isFailure$1(error)) return failCause$6(error.failure);
 	if (!predicate(error.success)) return orElse ? orElse(error.success) : failCause$6(cause);
@@ -3066,7 +3139,7 @@ const catchFilter = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, fil
 }));
 const catchTag$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, k, f, orElse) => {
 	const pred = Array.isArray(k) ? (e) => hasProperty(e, "_tag") && k.includes(e._tag) : isTagged(k);
-	return catchIf$2(self, pred, f, orElse);
+	return catchIf$3(self, pred, f, orElse);
 });
 const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cases, orElse) => {
 	let keys;
@@ -3075,7 +3148,7 @@ const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cas
 		return hasProperty(e, "_tag") && isString$1(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$7(e);
 	}, (e) => cases[e["_tag"]](e), orElse);
 });
-const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$2(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
+const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$3(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
 	const reason = e.reason;
 	if (isTagged(reason, reasonTag)) return f(reason, e);
 	return orElse ? orElse(reason, e) : fail$6(e);
@@ -3087,12 +3160,16 @@ const mapBoth = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self
 }));
 const orDie$1 = (self) => catch_$3(self, die$5);
 const orElseSucceed$1 = /*#__PURE__*/ dual(2, (self, f) => catch_$3(self, (error) => sync$1(() => f(error))));
+const ignoreCauseLogger = (log) => log === "Unhandled" ? (...message) => withFiber$1((fiber) => {
+	const level = fiber.getRef(UnhandledLogLevel);
+	return level === void 0 ? void_$3 : logWithLevel(level)(...message);
+}) : logWithLevel(log === true ? void 0 : log);
 const ignore$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => {
 	if (!options?.log) return matchEffect$2(self, {
 		onFailure: (_) => void_$3,
 		onSuccess: (_) => void_$3
 	});
-	const logEffect = logWithLevel(options.log === true ? void 0 : options.log);
+	const logEffect = ignoreCauseLogger(options.log);
 	return matchCauseEffect$1(self, {
 		onFailure(cause) {
 			const error = findRecoverableError(cause);
@@ -3106,7 +3183,7 @@ const ignoreCause$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, o
 		onFailure: (_) => void_$3,
 		onSuccess: (_) => void_$3
 	});
-	const logEffect = logWithLevel(options.log === true ? void 0 : options.log);
+	const logEffect = ignoreCauseLogger(options.log);
 	return matchCauseEffect$1(self, {
 		onFailure: (cause) => options.message === void 0 ? logEffect(cause) : logEffect(options.message, cause),
 		onSuccess: (_) => void_$3
@@ -3629,6 +3706,11 @@ const forEachConcurrent = /*#__PURE__*/ iterateConcurrentImpl({
 		else if (state.out) state.out[index] = exit.value;
 	}
 });
+const filter$1 = /*#__PURE__*/ dual((args) => isIterable(args[0]) && !isEffect$1(args[0]), (elements, predicate, options) => map$6(forEach$2(elements, (a, i) => {
+	const result = predicate(a, i);
+	if (typeof result === "boolean") return succeed$7(result ? some(a) : none());
+	return map$6(result, (keep) => keep ? some(a) : none());
+}, options), getSomes));
 const forkChild$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, options) => withFiber$1((fiber) => {
 	interruptChildrenPatch();
 	return succeed$7(forkUnsafe$1(fiber, self, options?.startImmediately, false, options?.uninterruptible ?? false));
@@ -3687,7 +3769,7 @@ const fiberRunIn = /*#__PURE__*/ dual(2, (self, scope) => {
 	self.addObserver(() => scopeRemoveFinalizerUnsafe(scope, self));
 	return self;
 });
-const runFork$1 = /*#__PURE__*/ runForkWith$1(/*#__PURE__*/ empty$10());
+const runFork$1 = /*#__PURE__*/ runForkWith$1(/*#__PURE__*/ empty$11());
 const runPromiseExitWith = (context) => {
 	const runFork = runForkWith$1(context);
 	return (effect, options) => {
@@ -3704,7 +3786,7 @@ const runPromiseWith = (context) => {
 		return exit.value;
 	});
 };
-const runPromise$1 = /*#__PURE__*/ runPromiseWith(/*#__PURE__*/ empty$10());
+const runPromise$1 = /*#__PURE__*/ runPromiseWith(/*#__PURE__*/ empty$11());
 const runSyncExitWith = (context) => {
 	const runFork = runForkWith$1(context);
 	return (effect) => {
@@ -3715,7 +3797,7 @@ const runSyncExitWith = (context) => {
 		return fiber._exit ?? exitDie(new AsyncFiberError(fiber));
 	};
 };
-const runSyncExit$1 = /*#__PURE__*/ runSyncExitWith(/*#__PURE__*/ empty$10());
+const runSyncExit$1 = /*#__PURE__*/ runSyncExitWith(/*#__PURE__*/ empty$11());
 const runSyncWith = (context) => {
 	const runSyncExit = runSyncExitWith(context);
 	return (effect) => {
@@ -3724,7 +3806,7 @@ const runSyncWith = (context) => {
 		return exit.value;
 	};
 };
-const runSync$2 = /*#__PURE__*/ runSyncWith(/*#__PURE__*/ empty$10());
+const runSync$2 = /*#__PURE__*/ runSyncWith(/*#__PURE__*/ empty$11());
 const succeedTrue = /*#__PURE__*/ succeed$7(true);
 const succeedFalse = /*#__PURE__*/ succeed$7(false);
 var Latch = class {
@@ -3823,7 +3905,7 @@ const makeSpanUnsafe = (fiber, name, options) => {
 	if (disablePropagation) span = noopSpan({
 		name,
 		parent,
-		annotations: add$2(options?.annotations ?? empty$10(), DisablePropagation, true)
+		annotations: add$2(options?.annotations ?? empty$11(), DisablePropagation, true)
 	});
 	else {
 		const tracer = fiber.cache.tracer ?? nativeTracer;
@@ -3836,7 +3918,7 @@ const makeSpanUnsafe = (fiber, name, options) => {
 		span = tracer.span({
 			name,
 			parent,
-			annotations: options?.annotations ?? empty$10(),
+			annotations: options?.annotations ?? empty$11(),
 			links,
 			startTime: timingEnabled ? clock.currentTimeNanosUnsafe() : bigint0$2,
 			kind: options?.kind ?? "internal",
@@ -3848,6 +3930,7 @@ const makeSpanUnsafe = (fiber, name, options) => {
 	}
 	return span;
 };
+const makeSpan$1 = (name, options) => withFiber$1((fiber) => succeed$7(makeSpanUnsafe(fiber, name, options)));
 const makeSpanScoped$1 = (name, options) => uninterruptible$1(withFiber$1((fiber) => {
 	const scope = getUnsafe(fiber.context, scopeTag);
 	const span = makeSpanUnsafe(fiber, name, options ?? {});
@@ -4127,7 +4210,7 @@ const reportCauseUnsafe = (fiber, cause, defectsOnly) => {
 	};
 	reporters.forEach((reporter) => reporter.report(opts));
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Cause.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Cause.js
 const isCause = isCause$1;
 const isReason = isCauseReason;
 const isFailReason = isFailReason$1;
@@ -4144,6 +4227,7 @@ const combine = causeCombine;
 const squash = causeSquash;
 const findFail = findFail$1;
 const findError = findError$1;
+const findErrorOption = findErrorOption$1;
 const hasDies = hasDies$1;
 const hasInterrupts$1 = hasInterrupts$2;
 const interruptors = causeInterruptors;
@@ -4159,7 +4243,7 @@ const UnknownError$1 = UnknownError$2;
 const annotate$1 = causeAnnotate;
 const reasonAnnotations = reasonAnnotations$1;
 var StackTrace = class extends (/*#__PURE__*/ Service$1()("effect/Cause/StackTrace")) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Exit.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Exit.js
 const isExit = isExit$1;
 const succeed$6 = exitSucceed;
 const failCause$5 = exitFailCause;
@@ -4171,7 +4255,7 @@ const isSuccess = exitIsSuccess;
 const isFailure = exitIsFailure;
 const hasInterrupts = exitHasInterrupts;
 const asVoidAll = exitAsVoidAll;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Deferred.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Deferred.js
 const TypeId$48 = "~effect/Deferred";
 const isDeferred = (u) => hasProperty(u, TypeId$48);
 const DeferredProto = {
@@ -4189,7 +4273,7 @@ const DeferredImpl = function() {
 };
 DeferredImpl.prototype = DeferredProto;
 const makeUnsafe$6 = () => new DeferredImpl();
-const make$45 = () => sync$1(() => makeUnsafe$6());
+const make$46 = () => sync$1(() => makeUnsafe$6());
 const _await = (self) => callback$2((resume) => {
 	if (self.effect) return resume(self.effect);
 	self.resumes ??= [];
@@ -4216,13 +4300,13 @@ const doneUnsafe = (self, effect) => {
 	}
 	return true;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/References.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/References.js
 const CurrentLogAnnotations = CurrentLogAnnotations$1;
 const CurrentLogLevel = CurrentLogLevel$1;
 const TracerTimingEnabled = TracerTimingEnabled$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Scope.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Scope.js
 const Scope = scopeTag;
-const make$44 = scopeMake;
+const make$45 = scopeMake;
 const makeUnsafe$5 = scopeMakeUnsafe;
 const provide$3 = provideScope;
 const addFinalizerExit = scopeAddFinalizerExit;
@@ -4230,7 +4314,7 @@ const addFinalizer$1 = scopeAddFinalizer;
 const forkUnsafe = scopeForkUnsafe;
 const close = scopeClose;
 const closeUnsafe = scopeCloseUnsafe;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Layer.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Layer.js
 const TypeId$47 = "~effect/Layer";
 const MemoMapTypeId = "~effect/Layer/MemoMap";
 const makeMemoMapEntry = (memoMap, layer) => {
@@ -4321,17 +4405,18 @@ const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provide
 const build = (self) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), getUnsafe(fiber.context, Scope)));
 const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), scope)));
 const succeed$4 = function() {
-	if (arguments.length === 1) return (resource) => succeedContext(make$48(arguments[0], resource));
-	return succeedContext(make$48(arguments[0], arguments[1]));
+	if (arguments.length === 1) return (resource) => succeedContext(make$49(arguments[0], resource));
+	return succeedContext(make$49(arguments[0], arguments[1]));
 };
 const succeedContext = (context) => fromBuildUnsafe(constant(succeed$7(context)));
+const empty$9 = /*#__PURE__*/ succeedContext(/*#__PURE__*/ empty$11());
 const effect = function() {
 	if (arguments.length === 1) return (effect) => effectImpl(arguments[0], effect);
 	return effectImpl(arguments[0], arguments[1]);
 };
-const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$48(service, value)));
+const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$49(service, value)));
 const effectContext = (effect) => fromBuildMemo((_, scope) => provide$3(effect, scope));
-const effectDiscard = (effect) => effectContext(as$1(effect, empty$10()));
+const effectDiscard = (effect) => effectContext(as$1(effect, empty$11()));
 const unwrapKey = /*#__PURE__*/ Service$1("effect/Layer/unwrap");
 const unwrap$4 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
 const mergeAllEffect = (layers, memoMap, scope) => {
@@ -4345,10 +4430,10 @@ const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, tha
 const flatMap$1 = /*#__PURE__*/ dual(2, (self, f) => fromBuild((memoMap, scope) => flatMap$2(self.build(memoMap, scope), (context) => f(context).build(memoMap, scope))));
 const catchTag$1 = /*#__PURE__*/ dual(3, (self, k, f) => fromBuildUnsafe((memoMap, scope) => catchTag$2(self.build(memoMap, scope), k, (error) => f(error).build(memoMap, scope))));
 const launch = (self) => scoped$1(andThen$1(build(self), never$2));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Clock.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Clock.js
 const Clock = ClockRef;
 const currentTimeMillis = currentTimeMillis$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/dateTime.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/dateTime.js
 const TypeId$46 = "~effect/DateTime";
 const TimeZoneTypeId = "~effect/DateTime/TimeZone";
 const Proto$17 = {
@@ -4397,25 +4482,46 @@ const ProtoTimeZone = {
 };
 ({ ...ProtoTimeZone });
 ({ ...ProtoTimeZone });
+const cacheSlot = {
+	value: void 0,
+	enumerable: false,
+	writable: true
+};
+const sealedCaches = /*#__PURE__*/ new WeakMap();
+const cacheAccessor = (key, slots) => ({
+	get() {
+		return Object.isExtensible(this) ? void 0 : sealedCaches.get(this)?.[key];
+	},
+	set(value) {
+		if (Object.isExtensible(this)) {
+			for (const slot of slots) Object.defineProperty(this, slot, cacheSlot);
+			this[key] = value;
+		} else {
+			let caches = sealedCaches.get(this);
+			if (caches === void 0) {
+				caches = {};
+				sealedCaches.set(this, caches);
+			}
+			caches[key] = value;
+		}
+	}
+});
+const zonedSlots = [
+	"partsUtc",
+	"adjustedEpochMilliseconds",
+	"partsAdjusted"
+];
+Object.defineProperty(ProtoUtc, "partsUtc", cacheAccessor("partsUtc", ["partsUtc"]));
+Object.defineProperties(ProtoZoned, {
+	partsUtc: cacheAccessor("partsUtc", zonedSlots),
+	adjustedEpochMilliseconds: cacheAccessor("adjustedEpochMilliseconds", zonedSlots),
+	partsAdjusted: cacheAccessor("partsAdjusted", zonedSlots)
+});
 const makeZonedProto = (epochMillis, zone, partsUtc) => {
 	const self = Object.create(ProtoZoned);
 	self.epochMilliseconds = epochMillis;
 	self.zone = zone;
-	Object.defineProperty(self, "partsUtc", {
-		value: partsUtc,
-		enumerable: false,
-		writable: true
-	});
-	Object.defineProperty(self, "adjustedEpochMillis", {
-		value: void 0,
-		enumerable: false,
-		writable: true
-	});
-	Object.defineProperty(self, "partsAdjusted", {
-		value: void 0,
-		enumerable: false,
-		writable: true
-	});
+	if (partsUtc !== void 0) self.partsUtc = partsUtc;
 	return self;
 };
 const isDateTime$1 = (u) => hasProperty(u, TypeId$46);
@@ -4424,11 +4530,6 @@ const isUtc$1 = (self) => self._tag === "Utc";
 const makeUtc = (epochMillis) => {
 	const self = Object.create(ProtoUtc);
 	self.epochMilliseconds = epochMillis;
-	Object.defineProperty(self, "partsUtc", {
-		value: void 0,
-		enumerable: false,
-		writable: true
-	});
 	return self;
 };
 const fromDateUnsafe = (date) => {
@@ -4448,7 +4549,7 @@ const makeUnsafe$4 = (input) => {
 	return fromDateUnsafe(new Date(input));
 };
 const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input) || /z$|gmt$/i.test(input);
-const make$43 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
+const make$44 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
 const now$1 = /*#__PURE__*/ map$6(currentTimeMillis, makeUtc);
 const toUtc$1 = (self) => makeUtc(self.epochMilliseconds);
 const toDateUtc$1 = (self) => new Date(self.epochMilliseconds);
@@ -4594,7 +4695,7 @@ const formatIsoOffset = (self) => {
 	return self._tag === "Utc" ? date.toISOString() : `${date.toISOString().slice(0, -1)}${zonedOffsetIso(self)}`;
 };
 const formatIsoZoned = (self) => self.zone._tag === "Offset" ? formatIsoOffset(self) : `${formatIsoOffset(self)}[${self.zone.id}]`;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Pull.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Pull.js
 const catchDone = /*#__PURE__*/ dual(2, (effect, f) => catchCauseFilter$1(effect, filterDoneLeftover, (l) => f(l)));
 const isDoneCause = (cause) => cause.reasons.some(isDoneFailure);
 const isDoneFailure = (failure) => failure._tag === "Fail" && isDone(failure.error);
@@ -4621,7 +4722,7 @@ const matchEffect$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 		return !isFailure$1(halt) ? options.onDone(halt.success.value) : options.onFailure(halt.failure);
 	}
 }));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schedule.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Schedule.js
 const TypeId$45 = "~effect/Schedule";
 const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata", { defaultValue: /*#__PURE__*/ constant({
 	input: void 0,
@@ -4722,10 +4823,10 @@ const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$6(toStep(
 	});
 })));
 const forever$1 = /*#__PURE__*/ spaced(zero$1);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/layer.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/layer.js
 const provideLayer = (self, layer, options) => scopedWith$1((scope) => flatMap$2(options?.local ? buildWithMemoMap(layer, makeMemoMapUnsafe(), scope) : buildWithScope(layer, scope), (context) => provideContext$3(self, context)));
 const provide$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, source, options) => isContext(source) ? provideContext$3(self, source) : provideLayer(self, Array.isArray(source) ? mergeAll(...source) : source, options));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schedule.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schedule.js
 const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2(toStepWithMetadata(schedule), (step) => {
 	let meta = CurrentMetadata.defaultValue();
 	const loop = (input) => matchEffect$1(step(input), {
@@ -4772,7 +4873,7 @@ const buildFromOptions = (options) => {
 	if (options.times !== void 0) schedule = while_(schedule, ({ attempt }) => succeed$7(attempt <= options.times));
 	return schedule;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableHashMap.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableHashMap.js
 const TypeId$44 = "~effect/MutableHashMap";
 const MutableHashMapProto = {
 	[TypeId$44]: TypeId$44,
@@ -4865,7 +4966,7 @@ const clear$2 = (self) => {
 	return self;
 };
 const size = (self) => self.backing.size;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Effect.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Effect.js
 const isEffect = isEffect$1;
 const all$1 = all$2;
 const forEach$1 = forEach$2;
@@ -4900,12 +5001,14 @@ const exit = exit$1;
 const map$4 = map$6;
 const as = as$1;
 const asVoid = asVoid$1;
+const zipWith = zipWith$1;
 const catch_$2 = catch_$3;
 const catchTag = catchTag$2;
 const catchTags = catchTags$1;
 const catchReason = catchReason$1;
 const catchCause$2 = catchCause$3;
 const catchDefect = catchDefect$1;
+const catchIf$2 = catchIf$3;
 const catchCauseIf = catchCauseIf$1;
 const mapError$2 = mapError$3;
 const orDie = orDie$1;
@@ -4921,6 +5024,7 @@ const timeoutOrElse = timeoutOrElse$1;
 const sleep = sleep$1;
 const timed = timed$1;
 const raceFirst = raceFirst$1;
+const filter = filter$1;
 const when$2 = when$3;
 const matchCauseEffect = matchCauseEffect$1;
 const matchEffect = matchEffect$2;
@@ -4950,6 +5054,7 @@ const uninterruptibleMask = uninterruptibleMask$1;
 const forever = forever$2;
 const repeat = repeat$1;
 const annotateCurrentSpan = annotateCurrentSpan$1;
+const makeSpan = makeSpan$1;
 const makeSpanScoped = makeSpanScoped$1;
 const useSpan = useSpan$1;
 const withSpan = withSpan$1;
@@ -4998,14 +5103,16 @@ const mapBothEager = mapBothEager$1;
 const flatMapEager = flatMapEager$1;
 const catchEager = catchEager$1;
 const fnUntracedEager = fnUntracedEager$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Fiber.js
-const join = fiberJoin;
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Fiber.js
+const await_ = fiberAwait;
+const join$1 = fiberJoin;
 const interrupt = fiberInterrupt;
+const interruptAs = fiberInterruptAs;
 const getCurrent = getCurrentFiber;
 const runIn = fiberRunIn;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableList.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableList.js
 const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
-const make$42 = () => ({
+const make$43 = () => ({
 	head: void 0,
 	tail: void 0,
 	length: 0
@@ -5063,7 +5170,7 @@ const clear$1 = (self) => {
 	self.length = 0;
 };
 const takeN = (self, n) => {
-	n = normalize$2(n);
+	n = normalize$3(n);
 	if (n <= 0 || !self.head) return [];
 	n = Math.min(n, self.length);
 	if (n === self.length && self.head?.offset === 0 && !self.head.next) {
@@ -5092,6 +5199,30 @@ const takeN = (self, n) => {
 	clear$1(self);
 	return array;
 };
+const takeNVoid = (self, n) => {
+	n = normalize$3(n);
+	if (n <= 0 || !self.head) return;
+	n = Math.min(n, self.length);
+	if (n === self.length && self.head?.offset === 0 && !self.head.next) {
+		clear$1(self);
+		return;
+	}
+	let count = 0;
+	let chunk = self.head;
+	while (chunk) {
+		const size = chunk.array.length - chunk.offset;
+		if (count + size > n) {
+			chunk.offset += n - count;
+			self.head = chunk;
+			self.length -= n;
+			compactHead(self);
+			return;
+		}
+		count += size;
+		chunk = chunk.next;
+	}
+	clear$1(self);
+};
 const takeAll$1 = (self) => takeN(self, self.length);
 const take$1 = (self) => {
 	if (!self.head) return Empty$3;
@@ -5105,7 +5236,7 @@ const take$1 = (self) => {
 	} else compactHead(self);
 	return message;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Queue.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Queue.js
 const TypeId$43 = "~effect/Queue";
 const EnqueueTypeId = "~effect/Queue/Enqueue";
 const DequeueTypeId = "~effect/Queue/Dequeue";
@@ -5126,12 +5257,12 @@ const QueueProto = {
 		};
 	}
 };
-const make$41 = (options) => withFiber$1((fiber) => {
+const make$42 = (options) => withFiber$1((fiber) => {
 	const self = Object.create(QueueProto);
 	self.dispatcher = fiber.currentDispatcher;
 	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
 	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$42();
+	self.messages = make$43();
 	self.scheduleRunning = false;
 	self.state = {
 		_tag: "Open",
@@ -5141,19 +5272,22 @@ const make$41 = (options) => withFiber$1((fiber) => {
 	};
 	return succeed$7(self);
 });
-const bounded = (capacity) => make$41({ capacity });
-const unbounded$1 = () => make$41();
+const bounded = (capacity) => make$42({ capacity });
+const unbounded$1 = () => make$42();
 const offer = /*#__PURE__*/ dual(2, (self, message) => suspend$4(() => offerUnsafe(self, message) ? exitTrue : self.state._tag === "Open" && self.strategy === "suspend" ? offerOrWait(self, message) : exitFalse));
 const offerUnsafe = (self, message) => {
 	if (self.state._tag !== "Open") return false;
 	else if (self.messages.length >= self.capacity) {
-		if (self.strategy === "sliding") {
-			take$1(self.messages);
+		if (self.capacity <= 0 && self.state.takers.size > (self.strategy === "sliding" ? 0 : self.messages.length)) {
 			append(self.messages, message);
-			return true;
-		} else if (self.capacity <= 0 && self.state.takers.size > 0) {
-			append(self.messages, message);
+			if (self.strategy === "sliding") takeNVoid(self.messages, self.messages.length - self.state.takers.size);
 			releaseTakers(self);
+			return true;
+		} else if (self.strategy === "sliding") {
+			if (self.capacity > 0) {
+				take$1(self.messages);
+				append(self.messages, message);
+			}
 			return true;
 		}
 		return false;
@@ -5176,12 +5310,15 @@ const offerAllUnsafe = (self, messages) => {
 	if (self.state._tag !== "Open") return fromIterable$2(messages);
 	else if (self.capacity === Number.POSITIVE_INFINITY || self.strategy === "sliding") {
 		appendAll$1(self.messages, messages);
-		if (self.strategy === "sliding") takeN(self.messages, self.messages.length - self.capacity);
+		if (self.strategy === "sliding") {
+			const capacity = self.capacity <= 0 ? self.state.takers.size : self.capacity;
+			takeNVoid(self.messages, self.messages.length - capacity);
+		}
 		scheduleReleaseTaker(self);
 		return [];
 	}
-	const free = self.capacity <= 0 ? self.state.takers.size : self.capacity - self.messages.length;
-	if (free === 0) return fromIterable$2(messages);
+	const free = (self.capacity <= 0 ? self.state.takers.size : self.capacity) - self.messages.length;
+	if (free <= 0) return fromIterable$2(messages);
 	const remaining = [];
 	let i = 0;
 	for (const message of messages) {
@@ -5228,8 +5365,8 @@ const clear = (self) => suspendTake(() => {
 });
 const takeAll = (self) => takeBetween(self, 1, Number.POSITIVE_INFINITY);
 const takeBetween = /*#__PURE__*/ dual(3, (self, min, max) => {
-	min = normalize$2(min);
-	max = normalize$2(max);
+	min = normalize$3(min);
+	max = normalize$3(max);
 	return suspendTake(() => takeBetweenUnsafe(self, min, max) ?? andThen$1(awaitTake(self, () => canTake(self, min)), takeBetween(self, min, max)));
 });
 const take = (self) => suspendTake(() => takeUnsafe(self) ?? andThen$1(awaitTake(self, () => canTake(self, 1)), take(self)));
@@ -5379,7 +5516,42 @@ const finalize = (self, exit) => {
 	for (const awaiter of openState.awaiters) awaiter(exit);
 	openState.awaiters.clear();
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Semaphore.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/uuid.js
+const hex = /*#__PURE__*/ Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"));
+const stringify = (bytes) => {
+	if (bytes.length < 16) return [
+		bytes.subarray(0, 4),
+		bytes.subarray(4, 6),
+		bytes.subarray(6, 8),
+		bytes.subarray(8, 10),
+		bytes.subarray(10, 16)
+	].map((segment) => Array.from(segment, (byte) => hex[byte]).join("")).join("-");
+	return hex[bytes[0]] + hex[bytes[1]] + hex[bytes[2]] + hex[bytes[3]] + "-" + hex[bytes[4]] + hex[bytes[5]] + "-" + hex[bytes[6]] + hex[bytes[7]] + "-" + hex[bytes[8]] + hex[bytes[9]] + "-" + hex[bytes[10]] + hex[bytes[11]] + hex[bytes[12]] + hex[bytes[13]] + hex[bytes[14]] + hex[bytes[15]];
+};
+const v4Bytes = (bytes) => {
+	bytes[6] = bytes[6] & 15 | 64;
+	bytes[8] = bytes[8] & 63 | 128;
+	return bytes;
+};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/crypto/SecureRandom.js
+const checkSize = (size) => {
+	if (!Number.isSafeInteger(size) || size < 0) throw new RangeError("size must be a non-negative safe integer");
+};
+const makeUuid = (bytes, randomBytes, format) => {
+	const uuid = bytes(randomBytes(16));
+	return format === "bytes" ? uuid : stringify(uuid);
+};
+const fillRandom = (crypto, size) => {
+	const bytes = new Uint8Array(size);
+	for (let offset = 0; offset < size; offset += 65536) crypto.getRandomValues(bytes.subarray(offset, offset + 65536));
+	return bytes;
+};
+const randomBytesUnsafe = (size) => {
+	checkSize(size);
+	return fillRandom(globalThis.crypto, size);
+};
+const uuidV4Unsafe = (options) => makeUuid(v4Bytes, randomBytesUnsafe, options?.format);
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Semaphore.js
 const makeUnsafe$3 = (permits) => new SemaphoreImpl(permits);
 const firstAvailableWaiter = (self) => {
 	for (const waiter of self.waiters) if (waiter.permits <= self.free) return waiter;
@@ -5422,6 +5594,9 @@ var SemaphoreImpl = class {
 	}
 	take(n) {
 		return takePermits(this, n, () => succeed$7(n));
+	}
+	takeScoped(n) {
+		return uninterruptibleMask$1((restore) => flatMap$2(scope$1, (scope) => takePermits(this, n, () => scopeAddFinalizer(scope, this.release(n)), restore)));
 	}
 	takeIfAvailable(n) {
 		return suspend$4(() => {
@@ -5474,13 +5649,13 @@ var SemaphoreImpl = class {
 		});
 	}
 };
-const make$40 = (permits) => sync$1(() => new SemaphoreImpl(permits));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigDecimal.js
+const make$41 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/BigDecimal.js
 const TypeId$42 = "~effect/BigDecimal";
 const BigDecimalProto = {
 	[TypeId$42]: TypeId$42,
 	[symbol$3]() {
-		const normalized = normalize$1(this);
+		const normalized = normalize$2(this);
 		return combine$1(string$1(String(normalized.value)), number$1(normalized.scale));
 	},
 	[symbol$2](that) {
@@ -5504,7 +5679,7 @@ const BigDecimalProto = {
 	}
 };
 const isBigDecimal = (u) => hasProperty(u, TypeId$42);
-const make$39 = (value, scale) => {
+const make$40 = (value, scale) => {
 	if (!Number.isSafeInteger(scale)) throw new RangeError(`Scale must be a safe integer, got ${scale}`);
 	const o = Object.create(BigDecimalProto);
 	o.value = value;
@@ -5512,7 +5687,7 @@ const make$39 = (value, scale) => {
 	return o;
 };
 const makeNormalized = (value, scale) => {
-	const o = make$39(value, scale);
+	const o = make$40(value, scale);
 	o.normalized = o;
 	return o;
 };
@@ -5520,17 +5695,21 @@ const bigint0$1 = /*#__PURE__*/ BigInt(0);
 const bigint1$1 = /*#__PURE__*/ BigInt(1);
 const bigint10 = /*#__PURE__*/ BigInt(10);
 const zero = /*#__PURE__*/ makeNormalized(bigint0$1, 0);
-const normalize$1 = (self) => {
+const normalize$2 = (self) => {
 	if (self.normalized === void 0) {
 		if (self.value === bigint0$1) self.normalized = zero;
 		else {
 			const digits = `${self.value}`;
-			let end = digits.length;
-			while (digits[end - 1] === "0") end--;
-			self.normalized = makeNormalized(BigInt(digits.slice(0, end)), self.scale - (digits.length - end));
+			const zeros = trailingZeros(digits);
+			self.normalized = makeNormalized(BigInt(digits.slice(0, digits.length - zeros)), self.scale - zeros);
 		}
 	}
 	return self.normalized;
+};
+const trailingZeros = (digits) => {
+	let end = digits.length;
+	while (digits[end - 1] === "0") end--;
+	return digits.length - end;
 };
 const MAX_COMPARISON_SCALE_ALIGNMENT = 100;
 const comparisonPowersOfTen = [bigint1$1];
@@ -5557,7 +5736,7 @@ const compare = (self, that) => {
 };
 const sign = (n) => n.value === bigint0$1 ? 0 : n.value < bigint0$1 ? -1 : 1;
 const format = (n) => {
-	const normalized = normalize$1(n);
+	const normalized = normalize$2(n);
 	if (Math.abs(normalized.scale) >= 16) return toExponential(normalized);
 	const negative = normalized.value < bigint0$1;
 	const absolute = `${negative ? -normalized.value : normalized.value}`;
@@ -5568,7 +5747,7 @@ const format = (n) => {
 };
 const toExponential = (n) => {
 	if (isZero(n)) return "0e+0";
-	const normalized = normalize$1(n);
+	const normalized = normalize$2(n);
 	const digits = `${normalized.value}`;
 	const point = normalized.value < bigint0$1 ? 2 : 1;
 	const head = digits.slice(0, point);
@@ -5577,13 +5756,13 @@ const toExponential = (n) => {
 	return `${head}${tail === "" ? "" : `.${tail}`}e${exp >= 0 ? "+" : ""}${exp}`;
 };
 const isZero = (n) => n.value === bigint0$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/BigInt.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/BigInt.js
 const BigInt$4 = globalThis.BigInt;
 const toNumber$1 = (b) => {
 	if (b > BigInt$4(Number.MAX_SAFE_INTEGER) || b < BigInt$4(Number.MIN_SAFE_INTEGER)) return none();
 	return some(Number(b));
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ByteSize.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ByteSize.js
 const bigint0 = /*#__PURE__*/ BigInt(0);
 const bigint1 = /*#__PURE__*/ BigInt(1);
 const decimalBase = /*#__PURE__*/ BigInt(1e3);
@@ -5766,30 +5945,38 @@ const binaryUnits = [
 ];
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
-const make$38 = (value) => value;
+const make$39 = (value) => value;
 const invalid$2 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
 	if (!Number.isSafeInteger(input) || input < 0) return invalid$2(`expected a non-negative safe integer, received ${input}`);
-	return make$38(BigInt(input));
+	return make$39(BigInt(input));
+};
+const scaleDecimal = (quantity, factor) => {
+	const match = /^(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(quantity);
+	if (match === null) return void 0;
+	const fraction = match[2] ?? "";
+	const numerator = BigInt(match[1] + fraction) * factor;
+	const shift = Number(match[3] ?? 0) - fraction.length;
+	if (shift >= 0) return numerator * BigInt(10) ** BigInt(shift);
+	const scale = BigInt(10) ** BigInt(-shift);
+	return numerator % scale === bigint0 ? numerator / scale : void 0;
 };
 const fromStringUnsafe = (input) => {
-	const match = /^\s*(\d+)(?:\.(\d+))?\s*([A-Za-z]+)\s*$/.exec(input);
+	const match = /^\s*(\d+(?:\.\d+)?)\s*([A-Za-z]+)\s*$/.exec(input);
 	if (match === null) return invalid$2(`unsupported syntax ${JSON.stringify(input)}`);
-	const unit = unitsByName.get(match[3]);
-	if (unit === void 0) return invalid$2(`unsupported unit ${JSON.stringify(match[3])}`);
-	const fraction = match[2] ?? "";
-	const scale = BigInt(10) ** BigInt(fraction.length);
-	const numerator = BigInt(match[1] + fraction) * unit.factor;
-	if (numerator % scale !== bigint0) return invalid$2(`${JSON.stringify(input)} does not represent an integral number of bytes`);
-	return make$38(numerator / scale);
+	const unit = unitsByName.get(match[2]);
+	if (unit === void 0) return invalid$2(`unsupported unit ${JSON.stringify(match[2])}`);
+	const value = scaleDecimal(match[1], unit.factor);
+	if (value === void 0) return invalid$2(`${JSON.stringify(input)} does not represent an integral number of bytes`);
+	return make$39(value);
 };
 const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
 			if (input < bigint0) return invalid$2(`expected a non-negative bigint, received ${input}`);
-			return make$38(input);
+			return make$39(input);
 		case "number": return fromNumber(input);
 		case "string": return fromStringUnsafe(input);
 	}
@@ -5798,18 +5985,20 @@ const fromInputUnsafe = (input) => {
 const bytes = (value) => typeof value === "bigint" ? fromInputUnsafe(value) : fromNumber(value);
 const toNumber = toNumber$1;
 const toNumberUnsafe = (self) => getOrThrowWith$1(toNumber(self), () => /* @__PURE__ */ new Error(`ByteSize exceeds Number.MAX_SAFE_INTEGER: ${self}`));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/DateTime.js
-const isDateTime = isDateTime$1;
-const isUtc = isUtc$1;
-const makeUnsafe$2 = makeUnsafe$4;
-const make$37 = make$43;
-const now = now$1;
-const toUtc = toUtc$1;
-const toEpochMillis = toEpochMillis$1;
-const add = add$1;
-const formatIso = formatIso$1;
-const formatIsoDate = formatIsoDate$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Base64.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/base64.js
+const decodeNative = (str, decodedLength, options) => {
+	if (str.length < 128) return void 0;
+	const NativeUint8Array = Uint8Array;
+	if (typeof NativeUint8Array.fromBase64 !== "function") return void 0;
+	try {
+		const bytes = NativeUint8Array.fromBase64(str, options);
+		return bytes.length === decodedLength ? bytes : null;
+	} catch {
+		return null;
+	}
+};
+const stripCrlf = (str) => str.indexOf("\n") === -1 && str.indexOf("\r") === -1 ? str : str.replace(/[\n\r]/g, "");
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/encoding/Base64.js
 const encode$1 = (input) => encodeBytes(typeof input === "string" ? encoder$3.encode(input) : input);
 const decode$4 = (str) => {
 	const stripped = stripCrlf(str);
@@ -5827,9 +6016,21 @@ const decode$4 = (str) => {
 		input: stripped,
 		message: "Found a '=' character, but it is not at the end"
 	}));
+	const missingOctets = stripped.endsWith("==") ? 2 : stripped.endsWith("=") ? 1 : 0;
+	const decodedLength = 3 * (length / 4) - missingOctets;
+	const native = decodeNative(stripped, decodedLength, void 0);
+	if (native) return succeed$8(native);
+	if (native === null) {
+		const invalid = invalidCharacter.exec(stripped);
+		if (invalid !== null) return fail$7(new EncodingError({
+			kind: "Decode",
+			module: "Base64",
+			input: stripped,
+			message: `Invalid character ${invalid[0]}`
+		}));
+	}
 	try {
-		const missingOctets = stripped.endsWith("==") ? 2 : stripped.endsWith("=") ? 1 : 0;
-		const result = new Uint8Array(3 * (length / 4) - missingOctets);
+		const result = new Uint8Array(decodedLength);
 		for (let i = 0, j = 0; i < length; i += 4, j += 3) {
 			const buffer = getCode(stripped.charCodeAt(i)) << 18 | getCode(stripped.charCodeAt(i + 1)) << 12 | getCode(stripped.charCodeAt(i + 2)) << 6 | getCode(stripped.charCodeAt(i + 3));
 			result[j] = buffer >> 16;
@@ -5901,11 +6102,11 @@ const encodeLong = (bytes) => {
 	return decoder.decode(result);
 };
 const encoder$3 = /*#__PURE__*/ new TextEncoder();
-const decoder = /*#__PURE__*/ new TextDecoder();
-const stripCrlf = (str) => str.replace(/[\n\r]/g, "");
+const decoder = /*#__PURE__*/ new TextDecoder("utf-8", { ignoreBOM: true });
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const alphabetCodes = /*#__PURE__*/ encoder$3.encode(alphabet);
 const paddingCode = /*#__PURE__*/ "=".charCodeAt(0);
+const invalidCharacter = /[^A-Za-z0-9+/=]/;
 const codes = /*#__PURE__*/ (/* @__PURE__ */ new Uint8Array(123)).fill(255);
 for (let i = 0; i < 64; i++) codes[/*#__PURE__*/ alphabet.charCodeAt(i)] = i;
 codes[/*#__PURE__*/ "=".charCodeAt(0)] = 0;
@@ -5913,7 +6114,18 @@ const getCode = (charCode) => {
 	if (charCode >= codes.length || codes[charCode] === 255) throw new TypeError(`Invalid character ${String.fromCharCode(charCode)}`);
 	return codes[charCode];
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Cookies.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/DateTime.js
+const isDateTime = isDateTime$1;
+const isUtc = isUtc$1;
+const makeUnsafe$2 = makeUnsafe$4;
+const make$38 = make$44;
+const now = now$1;
+const toUtc = toUtc$1;
+const toEpochMillis = toEpochMillis$1;
+const add = add$1;
+const formatIso = formatIso$1;
+const formatIsoDate = formatIsoDate$1;
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Cookies.js
 const TypeId$41 = "~effect/http/Cookies";
 const CookieTypeId = "~effect/http/Cookies/Cookie";
 const Proto$16 = {
@@ -6053,17 +6265,17 @@ const tryDecodeURIComponent = (str) => {
 		return str;
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/redacted.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/redacted.js
 const redactedRegistry = /*#__PURE__*/ new WeakMap();
 const value$3 = (self) => {
 	if (redactedRegistry.has(self)) return redactedRegistry.get(self);
 	else throw new Error("Unable to get redacted value" + (self.label ? ` with label: "${self.label}"` : ""));
 };
 const stringOrRedacted = (val) => typeof val === "string" ? val : value$3(val);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Redacted.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Redacted.js
 const TypeId$40 = "~effect/Redacted";
 const isRedacted = (u) => hasProperty(u, TypeId$40);
-const make$36 = (value, options) => {
+const make$37 = (value, options) => {
 	const self = Object.create(Proto$15);
 	if (options?.label) self.label = options.label;
 	redactedRegistry.set(self, value);
@@ -6087,8 +6299,8 @@ const Proto$15 = {
 	}
 };
 const value$2 = value$3;
-const makeEquivalence = (isEquivalent) => make$50((x, y) => isEquivalent(value$2(x), value$2(y)));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Headers.js
+const makeEquivalence = (isEquivalent) => make$51((x, y) => isEquivalent(value$2(x), value$2(y)));
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Headers.js
 const TypeId$39 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
 const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.create(null), {
 	[TypeId$39]: { value: TypeId$39 },
@@ -6107,14 +6319,17 @@ const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.crea
 	toString: { value: BaseProto.toString },
 	[NodeInspectSymbol]: { value: BaseProto[NodeInspectSymbol] }
 });
-const make$35 = (input) => Object.assign(Object.create(Proto$14), input);
+const make$36 = (input) => Object.assign(Object.create(Proto$14), input);
 const Equivalence$2 = /*#__PURE__*/ makeEquivalence$2(/*#__PURE__*/ strictEqual());
 const empty$6 = /*#__PURE__*/ Object.create(Proto$14);
 const fromInput$1 = (input) => {
 	if (input === void 0) return empty$6;
 	else if (Symbol.iterator in input) {
 		const out = Object.create(Proto$14);
-		for (const [k, v] of input) out[k.toLowerCase()] = v;
+		for (const [k, v] of input) {
+			const key = k.toLowerCase();
+			out[key] = key in out ? `${out[key]}, ${v}` : v;
+		}
 		return out;
 	}
 	const out = Object.create(Proto$14);
@@ -6124,21 +6339,21 @@ const fromInput$1 = (input) => {
 };
 const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$14);
 const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
-	const out = make$35(self);
+	const out = make$36(self);
 	out[key.toLowerCase()] = value;
 	return out;
 });
-const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$35({
+const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$36({
 	...self,
 	...fromInput$1(headers)
 }));
 const merge$1 = /*#__PURE__*/ dual(2, (self, headers) => {
-	const out = make$35(self);
+	const out = make$36(self);
 	Object.assign(out, headers);
 	return out;
 });
 const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
-	const out = make$35(self);
+	const out = make$36(self);
 	delete out[key.toLowerCase()];
 	return out;
 });
@@ -6147,8 +6362,8 @@ const redact$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	const modify = (key) => {
 		if (typeof key === "string") {
 			const k = key.toLowerCase();
-			if (k in self) out[k] = make$36(self[k]);
-		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$36(self[name]);
+			if (k in self) out[k] = make$37(self[k]);
+		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$37(self[name]);
 	};
 	if (Array.isArray(key)) for (let i = 0; i < key.length; i++) modify(key[i]);
 	else modify(key);
@@ -6241,9 +6456,11 @@ const parseRetryAfter$1 = (input) => {
 	return millis === void 0 ? fail$7(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$2(millis)));
 };
 const retryAfterDelay = (self, now) => self._tag === "Duration" ? self.duration : millis(Math.max(0, toEpochMillis(self.dateTime) - now));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/urlParams.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/urlParams.js
 const unwrap$3 = (value) => typeof value === "string" ? value : value$2(value);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/UrlParams.js
+const bodyDecoder = /*#__PURE__*/ new TextDecoder("utf-8", { ignoreBOM: true });
+const fromBody = (bytes) => new URLSearchParams(bodyDecoder.decode(bytes).replace(/^\?/, "%3F"));
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/UrlParams.js
 const TypeId$38 = "~effect/http/UrlParams";
 const isUrlParams = (u) => hasProperty(u, TypeId$38);
 const Proto$13 = {
@@ -6268,7 +6485,7 @@ const Proto$13 = {
 		return array(this.params.flat());
 	}
 };
-const make$34 = (params) => {
+const make$35 = (params) => {
 	const self = Object.create(Proto$13);
 	self.params = params;
 	return self;
@@ -6281,7 +6498,7 @@ const fromInput = (input) => {
 		const [keys, value] = parsed[i];
 		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
 	} else out.push(parsed[i]);
-	return make$34(out);
+	return make$35(out);
 };
 const fromInputNested = (input) => {
 	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
@@ -6295,10 +6512,10 @@ const fromInputNested = (input) => {
 	return out;
 };
 const coerce = (value) => isRedacted(value) ? value : String(value);
-const Equivalence$1 = /*#__PURE__*/ make$50((a, b) => arrayEquivalence(a.params, b.params));
+const Equivalence$1 = /*#__PURE__*/ make$51((a, b) => arrayEquivalence(a.params, b.params));
 const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ asEquivalence()]));
-const empty$5 = /*#__PURE__*/ make$34([]);
-const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$34(f(self.params)));
+const empty$5 = /*#__PURE__*/ make$35([]);
+const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$35(f(self.params)));
 const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 	const params = fromInput(input).params.slice();
 	const keys = /* @__PURE__ */ new Set();
@@ -6307,7 +6524,7 @@ const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 		if (keys.has(self.params[i][0])) continue;
 		params.push(self.params[i]);
 	}
-	return make$34(params);
+	return make$35(params);
 });
 const appendAll = /*#__PURE__*/ dual(2, (self, input) => transform$2(self, appendAll$2(fromInput(input).params)));
 const toString = (input) => new URLSearchParams(fromInput(input).params.map(([key, value]) => [key, unwrap$3(value)])).toString();
@@ -6327,7 +6544,7 @@ const toRecord = (self) => {
 const toReadonlyRecord = toRecord;
 const redact = /*#__PURE__*/ dual(2, (self, key) => {
 	const patterns = Array.isArray(key) ? key : [key];
-	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$36(value) : value]);
+	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$37(value) : value]);
 });
 const isRedactedName = isRedactedName$1;
 const redactUrl = (url, redactedNames = currentRedactedNames()) => {
@@ -6372,7 +6589,7 @@ const decodeQueryKey = (key) => {
 		return key;
 	}
 };
-const currentRedactedNames = () => get$2(globalThis["~effect/Fiber/currentFiber"]?.context ?? empty$10(), CurrentRedactedNames);
+const currentRedactedNames = () => get$2(globalThis["~effect/Fiber/currentFiber"]?.context ?? empty$11(), CurrentRedactedNames);
 const CurrentRedactedNames = /*#__PURE__*/ Reference("effect/http/UrlParams/CurrentRedactedNames", { defaultValue: () => [
 	"X-Amz-Signature",
 	"X-Amz-Credential",
@@ -6382,7 +6599,7 @@ const CurrentRedactedNames = /*#__PURE__*/ Reference("effect/http/UrlParams/Curr
 	"sig",
 	"X-Goog-Signature"
 ] });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/annotations.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/annotations.js
 function resolve$1(ast) {
 	return ast.checks ? ast.checks[ast.checks.length - 1].annotations : ast.annotations;
 }
@@ -6428,14 +6645,15 @@ const annotationExcludedKeys = /*#__PURE__*/ new Set([
 	"toCodecIso",
 	"toCodecArbitrary"
 ]);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/parser.js
-const missing = /*#__PURE__*/ Symbol();
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/parser.js
+const missing = /*#__PURE__*/ Symbol.for("effect/schema/parser/missing");
 const succeed$2 = succeed$6;
 const missingExit = /*#__PURE__*/ succeed$2(missing);
-const sameExit = /*#__PURE__*/ succeed$2(missing);
+const sameExit = /*#__PURE__*/ Object.assign(/*#__PURE__*/ succeed$2(missing), { [missing]: true });
+const isSameExit = (result) => result[missing] === true;
 const toOption = (value) => value === missing ? none() : some(value);
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed$2(option.value);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaIssue.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/SchemaIssue.js
 const TypeId$37 = "~effect/SchemaIssue/Issue";
 function isIssue(u) {
 	return hasProperty(u, TypeId$37) && u[TypeId$37] === TypeId$37;
@@ -6644,7 +6862,7 @@ function findMessage(issue) {
 	const message = (issue._tag === "Filter" ? issue.filter.annotations : "annotations" in issue ? issue.annotations : issue.ast.annotations)?.[issue._tag === "MissingKey" ? "messageMissingKey" : issue._tag === "UnexpectedKey" ? "messageUnexpectedKey" : "message"];
 	if (typeof message === "string") return message;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/cause.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/cause.js
 function getSchemaIssue(cause) {
 	let issue;
 	for (const reason of cause.reasons) {
@@ -6658,7 +6876,7 @@ function getSchemaIssueOrThrow(cause, message) {
 	if (issue === void 0) throw new Error(message, { cause });
 	return issue;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaGetter.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/SchemaGetter.js
 const makeGetter = (fields) => Object.assign(Object.create(Prototype$1), fields);
 function fail$2(f) {
 	return transformOptionalEffect((oe, options) => fail$3(f(oe, options)));
@@ -6703,7 +6921,7 @@ function omit$1() {
 }
 function withDefault$2(defaultValue) {
 	return transformOptionalEffect((o) => {
-		const filtered = filter(o, isNotUndefined);
+		const filtered = filter$3(o, isNotUndefined);
 		return isSome(filtered) ? succeed$3(filtered) : mapEager(defaultValue, some);
 	});
 }
@@ -6744,7 +6962,7 @@ function encodeBase64() {
 function decodeBase64() {
 	return transformEffect$1((input, options) => mapErrorEager(fromResult(decode$4(input)), () => new InvalidValue({ expected: "a valid Base64 string" }, input, options)));
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/content.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/content.js
 const ContentTypeId = /*#__PURE__*/ Symbol.for("~effect/Schema/content");
 function setContent(operation, content) {
 	Object.defineProperty(operation, ContentTypeId, { value: content });
@@ -6753,7 +6971,7 @@ function setContent(operation, content) {
 function getContent(operation) {
 	return operation[ContentTypeId];
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaTransformation.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/SchemaTransformation.js
 const Middleware = class extends Class$3 {
 	_tag = "Middleware";
 	decode;
@@ -6851,7 +7069,7 @@ function fromJsonString$1(options) {
 		preserveSchema: options?.reviver === void 0 && options?.replacer === void 0
 	}));
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaAST.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/SchemaAST.js
 function makeGuard(tag) {
 	return (ast) => ast._tag === tag;
 }
@@ -7305,7 +7523,7 @@ const Arrays = class extends ASTNodeImpl {
 };
 function stepArray(s, item, exit, i) {
 	if (exit._tag === "Failure") return wrapPropertyKeyIssue(s, s.ast, i, exit);
-	const value = exit === sameExit ? item : exit[args];
+	const value = isSameExit(exit) ? item : exit[args];
 	if (value !== missing) s.output[i] = value;
 	else {
 		const p = s.getParser(s.tailThreshold, i);
@@ -7417,7 +7635,8 @@ const Objects = class extends ASTNodeImpl {
 				properties = ast.propertySignatures.map((ps) => ({
 					parser: compileField(ps.type),
 					name: ps.name,
-					type: ps.type
+					type: ps.type,
+					ownOnly: requiresOwnProperty(ps.name)
 				}));
 				indexes = indexCount ? ast.indexSignatures.map((is) => ({
 					is,
@@ -7431,7 +7650,7 @@ const Objects = class extends ASTNodeImpl {
 			const expectedKeys = new Set(ast.propertySignatures.map((ps) => typeof ps.name === "number" ? globalThis.String(ps.name) : ps.name));
 			const finishIndex = (s, key, k2, inputValue, exitValue) => {
 				if (exitValue._tag === "Failure") return wrapPropertyKeyIssue(s, ast, key, exitValue) ?? void_$2;
-				const value = exitValue === sameExit ? inputValue : exitValue[args];
+				const value = isSameExit(exitValue) ? inputValue : exitValue[args];
 				if (k2 !== missing && value !== missing) {
 					if (hasProperties && (expectedKeys.has(key) || expectedKeys.has(typeof k2 === "number" ? globalThis.String(k2) : k2))) return void_$2;
 					assignProperty(s.out, k2, value);
@@ -7445,7 +7664,7 @@ const Objects = class extends ASTNodeImpl {
 					exitKey = eff;
 				}
 				if (exitKey._tag === "Failure") return wrapPropertyKeyIssue(s, ast, key, exitKey) ?? void_$2;
-				const k2 = exitKey === sameExit ? key : exitKey[args];
+				const k2 = isSameExit(exitKey) ? key : exitKey[args];
 				const inputValue = s.input[key];
 				const result = index.parserValue(inputValue, s.options);
 				return effectIsExit(result) ? finishIndex(s, key, k2, inputValue, result) : flatMap(exit(result), (exit) => finishIndex(s, key, k2, inputValue, exit));
@@ -7508,7 +7727,7 @@ const Objects = class extends ASTNodeImpl {
 					}
 				}
 				else if (parseIndexes) {
-					const keyPairs = empty$9();
+					const keyPairs = empty$10();
 					for (let i = 0; i < indexCount; i++) {
 						const index = indexes[i];
 						const keys = indexKeys?.[i] ?? (index.is.parameter === string ? Object.keys(record) : getIndexSignatureKeys(record, index.is.parameter, options));
@@ -7555,11 +7774,11 @@ const Objects = class extends ASTNodeImpl {
 				for (let index = 0; index < props.length; index++) {
 					const property = props[index];
 					const name = property.name;
-					const hasKey = hasPropertySignature(record, name);
+					const hasKey = property.ownOnly ? Object.hasOwn(record, name) : name in record;
 					const value = hasKey ? record[name] : missing;
 					const exit = property.parser(value, options);
 					if (!effectIsExit(exit)) return resume(state, index, exit);
-					if (exit === sameExit) {
+					if (isSameExit(exit)) {
 						if (hasKey) assignProperty(out, name, value);
 						continue;
 					}
@@ -7597,7 +7816,7 @@ const Objects = class extends ASTNodeImpl {
 };
 function stepProperty(s, p, exit) {
 	if (exit._tag === "Failure") return wrapPropertyKeyIssue(s, s.ast, p.name, exit);
-	if (exit === sameExit) return;
+	if (isSameExit(exit)) return;
 	const value = exit[args];
 	if (value !== missing) {
 		assignProperty(s.out, p.name, value);
@@ -7615,7 +7834,7 @@ function stepProperty(s, p, exit) {
 }
 const parsePropertiesOptions = {
 	onItem(s, p) {
-		if (!hasPropertySignature(s.input, p.name)) return p.parser(missing, s.options);
+		if (!(p.ownOnly ? Object.hasOwn(s.input, p.name) : p.name in s.input)) return p.parser(missing, s.options);
 		const value = s.input[p.name];
 		assignProperty(s.out, p.name, value);
 		return p.parser(value, s.options);
@@ -7640,7 +7859,7 @@ function getAST(self) {
 function tuple(elements, checks = void 0) {
 	return new Arrays(false, elements.map((e) => e.ast), [], void 0, checks);
 }
-function union(members, options, checks) {
+function union$1(members, options, checks) {
 	return new Union$1(members.map(getAST), options, void 0, checks);
 }
 function structWithRest(ast, records) {
@@ -7754,7 +7973,9 @@ function collectSentinels(ast) {
 const candidateIndexCache = /*#__PURE__*/ new WeakMap();
 const emptyCandidates = /*#__PURE__*/ Object.freeze([]);
 const getRuntimeType = (input) => input === null ? "null" : Array.isArray(input) ? "array" : typeof input;
-const hasPropertySignature = (input, key) => key === "__proto__" ? Object.hasOwn(input, key) : key in input;
+const objectPrototypeKeys = /*#__PURE__*/ new Set(Reflect.ownKeys(Object.prototype)).add("__proto__");
+const requiresOwnProperty = (key) => objectPrototypeKeys.has(typeof key === "number" ? globalThis.String(key) : key);
+const hasPropertySignature = (input, key) => Object.hasOwn(input, key) || key in input && !requiresOwnProperty(key);
 function getCandidateIndex(types) {
 	let index = candidateIndexCache.get(types);
 	if (index) return index;
@@ -7958,8 +8179,7 @@ function parseUnionCandidates(ast, parser, candidates, input, options) {
 }
 function resumeUnion(eff, state) {
 	return flatMapEager(eff, (_) => {
-		if (state.out === sameExit) return succeed$3(state.input);
-		if (state.out) return state.out;
+		if (state.out) return isSameExit(state.out) ? succeed$3(state.input) : state.out;
 		return fail$3(new AnyOf(state.ast, state.issues ?? [], state.input, state.options));
 	});
 }
@@ -8201,7 +8421,7 @@ const optionalKey$1 = /*#__PURE__*/ memoizeIdempotent((ast) => {
 	return optionalKeyLastLink(replaceContext(ast, context));
 });
 const optionalKeyLastLink = /*#__PURE__*/ applyToLastLink(optionalKey$1);
-const optional$6 = /*#__PURE__*/ memoize((ast) => optionalKey$1(new Union$1([ast, undefined_])));
+const optional$7 = /*#__PURE__*/ memoize((ast) => optionalKey$1(new Union$1([ast, undefined_])));
 function withConstructorDefault$1(ast, defaultValue) {
 	return replaceContext(ast, ast.context ? new Context(ast.context.isOptional, ast.context.isMutable, defaultValue, ast.context.annotations) : new Context(false, false, defaultValue));
 }
@@ -8276,13 +8496,10 @@ const toType$1 = /*#__PURE__*/ memoizeIdempotent((ast) => {
 		return type === owner && ast.encoding === void 0 ? ast : replaceContext(type, ast.context);
 	}
 	const type = "recur" in ast ? ast.recur(toType$1) : ast;
-	if ("encodingChecks" in type && type.encodingChecks) {
-		const checks = canPreserveEncodingChecks(ast) ? type.encodingChecks : isArrays(type) || isObjects(type) || isDeclaration(type) && type.typeParameters.length > 0 ? extractStructuralChecks(type.encodingChecks) : void 0;
-		return copy$1(type, {
-			encodingChecks: void 0,
-			checks: combineChecks(type.checks, checks)
-		});
-	}
+	if ("encodingChecks" in type && type.encodingChecks) return copy$1(type, {
+		encodingChecks: void 0,
+		checks: combineChecks(canPreserveEncodingChecks(ast) ? type.encodingChecks : isArrays(type) || isObjects(type) || isDeclaration(type) && type.typeParameters.length > 0 ? extractStructuralChecks(type.encodingChecks) : void 0, type.checks)
+	});
 	return type;
 });
 const toEncoded$1 = /*#__PURE__*/ memoizeIdempotent((ast) => {
@@ -8521,8 +8738,8 @@ const unknownToStringTree = /*#__PURE__*/ new Link(/* @__PURE__ */ new Declarati
 	expected: "StringTree",
 	toCodecStringTree: () => void 0
 }), /*#__PURE__*/ passthrough());
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/interpreter.js
-const flatMapTransformation = (result, current, f) => result === sameExit ? f(current) : flatMapEager(result, f);
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/interpreter.js
+const flatMapTransformation = (result, current, f) => isSameExit(result) ? f(current) : flatMapEager(result, f);
 function compileTransformation(transformation) {
 	const apply = compileTransformationUnsafe(transformation);
 	return (result, current, options) => {
@@ -8535,12 +8752,12 @@ function compileTransformation(transformation) {
 }
 function compileTransformationUnsafe(transformation) {
 	if (transformation._tag === "Middleware") return (result, current, options) => {
-		const transformed = result === sameExit ? transformation.decode(succeed$2(toOption(current)), options) : transformation.decode(mapEager(result, toOption), options);
+		const transformed = isSameExit(result) ? transformation.decode(succeed$2(toOption(current)), options) : transformation.decode(mapEager(result, toOption), options);
 		return fromOptionalEffect(transformed);
 	};
 	const getter = transformation.decode;
 	switch (getter._tag) {
-		case "Passthrough": return (result, current) => result === sameExit ? succeed$2(current) : result;
+		case "Passthrough": return (result, current) => isSameExit(result) ? succeed$2(current) : result;
 		case "Transform": {
 			const transform = (value) => value === missing ? missingExit : succeed$2(getter.transform(value));
 			return (result, current) => flatMapTransformation(result, current, transform);
@@ -8572,11 +8789,11 @@ function withDefault$1(ast, parser) {
 		const result = defaultValue;
 		if (effectIsExit(result) && result._tag === "Success") {
 			const local = parser(result[args], options);
-			return local === sameExit ? result : local;
+			return isSameExit(local) ? result : local;
 		}
 		return flatMapEager(wrapEncoding(ast, input, options, result), (value) => {
 			const local = parser(value, options);
-			return local === sameExit ? succeed$2(value) : local;
+			return isSameExit(local) ? succeed$2(value) : local;
 		});
 	};
 }
@@ -8584,7 +8801,7 @@ function compileField(ast, compile) {
 	const parser = compile(ast);
 	return ast.context?.constructorDefault === void 0 ? parser : withDefault$1(ast, parser);
 }
-function compile(ast, compile, compileField, base, specialize) {
+function compile$1(ast, compile, compileField, base, specialize) {
 	if (ast._tag === "Declaration") for (const parameter of ast.typeParameters) compile(parameter);
 	const descriptor = compileField ? getConstructorDescriptor(ast) : void 0;
 	const parser = descriptor ? makeConstructorParser(descriptor, compile) : base ?? ast.getParser(compile, compileField);
@@ -8600,7 +8817,7 @@ function compile(ast, compile, compileField, base, specialize) {
 			if (encodingChecks && !options.disableChecks) {
 				if (effectIsExit(result)) {
 					if (result._tag === "Success") {
-						const output = result === sameExit ? input : result[args];
+						const output = isSameExit(result) ? input : result[args];
 						if (input !== missing && output !== missing) {
 							const issues = collectIssues(encodingChecks, input, void 0, ast, options);
 							if (issues) result = fail$3(new Composite(ast, issues, input, options));
@@ -8617,7 +8834,7 @@ function compile(ast, compile, compileField, base, specialize) {
 			if (checks && !options.disableChecks) {
 				if (effectIsExit(result)) {
 					if (result._tag === "Success") {
-						const value = result === sameExit ? input : result[args];
+						const value = isSameExit(result) ? input : result[args];
 						if (value === missing) return result;
 						const issues = collectIssues(checks, value, void 0, ast, options);
 						if (issues) result = fail$3(new Composite(ast, issues, value, options));
@@ -8650,23 +8867,23 @@ function compile(ast, compile, compileField, base, specialize) {
 					result = next(current, options);
 				} else result = flatMapEager(result, (value) => {
 					const nextResult = next(value, options);
-					return nextResult === sameExit ? succeed$2(value) : nextResult;
+					return isSameExit(nextResult) ? succeed$2(value) : nextResult;
 				});
 			}
 		}
 		if (result._tag === "Success") {
 			const value = result[args];
 			const local = parseLocal(value, options);
-			return local === sameExit ? result : local;
+			return isSameExit(local) ? result : local;
 		}
 		result = wrapEncoding(ast, input, options, result);
 		return flatMapEager(result, (value) => {
 			const local = parseLocal(value, options);
-			return local === sameExit ? succeed$2(value) : local;
+			return isSameExit(local) ? succeed$2(value) : local;
 		});
 	};
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/compilerRegistry.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/compilerRegistry.js
 const invalid$1 = /*#__PURE__*/ Symbol();
 const cache = /*#__PURE__*/ new WeakMap();
 const decodeChild = (ast) => resolve(ast).parser;
@@ -8678,13 +8895,13 @@ var InterpretedEntry = class {
 		this.ast = ast;
 	}
 	get decodeEffect() {
-		return this.cachedDecodeEffect ??= compile(this.ast, decodeChild);
+		return this.cachedDecodeEffect ??= compile$1(this.ast, decodeChild);
 	}
 	get parser() {
 		return this.decodeEffect;
 	}
 	get makeEffect() {
-		return this.cachedMakeEffect ??= compile(this.ast, makeChild, makeField);
+		return this.cachedMakeEffect ??= compile$1(this.ast, makeChild, makeField);
 	}
 };
 function resolve(ast) {
@@ -8694,7 +8911,7 @@ function resolve(ast) {
 	cache.set(ast, entry);
 	return entry;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/SchemaParser.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/SchemaParser.js
 function makeEffect(schema) {
 	const ast = schema.ast;
 	let parser;
@@ -8714,7 +8931,7 @@ function makeOption(schema) {
 		return none();
 	};
 }
-function make$33(schema) {
+function make$34(schema) {
 	return makeConstructorSync(toType$1(schema.ast));
 }
 function is$3(schema) {
@@ -8768,7 +8985,7 @@ function run$1(ast) {
 	return runWithCompiler(normalCompiler, ast);
 }
 function parserResult(result, input) {
-	if (result === sameExit) return succeed$3(input);
+	if (isSameExit(result)) return succeed$3(input);
 	if (!effectIsExit(result)) return flatMapEager(result, getValue);
 	return result["~effect/Effect/args"] === missing ? getValue(missing) : result;
 }
@@ -8776,7 +8993,7 @@ function runWithCompiler(compiler, ast) {
 	let parser;
 	return (input, options) => {
 		const result = (parser ??= compiler(ast))(input, options ?? defaultParseOptions);
-		if (result === sameExit) return succeed$3(input);
+		if (isSameExit(result)) return succeed$3(input);
 		if (!effectIsExit(result)) return flatMapEager(result, getValue);
 		return result["~effect/Effect/args"] === missing ? getValue(missing) : result;
 	};
@@ -8846,13 +9063,13 @@ function makeClassSync(ast, input, options, construct) {
 }
 const normalCompiler = (ast) => resolve(ast).parser;
 const constructorCompiler = (ast) => resolve(ast).makeEffect;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/make.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/make.js
 const TypeId$34 = "~effect/Schema/Schema";
 const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
 	[TypeId$34]: TypeId$34,
 	get make() {
-		const value = make$33(this);
+		const value = make$34(this);
 		Object.defineProperty(this, "make", {
 			value,
 			enumerable: true
@@ -8888,10 +9105,10 @@ const SchemaProto = {
 		return this.rebuild(appendChecks(this.ast, checks));
 	},
 	rebuild(ast) {
-		return make$32(ast, this[RebuildOptions]);
+		return make$33(ast, this[RebuildOptions]);
 	}
 };
-function make$32(ast, options) {
+function make$33(ast, options) {
 	function Schema() {}
 	const self = Object.setPrototypeOf(Schema, SchemaProto);
 	if (options && (Object.hasOwn(options, "name") || Object.hasOwn(options, "length") || Object.hasOwn(options, "__proto__"))) Object.defineProperties(self, Object.getOwnPropertyDescriptors({ ...options }));
@@ -8900,7 +9117,7 @@ function make$32(ast, options) {
 	self.ast = ast;
 	return self;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/jsonSchema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/jsonSchema.js
 function getSubschemaKind(keyword) {
 	switch (keyword) {
 		case "$defs":
@@ -8924,7 +9141,7 @@ function getSubschemaKind(keyword) {
 		case "contentSchema": return "schema";
 	}
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonPointer.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/JsonPointer.js
 function escapeToken(token) {
 	return token.replace(/~/g, "~0").replace(/\//g, "~1");
 }
@@ -8950,7 +9167,7 @@ function parseUriFragment(fragment) {
 	const pointer = decodeUriFragment(fragment);
 	return pointer === void 0 ? void 0 : pointer.length === 0 ? [] : pointer.slice(1).split("/").map(unescapeToken);
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/JsonSchema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/JsonSchema.js
 function getReferenceKey($ref) {
 	const path = $ref.startsWith("#") ? parseUriFragment($ref) : void 0;
 	return path !== void 0 && path.length === 2 && path[0] === "$defs" ? path[1] : void 0;
@@ -9014,9 +9231,9 @@ const PRE_2020_TO_2020_COLLISIONS = [
 ];
 [...PRE_2020_TO_2020_COLLISIONS];
 [...PRE_2020_TO_2020_COLLISIONS];
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toCodec.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/toCodec.js
 function toCodecJson$1(schema) {
-	return make$32(toCodecJsonAST(schema.ast), { schema });
+	return make$33(toCodecJsonAST(schema.ast), { schema });
 }
 const toCodecJsonAST = /*#__PURE__*/ makeCodecDerivation(toCodecJsonASTStep);
 function makeCodecDerivation(step, options) {
@@ -9059,7 +9276,7 @@ function toCodecJsonASTStep(ast, recur) {
 		case "Declaration": {
 			const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec;
 			if (!isFunction(getLink)) return replaceEncoding(ast, [unknownToJson]);
-			const link = getLink(ast.typeParameters.map((tp) => make$32(toEncoded$1(tp))));
+			const link = getLink(ast.typeParameters.map((tp) => make$33(toEncoded$1(tp))));
 			return link === void 0 ? ast : replaceEncoding(ast, [mapLink(link, recur)]);
 		}
 		case "Unknown": return replaceEncoding(ast, [unknownToJson]);
@@ -9085,7 +9302,7 @@ function toCodecJsonASTStep(ast, recur) {
 	return ast;
 }
 function toCodecStringTree$1(schema) {
-	return make$32(toCodecStringTreeAST(schema.ast), { schema });
+	return make$33(toCodecStringTreeAST(schema.ast), { schema });
 }
 const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 	switch (ast._tag) {
@@ -9101,7 +9318,7 @@ const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 function toCodecStringTreeASTStep(ast, recur, onMissingAnnotation) {
 	switch (ast._tag) {
 		case "Declaration": {
-			const typeParameters = ast.typeParameters.map((tp) => make$32(recur(toEncoded$1(tp))));
+			const typeParameters = ast.typeParameters.map((tp) => make$33(recur(toEncoded$1(tp))));
 			const getStringTreeLink = ast.annotations?.toCodecStringTree;
 			if (isFunction(getStringTreeLink)) {
 				const link = getStringTreeLink(typeParameters);
@@ -9146,12 +9363,12 @@ const toCodecStringTreeAST = /*#__PURE__*/ makeCodecDerivation((ast, recur) => t
 }), { stopAt: isCodecArrayFromSingleLink });
 globalThis.RegExp;
 const escape = (string) => string.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/errors.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/errors.js
 function errorWithPath(message, path) {
 	if (path.length > 0) message += `\n  at ${formatPath(path)}`;
 	return new Error(message);
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/toJsonSchemaDocument.js
 function formatDefinitionReference(key) {
 	return `#/$defs/${formatUriFragmentToken(key)}`;
 }
@@ -9764,7 +9981,7 @@ function toJsonSchemaDocument$1(document, options) {
 		definitions: output.definitions
 	};
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schema/toRepresentation.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/toRepresentation.js
 const defaultReferencePolicy = ({ identifier }) => identifier;
 function annotationsField(annotations) {
 	return annotations === void 0 ? void 0 : { annotations };
@@ -10006,7 +10223,7 @@ function toRepresentations(asts, options) {
 		};
 	}
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Struct.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Struct.js
 const omit = /*#__PURE__*/ dual(2, (self, keys) => {
 	return buildStruct(self, (k, v) => !hasPropertyKey(keys, k) ? [k, v] : void 0);
 });
@@ -10026,7 +10243,7 @@ function buildStruct(source, f) {
 	}
 	return out;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/schemaError.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schemaError.js
 const SchemaErrorTypeId = "~effect/Schema/SchemaError";
 function isSchemaError$1(u) {
 	return hasProperty(u, "~effect/Schema/SchemaError") && u["~effect/Schema/SchemaError"] === "~effect/Schema/SchemaError";
@@ -10039,11 +10256,11 @@ function isSchemaError$1(u) {
 ({ ...BaseProto });
 ({ ...BaseProto });
 ({ ...BaseProto });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Schema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Schema.js
 const TypeId$31 = TypeId$34;
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
-		return make$31(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$31(ast))), annotations));
+		return make$32(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$32(ast))), annotations));
 	};
 }
 function declare(is, annotations) {
@@ -10136,19 +10353,19 @@ function encodeUnknownSync(schema, options) {
 	};
 }
 const encodeSync = encodeUnknownSync;
-const make$31 = make$32;
+const make$32 = make$33;
 function isSchema(u) {
 	return hasProperty(u, TypeId$31) && u[TypeId$31] === TypeId$31;
 }
-const optionalKey = /*#__PURE__*/ lambda((schema) => make$31(optionalKey$1(schema.ast), { schema }));
-const optional$5 = /*#__PURE__*/ lambda((self) => {
+const optionalKey = /*#__PURE__*/ lambda((schema) => make$32(optionalKey$1(schema.ast), { schema }));
+const optional$6 = /*#__PURE__*/ lambda((self) => {
 	const schema = UndefinedOr(self);
-	return make$31(optional$6(self.ast), { schema });
+	return make$32(optional$7(self.ast), { schema });
 });
-const toType = /*#__PURE__*/ lambda((schema) => make$31(toType$1(schema.ast), { schema }));
-const toEncoded = /*#__PURE__*/ lambda((schema) => make$31(toEncoded$1(schema.ast), { schema }));
+const toType = /*#__PURE__*/ lambda((schema) => make$32(toType$1(schema.ast), { schema }));
+const toEncoded = /*#__PURE__*/ lambda((schema) => make$32(toEncoded$1(schema.ast), { schema }));
 function Literal(literal) {
-	const out = make$31(new Literal$1(literal), {
+	const out = make$32(new Literal$1(literal), {
 		literal,
 		transform(to) {
 			return out.pipe(decodeTo(Literal(to), {
@@ -10163,20 +10380,20 @@ function templateLiteralParts(parts) {
 	return parts.map((part) => isSchema(part) ? part.ast : new Literal$1(part));
 }
 function TemplateLiteral(parts) {
-	return make$31(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
+	return make$32(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
 }
-const Never = /*#__PURE__*/ make$31(never);
-const Any = /*#__PURE__*/ make$31(any);
-const Unknown = /*#__PURE__*/ make$31(unknown);
-const Null = /*#__PURE__*/ make$31(null_);
-const Undefined = /*#__PURE__*/ make$31(undefined_);
-const String$2 = /*#__PURE__*/ make$31(string);
-const Number$1 = /*#__PURE__*/ make$31(number);
-const Boolean$1 = /*#__PURE__*/ make$31(boolean);
-const BigInt$1 = /*#__PURE__*/ make$31(bigInt);
-const Void = /*#__PURE__*/ make$31(void_);
+const Never = /*#__PURE__*/ make$32(never);
+const Any = /*#__PURE__*/ make$32(any);
+const Unknown = /*#__PURE__*/ make$32(unknown);
+const Null = /*#__PURE__*/ make$32(null_);
+const Undefined = /*#__PURE__*/ make$32(undefined_);
+const String$2 = /*#__PURE__*/ make$32(string);
+const Number$1 = /*#__PURE__*/ make$32(number);
+const Boolean$1 = /*#__PURE__*/ make$32(boolean);
+const BigInt$1 = /*#__PURE__*/ make$32(bigInt);
+const Void = /*#__PURE__*/ make$32(void_);
 function makeStruct(ast, fields) {
-	return make$31(ast, {
+	return make$32(ast, {
 		fields,
 		mapFields(f, options) {
 			const fields = f(this.fields);
@@ -10188,19 +10405,19 @@ function Struct(fields) {
 	return makeStruct(struct(fields, void 0), fields);
 }
 function Record(key, value) {
-	return make$31(record(key.ast, value.ast), {
+	return make$32(record(key.ast, value.ast), {
 		key,
 		value
 	});
 }
 function StructWithRest(schema, records) {
-	return make$31(structWithRest(schema.ast, records.map(getAST)), {
+	return make$32(structWithRest(schema.ast, records.map(getAST)), {
 		schema,
 		records
 	});
 }
 function makeTuple(ast, elements) {
-	return make$31(ast, {
+	return make$32(ast, {
 		elements,
 		mapElements(f, options) {
 			const elements = f(this.elements);
@@ -10211,23 +10428,23 @@ function makeTuple(ast, elements) {
 function Tuple(elements) {
 	return makeTuple(tuple(elements), elements);
 }
-const ArraySchema = /*#__PURE__*/ lambda((schema) => make$31(new Arrays(false, [], [schema.ast]), { value: schema }));
-const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$31(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
+const ArraySchema = /*#__PURE__*/ lambda((schema) => make$32(new Arrays(false, [], [schema.ast]), { value: schema }));
+const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$32(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
 function makeUnion(ast, members) {
-	return make$31(ast, {
+	return make$32(ast, {
 		members,
 		mapMembers(f, options) {
 			const members = f(this.members);
-			return makeUnion(union(members, this.ast.options, options?.unsafePreserveChecks ? this.ast.checks : void 0), members);
+			return makeUnion(union$1(members, this.ast.options, options?.unsafePreserveChecks ? this.ast.checks : void 0), members);
 		}
 	});
 }
 function Union(members, options) {
-	return makeUnion(union(members, options, void 0), members);
+	return makeUnion(union$1(members, options, void 0), members);
 }
 function Literals(literals) {
 	const members = literals.map(Literal);
-	return make$31(union(members, void 0, void 0), {
+	return make$32(union$1(members, void 0, void 0), {
 		literals,
 		members,
 		mapMembers(f) {
@@ -10244,11 +10461,11 @@ function Literals(literals) {
 const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
 function suspend$2(f) {
-	return make$31(new Suspend(() => f().ast));
+	return make$32(new Suspend(() => f().ast));
 }
 function decodeTo(to, transformation) {
 	return (from) => {
-		return make$31(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
+		return make$32(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
 			from,
 			to
 		});
@@ -10266,7 +10483,7 @@ function decode$3(transformation) {
 	};
 }
 function withConstructorDefault(defaultValue) {
-	return (schema) => make$31(withConstructorDefault$1(schema.ast, defaultValue), { schema });
+	return (schema) => make$32(withConstructorDefault$1(schema.ast, defaultValue), { schema });
 }
 function toIssueEffect(self) {
 	if (effectIsExit(self) && self._tag === "Success") return self;
@@ -10275,7 +10492,7 @@ function toIssueEffect(self) {
 function withDecodingDefault(defaultValue, options) {
 	const encode = options?.encodingStrategy === "omit" ? omit$1() : passthrough$1();
 	return (self) => {
-		return optional$5(toEncoded(self)).pipe(decodeTo(self, {
+		return optional$6(toEncoded(self)).pipe(decodeTo(self, {
 			decode: withDefault$2(toIssueEffect(defaultValue)),
 			encode
 		}));
@@ -10313,8 +10530,23 @@ function isPattern(regExp, annotations) {
 		...annotations
 	});
 }
-const Finite = /*#__PURE__*/ make$31(finite);
+const Finite = /*#__PURE__*/ make$32(finite);
 const isFinite = isFinite$1;
+function makeIsGreaterThanOrEqualTo(options) {
+	const gte = isGreaterThanOrEqualTo$2(options.order);
+	const formatter = options.formatter ?? format$2;
+	return (minimum, annotations) => {
+		return makeFilter((input) => gte(input, minimum), {
+			expected: `a value greater than or equal to ${formatter(minimum)}`,
+			arbitraryConstraint: {
+				order: options.order,
+				minimum
+			},
+			...options.annotate?.(minimum),
+			...annotations
+		});
+	};
+}
 function makeIsBetween(deriveOptions) {
 	const greaterThanOrEqualTo = isGreaterThanOrEqualTo$2(deriveOptions.order);
 	const greaterThan = isGreaterThan$1(deriveOptions.order);
@@ -10342,6 +10574,17 @@ function encodeNumberPayload(number) {
 	if (!globalThis.Number.isFinite(number)) throw new globalThis.RangeError(`Expected a finite number, got ${format$2(number)}`);
 	return number;
 }
+const isGreaterThanOrEqualTo$1 = /*#__PURE__*/ makeIsGreaterThanOrEqualTo({
+	order: Number$4,
+	annotate: (minimum) => ({
+		representation: {
+			id: "effect/schema/isGreaterThanOrEqualTo",
+			payload: { minimum: encodeNumberPayload(minimum) }
+		},
+		toJsonSchema: () => ({ minimum }),
+		toCode: () => ({ runtime: `Schema.isGreaterThanOrEqualTo(${format$2(minimum)})` })
+	})
+});
 const isBetween = /*#__PURE__*/ makeIsBetween({
 	order: Number$4,
 	annotate: (options) => {
@@ -10383,6 +10626,7 @@ function isInt(annotations) {
 	});
 }
 const Int = /*#__PURE__*/ Number$1.check(/*#__PURE__*/ isInt());
+const Natural = /*#__PURE__*/ Int.check(/*#__PURE__*/ isGreaterThanOrEqualTo$1(0));
 function isMinLength(minLength, annotations) {
 	minLength = normalizeCardinality(minLength);
 	return makeIsMinLength(minLength, Math.ceil(minLength / 2), annotations);
@@ -10558,7 +10802,7 @@ function CauseReason(error, defect) {
 			}
 		}))
 	});
-	return make$31(schema.ast, {
+	return make$32(schema.ast, {
 		error,
 		defect
 	});
@@ -10589,14 +10833,14 @@ function Cause(error, defect) {
 			encode: ({ reasons: failures }) => failures
 		}))
 	});
-	return make$31(schema.ast, {
+	return make$32(schema.ast, {
 		error,
 		defect
 	});
 }
 const dateTimeUtcFromString = /*#__PURE__*/ transformEffect({
 	decode: (s, options) => {
-		return match$3(make$37(s), {
+		return match$3(make$38(s), {
 			onNone: () => fail$3(new InvalidValue({ expected: "a valid UTC DateTime string" }, s, options)),
 			onSome: (result) => succeed$3(toUtc(result))
 		});
@@ -10729,7 +10973,7 @@ function Exit(value, error, defect) {
 			}
 		}))
 	});
-	return make$31(schema.ast, {
+	return make$32(schema.ast, {
 		value,
 		error,
 		defect
@@ -10748,7 +10992,7 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 	expected: "UrlParams",
 	toEquivalence: () => Equivalence$1,
 	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform({
-		decode: make$34,
+		decode: make$35,
 		encode: (self) => self.params.map(([key, value]) => [key, unwrap$3(value)])
 	}))
 })).pipe(/*#__PURE__*/ decodeTo(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([String$2, /*#__PURE__*/ NonEmptyArray(String$2)])), /*#__PURE__*/ transform({
@@ -10767,7 +11011,7 @@ function Redacted$2(value, options) {
 		if (isRedacted(input)) {
 			const label = decodeLabel !== void 0 ? mapErrorEager(decodeLabel(input.label, poptions), (issue) => new Pointer(["label"], issue)) : void_$1;
 			return flatMapEager(label, () => mapBothEager(decodeUnknownEffect$1(value)(value$2(input), poptions), {
-				onSuccess: (value) => make$36(value, { label: input.label }),
+				onSuccess: (value) => make$37(value, { label: input.label }),
 				onFailure: () => {
 					return new Composite(ast, [new Pointer(["value"], new InvalidValue(void 0, input, poptions))], input, poptions);
 				}
@@ -10786,12 +11030,12 @@ function Redacted$2(value, options) {
 		}),
 		expected: "Redacted",
 		toCodecJson: ([value]) => link$1()(value, {
-			decode: transform$1((e) => make$36(e, { label })),
+			decode: transform$1((e) => make$37(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$1(value$2)
 		}),
 		toEquivalence: ([value]) => makeEquivalence(value)
 	});
-	return make$31(schema.ast, { value });
+	return make$32(schema.ast, { value });
 }
 const immerable = /*#__PURE__*/ globalThis.Symbol.for("immer-draftable");
 const payloadToken = {};
@@ -10882,7 +11126,7 @@ function getClassSchemaFactory(from, identifier, annotations) {
 		const ClassTypeId = getClassTypeId(identifier);
 		const isClassValue = (input) => input instanceof self || hasProperty(input, ClassTypeId);
 		const transformation = getClassTransformation(self);
-		return memo = decodeTo(make$31(new Declaration([from.ast], () => (input, ast, options) => {
+		return memo = decodeTo(make$32(new Declaration([from.ast], () => (input, ast, options) => {
 			return isClassValue(input) ? succeed$3(input) : fail$3(new InvalidType(ast, input, options));
 		}, {
 			identifier,
@@ -10925,27 +11169,21 @@ function toJsonSchemaDocument(schema, options) {
 }
 const toCodecJson = toCodecJson$1;
 const toCodecStringTree = toCodecStringTree$1;
-const Json = /*#__PURE__*/ make$31(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
+const Json = /*#__PURE__*/ make$32(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
 	runtime: "Schema.Json",
 	Type: "Schema.Json"
 }) }));
-const MutableJson = /*#__PURE__*/ make$31(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
+const MutableJson = /*#__PURE__*/ make$32(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Latch.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Latch.js
 const makeUnsafe$1 = makeLatchUnsafe;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/MutableRef.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableRef.js
 const TypeId$30 = "~effect/MutableRef";
 const MutableRefProto = {
 	[TypeId$30]: TypeId$30,
 	...PipeInspectableProto,
-	[symbol$2](that) {
-		return this === that;
-	},
-	[symbol$3]() {
-		return random$1(this);
-	},
 	toJSON() {
 		return {
 			_id: "MutableRef",
@@ -10953,7 +11191,7 @@ const MutableRefProto = {
 		};
 	}
 };
-const make$30 = (value) => {
+const make$31 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
@@ -10962,11 +11200,11 @@ const set = /*#__PURE__*/ dual(2, (self, value) => {
 	self.current = value;
 	return self;
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PubSub.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/PubSub.js
 const TypeId$29 = "~effect/PubSub";
 const SubscriptionTypeId = "~effect/PubSub/Subscription";
-const make$29 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$1(false), make$30(false), options.strategy(), make$30(none())));
-const unbounded = (options) => make$29({
+const make$30 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$1(false), make$31(false), options.strategy(), make$31(none())));
+const unbounded = (options) => make$30({
 	atomicPubSub: () => makeAtomicUnbounded(options),
 	strategy: () => new DroppingStrategy()
 });
@@ -11011,7 +11249,7 @@ const removeSubscribers = (subscribers, subscription, pollers) => {
 	set.delete(pollers);
 	if (set.size === 0) subscribers.delete(subscription);
 };
-const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$42(), makeUnsafe$1(false), make$30(false), strategy, pubsub.replayWindow(), ended);
+const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$43(), makeUnsafe$1(false), make$31(false), strategy, pubsub.replayWindow(), ended);
 var UnboundedPubSub = class {
 	publisherHead = {
 		value: AbsentValue,
@@ -11127,7 +11365,7 @@ var UnboundedPubSubSubscription = class {
 		return polled;
 	}
 	pollUpTo(n) {
-		n = normalize$2(n);
+		n = normalize$3(n);
 		const builder = [];
 		let i = 0;
 		while (i !== n) {
@@ -11336,7 +11574,7 @@ var ReplayWindowImpl = class {
 		return value;
 	}
 	takeN(n) {
-		n = normalize$2(n);
+		n = normalize$3(n);
 		const len = Math.min(n, this.remaining);
 		const items = new Array(len);
 		for (let i = 0; i < len; i++) items[i] = this.take();
@@ -11353,7 +11591,7 @@ const emptyReplayWindow = {
 	takeAll: () => [],
 	close: () => void 0
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Channel.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Channel.js
 const TypeId$28 = "~effect/Channel";
 const isChannel = (u) => hasProperty(u, TypeId$28);
 const ChannelProto = {
@@ -11382,7 +11620,7 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 	return onError(pull, onCause);
 }));
 const toTransform = (channel) => channel.transform;
-const asyncQueue = (scope, f, options) => make$41({
+const asyncQueue = (scope, f, options) => make$42({
 	capacity: options?.bufferSize,
 	strategy: options?.strategy
 }).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => provide$3(f(queue), scope).pipe(catchCause$2((cause) => failCause$2(queue, cause)), forkIn(scope, { startImmediately: true }))));
@@ -11409,7 +11647,7 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$30(void 0);
+	const exit = options.exit ?? make$31(void 0);
 	const pull = suspend$3(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
@@ -11473,7 +11711,7 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 			const fiber = runFork(suspend$3(() => f(value, index)));
 			trackFiber(fiber);
 			fiber.addObserver(onExit);
-			return offer(effects, join(fiber));
+			return offer(effects, join$1(fiber));
 		}), forever({ disableYield: true }), catchCause$2((cause) => offer(effects, failCause$5(cause)).pipe(andThen(failCause$2(effects, cause)))), forkIn(forkedScope));
 	}
 	return take(queue);
@@ -11580,6 +11818,25 @@ const runWith = (self, f, onHalt) => suspend$3(() => {
 });
 const provideContext$1 = /*#__PURE__*/ dual(2, (self, context) => fromTransform$1((upstream, scope) => map$4(provideContext$2(toTransform(self)(upstream, scope), context), provideContext$2(context))));
 const runForEach$1 = /*#__PURE__*/ dual(2, (self, f) => runWith(self, (pull) => forever(flatMap(pull, f), { disableYield: true })));
+const mkUint8Array$1 = (self) => map$4(runFold(self, () => ({
+	bytes: 0,
+	arrays: []
+}), (acc, chunk) => {
+	for (let i = 0; i < chunk.length; i++) {
+		acc.bytes += chunk[i].length;
+		acc.arrays.push(chunk[i]);
+	}
+	return acc;
+}), ({ arrays, bytes }) => {
+	const result = new Uint8Array(bytes);
+	let offset = 0;
+	for (let i = 0; i < arrays.length; i++) {
+		const array = arrays[i];
+		result.set(array, offset);
+		offset += array.length;
+	}
+	return result;
+});
 const runLast$1 = (self) => suspend$3(() => {
 	const absent = Symbol();
 	let last = absent;
@@ -11588,13 +11845,570 @@ const runLast$1 = (self) => suspend$3(() => {
 		return void_$1;
 	}), { disableYield: true }), () => last === absent ? succeedNone : succeedSome(last));
 });
+const runFold = /*#__PURE__*/ dual(3, (self, initial, f) => suspend$3(() => {
+	let state = initial();
+	return runWith(self, (pull) => whileLoop({
+		while: constTrue,
+		body: () => pull,
+		step: (value) => {
+			state = f(state, value);
+		}
+	}), () => succeed$3(state));
+}));
 const toPullScoped = (self, scope) => toTransform(self)(done$1(), scope);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ChannelSchema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ChannelSchema.js
 const decode$2 = (schema, options) => () => {
 	const decode = decodeEffect(NonEmptyArray(schema), options);
 	return fromTransform$1((upstream, _scope) => succeed$3(flatMap(upstream, (chunk) => decode(chunk))));
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PlatformError.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/glob.js
+const maxExpansions = 1e4;
+const maxExpandedLength = 2 ** 22;
+const maxBraceDepth = 64;
+const compile = (patterns, dot) => {
+	const nodes = [];
+	const starts = /* @__PURE__ */ new Set();
+	for (const pattern of patterns) for (const expanded of expandBraces(pattern)) {
+		const start = nodes.length;
+		if (compilePattern(expanded, nodes)) starts.add(start);
+	}
+	const initial = closure(nodes, starts);
+	return {
+		nodes,
+		initial,
+		dot,
+		masks: nodes.length <= 32 ? compileMasks(nodes, initial) : void 0
+	};
+};
+const compileMasks = (nodes, initial) => {
+	let start = 0;
+	for (const state of initial) start |= 1 << state;
+	let globstar = 0;
+	let end = 0;
+	let endFile = 0;
+	for (let i = 0; i < nodes.length; i++) {
+		const node = nodes[i];
+		const bit = 1 << i;
+		if (node._tag === "Globstar") globstar |= bit;
+		else if (node._tag === "End") {
+			end |= bit;
+			if (!node.directoryOnly) endFile |= bit;
+		}
+	}
+	return {
+		initial: start,
+		globstar,
+		end,
+		endFile
+	};
+};
+const isUnc = (path) => path.startsWith("//") && path[2] !== void 0 && path[2] !== "/";
+const compilePattern = (pattern, nodes) => {
+	if (pattern === "" || isUnc(pattern)) return false;
+	const raw = splitSegments(pattern);
+	const globstar = raw.indexOf("**");
+	if (globstar !== -1 && raw.some((segment, i) => i > globstar && (segment === "." || segment === ".."))) return false;
+	const { directory, segments } = normalize$1(raw);
+	if (segments.length === 0) return false;
+	for (const segment of segments) if (segment !== "**") nodes.push(compileSegment(Array.from(segment)));
+	else if (nodes[nodes.length - 1] !== globstarNode) nodes.push(globstarNode);
+	nodes.push({
+		_tag: "End",
+		directoryOnly: directory
+	});
+	return true;
+};
+const globstarNode = { _tag: "Globstar" };
+const splitSegments = (pattern) => {
+	const segments = [];
+	let start = 0;
+	for (let i = 0; i < pattern.length; i++) if (pattern[i] === "\\") i++;
+	else if (pattern[i] === "/") {
+		segments.push(pattern.slice(start, i));
+		start = i + 1;
+	}
+	segments.push(pattern.slice(start));
+	return segments;
+};
+const drive = /^[A-Za-z]:/;
+const isDrive = (segment) => segment.length === 2 && drive.test(segment);
+const isRoot = (name) => name === "" || name.length === 3 && name[2] === "/" && drive.test(name);
+const isAbsolute = (path) => path.startsWith("/") || path[2] === "/" && drive.test(path);
+const normalize$1 = (raw) => {
+	const segments = [];
+	let i = 0;
+	if (raw.length > 1 && (raw[0] === "" || isDrive(raw[0]))) {
+		segments.push(raw[0] === "" ? "" : `${raw[0]}/`);
+		i = 1;
+	}
+	let directory = false;
+	for (; i < raw.length; i++) {
+		const segment = raw[i];
+		if (segment === "" || segment === ".") directory = i === raw.length - 1 && segments.length > 0;
+		else {
+			segments.push(segment);
+			directory = false;
+		}
+	}
+	if (segments.length === 0 && raw.includes(".")) segments.push(".");
+	return {
+		segments,
+		directory
+	};
+};
+const compileSegment = (chars) => {
+	const tokens = [];
+	let literal = "";
+	let magic = false;
+	let classes = true;
+	for (let i = 0; i < chars.length; i++) {
+		const char = chars[i];
+		if (char === "\\" && i + 1 < chars.length) {
+			literal += chars[++i];
+			tokens.push({
+				_tag: "Char",
+				code: chars[i].codePointAt(0)
+			});
+		} else if (char === "*") {
+			magic = true;
+			if (tokens[tokens.length - 1]?._tag !== "Star") tokens.push({ _tag: "Star" });
+		} else if (char === "?") {
+			magic = true;
+			tokens.push({ _tag: "Any" });
+		} else if (char === "[" && classes) {
+			const parsed = parseClass(chars, i);
+			if (parsed === void 0) {
+				classes = false;
+				literal += char;
+				tokens.push({
+					_tag: "Char",
+					code: char.codePointAt(0)
+				});
+			} else {
+				magic = true;
+				tokens.push(parsed.token);
+				i = parsed.end;
+			}
+		} else {
+			literal += char;
+			tokens.push({
+				_tag: "Char",
+				code: char.codePointAt(0)
+			});
+		}
+	}
+	if (!magic) return {
+		_tag: "Literal",
+		value: literal
+	};
+	const first = tokens[0];
+	return {
+		_tag: "Wildcard",
+		tokens,
+		leadingDot: first._tag === "Char" && first.code === 46,
+		affixes: compileAffixes(tokens)
+	};
+};
+const compileAffixes = (tokens) => {
+	let prefix = "";
+	let suffix;
+	for (const token of tokens) if (token._tag === "Star" && suffix === void 0) suffix = "";
+	else if (token._tag === "Char" && (token.code < 55296 || token.code > 57343)) {
+		const char = String.fromCodePoint(token.code);
+		if (suffix === void 0) prefix += char;
+		else suffix += char;
+	} else return;
+	return suffix === void 0 ? void 0 : {
+		prefix,
+		suffix
+	};
+};
+const range = (from, to) => [from.codePointAt(0), to.codePointAt(0)];
+const posixClasses = {
+	alnum: [
+		.../*#__PURE__*/ range("0", "9"),
+		.../*#__PURE__*/ range("A", "Z"),
+		.../*#__PURE__*/ range("a", "z")
+	],
+	alpha: [.../*#__PURE__*/ range("A", "Z"), .../*#__PURE__*/ range("a", "z")],
+	blank: [
+		9,
+		9,
+		32,
+		32
+	],
+	cntrl: [
+		0,
+		31,
+		127,
+		127
+	],
+	digit: /*#__PURE__*/ range("0", "9"),
+	graph: [33, 126],
+	lower: /*#__PURE__*/ range("a", "z"),
+	print: [32, 126],
+	punct: [
+		33,
+		47,
+		58,
+		64,
+		91,
+		96,
+		123,
+		126
+	],
+	space: [
+		9,
+		13,
+		32,
+		32
+	],
+	upper: /*#__PURE__*/ range("A", "Z"),
+	word: [
+		.../*#__PURE__*/ range("0", "9"),
+		.../*#__PURE__*/ range("A", "Z"),
+		95,
+		95,
+		.../*#__PURE__*/ range("a", "z")
+	],
+	xdigit: [
+		.../*#__PURE__*/ range("0", "9"),
+		.../*#__PURE__*/ range("A", "F"),
+		.../*#__PURE__*/ range("a", "f")
+	]
+};
+const parsePosixClass = (chars, open) => {
+	for (let i = open + 2; i < chars.length && i <= open + 8; i++) if (chars[i] === ":" && chars[i + 1] === "]") {
+		const ranges = posixClasses[chars.slice(open + 2, i).join("")];
+		return ranges === void 0 ? void 0 : {
+			ranges,
+			end: i + 1
+		};
+	}
+};
+const parseClass = (chars, open) => {
+	let i = open + 1;
+	const negated = chars[i] === "!" || chars[i] === "^";
+	if (negated) i++;
+	const ranges = [];
+	for (let first = true; i < chars.length; i++, first = false) {
+		let char = chars[i];
+		if (char === "/") return;
+		if (char === "]" && !first) return {
+			token: {
+				_tag: "Class",
+				ranges,
+				negated
+			},
+			end: i
+		};
+		if (char === "[" && chars[i + 1] === ":") {
+			const posix = parsePosixClass(chars, i);
+			if (posix !== void 0) {
+				ranges.push(...posix.ranges);
+				i = posix.end;
+				continue;
+			}
+		}
+		if (char === "\\" && i + 1 < chars.length) char = chars[++i];
+		if (chars[i + 1] === "-" && i + 2 < chars.length && chars[i + 2] !== "]") {
+			let next = i + 2;
+			if (chars[next] === "/") return;
+			if (chars[next] === "\\" && next + 1 < chars.length) next++;
+			ranges.push(...range(char, chars[next]));
+			i = next;
+			continue;
+		}
+		ranges.push(...range(char, char));
+	}
+};
+const expandBraces = (pattern) => {
+	const chars = Array.from(pattern);
+	const groups = matchBraceGroups(chars);
+	if (groups.size === 0) return [pattern];
+	const sequence = parseBraceSequence(chars, 0, chars.length, groups, 0);
+	if (sequence === void 0) return [pattern];
+	const count = countExpansions(sequence);
+	return count > maxExpansions || count * pattern.length > maxExpandedLength ? [pattern] : expandSequence(sequence);
+};
+const matchBraceGroups = (chars) => {
+	const groups = /* @__PURE__ */ new Map();
+	const stack = [];
+	let classes = true;
+	for (let i = 0; i < chars.length; i++) {
+		const char = chars[i];
+		if (char === "\\") i++;
+		else if (char === "/") classes = true;
+		else if (char === "[" && classes) {
+			const parsed = parseClass(chars, i);
+			if (parsed === void 0) classes = false;
+			else i = parsed.end;
+		} else if (char === "{") stack.push({
+			open: i,
+			commas: []
+		});
+		else if (char === ",") stack[stack.length - 1]?.commas.push(i);
+		else if (char === "}") {
+			const group = stack.pop();
+			if (group !== void 0 && group.commas.length > 0) groups.set(group.open, {
+				commas: group.commas,
+				close: i
+			});
+		}
+	}
+	return groups;
+};
+const parseBraceSequence = (chars, start, end, groups, depth) => {
+	if (depth > maxBraceDepth) return;
+	const parts = [];
+	let text = "";
+	for (let i = start; i < end; i++) {
+		const group = groups.get(i);
+		if (group === void 0) {
+			if (chars[i] === "\\" && i + 1 < end) text += chars[i++];
+			text += chars[i];
+			continue;
+		}
+		const alternatives = [];
+		let from = i + 1;
+		for (const to of [...group.commas, group.close]) {
+			const alternative = parseBraceSequence(chars, from, to, groups, depth + 1);
+			if (alternative === void 0) return;
+			alternatives.push(alternative);
+			from = to + 1;
+		}
+		if (text !== "") {
+			parts.push(text);
+			text = "";
+		}
+		parts.push(alternatives);
+		i = group.close;
+	}
+	if (text !== "") parts.push(text);
+	return parts;
+};
+const countExpansions = (sequence) => {
+	let count = 1;
+	for (const part of sequence) if (typeof part !== "string") {
+		let sum = 0;
+		for (const alternative of part) sum += countExpansions(alternative);
+		count *= sum;
+		if (count > maxExpansions) return Infinity;
+	}
+	return count;
+};
+const expandSequence = (sequence) => {
+	let out = [""];
+	for (const part of sequence) if (typeof part === "string") out = out.map((prefix) => prefix + part);
+	else {
+		const alternatives = part.flatMap(expandSequence);
+		out = out.flatMap((prefix) => alternatives.map((alternative) => prefix + alternative));
+	}
+	return out;
+};
+const matchToken = (token, code) => {
+	switch (token._tag) {
+		case "Char": return token.code === code;
+		case "Any": return true;
+		case "Star": return false;
+		case "Class": {
+			let found = false;
+			for (let i = 0; i < token.ranges.length && !found; i += 2) found = code >= token.ranges[i] && code <= token.ranges[i + 1];
+			return found !== token.negated;
+		}
+	}
+};
+const width = (code) => code > 65535 ? 2 : 1;
+const matchWildcard = (node, name, dot) => {
+	if (name === "." || name === ".." || name.startsWith(".") && !dot && !node.leadingDot) return false;
+	if (node.affixes !== void 0) {
+		const { prefix, suffix } = node.affixes;
+		return name.length >= prefix.length + suffix.length && name.startsWith(prefix) && name.endsWith(suffix);
+	}
+	const { tokens } = node;
+	let t = 0;
+	let c = 0;
+	let star = -1;
+	let resume = 0;
+	while (c < name.length) {
+		if (tokens[t]?._tag === "Star") {
+			star = t++;
+			resume = c;
+			continue;
+		}
+		const code = name.codePointAt(c);
+		if (t < tokens.length && matchToken(tokens[t], code)) {
+			t++;
+			c += width(code);
+		} else if (star !== -1) {
+			t = star + 1;
+			resume += width(name.codePointAt(resume));
+			c = resume;
+		} else return false;
+	}
+	while (tokens[t]?._tag === "Star") t++;
+	return t === tokens.length;
+};
+const closure = (nodes, states) => {
+	for (const state of states) if (nodes[state]._tag === "Globstar") states.add(state + 1);
+	return states;
+};
+const step = (compiled, states, name) => {
+	const explicit = /* @__PURE__ */ new Set();
+	const viaGlobstar = /* @__PURE__ */ new Set();
+	const root = isRoot(name);
+	for (const state of states) {
+		const node = compiled.nodes[state];
+		switch (node._tag) {
+			case "Globstar":
+				if (!root && name !== "." && name !== ".." && (compiled.dot || !name.startsWith("."))) viaGlobstar.add(state);
+				break;
+			case "Literal":
+				if (node.value === name) explicit.add(state + 1);
+				break;
+			case "Wildcard": if (!root && matchWildcard(node, name, compiled.dot)) explicit.add(state + 1);
+		}
+	}
+	return {
+		explicit: closure(compiled.nodes, explicit),
+		globstar: closure(compiled.nodes, viaGlobstar)
+	};
+};
+const union = (step) => {
+	if (step.globstar.size === 0) return step.explicit;
+	const states = new Set(step.explicit);
+	for (const state of step.globstar) states.add(state);
+	return states;
+};
+const accepts = (compiled, states, isDirectory) => {
+	for (const state of states) {
+		const node = compiled.nodes[state];
+		if (node._tag === "End" && (isDirectory || !node.directoryOnly)) return true;
+	}
+	return false;
+};
+const canDescend = (compiled, states) => {
+	for (const state of states) if (compiled.nodes[state]._tag !== "End") return true;
+	return false;
+};
+const needsDirectory = (compiled, states) => {
+	for (const state of states) {
+		const node = compiled.nodes[state];
+		if (node._tag === "End" && node.directoryOnly) return true;
+	}
+	return false;
+};
+const join = (parent, name) => {
+	if (parent === "") return name === "" ? "/" : name;
+	return parent.endsWith("/") ? parent + name : `${parent}/${name}`;
+};
+const isMissing = (error) => error.reason._tag === "NotFound" || error.reason._tag === "BadResource";
+const isIgnorable = (error) => isMissing(error) || error.reason._tag === "PermissionDenied";
+const isNotLink = (error) => isIgnorable(error) || error.reason._tag === "Unknown";
+const DIRECTORY_CONCURRENCY = 16;
+const byName = /*#__PURE__*/ mapInput(String$5, (entry) => entry.name);
+const make$29 = (fs) => (pattern, options) => walk(fs, compile([pattern], options?.dot ?? false), options);
+const walk = /*#__PURE__*/ fnUntraced(function* (fs, compiled, options) {
+	if (compiled.initial.size === 0) return [];
+	const root = options?.root ?? "";
+	const excludes = compile(options?.exclude ?? [], true);
+	const excludeNeedsDirectory = excludes.nodes.some((node) => node._tag === "End" && node.directoryOnly);
+	const toFsPath = (relative) => isAbsolute(relative) ? relative : relative === "" ? root === "" ? "." : root : join(root, relative);
+	const isUnlisted = (value) => value === "." || value === ".." || isRoot(value);
+	const probe = (parent, name, named) => {
+		const path = toFsPath(join(parent, name));
+		return fs.stat(path).pipe(map$4((info) => info.type), catchReason("PlatformError", "NotFound", () => fs.readLink(path).pipe(as("SymbolicLink"), catchIf$2(isNotLink, () => succeed$3(void 0)))), catchIf$2(named ? isMissing : isIgnorable, () => succeed$3(void 0)), map$4((type) => type === void 0 ? void 0 : {
+			name,
+			type
+		}));
+	};
+	const entries = (relative, states, named) => {
+		const literals = /* @__PURE__ */ new Set();
+		let listed = !named;
+		for (const state of states) {
+			const node = compiled.nodes[state];
+			if (node._tag === "Literal") literals.add(node.value);
+			else if (node._tag !== "End") listed = true;
+		}
+		const probed = listed ? [...literals].filter(isUnlisted) : [...literals];
+		return zipWith(listed ? catchIf$2(fs.readDirectoryEntries(toFsPath(relative)), named ? isMissing : isIgnorable, () => succeed$3([])) : succeed$3([]), forEach$1(probed, (name) => probe(relative, name, named), { concurrency: 16 }), (listing, found) => ({
+			entries: sort([...listing, ...found.filter(isNotUndefined)], byName),
+			named: named && !listed
+		}));
+	};
+	const visit = ({ name, type }, parent, states, excluded) => {
+		const result = step(compiled, states, name);
+		const next = union(result);
+		if (next.size === 0) return;
+		const relative = join(parent, name);
+		const nextExcluded = union(step(excludes, excluded, name));
+		const descend = canDescend(compiled, next);
+		const child = (isDirectory, link) => {
+			const accepted = accepts(compiled, next, isDirectory);
+			if (!accepted && (!isDirectory || !descend) || accepts(excludes, nextExcluded, isDirectory)) return;
+			return {
+				relative,
+				accepted,
+				excluded: nextExcluded,
+				next: !isDirectory || !descend ? void 0 : !link || result.globstar.size === 0 ? next : canDescend(compiled, result.explicit) ? result.explicit : void 0
+			};
+		};
+		if (!descend && !needsDirectory(compiled, next) && !excludeNeedsDirectory) return child(false, false);
+		if (type !== "Unknown" && type !== "SymbolicLink") return child(type === "Directory", false);
+		const path = toFsPath(relative);
+		return fs.stat(path).pipe(map$4((info) => info.type === "Directory"), catchIf$2(isIgnorable, () => succeed$3(false)), flatMap((isDirectory) => {
+			const resolved = child(isDirectory, type === "SymbolicLink");
+			if (type === "SymbolicLink" || resolved?.next === void 0 || result.globstar.size === 0) return succeed$3(resolved);
+			return fs.readLink(path).pipe(as(child(isDirectory, true)), catchIf$2(isNotLink, () => succeed$3(resolved)));
+		}));
+	};
+	let slots = DIRECTORY_CONCURRENCY;
+	let finishing = false;
+	const failed = makeUnsafe$6();
+	const fork = (walk) => walk.pipe(onError((cause) => sync(() => {
+		if (!finishing) doneUnsafe(failed, failCause$3(cause));
+	})), ensuring$2(sync(() => {
+		slots++;
+	})), forkChild);
+	const directory = fnUntraced(function* (relative, states, excluded, named) {
+		const listing = yield* entries(relative, states, named);
+		const children = [];
+		const pending = [];
+		for (const entry of listing.entries) {
+			const child = visit(entry, relative, states, excluded);
+			if (isEffect(child)) {
+				const index = children.push(void 0) - 1;
+				pending.push(map$4(child, (child) => {
+					children[index] = child;
+				}));
+			} else children.push(child);
+		}
+		if (pending.length > 0) yield* all$1(pending, {
+			concurrency: 16,
+			discard: true
+		});
+		const subtrees = [];
+		for (const child of children) if (child?.next !== void 0) {
+			const walk = directory(child.relative, child.next, child.excluded, listing.named);
+			if (slots > 0) {
+				slots--;
+				subtrees.push(join$1(yield* fork(walk)));
+			} else subtrees.push(succeed$3(yield* walk));
+		}
+		const out = [];
+		let index = 0;
+		for (const child of children) {
+			if (child === void 0) continue;
+			if (child.accepted) out.push(child.relative);
+			if (child.next !== void 0) for (const path of yield* subtrees[index++]) out.push(path);
+		}
+		return out;
+	});
+	return yield* raceFirst(ensuring$2(directory("", compiled.initial, excludes.initial, true), sync(() => {
+		finishing = true;
+	})), _await(failed));
+});
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/PlatformError.js
 const TypeId$27 = "~effect/PlatformError";
 var BadArgument = class extends (/*#__PURE__*/ TaggedError$1("BadArgument")) {
 	get message() {
@@ -11621,7 +12435,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 };
 const systemError = (options) => new PlatformError(new SystemError(options));
 const badArgument = (options) => new PlatformError(new BadArgument(options));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/internal/stream.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/stream.js
 const TypeId$26 = "~effect/Stream";
 const streamVariance = {
 	_R: identity,
@@ -11638,7 +12452,7 @@ Stream$2.prototype = {
 	}
 };
 const fromChannel$2 = (channel) => new Stream$2(channel);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Sink.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Sink.js
 const TypeId$25 = "~effect/Sink";
 const endVoid = /*#__PURE__*/ succeed$3([void 0]);
 const sinkVariance = {
@@ -11664,7 +12478,7 @@ const toChannel$1 = (self) => fromTransform$1((upstream, scope) => succeed$3(fla
 const forEach = (f) => forEachArray(forEach$1((_) => f(_), { discard: true }));
 const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f), forever({ disableYield: true }), catchDone(() => endVoid)));
 const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$4(effect, toChannel$1)));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/RcMap.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/RcMap.js
 const TypeId$24 = "~effect/RcMap";
 const makeUnsafe = (options) => ({
 	[TypeId$24]: TypeId$24,
@@ -11742,10 +12556,16 @@ const removeInterrupted = (self, key, entry, context) => {
 	if (o._tag === "None" || o.value !== entry) return;
 	remove$2(self.state.map, key);
 	if (entry.refCount > 0) return;
-	closeEntry(entry).pipe(runForkWith(context), runIn(self.scope));
+	closeEntry(entry).pipe(ignoreCause({
+		log: "Unhandled",
+		message: "Unhandled error in RcMap finalizer"
+	}), runForkWith(context), runIn(self.scope));
 };
 const closeEntry = (entry) => entry.fiber ? interrupt(entry.fiber).pipe(andThen(close(entry.scope, void_$2))) : close(entry.scope, void_$2);
-const release = (self, key, entry) => withFiber((fiber) => {
+const resetExpiresAt = (entry, clock) => {
+	entry.expiresAt = clock.currentTimeMillisUnsafe() + toMillis(entry.idleTimeToLive);
+};
+const release = (self, key, entry) => suspend$3(() => {
 	entry.refCount--;
 	if (entry.refCount > 0) return void_$1;
 	else if (self.state._tag === "Closed") return closeEntry(entry);
@@ -11755,8 +12575,8 @@ const release = (self, key, entry) => withFiber((fiber) => {
 		remove$2(self.state.map, key);
 		return closeEntry(entry);
 	} else if (!isFinite$2(entry.idleTimeToLive)) return void_$1;
-	const clock = fiber.getRef(Clock);
-	entry.expiresAt = clock.currentTimeMillisUnsafe() + toMillis(entry.idleTimeToLive);
+	const clock = get$2(self.context, Clock);
+	resetExpiresAt(entry, clock);
 	if (entry.fiber) return void_$1;
 	entry.fiber = uninterruptibleMask(function loop(restore) {
 		const now = clock.currentTimeMillisUnsafe();
@@ -11766,15 +12586,18 @@ const release = (self, key, entry) => withFiber((fiber) => {
 			const o = get$1(self.state.map, key);
 			if (o._tag === "None" || o.value !== entry) return void_$1;
 			remove$2(self.state.map, key);
-			return close(entry.scope, void_$2);
+			return ignoreCause(close(entry.scope, void_$2), {
+				log: "Unhandled",
+				message: "Unhandled error in RcMap finalizer"
+			});
 		}
 		return flatMap(restore(clock.sleep(millis(remaining))), () => loop(restore));
 	}).pipe(ensuring$2(sync(() => {
 		entry.fiber = void 0;
-	})), runForkWith(fiber.context), runIn(self.scope));
+	})), runForkWith(self.context), runIn(self.scope));
 	return void_$1;
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stream.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Stream.js
 const TypeId$23 = "~effect/Stream";
 const isStream = (u) => hasProperty(u, TypeId$23);
 const fromChannel = fromChannel$2;
@@ -11823,6 +12646,7 @@ const runForEach = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.channel,
 	});
 }));
 const runForEachArray = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.channel, f));
+const mkArrayBuffer = (self) => map$4(mkUint8Array$1(self.channel), (bytes) => bytes.buffer);
 const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, context, options) => {
 	let currentResolve = void 0;
 	let fiber = void 0;
@@ -11863,12 +12687,13 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 	}, options?.strategy);
 });
 const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$4(context(), (context) => toReadableStreamWith(self, context, options)));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/FileSystem.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/FileSystem.js
 const TypeId$22 = "~effect/FileSystem";
 const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
 const make$27 = (impl) => FileSystem.of({
 	...impl,
 	[TypeId$22]: TypeId$22,
+	glob: make$29(impl),
 	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
 	readFileString: (path, encoding) => flatMap(impl.readFile(path), (_) => try_({
 		try: () => new TextDecoder(encoding).decode(_),
@@ -11914,7 +12739,7 @@ const make$27 = (impl) => FileSystem.of({
 });
 const FileTypeId = "~effect/FileSystem/File";
 var WatchBackend = class extends (/*#__PURE__*/ Service$1()("effect/FileSystem/WatchBackend")) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ConfigProvider.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ConfigProvider.js
 function makeValue(value) {
 	return {
 		_tag: "Value",
@@ -12002,7 +12827,7 @@ function trieNodeAt(root, path) {
 	return node;
 }
 const isGreaterThanOrEqualTo = /*#__PURE__*/ isGreaterThanOrEqualTo$2(LogLevelOrder);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Config.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Config.js
 const TypeId$21 = "~effect/Config";
 var ConfigError = class {
 	_tag = "ConfigError";
@@ -12132,7 +12957,7 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 function schema$1(codec, path) {
 	const codecStringTree = toCodecStringTree(codec);
 	const encodedAst = toEncoded$1(codecStringTree.ast);
-	const decodeCursor = decodeUnknownEffect$1(make$31(toConfigCursorAST(codecStringTree.ast)));
+	const decodeCursor = decodeUnknownEffect$1(make$32(toConfigCursorAST(codecStringTree.ast)));
 	const localPath = typeof path === "string" ? [path] : path ?? [];
 	return make$25((provider, pathPrefix) => {
 		const fullPath = [...pathPrefix, ...localPath];
@@ -12148,15 +12973,15 @@ function String$1(name) {
 function Redacted$1(name) {
 	return schema$1(Redacted$2(String$2), name);
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ErrorReporter.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ErrorReporter.js
 const report = (cause) => withFiber((fiber) => {
 	reportCauseUnsafe(fiber, cause);
 	return void_$1;
 });
 const ignore = "~effect/ErrorReporter/ignore";
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/PrimaryKey.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/PrimaryKey.js
 const symbol$1 = "~effect/PrimaryKey";
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Logger.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Logger.js
 const LogToStderr = LogToStderr$1;
 const ValueMatcherProto = {
 	["~effect/Match/Matcher"]: {
@@ -12221,7 +13046,7 @@ const discriminator = (field) => (...pattern) => {
 	return (self) => self.add(makeWhen(pred, f));
 };
 const discriminators = (field) => (fields) => {
-	const predicate = makeWhen((arg) => arg != null && Object.hasOwn(fields, arg[field]), (data) => fields[data[field]](data));
+	const predicate = makeWhen((arg) => arg != null && Object.hasOwn(fields, arg[field]) && fields[arg[field]] !== void 0, (data) => fields[data[field]](data));
 	return (self) => self.add(predicate);
 };
 const tag$1 = /*#__PURE__*/ discriminator("_tag");
@@ -12268,19 +13093,28 @@ const exhaustive$1 = (self) => {
 		throw new Error(getExhaustiveAbsurdErrorMessage);
 	};
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Match.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Match.js
 const value = value$1;
 const when = when$1;
 const tag = tag$1;
 const tags = tags$1;
 const is = is$1;
 const exhaustive = exhaustive$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/UndefinedOr.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/UndefinedOr.js
 const map = /*#__PURE__*/ dual(2, (self, f) => self === void 0 ? void 0 : f(self));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Runtime.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Runtime.js
+var InterruptExitCode = class extends (/*#__PURE__*/ Service$1()("effect/Runtime/InterruptExitCode")) {};
 const defaultTeardown = (exit, onExit) => {
 	if (isSuccess(exit)) return onExit(0);
-	if (hasInterruptsOnly(exit.cause)) return onExit(130);
+	if (hasInterruptsOnly(exit.cause)) {
+		let code = -Infinity;
+		for (const reason of exit.cause.reasons) {
+			const annotated = getOrUndefined(reasonAnnotations(reason), InterruptExitCode);
+			if (annotated === void 0) return onExit(130);
+			code = Math.max(code, annotated);
+		}
+		return onExit(code);
+	}
 	return onExit(getErrorExitCode(squash(exit.cause)));
 };
 const makeRunMain = (f) => dual((args) => isEffect(args[0]), (effect, options) => {
@@ -12319,7 +13153,7 @@ const getErrorReported = (u) => {
 	}
 	return true;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/Stdio.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Stdio.js
 const TypeId$19 = "~effect/Stdio";
 const Stdio = /*#__PURE__*/ Service$1(TypeId$19);
 const make$24 = (options) => ({
@@ -12329,7 +13163,7 @@ const make$24 = (options) => ({
 	stderrIsTerminal: succeed$3(false),
 	...options
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpBody.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpBody.js
 const TypeId$18 = "~effect/http/HttpBody";
 const isHttpBody = (u) => hasProperty(u, TypeId$18);
 const HttpBodyErrorTypeId = "~effect/http/HttpBody/HttpBodyError";
@@ -12442,7 +13276,7 @@ var Stream$1 = class extends Proto$10 {
 	}
 };
 const stream = (body, contentType, contentLength) => new Stream$1(body, contentType ?? "application/octet-stream", contentLength);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientError.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClientError.js
 const TypeId$17 = "~effect/http/HttpClientError";
 const isHttpClientError = (u) => hasProperty(u, TypeId$17);
 var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientError")) {
@@ -12466,22 +13300,46 @@ var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientErro
 };
 const formatReason = (tag) => tag.endsWith("Error") ? tag.slice(0, -5) : tag;
 const formatMessage = (reason, description, info) => description ? `${reason}: ${description} (${info})` : `${reason} error (${info})`;
-const formatMethodAndUrl$1 = (request) => `${request.method} ${redactUrl(request.url)}`;
+const responseRedactedNames = /*#__PURE__*/ new WeakMap();
+const redactedUrls = /*#__PURE__*/ new WeakMap();
+const addRedactedNames = (reason, names) => {
+	const url = redactedUrls.get(reason);
+	if (url !== void 0 && names !== void 0) redactedUrls.set(reason, redactUrl(url, names));
+};
+const addResponseRedactedNames = (response, names) => {
+	const existing = responseRedactedNames.get(response);
+	responseRedactedNames.set(response, existing === void 0 ? names : [...existing, ...names]);
+};
+const addFailureRedactedNames = (cause, names) => {
+	for (const reason of cause.reasons) if (isFailReason(reason) && isHttpClientError(reason.error)) addRedactedNames(reason.error.reason, names);
+};
+const ReasonError = (tag) => {
+	class Base extends TaggedError$1(tag) {
+		constructor(props) {
+			super(props);
+			redactedUrls.set(this, redactUrl(props.request.url));
+			if (props.response !== void 0) addRedactedNames(this, responseRedactedNames.get(props.response));
+		}
+	}
+	return Base;
+};
+const redactedUrl = (reason) => redactUrl(redactedUrls.get(reason) ?? reason.request.url);
+const formatMethodAndUrl$1 = (reason) => `${reason.request.method} ${redactedUrl(reason)}`;
 const reasonToJSON = (reason, json) => ({
 	...json,
 	request: {
 		_id: "HttpClientRequest",
 		method: reason.request.method,
-		url: redactUrl(reason.request.url)
+		url: redactedUrl(reason)
 	},
 	..."response" in reason ? { response: {
 		_id: "HttpClientResponse",
 		status: reason.response.status
 	} } : void 0
 });
-var TransportError = class extends (/*#__PURE__*/ TaggedError$1("TransportError")) {
+var TransportError = class extends (/*#__PURE__*/ ReasonError("TransportError")) {
 	get methodAndUrl() {
-		return formatMethodAndUrl$1(this.request);
+		return formatMethodAndUrl$1(this);
 	}
 	get message() {
 		return formatMessage(formatReason(this._tag), this.description, this.methodAndUrl);
@@ -12490,9 +13348,9 @@ var TransportError = class extends (/*#__PURE__*/ TaggedError$1("TransportError"
 		return reasonToJSON(this, super.toJSON());
 	}
 };
-var InvalidUrlError = class extends (/*#__PURE__*/ TaggedError$1("InvalidUrlError")) {
+var EncodeError = class extends (/*#__PURE__*/ ReasonError("EncodeError")) {
 	get methodAndUrl() {
-		return formatMethodAndUrl$1(this.request);
+		return formatMethodAndUrl$1(this);
 	}
 	get message() {
 		return formatMessage(formatReason(this._tag), this.description, this.methodAndUrl);
@@ -12501,9 +13359,20 @@ var InvalidUrlError = class extends (/*#__PURE__*/ TaggedError$1("InvalidUrlErro
 		return reasonToJSON(this, super.toJSON());
 	}
 };
-var StatusCodeError = class extends (/*#__PURE__*/ TaggedError$1("StatusCodeError")) {
+var InvalidUrlError = class extends (/*#__PURE__*/ ReasonError("InvalidUrlError")) {
 	get methodAndUrl() {
-		return formatMethodAndUrl$1(this.request);
+		return formatMethodAndUrl$1(this);
+	}
+	get message() {
+		return formatMessage(formatReason(this._tag), this.description, this.methodAndUrl);
+	}
+	toJSON() {
+		return reasonToJSON(this, super.toJSON());
+	}
+};
+var StatusCodeError = class extends (/*#__PURE__*/ ReasonError("StatusCodeError")) {
+	get methodAndUrl() {
+		return formatMethodAndUrl$1(this);
 	}
 	get message() {
 		const info = `${this.response.status} ${this.methodAndUrl}`;
@@ -12513,9 +13382,9 @@ var StatusCodeError = class extends (/*#__PURE__*/ TaggedError$1("StatusCodeErro
 		return reasonToJSON(this, super.toJSON());
 	}
 };
-var DecodeError = class extends (/*#__PURE__*/ TaggedError$1("DecodeError")) {
+var DecodeError = class extends (/*#__PURE__*/ ReasonError("DecodeError")) {
 	get methodAndUrl() {
-		return formatMethodAndUrl$1(this.request);
+		return formatMethodAndUrl$1(this);
 	}
 	get message() {
 		const info = `${this.response.status} ${this.methodAndUrl}`;
@@ -12525,9 +13394,9 @@ var DecodeError = class extends (/*#__PURE__*/ TaggedError$1("DecodeError")) {
 		return reasonToJSON(this, super.toJSON());
 	}
 };
-var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError")) {
+var EmptyBodyError = class extends (/*#__PURE__*/ ReasonError("EmptyBodyError")) {
 	get methodAndUrl() {
-		return formatMethodAndUrl$1(this.request);
+		return formatMethodAndUrl$1(this);
 	}
 	get message() {
 		const info = `${this.response.status} ${this.methodAndUrl}`;
@@ -12537,8 +13406,10 @@ var EmptyBodyError = class extends (/*#__PURE__*/ TaggedError$1("EmptyBodyError"
 		return reasonToJSON(this, super.toJSON());
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMethod.js
-const hasBody = (method) => method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE";
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpMethod.js
+function hasBody(method) {
+	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE";
+}
 const allShort = [
 	["GET", "get"],
 	["POST", "post"],
@@ -12550,7 +13421,7 @@ const allShort = [
 	["TRACE", "trace"],
 	["QUERY", "query"]
 ];
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/httpBody.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/httpBody.js
 const updateHeaders = (headers, body) => {
 	if (body._tag === "Empty" || body._tag === "FormData") return remove$1(remove$1(headers, "content-type"), "content-length");
 	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set$1(headers, "content-type", body.contentType);
@@ -12560,7 +13431,7 @@ const updateContentLength = (headers, body) => {
 	const contentLength = body._tag === "Empty" || body._tag === "FormData" ? void 0 : body.contentLength;
 	return contentLength === void 0 ? remove$1(headers, "content-length") : set$1(headers, "content-length", contentLength.toString());
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/Url.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Url.js
 var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
 const make$23 = (url, params, hash) => try_$2({
 	try: () => {
@@ -12584,7 +13455,7 @@ const baseUrl = () => {
 		}
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientRequest.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClientRequest.js
 const TypeId$16 = "~effect/http/HttpClientRequest";
 const Proto$9 = {
 	[TypeId$16]: TypeId$16,
@@ -12671,7 +13542,7 @@ function toUrl(self) {
 	if (isSuccess$1(r)) return some(r.success);
 	return none();
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpIncomingMessage.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpIncomingMessage.js
 const TypeId$15 = "~effect/http/HttpIncomingMessage";
 const schemaBodyJson = (schema, options) => {
 	const decode = decodeEffect(toCodecJson(schema));
@@ -12685,10 +13556,10 @@ const inspect = (self, that) => {
 		remoteAddress: self.remoteAddress
 	};
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/webResponse.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/webResponse.js
 const WebSourceSymbol = "~effect/http/HttpClientResponse/WebSource";
 const getWebSource = (self) => self[WebSourceSymbol]?.();
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClientResponse.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClientResponse.js
 const TypeId$14 = "~effect/http/HttpClientResponse";
 const fromWeb = (request, source) => new WebHttpClientResponse(request, source);
 const schemaJson = (schema, options) => {
@@ -12777,8 +13648,8 @@ var WebHttpClientResponse = class extends Class$2 {
 		return this.textBody ??= map$4(this.arrayBuffer, (_) => new TextDecoder().decode(_));
 	}
 	get urlParamsBody() {
-		return flatMap(this.text, (_) => try_({
-			try: () => fromInput(new URLSearchParams(_)),
+		return flatMap(this.arrayBuffer, (bytes) => try_({
+			try: () => fromInput(fromBody(bytes)),
 			catch: (cause) => new HttpClientError({ reason: new DecodeError({
 				request: this.request,
 				response: this,
@@ -12821,7 +13692,7 @@ var WebHttpClientResponse = class extends Class$2 {
 		return pipeArguments(this, arguments);
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpTraceContext.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpTraceContext.js
 const toHeaders = (span) => fromRecordUnsafe({
 	b3: `${span.traceId}-${span.spanId}-${span.sampled ? "1" : "0"}${match$3(span.parent, {
 		onNone: () => "",
@@ -12829,7 +13700,26 @@ const toHeaders = (span) => fromRecordUnsafe({
 	})}`,
 	traceparent: `00-${span.traceId.padStart(32, "0")}-${span.spanId}-${span.sampled ? "01" : "00"}`
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/tracing.js
+const w3cTraceId = /^[0-9a-f]{32}$/;
+const w3cSpanId = /^[0-9a-f]{16}$/;
+const w3cTraceFlags = /^[0-9a-f]{2}$/;
+const w3c = (headers) => {
+	if (!headers["traceparent"]) return none();
+	const parts = headers["traceparent"].split("-");
+	if (parts.length !== 4) return none();
+	const [version, traceId, spanId, flags] = parts;
+	switch (version) {
+		case "00":
+			if (w3cTraceId.test(traceId) === false || w3cSpanId.test(spanId) === false || w3cTraceFlags.test(flags) === false || traceId === "00000000000000000000000000000000" || spanId === "0000000000000000") return none();
+			return some(externalSpan({
+				traceId,
+				spanId,
+				sampled: (parseInt(flags, 16) & 1) === 1
+			}));
+		default: return none();
+	}
+};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/tracing.js
 const defaultPorts = {
 	"http:": 80,
 	"https:": 443,
@@ -12858,7 +13748,7 @@ const addHeaderAttributes = (span, phase, headers, filter, redactedNames) => {
 		span.attribute(`http.${phase}.header.${name}`, isRedactedName$1(name, redactedNames) ? "<redacted>" : headers[name]);
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpClient.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClient.js
 const TypeId$13 = "~effect/http/HttpClient";
 const HttpClient = /*#__PURE__*/ Service$1("effect/HttpClient");
 const transformResponse$1 = /*#__PURE__*/ dual(2, (self, f) => makeWith$1((request) => f(self.postprocess(request)), self.preprocess));
@@ -12886,49 +13776,44 @@ const Proto$8 = {
 	}]))
 };
 const make$21 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
-	const scopedController = scopedRequests.get(request);
-	const controller = scopedController ?? new AbortController();
+	const scope = fiber.getRef(RequestScope);
+	const controller = new AbortController();
+	const urlParamsRedactedNames = fiber.getRef(CurrentRedactedNames);
 	const urlResult = make$23(request.url, request.urlParams, getOrUndefined$1(request.hash));
 	if (isFailure$1(urlResult)) return fail$3(new HttpClientError({ reason: new InvalidUrlError({
 		request,
 		cause: urlResult.failure
 	}) }));
 	const url = urlResult.success;
-	if (fiber.getRef(DisablePropagation) || fiber.getRef(TracerDisabledWhen)(request)) {
-		const effect = f(request, url, controller.signal, fiber);
-		if (scopedController) return map$4(effect, (response) => trackResponse(response, controller, true));
-		return uninterruptibleMask((restore) => matchCauseEffect(restore(effect), {
-			onSuccess(response) {
-				return succeed$3(trackResponse(response, controller, false));
-			},
-			onFailure(cause) {
-				if (hasInterrupts$1(cause)) controller.abort();
-				return failCause$3(cause);
-			}
-		}));
-	}
+	const send = (request) => scope === void 0 ? f(request, url, controller.signal, fiber) : flatMap(addFinalizer$1(scope, sync(() => controller.abort())), () => f(request, url, controller.signal, fiber));
+	const exchange = (request, onResponse) => uninterruptibleMask((restore) => matchCauseEffect(restore(send(request)), {
+		onSuccess: (response) => {
+			response = trackResponse(response, controller, scope !== void 0, urlParamsRedactedNames);
+			onResponse?.(response);
+			return succeed$3(response);
+		},
+		onFailure: (cause) => {
+			if (hasInterrupts$1(cause)) controller.abort();
+			addFailureRedactedNames(cause, urlParamsRedactedNames);
+			return failCause$3(cause);
+		}
+	}));
+	if (fiber.getRef(DisablePropagation) || fiber.getRef(TracerDisabledWhen)(request)) return exchange(request);
 	return useSpan(fiber.getRef(SpanNameGenerator)(request), { kind: "client" }, (span) => {
 		span.attribute("http.request.method", request.method);
 		const redactedHeaderNames = fiber.getRef(CurrentRedactedNames$1);
-		addUrlAttributes(span, url, redactedNames(request.urlParams, fiber.getRef(CurrentRedactedNames)));
+		addUrlAttributes(span, url, redactedNames(request.urlParams, urlParamsRedactedNames));
 		const headerFilter = fiber.getRef(TracerHeaderFilter);
 		addHeaderAttributes(span, "request", request.headers, headerFilter, redactedHeaderNames);
 		request = fiber.getRef(TracerPropagationEnabled) ? setHeaders$1(request, toHeaders(span)) : request;
-		return uninterruptibleMask((restore) => restore(f(request, url, controller.signal, fiber)).pipe(withParentSpan(span, { captureStackTrace: false }), matchCauseEffect({
-			onSuccess: (response) => {
-				span.attribute("http.response.status_code", response.status);
-				addHeaderAttributes(span, "response", response.headers, headerFilter, redactedHeaderNames);
-				if (response.status >= 400 && response.status < 600) {
-					span.attribute("error.type", String(response.status));
-					endSpanWithStatusError(fiber, span, request, response);
-				}
-				return succeed$3(trackResponse(response, controller, scopedController !== void 0));
-			},
-			onFailure(cause) {
-				if (!scopedController && hasInterrupts$1(cause)) controller.abort();
-				return failCause$3(cause);
+		return withParentSpan(exchange(request, (response) => {
+			span.attribute("http.response.status_code", response.status);
+			addHeaderAttributes(span, "response", response.headers, headerFilter, redactedHeaderNames);
+			if (response.status >= 400 && response.status < 600) {
+				span.attribute("error.type", String(response.status));
+				endSpanWithStatusError(fiber, span, request, response);
 			}
-		})));
+		}), span, { captureStackTrace: false });
 	});
 })), succeed$3);
 const endSpanWithStatusError = (fiber, span, request, response) => {
@@ -13000,12 +13885,14 @@ const responseRegistry = /*#__PURE__*/ (() => {
 		}
 	};
 })();
-const scopedRequests = /*#__PURE__*/ new WeakMap();
+const RequestScope = /*#__PURE__*/ Reference("effect/http/HttpClient/RequestScope", { defaultValue: () => void 0 });
 const responseControllers = /*#__PURE__*/ new WeakMap();
-const trackResponse = (response, controller, scoped) => {
+const trackResponse = (response, controller, scoped, urlParamsRedactedNames) => {
+	addResponseRedactedNames(response, urlParamsRedactedNames);
 	if (!scoped) {
 		responseRegistry.register(response, controller);
 		response = new InterruptibleResponse(response, controller);
+		addResponseRedactedNames(response, urlParamsRedactedNames);
 	}
 	responseControllers.set(response, controller);
 	return response;
@@ -13098,9 +13985,28 @@ const withRetryAfter = (schedule) => fromStep(map$4(toStep(schedule), (step) => 
 	return map$4(step(now, input), ([output, delay]) => [output, max(delay, retryAfter)]);
 }));
 const isTransientResponse = (response) => response.status === 408 || response.status === 429 || response.status === 500 || response.status === 502 || response.status === 503 || response.status === 504;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FetchHttpClient.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/FetchHttpClient.js
 const Fetch = /*#__PURE__*/ Reference("effect/http/FetchHttpClient/Fetch", { defaultValue: () => globalThis.fetch });
+const StreamBodyFallback = /*#__PURE__*/ Reference("effect/http/FetchHttpClient/StreamBodyFallback", { defaultValue: () => "error" });
 var RequestInit = class extends (/*#__PURE__*/ Service$1()("effect/http/FetchHttpClient/RequestInit")) {};
+let supportsStreamBody;
+const detectStreamBodySupport = () => {
+	try {
+		let duplexAccessed = false;
+		const body = new ReadableStream();
+		const request = new Request("https://example.com", {
+			method: "POST",
+			body,
+			get duplex() {
+				duplexAccessed = true;
+				return "half";
+			}
+		});
+		return (duplexAccessed || request.body === body) && !request.headers.has("Content-Type");
+	} catch {
+		return false;
+	}
+};
 const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$21((request, url, signal, fiber) => {
 	if (request.headers.upgrade !== void 0) return fail$3(new HttpClientError({ reason: new TransportError({
 		request,
@@ -13144,24 +14050,34 @@ const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__P
 		case "Raw":
 		case "Uint8Array": return send(request.body.body);
 		case "FormData": return send(request.body.formData);
-		case "Stream": {
-			uploadController = new AbortController();
-			const uploadSignal = AbortSignal.any([signal, uploadController.signal]);
-			const stopped = callback$1((resume) => {
-				const onAbort = () => resume(interrupt$1);
-				if (uploadSignal.aborted) {
-					onAbort();
-					return;
-				}
-				uploadSignal.addEventListener("abort", onAbort, { once: true });
-				return sync(() => uploadSignal.removeEventListener("abort", onAbort));
-			});
-			return flatMap(toReadableStreamEffect(interruptWhen(request.body.stream, stopped)), send);
-		}
+		case "Stream":
+			supportsStreamBody ??= detectStreamBodySupport();
+			if (supportsStreamBody) {
+				uploadController = new AbortController();
+				const uploadSignal = AbortSignal.any([signal, uploadController.signal]);
+				const stopped = callback$1((resume) => {
+					const onAbort = () => resume(interrupt$1);
+					if (uploadSignal.aborted) {
+						onAbort();
+						return;
+					}
+					uploadSignal.addEventListener("abort", onAbort, { once: true });
+					return sync(() => uploadSignal.removeEventListener("abort", onAbort));
+				});
+				return flatMap(toReadableStreamEffect(interruptWhen(request.body.stream, stopped)), send);
+			}
+			if (fiber.getRef(StreamBodyFallback) === "error") return fail$3(new HttpClientError({ reason: new EncodeError({
+				request,
+				description: "Streaming request bodies are not supported in this runtime"
+			}) }));
+			return mkArrayBuffer(request.body.stream).pipe(mapError$2((cause) => new HttpClientError({ reason: new EncodeError({
+				request,
+				cause
+			}) })), flatMap(send));
 	}
 	return send(void 0);
 })));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/FindMyWay/internal/queryString.js
 const plusRegex = /\+/g;
 const Empty$1 = function() {};
 Empty$1.prototype = /*#__PURE__*/ Object.create(null);
@@ -13222,7 +14138,7 @@ function parse$1(input) {
 	}
 	return result;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay/internal/router.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/FindMyWay/internal/router.js
 const FULL_PATH_REGEXP = /^https?:\/\/.*?\//;
 const OPTIONAL_PARAM_REGEXP = /(\/:[^/()]*?)\?(\/?)/;
 const emptyParamsArray = [];
@@ -13836,12 +14752,12 @@ const httpMethods = [
 	"UNLOCK",
 	"UNSUBSCRIBE"
 ];
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/FindMyWay.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/FindMyWay.js
 const make$19 = make$20;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/headers.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/headers.js
 const Proto$7 = /*#__PURE__*/ Object.getPrototypeOf(empty$6);
 const emptyMutableUnsafe = () => Object.create(Proto$7);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpServerResponse.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpServerResponse.js
 const TypeId$12 = "~effect/http/HttpServerResponse";
 const empty = (options) => makeResponse({
 	status: options?.status ?? 204,
@@ -13895,7 +14811,7 @@ const makeResponse = (options, ownedHeaders) => {
 	} else self.headers = ownedHeaders ?? options.headers ?? empty$6;
 	return self;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/socket/Socket.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/socket/Socket.js
 const TypeId$10 = "~effect/socket/Socket";
 const isSocket = (u) => hasProperty(u, TypeId$10);
 const constNameChars = /*#__PURE__*/ new Uint8Array(256);
@@ -13905,7 +14821,8 @@ constValueChars[9] = 1;
 for (let i = 32; i <= 126; i++) constValueChars[i] = 1;
 for (let i = 128; i <= 255; i++) constValueChars[i] = 1;
 const HttpServerRequest = /*#__PURE__*/ Service$1("effect/http/HttpServerRequest");
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/internal/requestState.js
+var ParsedSearchParams = class extends (/*#__PURE__*/ Service$1()("effect/http/ParsedSearchParams")) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/requestState.js
 const CurrentRequestState = /*#__PURE__*/ Service$1("effect/http/HttpEffect/CurrentRequestState");
 const appendPreResponseHandlerUnsafe$1 = (context, handler) => {
 	const state = getOrUndefined(context, CurrentRequestState);
@@ -13913,16 +14830,17 @@ const appendPreResponseHandlerUnsafe$1 = (context, handler) => {
 	const prev = state.preResponseHandler;
 	state.preResponseHandler = prev ? (request, response) => flatMap(prev(request, response), (response) => handler(request, response)) : handler;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpMiddleware.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpMiddleware.js
 const withLoggerDisabled = (self) => withFiber((fiber) => {
 	const state = getOrUndefined(fiber.context, CurrentRequestState);
 	if (state !== void 0) state.loggerDisabled = true;
 	return self;
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpEffect.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpEffect.js
 const appendPreResponseHandlerUnsafe = appendPreResponseHandlerUnsafe$1;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpRouter.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpRouter.js
 const HttpRouter = /*#__PURE__*/ Service$1("effect/http/HttpRouter");
+var RouteContext = class extends (/*#__PURE__*/ Service$1()("effect/http/HttpRouter/RouteContext")) {};
 const removeTrailingSlash = (path) => path.endsWith("/") ? path.slice(0, -1) : path;
 const prefixPath = /*#__PURE__*/ dual(2, (self, prefix) => {
 	prefix = removeTrailingSlash(prefix);
@@ -13957,7 +14875,7 @@ var MiddlewareImpl = class MiddlewareImpl {
 				const memoMap = yield* CurrentMemoMap;
 				const scope = get$2(context$4, Scope);
 				const depsContext = yield* buildWithMemoMap(this.dependencies, memoMap, scope);
-				stack.push(...getMiddleware(depsContext));
+				stack.push(...getMiddleware$1(depsContext));
 			}
 			return makeUnsafe$7(/* @__PURE__ */ new Map([[contextKey, stack]]));
 		})).pipe(provide$2(this.layerFn));
@@ -13968,10 +14886,10 @@ var MiddlewareImpl = class MiddlewareImpl {
 	}
 };
 const middlewareCache = /*#__PURE__*/ new WeakMap();
-const getMiddleware = (context) => {
+const getMiddleware$1 = (context) => {
 	let arr = middlewareCache.get(context);
 	if (arr) return arr;
-	const topLevel = empty$9();
+	const topLevel = empty$10();
 	let maxLength = 0;
 	for (const [key, value] of context.mapUnsafe) if (key.startsWith("effect/http/HttpRouter/Middleware-")) {
 		topLevel.push(value);
@@ -13987,7 +14905,7 @@ const getMiddleware = (context) => {
 	return arr;
 };
 (/*#__PURE__*/ middleware(withLoggerDisabled)).layer;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http/HttpStatus.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpStatus.js
 const codeByLiteral = {
 	Continue: 100,
 	SwitchingProtocols: 101,
@@ -14330,7 +15248,7 @@ var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", {
 		return `tipee is not set up: enter your tipee instance (acme for acme.tipee.net) and an API key in ${SETTINGS}.\n${detail}`;
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Sse.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/encoding/Sse.js
 const SseErrorTypeId = "~effect/encoding/Sse/SseError";
 var EventTooLarge = class extends (/*#__PURE__*/ TaggedError$1("EventTooLarge")) {
 	get message() {
@@ -14505,13 +15423,13 @@ var Retry = class Retry extends (/*#__PURE__*/ TaggedClass("Retry")) {
 		return Retry.is(u) ? succeed$8(u) : fail$7(u);
 	}
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/mediaType.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/internal/mediaType.js
 function normalize(contentType) {
 	const normalized = contentType.toLowerCase().trim();
 	const index = normalized.indexOf(";");
 	return index === -1 ? normalized : normalized.slice(0, index).trim();
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiSchema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApiSchema.js
 const StreamSchemaTypeId$1 = "~effect/http-api/HttpApiSchema/Stream";
 function status(code) {
 	const statusCode = typeof code === "string" ? fromLiteral(code) : code;
@@ -14525,7 +15443,7 @@ const isStreamUint8Array = (u) => isStreamSchema$1(u) && u._tag === "StreamUint8
 const isStreamNdjson = (u) => isStreamSchema$1(u) && u._tag === "StreamNdjson";
 const UpgradeTypeId = "~effect/http-api/HttpApiSchema/Upgrade";
 const upgradeSchema = /*#__PURE__*/ declare(isSocket).pipe(/*#__PURE__*/ status(101));
-const rebuildUpgrade = (protocol, headers) => make$31(upgradeSchema.ast, {
+const rebuildUpgrade = (protocol, headers) => make$32(upgradeSchema.ast, {
 	[UpgradeTypeId]: UpgradeTypeId,
 	protocol,
 	headers
@@ -14540,7 +15458,7 @@ const withHeaders = (options) => ({
 });
 const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/http-api/HttpApiSchema/WithHeaders");
 function rebuildWithHeaders(self, schema, headers) {
-	return make$31(self.ast, {
+	return make$32(self.ast, {
 		[WithHeadersTypeId]: WithHeadersTypeId,
 		schema,
 		headers
@@ -14633,12 +15551,12 @@ function getStatusErrorSchema(schema) {
 	if (isWithHeaders(schema)) return resolveHttpApiStatus(schema.ast) ?? getStatusError(schema.schema.ast);
 	return getStatusError(schema.ast);
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/toCodecHttpProperties.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/internal/toCodecHttpProperties.js
 function toCodecHttpProperties(schema) {
 	const codec = toCodecStringTree(schema);
 	return codec.rebuild(normalizeProperties(codec.ast));
 }
-const omitUndefined = /*#__PURE__*/ new Transformation(/*#__PURE__*/ passthrough$1(), /*#__PURE__*/ transformOptional(/*#__PURE__*/ filter(isNotUndefined)));
+const omitUndefined = /*#__PURE__*/ new Transformation(/*#__PURE__*/ passthrough$1(), /*#__PURE__*/ transformOptional(/*#__PURE__*/ filter$3(isNotUndefined)));
 const present = /*#__PURE__*/ memoize((ast) => {
 	if (ast._tag === "Undefined") return new Never$1(ast.annotations, void 0, void 0, ast.context);
 	if (ast._tag === "Suspend") return ast.recur(present);
@@ -14660,7 +15578,7 @@ const normalizeProperties = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempoten
 	});
 	return properties === ast.propertySignatures ? ast : new Objects(properties, ast.indexSignatures, ast.annotations, ast.checks, void 0, ast.context, ast.encodingChecks);
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiEndpoint.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApiEndpoint.js
 const TypeId$7 = "~effect/http-api/HttpApiEndpoint";
 function getPayloadSchemas(endpoint) {
 	const result = [];
@@ -14743,7 +15661,7 @@ const make$14 = (method) => (identifier, path, options) => {
 		payload,
 		success: getSuccessResponse(options?.success, method, payload, disableCodecs),
 		error: getErrorResponse(options?.error, disableCodecs),
-		annotations: empty$10(),
+		annotations: empty$11(),
 		middlewares: /* @__PURE__ */ new Set(),
 		disableCodecs
 	});
@@ -14818,18 +15736,22 @@ function getErrorResponse(error, disableCodecs) {
 	return new Set(disableCodecs ? schemas : schemas.map(transformResponseSchema));
 }
 function validateSuccessResponse(schemas, method, payload) {
-	if (schemas.some(isUpgrade)) {
-		if (schemas.length > 1) throw new Error("Cannot combine an upgrade with other success responses");
+	const upgrades = schemas.filter(isUpgrade);
+	if (upgrades.length > 1) throw new Error("Cannot declare more than one upgrade");
+	const hasUpgrade = upgrades.length === 1;
+	if (hasUpgrade) {
 		if (method === "HEAD") throw new Error("HEAD endpoints cannot declare an upgrade");
 		for (const { encoding } of payload.values()) if (encoding._tag === "Stream" || encoding._tag === "Multipart" && encoding.mode === "stream") throw new Error("Upgrade endpoints cannot declare a streaming payload");
-		return;
 	}
 	let hasStream = false;
 	const statuses = /* @__PURE__ */ new Map();
 	for (const schema of schemas) {
+		if (isUpgrade(schema)) continue;
 		const inner = isWithHeaders(schema) ? schema.schema : schema;
 		const status = getStatusSuccessSchema(schema);
+		if (hasUpgrade && status === 101) throw new Error("Cannot combine an upgrade with another success response for status: 101");
 		if (isStreamSchema$1(inner)) {
+			if (hasUpgrade) throw new Error("Cannot combine an upgrade with a streaming success response");
 			validateStreamSuccess(inner, method);
 			if (hasStream) throw new Error("Multiple streaming success responses are not supported");
 			hasStream = true;
@@ -14947,7 +15869,7 @@ function transformPayload(schema, method) {
 	}
 }
 const post = /*#__PURE__*/ make$14("POST");
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApi.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApi.js
 const TypeId$6 = "~effect/http-api/HttpApi";
 const Proto$4 = {
 	[TypeId$6]: TypeId$6,
@@ -15011,7 +15933,7 @@ const makeProto$4 = (options) => {
 const make$13 = (identifier) => makeProto$4({
 	identifier,
 	groups: {},
-	annotations: empty$10()
+	annotations: empty$11()
 });
 const reflect = (self, options) => {
 	const groups = Object.values(self.groups);
@@ -15069,7 +15991,7 @@ const getSlotParseOptions = (annotations) => {
 		error: getOrUndefined(annotations, ErrorParseOptions) ?? fallback
 	};
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/encoding/Ndjson.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/encoding/Ndjson.js
 const NdjsonErrorTypeId = "~effect/encoding/Ndjson/NdjsonError";
 const encoder = /*#__PURE__*/ new TextEncoder();
 const utf8Decoder = /*#__PURE__*/ new TextDecoder("utf-8", {
@@ -15125,7 +16047,7 @@ const makeDecodePull = (upstream, step, flush) => {
 	return pull;
 };
 const parseLine = (line, out, ignoreEmptyLines, unterminated) => {
-	if (ignoreEmptyLines && line.length === 0) return;
+	if (ignoreEmptyLines && /^[ \t]*$/.test(line)) return;
 	try {
 		out.push(JSON.parse(line));
 	} catch (cause) {
@@ -15209,7 +16131,7 @@ const decode = (options) => fromTransform$1((upstream, _scope) => sync(() => {
 	const flush = (out) => pendingBytes === 0 ? void 0 : decodeLine(takeLine(emptyBytes, 0, 0), out, true);
 	return makeDecodePull(upstream, step, flush);
 }));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/internal/path.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/internal/path.js
 const emptyParamNames = /*#__PURE__*/ new Set();
 function getParamNames(schema) {
 	if (schema === void 0) return emptyParamNames;
@@ -15236,13 +16158,14 @@ function replaceParams(path, paramNames, replace) {
 	}
 	return out + path.slice(last);
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/OpenApi.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/OpenApi.js
 var Identifier = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Identifier")) {};
 var Title$1 = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Title")) {};
 var Version = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Version")) {};
 var Description = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Description")) {};
 var Summary = class extends (/*#__PURE__*/ Service$1()("effect/http-api/OpenApi/Summary")) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiClient.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApiClient.js
+const UpgradedTypeId = "~effect/http-api/HttpApiClient/Upgraded";
 const makeClient = (api, options) => gen(function* () {
 	const services = yield* context();
 	const httpClient = options.httpClient.pipe(options?.baseUrl === void 0 ? identity : mapRequest(prependUrl(options.baseUrl.toString())));
@@ -15421,6 +16344,7 @@ const makeEndpointDecoder = (options) => {
 	if (upgrade !== void 0) {
 		const decodeHeaders = upgrade.headers === void 0 ? succeed$3 : decodeUnknownEffect(upgrade.headers, parseOptions.headers);
 		decodeMap[101] = (response) => uninterruptibleMask((restore) => flatMap(response.upgrade, (socket) => restore(decodeHeaders(response.headers)).pipe(map$4((headers) => ({
+			[UpgradedTypeId]: UpgradedTypeId,
 			headers,
 			socket
 		})), onError(() => ignore$1(scoped(socket.reader))))));
@@ -15516,7 +16440,7 @@ const isNdjsonPackError = (error) => isNdjsonError(error) && error.kind === "Pac
 const ndjsonSchemaError = (error) => new SchemaError(new InvalidValue({ message: error.reason === "InvalidUtf8" ? "Expected valid UTF-8" : error.unterminated ? "Expected a valid JSON line, got an unterminated final line" : "Expected a valid JSON line" }));
 function makeSseDecoder(declaration, parseOptions) {
 	const Event = Union([Struct({
-		id: optional$5(String$2),
+		id: optional$6(String$2),
 		event: Literal(reservedStreamFailureEvent),
 		data: fromJsonString(toCodecJson(Cause(declaration.error, Defect())))
 	}), declaration.events]);
@@ -15635,7 +16559,7 @@ function getEncodePayloadSchemaFromBody(schema, method) {
 	bodyFromPayloadCache.set(ast, out);
 	return out;
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/http-api/HttpApiGroup.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApiGroup.js
 const TypeId$5 = "~effect/http-api/HttpApiGroup";
 const Proto$3 = {
 	[TypeId$5]: TypeId$5,
@@ -15703,7 +16627,7 @@ const make$12 = (identifier, options) => makeProto$3({
 	identifier,
 	topLevel: options?.topLevel ?? false,
 	endpoints: {},
-	annotations: empty$10()
+	annotations: empty$11()
 });
 // ../../packages/core/src/generated/TipeeApi.ts
 const Snowflake = String$2.annotate({
@@ -17923,9 +18847,9 @@ const normalizeInstance = (raw) => {
 const invalid = (message) => new ConfigError(new SourceError({ message }));
 const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
 const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a tipee instance: enter the part before .tipee.net, such as acme.`))));
-const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$36("")), mapEffect((key) => {
+const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$37("")), mapEffect((key) => {
 	const trimmed = value$2(key).trim();
-	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$36(trimmed));
+	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$37(trimmed));
 }));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
 	static layer = (credentials) => effect(TipeeClient, gen(function* () {
@@ -18360,7 +19284,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 		};
 	}));
 };
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/utils.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/utils.js
 const handleErrnoException = (module, method) => (err, [path]) => {
 	let reason = "Unknown";
 	switch (err.code) {
@@ -18394,7 +19318,7 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 		cause: err
 	});
 };
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
 const handleBadArgument = (method) => (err) => badArgument({
 	module: "FileSystem",
 	method,
@@ -18440,13 +19364,6 @@ const chmod = /*#__PURE__*/ (() => {
 const chown = /*#__PURE__*/ (() => {
 	const nodeChown = /*#__PURE__*/ effectify(NFS.chown, /*#__PURE__*/ handleErrnoException("FileSystem", "chown"), /*#__PURE__*/ handleBadArgument("chown"));
 	return (path, uid, gid) => nodeChown(path, uid, gid);
-})();
-const glob = /*#__PURE__*/ (() => {
-	const nodeGlob = /*#__PURE__*/ effectify(NFS.glob, /*#__PURE__*/ handleErrnoException("FileSystem", "glob"), /*#__PURE__*/ handleBadArgument("glob"));
-	return (pattern, options) => nodeGlob(pattern, {
-		cwd: options?.root,
-		exclude: options?.exclude
-	});
 })();
 const link = /*#__PURE__*/ (() => {
 	const nodeLink = /*#__PURE__*/ effectify(NFS.link, /*#__PURE__*/ handleErrnoException("FileSystem", "link"), /*#__PURE__*/ handleBadArgument("link"));
@@ -18526,7 +19443,10 @@ const makeFile = /*#__PURE__*/ (() => {
 	const nodeStat = /*#__PURE__*/ effectify(NFS.fstat, /*#__PURE__*/ handleErrnoException("FileSystem", "stat"), /*#__PURE__*/ handleBadArgument("stat"));
 	const nodeTruncate = /*#__PURE__*/ effectify(NFS.ftruncate, /*#__PURE__*/ handleErrnoException("FileSystem", "truncate"), /*#__PURE__*/ handleBadArgument("truncate"));
 	const nodeSync = /*#__PURE__*/ effectify(NFS.fsync, /*#__PURE__*/ handleErrnoException("FileSystem", "sync"), /*#__PURE__*/ handleBadArgument("sync"));
-	const nodeWriteFactory = (method) => effectify(NFS.write, handleErrnoException("FileSystem", method), handleBadArgument(method));
+	const nodeWriteFactory = (method) => {
+		const write = effectify(NFS.write, handleErrnoException("FileSystem", method), handleBadArgument(method));
+		return (fd, buffer, position) => write(fd, buffer, 0, buffer.length, position);
+	};
 	const nodeWrite = /*#__PURE__*/ nodeWriteFactory("write");
 	const nodeWriteAll = /*#__PURE__*/ nodeWriteFactory("writeAll");
 	class FileImpl {
@@ -18609,7 +19529,7 @@ const makeFile = /*#__PURE__*/ (() => {
 		write(buffer) {
 			return suspend$3(() => {
 				const position = this.position;
-				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$4(nodeWrite(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "write"), (nodePosition) => map$4(nodeWrite(this.fd, buffer, nodePosition), (bytesWritten) => {
 					if (!this.append) this.position = position + BigInt(bytesWritten);
 					return bytesWritten;
 				}));
@@ -18618,7 +19538,7 @@ const makeFile = /*#__PURE__*/ (() => {
 		writeAllChunk(buffer) {
 			return suspend$3(() => {
 				const position = this.position;
-				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "writeAll"), (nodePosition) => flatMap(nodeWriteAll(this.fd, buffer, void 0, void 0, nodePosition), (bytesWritten) => {
+				return flatMap(this.append ? succeed$3(void 0) : positionToNumber(position, "writeAll"), (nodePosition) => flatMap(nodeWriteAll(this.fd, buffer, nodePosition), (bytesWritten) => {
 					if (bytesWritten === 0) return fail$3(systemError({
 						module: "FileSystem",
 						method: "writeAll",
@@ -18660,6 +19580,13 @@ const readDirectory = (path, options) => tryPromise({
 	try: () => NFS.promises.readdir(path, options),
 	catch: (err) => handleErrnoException("FileSystem", "readDirectory")(err, [path])
 });
+const readDirectoryEntries = (path) => tryPromise({
+	try: () => NFS.promises.readdir(path, { withFileTypes: true }),
+	catch: (err) => handleErrnoException("FileSystem", "readDirectoryEntries")(err, [path])
+}).pipe(map$4((entries) => entries.map((entry) => ({
+	name: entry.name,
+	type: fileType(entry)
+}))));
 const readFile = (path) => callback$1((resume, signal) => {
 	try {
 		NFS.readFile(path, { signal }, (err, data) => {
@@ -18682,9 +19609,10 @@ const rename = /*#__PURE__*/ (() => {
 	const nodeRename = /*#__PURE__*/ effectify(NFS.rename, /*#__PURE__*/ handleErrnoException("FileSystem", "rename"), /*#__PURE__*/ handleBadArgument("rename"));
 	return (oldPath, newPath) => nodeRename(oldPath, newPath);
 })();
+const fileType = (stat) => stat.isFile() ? "File" : stat.isDirectory() ? "Directory" : stat.isSymbolicLink() ? "SymbolicLink" : stat.isBlockDevice() ? "BlockDevice" : stat.isCharacterDevice() ? "CharacterDevice" : stat.isFIFO() ? "FIFO" : stat.isSocket() ? "Socket" : "Unknown";
 const makeFileInfo = (stat, method = "stat") => try_({
 	try: () => ({
-		type: stat.isFile() ? "File" : stat.isDirectory() ? "Directory" : stat.isSymbolicLink() ? "SymbolicLink" : stat.isBlockDevice() ? "BlockDevice" : stat.isCharacterDevice() ? "CharacterDevice" : stat.isFIFO() ? "FIFO" : stat.isSocket() ? "Socket" : "Unknown",
+		type: fileType(stat),
 		mtime: fromNullishOr(stat.mtime),
 		atime: fromNullishOr(stat.atime),
 		birthtime: fromNullishOr(stat.birthtime),
@@ -18779,7 +19707,6 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	chown,
 	copy,
 	copyFile,
-	glob,
 	link,
 	lstat,
 	makeDirectory,
@@ -18789,6 +19716,7 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	makeTempFileScoped,
 	open,
 	readDirectory,
+	readDirectoryEntries,
 	readFile,
 	readLink,
 	realPath,
@@ -18803,7 +19731,7 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	},
 	writeFile
 }));
-// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeFileSystem.js
+// ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeFileSystem.js
 const layer$3 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
 // ../../packages/mcp/src/Updates.ts
 const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
@@ -19072,47 +20000,21 @@ const offering = (error, update) => new TipeeError({
 const check = (report) => gen(function* () {
 	const updates = yield* Updates;
 	const lookup = yield* forkChild(updates.available);
-	const found = yield* report.pipe(catchTag("TipeeError", (error) => flatMap(join(lookup), (update) => fail$3(isSome(update) ? offering(error, update.value) : error))));
-	const update = yield* join(lookup);
+	const found = yield* report.pipe(catchTag("TipeeError", (error) => flatMap(join$1(lookup), (update) => fail$3(isSome(update) ? offering(error, update.value) : error))));
+	const update = yield* join$1(lookup);
 	return {
 		...found,
 		...isSome(update) ? { update: update.value } : {},
 		version: updates.current
 	};
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/AiError.js
-const HttpRequestDetails = /*#__PURE__*/ Struct({
-	method: Literals([
-		"GET",
-		"POST",
-		"PATCH",
-		"PUT",
-		"DELETE",
-		"HEAD",
-		"OPTIONS",
-		"TRACE",
-		"QUERY"
-	]),
-	url: String$2,
-	urlParams: ArraySchema(Tuple([String$2, Union([String$2, Redacted$2(String$2)])])),
-	hash: optional$5(String$2),
-	headers: Record(String$2, Union([String$2, Redacted$2(String$2)]))
-}).annotate({ identifier: "HttpRequestDetails" });
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/AiError.js
 const HttpResponseDetails = /*#__PURE__*/ Struct({
 	status: Int,
 	headers: Record(String$2, Union([String$2, Redacted$2(String$2)]))
 }).annotate({ identifier: "HttpResponseDetails" });
 const ReasonTypeId = "~effect/ai/AiError/Reason";
 const providerMetadataWithDefaults = () => ProviderMetadata.pipe(withConstructorDefault(succeed$3({})), withDecodingDefault(succeed$3({})));
-const redactHeaders = (headers) => {
-	const redacted = redact$2(headers);
-	const result = {};
-	for (const key in redacted) {
-		const value = redacted[key];
-		assignProperty(result, key, isRedacted(value) ? value.toString() : value);
-	}
-	return result;
-};
 var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/AiError/NetworkError")({
 	_tag: /*#__PURE__*/ tag$2("NetworkError"),
 	reason: /*#__PURE__*/ Literals([
@@ -19120,8 +20022,10 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 		"EncodeError",
 		"InvalidUrlError"
 	]),
-	request: HttpRequestDetails,
-	description: /*#__PURE__*/ optional$5(String$2)
+	method: String$2,
+	url: String$2,
+	description: /*#__PURE__*/ optional$6(String$2),
+	cause: /*#__PURE__*/ optional$6(/*#__PURE__*/ Defect())
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19131,17 +20035,21 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 		return new NetworkError({
 			description: error.description,
 			reason: error._tag,
-			request: {
-				hash: getOrUndefined$1(error.request.hash),
-				headers: redactHeaders(error.request.headers),
-				method: error.request.method,
-				url: error.request.url,
-				urlParams: Array.from(error.request.urlParams)
-			}
+			method: error.request.method,
+			url: error.request.url
+		});
+	}
+	static fromHttpClientError(error) {
+		return new NetworkError({
+			description: error.reason.description,
+			reason: error.reason._tag,
+			method: error.reason.request.method,
+			url: error.reason.request.url,
+			cause: error
 		});
 	}
 	get message() {
-		const methodAndUrl = `${this.request.method} ${this.request.url}`;
+		const methodAndUrl = `${this.method} ${this.url}`;
 		let baseMessage = this.description ? `${this.reason}: ${this.description}` : `${this.reason}: A network error occurred.`;
 		baseMessage += ` (${methodAndUrl})`;
 		let suggestion = "";
@@ -19161,20 +20069,19 @@ var NetworkError = class NetworkError extends (/*#__PURE__*/ Error$1("effect/ai/
 };
 const ProviderMetadata = /*#__PURE__*/ Record(String$2, /*#__PURE__*/ NullOr(MutableJson));
 const UsageInfo = /*#__PURE__*/ Struct({
-	promptTokens: optional$5(Int),
-	completionTokens: optional$5(Int),
-	totalTokens: optional$5(Int)
+	promptTokens: optional$6(Int),
+	completionTokens: optional$6(Int),
+	totalTokens: optional$6(Int)
 }).annotate({ identifier: "UsageInfo" });
 const HttpContext = /*#__PURE__*/ Struct({
-	request: HttpRequestDetails,
-	response: optional$5(HttpResponseDetails),
-	body: optional$5(String$2)
+	response: optional$6(HttpResponseDetails),
+	body: optional$6(String$2)
 }).annotate({ identifier: "HttpContext" });
 var RateLimitError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/RateLimitError")({
 	_tag: /*#__PURE__*/ tag$2("RateLimitError"),
-	retryAfter: /*#__PURE__*/ optional$5(Duration$1),
+	retryAfter: /*#__PURE__*/ optional$6(Duration$1),
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19188,9 +20095,9 @@ var RateLimitError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/Rat
 };
 var QuotaExhaustedError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/QuotaExhaustedError")({
 	_tag: /*#__PURE__*/ tag$2("QuotaExhaustedError"),
-	resetAt: /*#__PURE__*/ optional$5(DateTimeUtc),
+	resetAt: /*#__PURE__*/ optional$6(DateTimeUtc),
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19211,9 +20118,9 @@ var AuthenticationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiErro
 		"InsufficientPermissions",
 		"Unknown"
 	]),
-	description: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$6(String$2),
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19235,7 +20142,7 @@ var ContentPolicyError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError
 	_tag: /*#__PURE__*/ tag$2("ContentPolicyError"),
 	description: String$2,
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19247,11 +20154,11 @@ var ContentPolicyError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError
 };
 var InvalidRequestError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/InvalidRequestError")({
 	_tag: /*#__PURE__*/ tag$2("InvalidRequestError"),
-	parameter: /*#__PURE__*/ optional$5(String$2),
-	constraint: /*#__PURE__*/ optional$5(String$2),
-	description: /*#__PURE__*/ optional$5(String$2),
+	parameter: /*#__PURE__*/ optional$6(String$2),
+	constraint: /*#__PURE__*/ optional$6(String$2),
+	description: /*#__PURE__*/ optional$6(String$2),
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19269,7 +20176,7 @@ var InternalProviderError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiEr
 	_tag: /*#__PURE__*/ tag$2("InternalProviderError"),
 	description: String$2,
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19283,7 +20190,7 @@ var InvalidResponseError = class InvalidResponseError extends (/*#__PURE__*/ Err
 	_tag: /*#__PURE__*/ tag$2("InvalidResponseError"),
 	description: String$2,
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19300,7 +20207,7 @@ var InvalidOutputError = class InvalidOutputError extends (/*#__PURE__*/ Error$1
 	_tag: /*#__PURE__*/ tag$2("InvalidOutputError"),
 	description: String$2,
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	usage: /*#__PURE__*/ optional$5(UsageInfo)
+	usage: /*#__PURE__*/ optional$6(UsageInfo)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19318,7 +20225,7 @@ var StructuredOutputError = class StructuredOutputError extends (/*#__PURE__*/ E
 	description: String$2,
 	responseText: String$2,
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	usage: /*#__PURE__*/ optional$5(UsageInfo)
+	usage: /*#__PURE__*/ optional$6(UsageInfo)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19349,9 +20256,9 @@ var UnsupportedSchemaError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 };
 var UnknownError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/UnknownError")({
 	_tag: /*#__PURE__*/ tag$2("UnknownError"),
-	description: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$6(String$2),
 	metadata: /*#__PURE__*/ providerMetadataWithDefaults(),
-	http: /*#__PURE__*/ optional$5(HttpContext)
+	http: /*#__PURE__*/ optional$6(HttpContext)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19431,7 +20338,7 @@ var ToolConfigurationError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiE
 var ToolkitRequiredError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/ToolkitRequiredError")({
 	_tag: /*#__PURE__*/ tag$2("ToolkitRequiredError"),
 	pendingApprovals: /*#__PURE__*/ ArraySchema(String$2),
-	description: /*#__PURE__*/ optional$5(String$2)
+	description: /*#__PURE__*/ optional$6(String$2)
 })) {
 	[ReasonTypeId] = ReasonTypeId;
 	get isRetryable() {
@@ -19496,13 +20403,17 @@ var AiError = class extends (/*#__PURE__*/ Error$1("effect/ai/AiError/AiError")(
 const isAiError = (u) => hasProperty(u, TypeId$4);
 const isAiErrorReason = (u) => hasProperty(u, ReasonTypeId);
 const make$11 = (params) => new AiError(params);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Tool.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/Tool.js
 const TypeId$3 = "~effect/ai/Tool";
 const DynamicTypeId = "~effect/ai/Tool/Dynamic";
 const isDynamic = (u) => hasProperty(u, DynamicTypeId);
+const isClientExecuted = (tool) => tool.execution === "client";
 const clone = (self, overrides) => Object.assign(Object.create(Object.getPrototypeOf(self)), self, overrides);
 const Proto$2 = {
-	[TypeId$3]: { _Requirements: identity },
+	[TypeId$3]: {
+		_Config: identity,
+		_Requirements: identity
+	},
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -19559,9 +20470,10 @@ const make$10 = (name, options) => {
 		successSchema,
 		failureSchema,
 		failureMode: options?.failureMode ?? "error",
-		annotations: empty$10(),
+		annotations: empty$11(),
 		needsApproval: options?.needsApproval,
-		toModelOutput: options?.toModelOutput
+		toModelOutput: options?.toModelOutput,
+		execution: options?.execution
 	});
 };
 const dynamic = (name, options) => {
@@ -19578,10 +20490,11 @@ const dynamic = (name, options) => {
 		successSchema,
 		failureSchema,
 		failureMode: options?.failureMode ?? "error",
-		annotations: empty$10(),
+		annotations: empty$11(),
 		needsApproval: options?.needsApproval,
 		toModelOutput: options?.toModelOutput,
-		jsonSchema
+		jsonSchema,
+		execution: options?.execution
 	});
 };
 const getDescription = (tool) => {
@@ -19589,7 +20502,7 @@ const getDescription = (tool) => {
 	if (isSchema(tool.parametersSchema)) return resolveDescription(tool.parametersSchema.ast);
 };
 var Title = class extends (/*#__PURE__*/ Service$1()("effect/ai/Tool/Title")) {};
-var Meta$2 = class extends (/*#__PURE__*/ Service$1()("effect/ai/Tool/Meta")) {};
+var Meta$3 = class extends (/*#__PURE__*/ Service$1()("effect/ai/Tool/Meta")) {};
 const Readonly = /*#__PURE__*/ Reference("effect/ai/Tool/Readonly", { defaultValue: constFalse });
 const Destructive = /*#__PURE__*/ Reference("effect/ai/Tool/Destructive", { defaultValue: constTrue });
 const Idempotent = /*#__PURE__*/ Reference("effect/ai/Tool/Idempotent", { defaultValue: constFalse });
@@ -19606,7 +20519,7 @@ const failureResultSchema = (tool) => Union([
 	ExecutionFailure
 ]);
 const EmptyParams = /*#__PURE__*/ Record(String$2, Never);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/structured-output.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/structured-output.js
 function resolveReference($ref, definitions) {
 	const key = getReferenceKey($ref);
 	if (key === void 0) throw new Error(`Unsupported reference ${JSON.stringify($ref)}`);
@@ -19614,17 +20527,32 @@ function resolveReference($ref, definitions) {
 	return definitions[key];
 }
 function resolveTopLevelReference(document) {
-	if (typeof document.schema.$ref !== "string") return document;
+	let schema = document.schema;
+	if (typeof schema.$ref !== "string") return document;
+	const visited = /* @__PURE__ */ new Set();
+	while (typeof schema.$ref === "string") {
+		if (visited.has(schema.$ref)) throw new Error(`Circular reference ${JSON.stringify(schema.$ref)}`);
+		visited.add(schema.$ref);
+		schema = resolveReference(schema.$ref, document.definitions);
+	}
 	return {
 		...document,
-		schema: resolveReference(document.schema.$ref, document.definitions)
+		schema
 	};
 }
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/Toolkit.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/Toolkit.js
 const TypeId$2 = "~effect/ai/Toolkit";
 const FailureOrigin = /*#__PURE__*/ Reference("effect/ai/Toolkit/FailureOrigin", { defaultValue: () => "result" });
 const PreliminaryBuffer = /*#__PURE__*/ Reference("effect/ai/Toolkit/PreliminaryBuffer", { defaultValue: () => "unbounded" });
-const failureCause = (error, origin) => annotate$1(fail$5(error), make$48(FailureOrigin, origin));
+const RecordToolArguments = /*#__PURE__*/ Reference("effect/ai/Toolkit/RecordToolArguments", { defaultValue: () => false });
+const stringifyToolArguments = (params) => {
+	try {
+		return JSON.stringify(params) ?? "null";
+	} catch {
+		return String(params);
+	}
+};
+const failureCause = (error, origin) => annotate$1(fail$5(error), make$49(FailureOrigin, origin));
 const failureOrigin = (error) => isSchemaError(error) ? "result" : "handler";
 const Proto$1 = {
 	.../*#__PURE__*/ Prototype({
@@ -19637,9 +20565,9 @@ const Proto$1 = {
 				let schemas = schemasCache.get(tool);
 				if (isUndefined(schemas)) {
 					const handler = services.mapUnsafe.get(tool.id);
-					const decodeParameters = isSchema(tool.parametersSchema) ? decodeUnknownEffect(tool.parametersSchema) : (u) => succeed$3(u);
-					const encodeSuccess = encodeUnknownEffect(tool.successSchema);
-					const encodeFailure = encodeUnknownEffect(failureResultSchema(tool));
+					const decodeParameters = isSchema(tool.parametersSchema) ? decodeUnknownEffect(toCodecJson(tool.parametersSchema)) : (u) => succeed$3(u);
+					const encodeSuccess = encodeUnknownEffect(toCodecJson(tool.successSchema));
+					const encodeFailure = encodeUnknownEffect(toCodecJson(failureResultSchema(tool)));
 					const encodeResult = (u, isFailure) => isFailure ? encodeFailure(u) : encodeSuccess(u);
 					schemas = {
 						context: handler.context,
@@ -19655,10 +20583,9 @@ const Proto$1 = {
 				tools,
 				handle: fnUntraced(function* (name, params, toolCallId, options) {
 					const tool = Object.hasOwn(tools, name) ? tools[name] : void 0;
-					yield* annotateCurrentSpan({
-						tool: name,
-						parameters: params
-					});
+					yield* annotateCurrentSpan("gen_ai.tool.name", name);
+					if (toolCallId !== void 0) yield* annotateCurrentSpan("gen_ai.tool.call.id", toolCallId);
+					if (yield* RecordToolArguments) yield* annotateCurrentSpan("gen_ai.tool.call.arguments", stringifyToolArguments(params));
 					if (isUndefined(tool)) return yield* make$11({
 						module: "Toolkit",
 						method: `${name}.handle`,
@@ -19667,6 +20594,7 @@ const Proto$1 = {
 							availableTools: Object.keys(tools)
 						})
 					});
+					if (isClientExecuted(tool)) return yield* die$2(/* @__PURE__ */ new Error(`Tool "${name}" is executed by the client and has no handler`));
 					const schemas = getSchemas(tool);
 					const encodeResult = (result, isFailure) => schemas.encodeResult(result, isFailure).pipe(mapError$2((cause) => make$11({
 						module: "Toolkit",
@@ -19699,7 +20627,7 @@ const Proto$1 = {
 					const decodedParams = decodedParamsResult.success;
 					const capacity = yield* PreliminaryBuffer;
 					if (capacity !== "unbounded" && !(Number.isInteger(capacity) && capacity > 0)) return yield* die$2(`Tool "${name}": PreliminaryBuffer must be a positive integer, got ${capacity}`);
-					const queue = yield* make$41(capacity === "unbounded" ? void 0 : { capacity });
+					const queue = yield* make$42(capacity === "unbounded" ? void 0 : { capacity });
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -19730,7 +20658,7 @@ const Proto$1 = {
 							reason: error
 						}) : error;
 					};
-					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$48(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
+					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$49(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
 						result: normalizeError(error),
 						isFailure: true,
 						failureOrigin: failureOrigin(error),
@@ -19746,7 +20674,10 @@ const Proto$1 = {
 							encodedResult,
 							modelOutput: tool.toModelOutput(output.result)
 						};
-					})), ensuring(interrupt(fiber)));
+					})), ensuring(flatMap(andThen(interrupt(fiber), await_(fiber)), (exit) => {
+						const dies = isFailure(exit) ? exit.cause.reasons.filter(isDieReason) : [];
+						return dies.length > 0 ? failCause$3(fromReasons(dies)) : void_$1;
+					})));
 				})
 			};
 		})
@@ -19786,7 +20717,7 @@ const resolveInput = (...tools) => {
 	return output;
 };
 const make$9 = (...tools) => makeProto$2(resolveInput(...tools));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/workers/Transferable.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/workers/Transferable.js
 var Collector = class extends (/*#__PURE__*/ Service$1()("effect/workers/Transferable/Collector")) {};
 const makeCollectorUnsafe = () => {
 	let tranferables = [];
@@ -19808,14 +20739,14 @@ const makeCollectorUnsafe = () => {
 		clear: sync(unsafeClear)
 	});
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/internal/tracing.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/internal/tracing.js
 const spanName = (spanPrefix, tag) => spanPrefix === void 0 ? tag : `${spanPrefix}.${tag}`;
 const spanAttributes = (tag, attributes) => ({
 	"rpc.system.name": "effect_rpc",
 	"rpc.method": tag,
 	...attributes
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSchema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcSchema.js
 const StreamSchemaTypeId = "~effect/rpc/RpcSchema/StreamSchema";
 function isStreamSchema(schema) {
 	return hasProperty(schema, StreamSchemaTypeId);
@@ -19828,7 +20759,7 @@ function getStreamSchemas(schema) {
 }
 const schema = /*#__PURE__*/ declare(isStream);
 function Stream(success, error) {
-	return make$31(schema.ast, {
+	return make$32(schema.ast, {
 		[StreamSchemaTypeId]: StreamSchemaTypeId,
 		success,
 		error
@@ -19841,14 +20772,14 @@ var ClientAbort = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcSchema
 		parent: void 0
 	}));
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Rpc.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/Rpc.js
 const TypeId$1 = "~effect/rpc/Rpc";
 var ServerClient = class {
 	id;
 	annotations;
 	constructor(id) {
 		this.id = id;
-		this.annotations = empty$10();
+		this.annotations = empty$11();
 	}
 	annotate(tag, value) {
 		this.annotations = add$2(this.annotations, tag, value);
@@ -19962,7 +20893,7 @@ const make$8 = (tag, options) => {
 		successSchema: options?.stream ? Stream(successSchema, errorSchema) : successSchema,
 		errorSchema: options?.stream ? Never : errorSchema,
 		defectSchema,
-		annotations: empty$10(),
+		annotations: empty$11(),
 		middlewares: /* @__PURE__ */ new Set()
 	});
 };
@@ -19981,15 +20912,15 @@ const exitSchema = (self) => {
 const ParseOptions = /*#__PURE__*/ Reference("effect/rpc/Rpc/ParseOptions", { defaultValue: () => defaultParseOptions });
 const WrapperTypeId = "~effect/rpc/Rpc/Wrapper";
 const isWrapper = (u) => WrapperTypeId in u;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMessage.js
-const RequestId$2 = (id) => id;
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcMessage.js
+const RequestId$3 = (id) => id;
 const constEof = { _tag: "Eof" };
 const ResponseDefectEncoded = (encodedDefect) => ({
 	_tag: "Defect",
 	defect: encodedDefect
 });
 const constPong = { _tag: "Pong" };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcSerialization.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcSerialization.js
 const codecForJson = toCodecJson;
 let sharedTextDecoder;
 const decodeText = (bytes) => (sharedTextDecoder ??= new TextDecoder()).decode(bytes);
@@ -20120,6 +21051,7 @@ function decodeJsonRpcMessage(decoded, controlMessages) {
 			payload: request.params ?? null,
 			headers: request.headers ?? [],
 			...hasProperty(request, "id") ? {} : { isNotification: true },
+			...request.discard === true ? { discard: true } : {},
 			...request.spanId ? {
 				traceId: request.traceId,
 				spanId: request.spanId,
@@ -20190,6 +21122,7 @@ function encodeJsonRpcMessage(response) {
 			params: response.payload,
 			...response.isNotification ? {} : { id: response.id },
 			...response.headers?.length > 0 ? { headers: response.headers } : {},
+			...response.discard ? { discard: true } : {},
 			traceId: response.traceId,
 			spanId: response.spanId,
 			sampled: response.sampled
@@ -20242,7 +21175,7 @@ function encodeJsonRpcMessage(response) {
 	}
 }
 const jsonRpcInternalError = -32603;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/Utils.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/Utils.js
 const withRun = () => (f) => suspend$3(() => {
 	const semaphore = makeUnsafe$3(1);
 	let buffer = [];
@@ -20303,7 +21236,7 @@ const withRunClient = (f) => suspend$3(() => {
 		}
 	}));
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcClient.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcClient.js
 let requestIdCounter = 0;
 const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const spanPrefix = options.spanPrefix;
@@ -20329,7 +21262,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 		const middleware = getRpcClientMiddleware(rpc);
 		return (payload, opts) => {
 			const headers = opts?.headers ? fromInput$1(opts.headers) : empty$6;
-			const context = opts?.context ?? empty$10();
+			const context = opts?.context ?? empty$11();
 			if (!isStream) {
 				const onRequest = (span) => onEffectRequest(rpc, middleware, span, rpc.payloadSchema.make(payload), headers, context, opts?.discard ?? false);
 				return disableTracing ? onRequest(void 0) : useSpan(spanName(spanPrefix, rpc._tag), {
@@ -20347,8 +21280,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 		const id = generateRequestId();
 		const send = middleware((message) => options.onFromClient({
 			message,
-			context,
-			discard
+			context
 		}), {
 			_tag: "Request",
 			id,
@@ -20359,16 +21291,22 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				spanId: span.spanId,
 				sampled: span.sampled
 			} : {},
-			headers: merge$1(parentFiber.getRef(CurrentHeaders), headers)
+			headers: merge$1(parentFiber.getRef(CurrentHeaders), headers),
+			...discard ? { discard: true } : {}
 		});
-		if (discard) return send;
 		let fiber;
 		return onInterrupt(callback$1((resume) => {
+			let acked = false;
 			const entry = {
 				_tag: "Effect",
 				rpc,
 				context,
 				resume(exit) {
+					if (discard && exit._tag === "Success") {
+						acked = true;
+						if (fiber?.pollUnsafe()) resume(void_$2);
+						return;
+					}
 					resume(exit);
 					if (fiber && !fiber.pollUnsafe()) parentFiber.currentDispatcher.scheduleTask(() => {
 						fiber.interruptUnsafe(parentFiber.id);
@@ -20381,7 +21319,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				if (exit._tag === "Failure") {
 					entries.delete(id);
 					return resume(exit);
-				}
+				} else if (acked) return resume(void_$2);
 			});
 		}), (interruptors) => {
 			entries.delete(id);
@@ -20413,8 +21351,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 		});
 		yield* middleware((message) => options.onFromClient({
 			message,
-			context,
-			discard: false
+			context
 		}), {
 			_tag: "Request",
 			id,
@@ -20459,8 +21396,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				requestId,
 				interruptors
 			},
-			context,
-			discard: false
+			context
 		}).pipe(timeout(1e3), runForkWith(parentFiber.context)).addObserver(() => {
 			resume(void_$1);
 		});
@@ -20471,13 +21407,12 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				const requestId = message.requestId;
 				const entry = entries.get(requestId);
 				if (!entry || entry._tag !== "Queue") return void_$1;
-				return offerAll(entry.queue, message.values).pipe(supportsAck ? flatMap(() => options.onFromClient({
+				return offerAll(entry.queue, message.values).pipe(supportsAck ? flatMap((dropped) => dropped.length > 0 ? void_$1 : options.onFromClient({
 					message: {
 						_tag: "Ack",
 						requestId: message.requestId
 					},
-					context: entry.context,
-					discard: false
+					context: entry.context
 				})) : identity, catchCause$2((cause) => failCause$2(entry.queue, cause)));
 			}
 			case "Exit": {
@@ -20545,7 +21480,8 @@ const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 					const entry = {
 						rpc,
 						context: collector ? add$2(fiber.context, Collector, collector) : fiber.context,
-						schemas: rpcSchemas(rpc)
+						schemas: rpcSchemas(rpc),
+						discard: message.discard === true
 					};
 					entries.set(message.id, entry);
 					return entry.schemas.encodePayload(message.payload).pipe(provideContext$2(entry.context), orDie, flatMap((payload) => {
@@ -20575,7 +21511,7 @@ const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	yield* run(clientId, (message) => {
 		switch (message._tag) {
 			case "Chunk": {
-				const requestId = RequestId$2(message.requestId);
+				const requestId = RequestId$3(message.requestId);
 				const entry = entries.get(requestId);
 				if (!entry || isNone(entry.schemas.decodeChunk)) return void_$1;
 				const decodeChunk = entry.schemas.decodeChunk.value;
@@ -20592,11 +21528,17 @@ const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 				}).pipe(andThen(hasInterrupts$1(cause) ? void_$1 : raceFirst(ignore$1(interruptRequest(requestId)), _await(closing))))), catchCauseIf((cause) => !hasInterrupts$1(cause), () => void_$1)));
 			}
 			case "Exit": {
-				const requestId = RequestId$2(message.requestId);
+				const requestId = RequestId$3(message.requestId);
 				const entry = entries.get(requestId);
 				if (!entry) return void_$1;
 				entries.delete(requestId);
-				return entry.schemas.decodeExit(message.exit).pipe(provideContext$2(entry.context), orDie, matchCauseEffect({
+				if (entry.discard && message.exit._tag === "Success") return write({
+					_tag: "Exit",
+					clientId: 0,
+					requestId,
+					exit: void_$2
+				});
+				return (entry.discard ? entry.schemas.decodeDiscardExit : entry.schemas.decodeExit)(message.exit).pipe(provideContext$2(entry.context), orDie, matchCauseEffect({
 					onSuccess: (exit) => write({
 						_tag: "Exit",
 						clientId: 0,
@@ -20620,8 +21562,8 @@ const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 				});
 			case "ClientProtocolError": {
 				const exit = fail$4(message.error);
-				const requestIds = Array.from(entries.keys());
-				entries.clear();
+				const requestIds = message.requestIds === void 0 ? Array.from(entries.keys()) : message.requestIds.map(RequestId$3).filter((requestId) => entries.has(requestId));
+				for (const requestId of requestIds) entries.delete(requestId);
 				return forEach$1(requestIds, (requestId) => write({
 					_tag: "Exit",
 					clientId: 0,
@@ -20642,10 +21584,13 @@ const makeRpcSchemas = (codecFor) => {
 		if (entry !== void 0) return entry;
 		const streamSchemas = getStreamSchemas(rpc.successSchema);
 		const parseOptions = get$2(rpc.annotations, ParseOptions);
+		const exitSchema$2 = exitSchema(rpc);
+		let decodeDiscardExit;
 		entry = {
 			decodeChunk: map$10(streamSchemas, (streamSchemas) => decodeUnknownEffect(codecFor(NonEmptyArray(streamSchemas.success)), parseOptions)),
 			encodePayload: encodeEffect(codecFor(rpc.payloadSchema), parseOptions),
-			decodeExit: decodeUnknownEffect(codecFor(exitSchema(rpc)), parseOptions)
+			decodeExit: decodeUnknownEffect(codecFor(exitSchema$2), parseOptions),
+			decodeDiscardExit: (encoded) => (decodeDiscardExit ??= decodeUnknownEffect(codecFor(Exit(Void, exitSchema$2.error, exitSchema$2.defect)), parseOptions))(encoded)
 		};
 		cache.set(rpc, entry);
 		return entry;
@@ -20655,7 +21600,7 @@ const CurrentHeaders = /*#__PURE__*/ Reference("effect/rpc/RpcClient/CurrentHead
 var Protocol$1 = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcClient/Protocol")) {
 	static make = withRunClient;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcGroup.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcGroup.js
 const RpcGroupProto = {
 	add(...rpcs) {
 		const requests = new Map(this.requests);
@@ -20757,7 +21702,7 @@ const RpcGroupProto = {
 		});
 	},
 	annotateRpcs(service, value) {
-		return this.annotateRpcsMerge(make$48(service, value));
+		return this.annotateRpcsMerge(make$49(service, value));
 	},
 	annotateMerge(context) {
 		return makeProto({
@@ -20780,9 +21725,9 @@ const makeProto = (options) => Object.assign(function() {}, RpcGroupProto, {
 });
 const make$6 = (...rpcs) => makeProto({
 	requests: new Map(rpcs.map((rpc) => [rpc._tag, rpc])),
-	annotations: empty$10()
+	annotations: empty$11()
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcMiddleware.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcMiddleware.js
 const TypeId = "~effect/rpc/RpcMiddleware";
 const Service = () => (id, options) => {
 	const limit = getStackTraceLimit();
@@ -20804,7 +21749,7 @@ const Service = () => (id, options) => {
 	ServiceClass_.requiredForClient = options?.requiredForClient ?? false;
 	return ServiceClass;
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpSchema.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/McpSchema.js
 const optionalWithDefault = (schema, defaultValue) => {
 	const effect = sync(defaultValue);
 	return optionalKey(schema).pipe(decode$3({
@@ -20812,82 +21757,82 @@ const optionalWithDefault = (schema, defaultValue) => {
 		encode: passthrough$1()
 	}), withConstructorDefault(effect));
 };
-const optional$4 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$5(schema)), {
+const optional$5 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$6(schema)), {
 	decode: passthrough$1(),
 	encode: transformOptional(flatMap$4(fromUndefinedOr))
 }));
-const UnknownObject$4 = /*#__PURE__*/ Record(String$2, Unknown);
-const RequestId$1 = /*#__PURE__*/ Union([String$2, Finite]);
-const ProgressToken$1 = /*#__PURE__*/ Union([String$2, Finite]);
-var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [UnknownObject$4])) }))) {};
-var ResultMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(UnknownObject$4) }))) {};
-var NotificationMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(UnknownObject$4) }))) {};
+const UnknownObject$5 = /*#__PURE__*/ Record(String$2, Unknown);
+const RequestId$2 = /*#__PURE__*/ Union([String$2, Finite]);
+const ProgressToken$2 = /*#__PURE__*/ Union([String$2, Finite]);
+var RequestMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$5(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$5(ProgressToken$2) }), [UnknownObject$5])) }))) {};
+var ResultMeta$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$5(UnknownObject$5) }))) {};
+var NotificationMeta$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$5(UnknownObject$5) }))) {};
 const Cursor = String$2;
 ({ ...RequestMeta$1.fields });
 var PaginatedResultMeta = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	...ResultMeta$1.fields,
-	nextCursor: /*#__PURE__*/ optional$4(Cursor)
+	...ResultMeta$2.fields,
+	nextCursor: /*#__PURE__*/ optional$5(Cursor)
 }))) {};
-const Role$1 = /*#__PURE__*/ Literals(["user", "assistant"]);
-var Annotations$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	audience: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Role$1)),
-	priority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+const Role$2 = /*#__PURE__*/ Literals(["user", "assistant"]);
+var Annotations$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	audience: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(Role$2)),
+	priority: /*#__PURE__*/ optional$5(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
 		minimum: 0,
 		maximum: 1
 	}))),
-	lastModified: /*#__PURE__*/ optional$4(String$2)
+	lastModified: /*#__PURE__*/ optional$5(String$2)
 }))) {};
 var Icon$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Icon")({
 	src: String$2,
-	mimeType: /*#__PURE__*/ optional$4(String$2),
-	sizes: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2)),
-	theme: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals(["light", "dark"]))
+	mimeType: /*#__PURE__*/ optional$5(String$2),
+	sizes: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2)),
+	theme: /*#__PURE__*/ optional$5(/*#__PURE__*/ Literals(["light", "dark"]))
 })) {};
-var Implementation$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+var Implementation$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	name: String$2,
-	title: /*#__PURE__*/ optional$4(String$2),
+	title: /*#__PURE__*/ optional$5(String$2),
 	version: String$2,
-	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	description: /*#__PURE__*/ optional$4(String$2),
-	websiteUrl: /*#__PURE__*/ optional$4(String$2)
+	icons: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(Icon$1)),
+	description: /*#__PURE__*/ optional$5(String$2),
+	websiteUrl: /*#__PURE__*/ optional$5(String$2)
 }))) {};
-var ClientCapabilities$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ClientCapabilities")({
-	experimental: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Struct({}))),
-	extensions: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
+var ClientCapabilities$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ClientCapabilities")({
+	experimental: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Struct({}))),
+	extensions: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
 		String$2,
 		"/",
 		String$2
 	]), Unknown)),
-	roots: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) })),
-	sampling: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({
-		context: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
-		tools: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({}))
+	roots: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$5(Boolean$1) })),
+	sampling: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({
+		context: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({})),
+		tools: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({}))
 	})),
-	elicitation: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({
-		form: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
-		url: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({}))
+	elicitation: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({
+		form: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({})),
+		url: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({}))
 	}))
 })) {};
-var ServerCapabilities$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	experimental: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Struct({}))),
-	extensions: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
+var ServerCapabilities$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	experimental: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Struct({}))),
+	extensions: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
 		String$2,
 		"/",
 		String$2
 	]), Unknown)),
-	logging: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
-	completions: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({})),
-	prompts: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) })),
-	resources: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({
-		subscribe: /*#__PURE__*/ optional$4(Boolean$1),
-		listChanged: /*#__PURE__*/ optional$4(Boolean$1)
+	logging: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({})),
+	completions: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({})),
+	prompts: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$5(Boolean$1) })),
+	resources: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({
+		subscribe: /*#__PURE__*/ optional$5(Boolean$1),
+		listChanged: /*#__PURE__*/ optional$5(Boolean$1)
 	})),
-	tools: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) }))
+	tools: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$5(Boolean$1) }))
 }))) {};
 var McpErrorBase = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/McpErrorBase")({
 	code: Int,
 	message: String$2,
-	data: /*#__PURE__*/ optional$4(Any)
+	data: /*#__PURE__*/ optional$5(Any)
 })) {};
 const INVALID_REQUEST_ERROR_CODE = -32600;
 const METHOD_NOT_FOUND_ERROR_CODE = -32601;
@@ -20923,7 +21868,7 @@ var InternalError = class InternalError extends (/*#__PURE__*/ Error$1("effect/a
 })) {
 	static notImplemented = /*#__PURE__*/ new InternalError({ message: "Not implemented" });
 };
-const McpError$1 = /*#__PURE__*/ Union([
+const McpError$2 = /*#__PURE__*/ Union([
 	ParseError,
 	InvalidRequest,
 	MethodNotFound,
@@ -20933,138 +21878,143 @@ const McpError$1 = /*#__PURE__*/ Union([
 ]);
 var Ping$1 = class extends (/*#__PURE__*/ make$8("ping", {
 	success: /*#__PURE__*/ Struct({}),
-	error: McpError$1,
+	error: McpError$2,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta$1)
 })) {};
 var InitializeResult$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	...ResultMeta$1.fields,
+	...ResultMeta$2.fields,
 	protocolVersion: String$2,
-	capabilities: ServerCapabilities$3,
-	serverInfo: Implementation$3,
-	instructions: /*#__PURE__*/ optional$4(String$2)
+	capabilities: ServerCapabilities$4,
+	serverInfo: Implementation$4,
+	instructions: /*#__PURE__*/ optional$5(String$2)
 }))) {};
 var Initialize$4 = class extends (/*#__PURE__*/ make$8("initialize", {
 	success: InitializeResult$4,
-	error: McpError$1,
+	error: McpError$2,
 	payload: {
 		...RequestMeta$1.fields,
 		protocolVersion: String$2,
-		capabilities: ClientCapabilities$3,
-		clientInfo: Implementation$3
+		capabilities: ClientCapabilities$4,
+		clientInfo: Implementation$4
 	}
 })) {};
-var CancelledNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/cancelled", { payload: {
+var CancelledNotification$2 = class extends (/*#__PURE__*/ make$8("notifications/cancelled", { payload: {
 	...NotificationMeta$1.fields,
-	requestId: RequestId$1,
-	reason: /*#__PURE__*/ optional$4(String$2)
+	requestId: RequestId$2,
+	reason: /*#__PURE__*/ optional$5(String$2)
 } })) {};
-var ProgressNotification$2 = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
+var ProgressNotification$3 = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
 	...NotificationMeta$1.fields,
-	progressToken: ProgressToken$1,
+	progressToken: ProgressToken$2,
 	progress: Finite,
-	total: /*#__PURE__*/ optional$4(Finite),
-	message: /*#__PURE__*/ optional$4(String$2)
+	total: /*#__PURE__*/ optional$5(Finite),
+	message: /*#__PURE__*/ optional$5(String$2)
 } })) {};
-var Resource$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Resource")({
+var Resource$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Resource")({
 	uri: String$2,
 	name: String$2,
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	mimeType: /*#__PURE__*/ optional$4(String$2),
-	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	size: /*#__PURE__*/ optional$4(Int),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	mimeType: /*#__PURE__*/ optional$5(String$2),
+	annotations: /*#__PURE__*/ optional$5(Annotations$3),
+	icons: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(Icon$1)),
+	size: /*#__PURE__*/ optional$5(Int),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 })) {};
-var ResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+var ResourceContents$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	uri: String$2,
-	mimeType: /*#__PURE__*/ optional$4(String$2),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	mimeType: /*#__PURE__*/ optional$5(String$2),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 }))) {};
 var TextResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	...ResourceContents$2.fields,
+	...ResourceContents$3.fields,
 	text: String$2
 }))) {};
 var BlobResourceContents$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	...ResourceContents$2.fields,
+	...ResourceContents$3.fields,
 	blob: Uint8ArrayFromBase64
 }))) {};
 ({ ...PaginatedResultMeta.fields });
 ({ ...PaginatedResultMeta.fields });
-({ ...ResultMeta$1.fields });
+({ ...ResultMeta$2.fields });
 ({ ...RequestMeta$1.fields });
 var ResourceListChangedNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
 ({ ...RequestMeta$1.fields });
 ({ ...RequestMeta$1.fields });
-var ResourceUpdatedNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/resources/updated", { payload: {
+var ResourceUpdatedNotification$2 = class extends (/*#__PURE__*/ make$8("notifications/resources/updated", { payload: {
 	...NotificationMeta$1.fields,
 	uri: String$2
 } })) {};
+var SkillResource = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/SkillResource")({
+	uri: String$2,
+	digest: /*#__PURE__*/ String$2.check(/*#__PURE__*/ isPattern(/^sha256:[0-9a-f]{64}$/)),
+	size: Natural
+})) {};
 var PromptArgument$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	name: String$2,
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	required: /*#__PURE__*/ optional$4(Boolean$1)
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	required: /*#__PURE__*/ optional$5(Boolean$1)
 }))) {};
-var Prompt$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Prompt")({
+var Prompt$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Prompt")({
 	name: String$2,
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	arguments: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(PromptArgument$2)),
-	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	arguments: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(PromptArgument$2)),
+	icons: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(Icon$1)),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 })) {};
-var TextContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+var TextContent$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("text"),
 	text: String$2,
-	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	annotations: /*#__PURE__*/ optional$5(Annotations$3),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 }))) {};
-var ImageContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+var ImageContent$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("image"),
 	data: Uint8ArrayFromBase64,
 	mimeType: String$2,
-	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	annotations: /*#__PURE__*/ optional$5(Annotations$3),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 }))) {};
-var AudioContent$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+var AudioContent$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("audio"),
 	data: Uint8ArrayFromBase64,
 	mimeType: String$2,
-	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	annotations: /*#__PURE__*/ optional$5(Annotations$3),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 }))) {};
-var EmbeddedResource$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+var EmbeddedResource$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ tag$2("resource"),
 	resource: /*#__PURE__*/ Union([TextResourceContents$2, BlobResourceContents$2]),
-	annotations: /*#__PURE__*/ optional$4(Annotations$2),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	annotations: /*#__PURE__*/ optional$5(Annotations$3),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 }))) {};
-var ResourceLink$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	...Resource$3.fields,
+var ResourceLink$3 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	...Resource$4.fields,
 	type: /*#__PURE__*/ tag$2("resource_link")
 }))) {};
-const ContentBlock$2 = /*#__PURE__*/ Union([
-	TextContent$3,
-	ImageContent$3,
-	AudioContent$3,
-	EmbeddedResource$3,
-	ResourceLink$2
+const ContentBlock$3 = /*#__PURE__*/ Union([
+	TextContent$4,
+	ImageContent$4,
+	AudioContent$4,
+	EmbeddedResource$4,
+	ResourceLink$3
 ]);
-var PromptMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	role: Role$1,
-	content: ContentBlock$2
+var PromptMessage$5 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	role: Role$2,
+	content: ContentBlock$3
 }))) {};
 ({ ...PaginatedResultMeta.fields });
-var GetPromptResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/GetPromptResult")({
-	...ResultMeta$1.fields,
-	messages: /*#__PURE__*/ ArraySchema(PromptMessage$4),
-	description: /*#__PURE__*/ optional$4(String$2)
+var GetPromptResult$5 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/GetPromptResult")({
+	...ResultMeta$2.fields,
+	messages: /*#__PURE__*/ ArraySchema(PromptMessage$5),
+	description: /*#__PURE__*/ optional$5(String$2)
 })) {};
 ({ ...RequestMeta$1.fields });
 var PromptListChangedNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
-var ToolAnnotations$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	title: /*#__PURE__*/ optional$4(String$2),
+var ToolAnnotations$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	title: /*#__PURE__*/ optional$5(String$2),
 	readOnlyHint: /*#__PURE__*/ optionalWithDefault(Boolean$1, constFalse),
 	destructiveHint: /*#__PURE__*/ optionalWithDefault(Boolean$1, constTrue),
 	idempotentHint: /*#__PURE__*/ optionalWithDefault(Boolean$1, constFalse),
@@ -21072,30 +22022,30 @@ var ToolAnnotations$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Stru
 }))) {};
 const ToolJson = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
 	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([UnknownObject$4, Boolean$1]))),
-	required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
-}), [UnknownObject$4]);
-const ToolOutputJson = UnknownObject$4;
-var Tool$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
+	properties: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([UnknownObject$5, Boolean$1]))),
+	required: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2))
+}), [UnknownObject$5]);
+const ToolOutputJson = UnknownObject$5;
+var Tool$5 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Tool")({
 	name: String$2,
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
 	inputSchema: ToolJson,
-	outputSchema: /*#__PURE__*/ optional$4(ToolOutputJson),
-	annotations: /*#__PURE__*/ optional$4(ToolAnnotations$1),
-	icons: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Icon$1)),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	outputSchema: /*#__PURE__*/ optional$5(ToolOutputJson),
+	annotations: /*#__PURE__*/ optional$5(ToolAnnotations$2),
+	icons: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(Icon$1)),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 })) {};
 ({ ...PaginatedResultMeta.fields });
-var CallToolResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CallToolResult")({
-	...ResultMeta$1.fields,
-	content: /*#__PURE__*/ ArraySchema(ContentBlock$2),
-	structuredContent: /*#__PURE__*/ optional$4(Unknown),
-	isError: /*#__PURE__*/ optional$4(Boolean$1)
+var CallToolResult$5 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CallToolResult")({
+	...ResultMeta$2.fields,
+	content: /*#__PURE__*/ ArraySchema(ContentBlock$3),
+	structuredContent: /*#__PURE__*/ optional$5(Unknown),
+	isError: /*#__PURE__*/ optional$5(Boolean$1)
 })) {};
 ({ ...RequestMeta$1.fields });
 var ToolListChangedNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta$1) })) {};
-const LoggingLevel$1 = /*#__PURE__*/ Literals([
+const LoggingLevel$2 = /*#__PURE__*/ Literals([
 	"debug",
 	"info",
 	"notice",
@@ -21106,180 +22056,180 @@ const LoggingLevel$1 = /*#__PURE__*/ Literals([
 	"emergency"
 ]);
 ({ ...RequestMeta$1.fields });
-var LoggingMessageNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/message", { payload: /*#__PURE__*/ Struct({
+var LoggingMessageNotification$2 = class extends (/*#__PURE__*/ make$8("notifications/message", { payload: /*#__PURE__*/ Struct({
 	...NotificationMeta$1.fields,
-	level: LoggingLevel$1,
-	logger: /*#__PURE__*/ optional$4(String$2),
+	level: LoggingLevel$2,
+	logger: /*#__PURE__*/ optional$5(String$2),
 	data: Any
 }) })) {};
-var ToolUseContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolUseContent")({
+var ToolUseContent$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolUseContent")({
 	type: /*#__PURE__*/ tag$2("tool_use"),
 	id: String$2,
 	name: String$2,
 	input: /*#__PURE__*/ Record(String$2, Unknown),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 })) {};
-var ToolResultContent$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolResultContent")({
+var ToolResultContent$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolResultContent")({
 	type: /*#__PURE__*/ tag$2("tool_result"),
 	toolUseId: String$2,
-	content: /*#__PURE__*/ ArraySchema(ContentBlock$2),
-	structuredContent: /*#__PURE__*/ optional$4(Unknown),
-	isError: /*#__PURE__*/ optional$4(Boolean$1),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	content: /*#__PURE__*/ ArraySchema(ContentBlock$3),
+	structuredContent: /*#__PURE__*/ optional$5(Unknown),
+	isError: /*#__PURE__*/ optional$5(Boolean$1),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 })) {};
-const SamplingMessageContentBlock$1 = /*#__PURE__*/ Union([
-	TextContent$3,
-	ImageContent$3,
-	AudioContent$3,
-	ToolUseContent$1,
-	ToolResultContent$1
+const SamplingMessageContentBlock$2 = /*#__PURE__*/ Union([
+	TextContent$4,
+	ImageContent$4,
+	AudioContent$4,
+	ToolUseContent$2,
+	ToolResultContent$2
 ]);
-var SamplingMessage$4 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
-	role: Role$1,
-	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+var SamplingMessage$5 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({
+	role: Role$2,
+	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$2, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$2)]),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 }))) {};
-var ToolChoice$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolChoice")({ mode: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals([
+var ToolChoice$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ToolChoice")({ mode: /*#__PURE__*/ optional$5(/*#__PURE__*/ Literals([
 	"auto",
 	"required",
 	"none"
 ])) })) {};
-var ModelHint$1 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ name: /*#__PURE__*/ optional$4(String$2) }))) {};
-var ModelPreferences$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ModelPreferences")({
-	hints: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(ModelHint$1)),
-	costPriority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+var ModelHint$2 = class extends (/*#__PURE__*/ Opaque()(/*#__PURE__*/ Struct({ name: /*#__PURE__*/ optional$5(String$2) }))) {};
+var ModelPreferences$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ModelPreferences")({
+	hints: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(ModelHint$2)),
+	costPriority: /*#__PURE__*/ optional$5(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
 		minimum: 0,
 		maximum: 1
 	}))),
-	speedPriority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+	speedPriority: /*#__PURE__*/ optional$5(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
 		minimum: 0,
 		maximum: 1
 	}))),
-	intelligencePriority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+	intelligencePriority: /*#__PURE__*/ optional$5(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
 		minimum: 0,
 		maximum: 1
 	})))
 })) {};
-var CreateMessageResult$4 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CreateMessageResult")({
-	role: Role$1,
-	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4),
+var CreateMessageResult$5 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/CreateMessageResult")({
+	role: Role$2,
+	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$2, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$2)]),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5),
 	model: String$2,
-	stopReason: /*#__PURE__*/ optional$4(String$2)
+	stopReason: /*#__PURE__*/ optional$5(String$2)
 })) {};
 var CreateMessage$4 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
-	success: CreateMessageResult$4,
-	error: McpError$1,
+	success: CreateMessageResult$5,
+	error: McpError$2,
 	payload: {
-		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$4),
-		modelPreferences: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct(ModelPreferences$1.fields)),
-		systemPrompt: /*#__PURE__*/ optional$4(String$2),
-		includeContext: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals([
+		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$5),
+		modelPreferences: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct(ModelPreferences$2.fields)),
+		systemPrompt: /*#__PURE__*/ optional$5(String$2),
+		includeContext: /*#__PURE__*/ optional$5(/*#__PURE__*/ Literals([
 			"none",
 			"thisServer",
 			"allServers"
 		])),
-		temperature: /*#__PURE__*/ optional$4(Finite),
+		temperature: /*#__PURE__*/ optional$5(Finite),
 		maxTokens: Int,
-		stopSequences: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, Unknown)),
-		tools: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(/*#__PURE__*/ Struct(Tool$4.fields))),
-		toolChoice: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct(ToolChoice$1.fields))
+		stopSequences: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2)),
+		metadata: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(String$2, Unknown)),
+		tools: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(/*#__PURE__*/ Struct(Tool$5.fields))),
+		toolChoice: /*#__PURE__*/ optional$5(/*#__PURE__*/ Struct(ToolChoice$2.fields))
 	}
 })) {};
-({ ...ResultMeta$1.fields });
-var Root$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Root")({
+({ ...ResultMeta$2.fields });
+var Root$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/Root")({
 	uri: String$2,
-	name: /*#__PURE__*/ optional$4(String$2),
-	_meta: /*#__PURE__*/ optional$4(UnknownObject$4)
+	name: /*#__PURE__*/ optional$5(String$2),
+	_meta: /*#__PURE__*/ optional$5(UnknownObject$5)
 })) {};
-var ListRootsResult$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ListRootsResult")({ roots: /*#__PURE__*/ ArraySchema(Root$2) })) {};
+var ListRootsResult$3 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ListRootsResult")({ roots: /*#__PURE__*/ ArraySchema(Root$3) })) {};
 var ListRoots$2 = class extends (/*#__PURE__*/ make$8("roots/list", {
-	success: ListRootsResult$2,
-	error: McpError$1,
+	success: ListRootsResult$3,
+	error: McpError$2,
 	payload: /*#__PURE__*/ UndefinedOr(RequestMeta$1)
 })) {};
 var ElicitationString = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitationString")({
 	type: /*#__PURE__*/ tag$2("string"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	minLength: /*#__PURE__*/ optional$4(Int),
-	maxLength: /*#__PURE__*/ optional$4(Int),
-	format: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals([
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	minLength: /*#__PURE__*/ optional$5(Int),
+	maxLength: /*#__PURE__*/ optional$5(Int),
+	format: /*#__PURE__*/ optional$5(/*#__PURE__*/ Literals([
 		"email",
 		"uri",
 		"date",
 		"date-time"
 	])),
-	default: /*#__PURE__*/ optional$4(String$2)
+	default: /*#__PURE__*/ optional$5(String$2)
 })) {};
 var ElicitationNumber = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitationNumber")({
 	type: /*#__PURE__*/ Literals(["number", "integer"]),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	minimum: /*#__PURE__*/ optional$4(Finite),
-	maximum: /*#__PURE__*/ optional$4(Finite),
-	default: /*#__PURE__*/ optional$4(Finite)
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	minimum: /*#__PURE__*/ optional$5(Finite),
+	maximum: /*#__PURE__*/ optional$5(Finite),
+	default: /*#__PURE__*/ optional$5(Finite)
 })) {};
 var ElicitationBoolean = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitationBoolean")({
 	type: /*#__PURE__*/ tag$2("boolean"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	default: /*#__PURE__*/ optional$4(Boolean$1)
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	default: /*#__PURE__*/ optional$5(Boolean$1)
 })) {};
 var UntitledSingleSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/UntitledSingleSelectEnum")({
 	type: /*#__PURE__*/ tag$2("string"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
 	enum: /*#__PURE__*/ ArraySchema(String$2),
-	default: /*#__PURE__*/ optional$4(String$2)
+	default: /*#__PURE__*/ optional$5(String$2)
 })) {};
 var TitledSingleSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/TitledSingleSelectEnum")({
 	type: /*#__PURE__*/ tag$2("string"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
 	oneOf: /*#__PURE__*/ ArraySchema(/*#__PURE__*/ Struct({
 		const: String$2,
 		title: String$2
 	})),
-	default: /*#__PURE__*/ optional$4(String$2)
+	default: /*#__PURE__*/ optional$5(String$2)
 })) {};
 const SingleSelectEnum = /*#__PURE__*/ Union([UntitledSingleSelectEnum, TitledSingleSelectEnum]);
 var UntitledMultiSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/UntitledMultiSelectEnum")({
 	type: /*#__PURE__*/ tag$2("array"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	minItems: /*#__PURE__*/ optional$4(Int),
-	maxItems: /*#__PURE__*/ optional$4(Int),
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	minItems: /*#__PURE__*/ optional$5(Int),
+	maxItems: /*#__PURE__*/ optional$5(Int),
 	items: /*#__PURE__*/ Struct({
 		type: /*#__PURE__*/ tag$2("string"),
 		enum: /*#__PURE__*/ ArraySchema(String$2)
 	}),
-	default: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
+	default: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2))
 })) {};
 var TitledMultiSelectEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/TitledMultiSelectEnum")({
 	type: /*#__PURE__*/ tag$2("array"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
-	minItems: /*#__PURE__*/ optional$4(Int),
-	maxItems: /*#__PURE__*/ optional$4(Int),
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
+	minItems: /*#__PURE__*/ optional$5(Int),
+	maxItems: /*#__PURE__*/ optional$5(Int),
 	items: /*#__PURE__*/ Struct({ anyOf: /*#__PURE__*/ ArraySchema(/*#__PURE__*/ Struct({
 		const: String$2,
 		title: String$2
 	})) }),
-	default: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
+	default: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2))
 })) {};
 const MultiSelectEnum = /*#__PURE__*/ Union([UntitledMultiSelectEnum, TitledMultiSelectEnum]);
 var LegacyTitledEnum = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/LegacyTitledEnum")({
 	type: /*#__PURE__*/ tag$2("string"),
-	title: /*#__PURE__*/ optional$4(String$2),
-	description: /*#__PURE__*/ optional$4(String$2),
+	title: /*#__PURE__*/ optional$5(String$2),
+	description: /*#__PURE__*/ optional$5(String$2),
 	enum: /*#__PURE__*/ ArraySchema(String$2),
-	enumNames: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2)),
-	default: /*#__PURE__*/ optional$4(String$2)
+	enumNames: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2)),
+	default: /*#__PURE__*/ optional$5(String$2)
 })) {};
 const ElicitationForm = /*#__PURE__*/ Struct({
-	$schema: /*#__PURE__*/ optional$4(String$2),
+	$schema: /*#__PURE__*/ optional$5(String$2),
 	type: /*#__PURE__*/ tag$2("object"),
 	properties: /*#__PURE__*/ Record(String$2, /* @__PURE__ */ Union([
 		/* @__PURE__ */ Union([
@@ -21291,26 +22241,26 @@ const ElicitationForm = /*#__PURE__*/ Struct({
 		ElicitationNumber,
 		ElicitationBoolean
 	])),
-	required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
+	required: /*#__PURE__*/ optional$5(/*#__PURE__*/ ArraySchema(String$2))
 });
-var ElicitRequestFormParams$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitRequestFormParams")({
+var ElicitRequestFormParams$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitRequestFormParams")({
 	...RequestMeta$1.fields,
-	mode: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literal("form")),
+	mode: /*#__PURE__*/ optional$5(/*#__PURE__*/ Literal("form")),
 	message: String$2,
 	requestedSchema: ElicitationForm
 })) {};
-var ElicitRequestURLParams$1 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitRequestURLParams")({
+var ElicitRequestURLParams$2 = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitRequestURLParams")({
 	...RequestMeta$1.fields,
 	mode: /*#__PURE__*/ Literal("url"),
 	message: String$2,
 	elicitationId: String$2,
 	url: String$2
 })) {};
-const ElicitRequestParams$1 = /*#__PURE__*/ Union([ElicitRequestFormParams$1, ElicitRequestURLParams$1]);
+const ElicitRequestParams$2 = /*#__PURE__*/ Union([ElicitRequestFormParams$2, ElicitRequestURLParams$2]);
 var ElicitAcceptResult = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitAcceptResult")({
-	...ResultMeta$1.fields,
+	...ResultMeta$2.fields,
 	action: /*#__PURE__*/ Literal("accept"),
-	content: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
+	content: /*#__PURE__*/ optional$5(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
 		String$2,
 		Finite,
 		Boolean$1,
@@ -21318,14 +22268,14 @@ var ElicitAcceptResult = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchem
 	])))
 })) {};
 var ElicitDeclineResult = class extends (/*#__PURE__*/ Class("@effect/ai/McpSchema/ElicitDeclineResult")({
-	...ResultMeta$1.fields,
+	...ResultMeta$2.fields,
 	action: /*#__PURE__*/ Literals(["cancel", "decline"])
 })) {};
-const ElicitResult$2 = /*#__PURE__*/ Union([ElicitAcceptResult, ElicitDeclineResult]);
+const ElicitResult$3 = /*#__PURE__*/ Union([ElicitAcceptResult, ElicitDeclineResult]);
 var Elicit$2 = class extends (/*#__PURE__*/ make$8("elicitation/create", {
-	success: ElicitResult$2,
-	error: McpError$1,
-	payload: ElicitRequestParams$1
+	success: ElicitResult$3,
+	error: McpError$2,
+	payload: ElicitRequestParams$2
 })) {};
 var ElicitationCompleteNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
 Elicit$2.payloadSchema;
@@ -21334,9 +22284,9 @@ var McpReverseOperationError = class extends (/*#__PURE__*/ TaggedError$1("McpRe
 var McpRequestContext = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/McpRequestContext")) {};
 var McpServerClient = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/McpServerClient")) {};
 var McpServerClientMiddleware = class extends (/*#__PURE__*/ Service()("effect/ai/McpSchema/McpServerClientMiddleware")) {};
-var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
+var ServerNotificationRpcs$4 = class extends (/*#__PURE__*/ make$6(CancelledNotification$2, ProgressNotification$3, LoggingMessageNotification$2, ResourceUpdatedNotification$2, ResourceListChangedNotification$1, ToolListChangedNotification$1, PromptListChangedNotification$1, ElicitationCompleteNotification$1)) {};
 var EnabledWhen = class extends (/*#__PURE__*/ Service$1()("effect/ai/McpSchema/EnabledWhen")) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpCore.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpCore.js
 const OperationOutcome = {
 	Complete: (value) => ({
 		_tag: "Complete",
@@ -21353,45 +22303,52 @@ var InvalidToolInput = class extends (/*#__PURE__*/ TaggedError$1("InvalidToolIn
 var InvalidToolContinuation = class extends (/*#__PURE__*/ TaggedError$1("InvalidToolContinuation")) {};
 var ToolExecutionError = class extends (/*#__PURE__*/ TaggedError$1("ToolExecutionError")) {};
 var UnsupportedByProtocol = class extends (/*#__PURE__*/ TaggedError$1("UnsupportedByProtocol")) {};
+var RequestRejected = class extends (/*#__PURE__*/ TaggedError$1("RequestRejected")) {};
+var SkillNotFound = class extends (/*#__PURE__*/ TaggedError$1("SkillNotFound")) {};
+var DirectoryNotFound = class extends (/*#__PURE__*/ TaggedError$1("DirectoryNotFound")) {};
 var PromptNotFound = class extends (/*#__PURE__*/ TaggedError$1("PromptNotFound")) {};
 const ClientNotification = /*#__PURE__*/ taggedEnum();
 const ServerNotification = /*#__PURE__*/ taggedEnum();
+const skillsOverlap = (a, b) => {
+	const rootA = a.slice(0, -9);
+	const rootB = b.slice(0, -9);
+	return rootA === rootB || rootA.startsWith(`${rootB}/`) || rootB.startsWith(`${rootA}/`);
+};
 const make$5 = /*#__PURE__*/ sync(() => {
 	const registrations = /* @__PURE__ */ new Map();
 	const resourceRegistrations = [];
 	const resourceTemplateRegistrations = [];
 	const promptRegistrations = /* @__PURE__ */ new Map();
+	const skillRegistrations = /* @__PURE__ */ new Map();
+	const skillFiles = /* @__PURE__ */ new Set();
 	const completionRegistrations = /* @__PURE__ */ new Map();
+	const filterList = (registrations, invocation) => map$4(filter(filter$2(registrations, (entry) => entry.isVisible(invocation.protocol)), (entry) => entry.visible === void 0 ? succeed$3(true) : entry.visible(invocation)), (entries) => entries.map((entry) => entry.descriptor));
 	return {
 		tools: {
 			register: (registration) => sync(() => {
 				registrations.set(registration.descriptor.name, registration);
 			}),
-			list: (profile) => sync(() => {
-				const descriptors = [];
-				for (const registration of registrations.values()) if (registration.isVisible(profile)) descriptors.push(registration.descriptor);
-				return descriptors;
-			}),
-			call: (call, invocation) => suspend$3(() => {
+			list: (invocation) => filterList(registrations.values(), invocation),
+			call: (call, invocation, beforeHandle) => suspend$3(() => {
 				const registration = registrations.get(call.name);
 				if (registration === void 0) return new ToolNotFound({ name: call.name });
 				if (!registration.isVisible(invocation.protocol)) return new ToolNotFound({ name: call.name });
-				return registration.handle(call, invocation);
+				return registration.handle(call, invocation, beforeHandle === void 0 ? void_$1 : suspend$3(() => beforeHandle(registration.descriptor)));
 			})
 		},
 		resources: {
-			register: (registration) => sync(() => {
+			register: (registration) => {
 				const index = resourceRegistrations.findIndex((entry) => entry.descriptor.uri === registration.descriptor.uri);
 				if (index === -1) resourceRegistrations.push(registration);
 				else resourceRegistrations[index] = registration;
-			}),
+			},
 			registerTemplate: (registration) => sync(() => {
 				const index = resourceTemplateRegistrations.findIndex((entry) => entry.descriptor.uriTemplate === registration.descriptor.uriTemplate);
 				if (index === -1) resourceTemplateRegistrations.push(registration);
 				else resourceTemplateRegistrations[index] = registration;
 			}),
-			list: (profile) => sync(() => resourceRegistrations.filter((entry) => entry.isVisible(profile)).map((entry) => entry.descriptor)),
-			listTemplates: (profile) => sync(() => resourceTemplateRegistrations.filter((entry) => entry.isVisible(profile)).map((entry) => entry.descriptor)),
+			list: (invocation) => filterList(resourceRegistrations, invocation),
+			listTemplates: (invocation) => filterList(resourceTemplateRegistrations, invocation),
 			read: fnUntraced(function* (uri, invocation) {
 				const resource = resourceRegistrations.find((entry) => entry.descriptor.uri === uri);
 				if (resource !== void 0 && resource.isVisible(invocation.protocol)) return yield* resource.read(invocation);
@@ -21406,7 +22363,7 @@ const make$5 = /*#__PURE__*/ sync(() => {
 			register: (registration) => sync(() => {
 				promptRegistrations.set(registration.descriptor.name, registration);
 			}),
-			list: (profile) => sync(() => Array.from(promptRegistrations.values()).filter((entry) => entry.isVisible(profile)).map((entry) => entry.descriptor)),
+			list: (invocation) => filterList(promptRegistrations.values(), invocation),
 			get: fnUntraced(function* (name, args, invocation) {
 				const registration = promptRegistrations.get(name);
 				if (registration === void 0 || !registration.isVisible(invocation.protocol)) return yield* new PromptNotFound({ name });
@@ -21430,14 +22387,50 @@ const make$5 = /*#__PURE__*/ sync(() => {
 				};
 			})
 		},
+		skills: {
+			register: (registration) => suspend$3(() => {
+				const { uri, resources } = registration.entry;
+				const fail = (reason) => fail$3(new IllegalArgumentError(`Skill ${uri}: ${reason}`));
+				for (const other of skillRegistrations.keys()) if (skillsOverlap(uri, other)) return fail(`its directory overlaps the skill ${other}`);
+				const files = resources === "dynamic" ? [] : resources.map((resource) => resource.uri);
+				for (const file of files) if (resourceRegistrations.some((entry) => entry.descriptor.uri === file)) return fail(`${file} is already registered as a resource`);
+				skillRegistrations.set(uri, registration);
+				for (const file of files) skillFiles.add(file);
+				return void_$1;
+			}),
+			ownsFile: (uri) => skillFiles.has(uri),
+			list: (invocation) => filterList(Array.from(skillRegistrations.values(), (registration) => ({
+				descriptor: registration.entry,
+				isVisible: registration.isVisible,
+				visible: registration.visible
+			})), invocation),
+			get: (uri, invocation) => suspend$3(() => {
+				const registration = skillRegistrations.get(uri);
+				return registration !== void 0 && registration.isVisible(invocation.protocol) ? registration.get(invocation) : fail$3(new SkillNotFound({ uri }));
+			}),
+			readDirectory: fnUntraced(function* (uri, invocation) {
+				const children = /* @__PURE__ */ new Map();
+				let found = false;
+				for (const registration of skillRegistrations.values()) {
+					const own = registration.directory(uri);
+					if (own === void 0 || !registration.isVisible(invocation.protocol)) continue;
+					if (registration.visibleInDirectories !== void 0 && !(yield* registration.visibleInDirectories(invocation))) continue;
+					found = true;
+					for (const child of own) children.set(child.uri, child);
+				}
+				if (!found) return yield* new DirectoryNotFound({ uri });
+				return Array.from(children.values()).sort((a, b) => a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0);
+			})
+		},
 		registrationPresence: sync(() => ({
 			tools: registrations.size > 0,
 			resources: resourceRegistrations.length > 0 || resourceTemplateRegistrations.length > 0,
-			prompts: promptRegistrations.size > 0
+			prompts: promptRegistrations.size > 0,
+			skills: skillRegistrations.size > 0
 		}))
 	};
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpProtocol.js
 const LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE = -32002;
 const BASE64_SENTINEL_PREFIX = "=?base64?";
 const routingHeaderDecoder = /*#__PURE__*/ new TextDecoder("utf-8", {
@@ -21508,6 +22501,7 @@ const invocationFromClient = (request) => ({
 	}),
 	serverClient: request
 });
+const listForClient = (list, cursor) => andThen(rejectCursor(cursor), McpServerClient.use((request) => list(invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature))));
 const requireCompleteOperation = (protocolVersion, outcome) => outcome._tag === "Complete" ? succeed$3(outcome.value) : fail$3(new UnsupportedByProtocol({
 	protocolVersion,
 	feature: "Client input"
@@ -21538,6 +22532,11 @@ const samplingRequestRequiresTools = (request) => {
 };
 var ProtocolError = class ProtocolError extends (/*#__PURE__*/ TaggedError$1("ProtocolError")) {
 	static fromTool(error) {
+		if (error._tag === "RequestRejected") return new ProtocolError({
+			code: error.code,
+			message: error.message,
+			data: error.data
+		});
 		const message = value(error).pipe(tag("ToolNotFound", (error) => `Tool '${error.name}' not found`), tag("UnsupportedByProtocol", (error) => `${error.feature} is not supported by MCP ${error.protocolVersion}`), tags({
 			InvalidToolInput: (error) => error.message,
 			InvalidToolContinuation: (error) => error.message,
@@ -21553,6 +22552,14 @@ var ProtocolError = class ProtocolError extends (/*#__PURE__*/ TaggedError$1("Pr
 			if (error._tag === "PromptNotFound" && hasProperty(error, "name") && isString$1(error.name)) return new ProtocolError({
 				code: INVALID_PARAMS_ERROR_CODE,
 				message: `Prompt '${error.name}' not found`
+			});
+			if (error._tag === "SkillNotFound" && hasProperty(error, "uri") && isString$1(error.uri)) return new ProtocolError({
+				code: INVALID_PARAMS_ERROR_CODE,
+				message: `Skill '${error.uri}' not found`
+			});
+			if (error._tag === "DirectoryNotFound" && hasProperty(error, "uri") && isString$1(error.uri)) return new ProtocolError({
+				code: INVALID_PARAMS_ERROR_CODE,
+				message: `Directory '${error.uri}' not found`
 			});
 			if (error._tag === "ResourceNotFound" && hasProperty(error, "uri") && isString$1(error.uri)) return new ProtocolError({
 				code: LEGACY_RESOURCE_NOT_FOUND_ERROR_CODE,
@@ -21572,6 +22579,11 @@ const decodeProtocolErrorFields = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__
 	data: /*#__PURE__*/ optionalKey(Unknown)
 }));
 const isReverseOperationUnsupported = (cause) => isTagged(cause, "McpReverseOperationUnsupported");
+const unknownCursor = /*#__PURE__*/ new ProtocolError({
+	code: INVALID_PARAMS_ERROR_CODE,
+	message: "Unknown cursor"
+});
+const rejectCursor = (cursor) => cursor === void 0 ? void_$1 : fail$3(unknownCursor);
 const reverseError = (operation) => (cause) => isReverseOperationUnsupported(cause) ? cause : new McpReverseOperationError({
 	operation,
 	cause
@@ -21581,16 +22593,16 @@ const transcodeStrict = (from, to, input) => encodeEffect(from)(input).pipe(flat
 const makeNotificationProjector = /*#__PURE__*/ fn(function* (options, notification) {
 	return ServerNotification.$match(notification, {
 		Cancelled: (notification) => ({
-			tag: CancelledNotification$1._tag,
-			payload: CancelledNotification$1.payloadSchema.make({
+			tag: CancelledNotification$2._tag,
+			payload: CancelledNotification$2.payloadSchema.make({
 				_meta: notification.metadata,
 				requestId: notification.requestId,
 				reason: notification.reason
 			})
 		}),
 		Progress: (notification) => ({
-			tag: ProgressNotification$2._tag,
-			payload: ProgressNotification$2.payloadSchema.make({
+			tag: ProgressNotification$3._tag,
+			payload: ProgressNotification$3.payloadSchema.make({
 				_meta: notification.metadata,
 				progressToken: notification.progressToken,
 				progress: notification.progress,
@@ -21599,8 +22611,8 @@ const makeNotificationProjector = /*#__PURE__*/ fn(function* (options, notificat
 			})
 		}),
 		LoggingMessage: (notification) => ({
-			tag: LoggingMessageNotification$1._tag,
-			payload: LoggingMessageNotification$1.payloadSchema.make({
+			tag: LoggingMessageNotification$2._tag,
+			payload: LoggingMessageNotification$2.payloadSchema.make({
 				_meta: notification.metadata,
 				level: notification.level,
 				logger: notification.logger,
@@ -21608,8 +22620,8 @@ const makeNotificationProjector = /*#__PURE__*/ fn(function* (options, notificat
 			})
 		}),
 		ResourceUpdated: (notification) => ({
-			tag: ResourceUpdatedNotification$1._tag,
-			payload: ResourceUpdatedNotification$1.payloadSchema.make({
+			tag: ResourceUpdatedNotification$2._tag,
+			payload: ResourceUpdatedNotification$2.payloadSchema.make({
 				_meta: notification.metadata,
 				uri: notification.uri
 			})
@@ -21661,7 +22673,1336 @@ const make$4 = (options) => {
 		makeReverseClient
 	};
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
+const protocolVersion$3 = "2024-11-05";
+const optional$4 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$6(schema)), {
+	decode: passthrough$1(),
+	encode: transformOptional(flatMap$4(fromUndefinedOr))
+}));
+const UnknownObject$4 = /*#__PURE__*/ Record(String$2, Unknown);
+const RequestId$1 = /*#__PURE__*/ Union([String$2, Finite]);
+const ProgressToken$1 = /*#__PURE__*/ Union([String$2, Finite]);
+const Role$1 = /*#__PURE__*/ Literals(["user", "assistant"]);
+const LoggingLevel$1 = /*#__PURE__*/ Literals([
+	"debug",
+	"info",
+	"notice",
+	"warning",
+	"error",
+	"critical",
+	"alert",
+	"emergency"
+]);
+const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$4(ProgressToken$1) }), [UnknownObject$4])) });
+const NotificationMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(UnknownObject$4) });
+const ResultMeta$1 = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$4(UnknownObject$4) });
+const PaginatedRequest = /*#__PURE__*/ Struct({
+	...RequestMeta.fields,
+	cursor: /*#__PURE__*/ optional$4(String$2)
+});
+const PaginatedResult$1 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	nextCursor: /*#__PURE__*/ optional$4(String$2)
+});
+const Implementation$3 = /*#__PURE__*/ Struct({
+	name: String$2,
+	version: String$2
+});
+const ClientCapabilities$3 = /*#__PURE__*/ Struct({
+	extensions: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
+		String$2,
+		"/",
+		String$2
+	]), Unknown)),
+	experimental: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, UnknownObject$4)),
+	roots: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) })),
+	sampling: /*#__PURE__*/ optional$4(UnknownObject$4)
+});
+const ServerCapabilities$3 = /*#__PURE__*/ Struct({
+	extensions: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
+		String$2,
+		"/",
+		String$2
+	]), Unknown)),
+	experimental: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, UnknownObject$4)),
+	logging: /*#__PURE__*/ optional$4(UnknownObject$4),
+	prompts: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) })),
+	resources: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({
+		subscribe: /*#__PURE__*/ optional$4(Boolean$1),
+		listChanged: /*#__PURE__*/ optional$4(Boolean$1)
+	})),
+	tools: /*#__PURE__*/ optional$4(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$4(Boolean$1) }))
+});
+const McpError$1 = /*#__PURE__*/ Struct({
+	code: Int,
+	message: String$2,
+	data: /*#__PURE__*/ optional$4(Any)
+});
+const Annotation = /*#__PURE__*/ Struct({
+	audience: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(Role$1)),
+	priority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+		minimum: 0,
+		maximum: 1
+	})))
+});
+const TextResourceContents$1 = /*#__PURE__*/ Struct({
+	uri: String$2,
+	mimeType: /*#__PURE__*/ optional$4(String$2),
+	text: String$2
+});
+const BlobResourceContents$1 = /*#__PURE__*/ Struct({
+	uri: String$2,
+	mimeType: /*#__PURE__*/ optional$4(String$2),
+	blob: String$2
+});
+const ResourceContents$2 = /*#__PURE__*/ Union([TextResourceContents$1, BlobResourceContents$1]);
+const TextContent$3 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("text"),
+	text: String$2,
+	annotations: /*#__PURE__*/ optional$4(Annotation)
+});
+const ImageContent$3 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("image"),
+	data: String$2,
+	mimeType: String$2,
+	annotations: /*#__PURE__*/ optional$4(Annotation)
+});
+const EmbeddedResource$3 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("resource"),
+	resource: ResourceContents$2,
+	annotations: /*#__PURE__*/ optional$4(Annotation)
+});
+const PromptOrToolContent$1 = /*#__PURE__*/ Union([
+	TextContent$3,
+	ImageContent$3,
+	EmbeddedResource$3
+]);
+const SamplingContent$2 = /*#__PURE__*/ Union([TextContent$3, ImageContent$3]);
+const Resource$3 = /*#__PURE__*/ Struct({
+	uri: String$2,
+	name: String$2,
+	description: /*#__PURE__*/ optional$4(String$2),
+	mimeType: /*#__PURE__*/ optional$4(String$2),
+	size: /*#__PURE__*/ optional$4(Finite),
+	annotations: /*#__PURE__*/ optional$4(Annotation)
+});
+const ResourceTemplate$3 = /*#__PURE__*/ Struct({
+	uriTemplate: String$2,
+	name: String$2,
+	description: /*#__PURE__*/ optional$4(String$2),
+	mimeType: /*#__PURE__*/ optional$4(String$2),
+	annotations: /*#__PURE__*/ optional$4(Annotation)
+});
+const PromptArgument$1 = /*#__PURE__*/ Struct({
+	name: String$2,
+	description: /*#__PURE__*/ optional$4(String$2),
+	required: /*#__PURE__*/ optional$4(Boolean$1)
+});
+const Prompt$3 = /*#__PURE__*/ Struct({
+	name: String$2,
+	description: /*#__PURE__*/ optional$4(String$2),
+	arguments: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(PromptArgument$1))
+});
+const PromptMessage$4 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: PromptOrToolContent$1
+});
+const Tool$4 = /*#__PURE__*/ Struct({
+	name: String$2,
+	description: /*#__PURE__*/ optional$4(String$2),
+	inputSchema: /* @__PURE__ */ Struct({
+		type: /*#__PURE__*/ Literal("object"),
+		properties: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, UnknownObject$4)),
+		required: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2))
+	})
+});
+const ModelPreferences$1 = /*#__PURE__*/ Struct({
+	hints: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(/* @__PURE__ */ Struct({ name: /*#__PURE__*/ optional$4(String$2) }))),
+	costPriority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+		minimum: 0,
+		maximum: 1
+	}))),
+	speedPriority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+		minimum: 0,
+		maximum: 1
+	}))),
+	intelligencePriority: /*#__PURE__*/ optional$4(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+		minimum: 0,
+		maximum: 1
+	})))
+});
+const SamplingMessage$4 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: SamplingContent$2
+});
+const ResourceReference = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("ref/resource"),
+	uri: String$2
+});
+const PromptReference$2 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("ref/prompt"),
+	name: String$2
+});
+const Root$2 = /*#__PURE__*/ Struct({
+	uri: String$2,
+	name: /*#__PURE__*/ optional$4(String$2)
+});
+const InitializeResult$3 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	protocolVersion: String$2,
+	capabilities: ServerCapabilities$3,
+	serverInfo: Implementation$3,
+	instructions: /*#__PURE__*/ optional$4(String$2)
+});
+const ListResourcesResult$3 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	resources: /*#__PURE__*/ ArraySchema(Resource$3)
+});
+const ListResourceTemplatesResult$3 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$3)
+});
+const ReadResourceResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	contents: /*#__PURE__*/ ArraySchema(ResourceContents$2)
+});
+const ListPromptsResult$3 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	prompts: /*#__PURE__*/ ArraySchema(Prompt$3)
+});
+const GetPromptResult$4 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	description: /*#__PURE__*/ optional$4(String$2),
+	messages: /*#__PURE__*/ ArraySchema(PromptMessage$4)
+});
+const ListToolsResult$4 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	tools: /*#__PURE__*/ ArraySchema(Tool$4)
+});
+const CallToolResult$4 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	content: /*#__PURE__*/ ArraySchema(PromptOrToolContent$1),
+	isError: /*#__PURE__*/ optional$4(Boolean$1)
+});
+const CreateMessageResult$4 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	role: Role$1,
+	content: SamplingContent$2,
+	model: String$2,
+	stopReason: /*#__PURE__*/ optional$4(String$2)
+});
+const CompleteResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	completion: /*#__PURE__*/ Struct({
+		values: /*#__PURE__*/ ArraySchema(String$2),
+		total: /*#__PURE__*/ optional$4(Finite),
+		hasMore: /*#__PURE__*/ optional$4(Boolean$1)
+	})
+});
+const ListRootsResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	roots: /*#__PURE__*/ ArraySchema(Root$2)
+});
+var Ping = class extends (/*#__PURE__*/ make$8("ping", {
+	success: ResultMeta$1,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
+})) {};
+var Initialize$3 = class extends (/*#__PURE__*/ make$8("initialize", {
+	success: InitializeResult$3,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		protocolVersion: String$2,
+		capabilities: ClientCapabilities$3,
+		clientInfo: Implementation$3
+	}
+})) {};
+var Complete$2 = class extends (/*#__PURE__*/ make$8("completion/complete", {
+	success: CompleteResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		ref: /*#__PURE__*/ Union([PromptReference$2, ResourceReference]),
+		argument: /*#__PURE__*/ Struct({
+			name: String$2,
+			value: String$2
+		})
+	}
+})) {};
+var SetLevel = class extends (/*#__PURE__*/ make$8("logging/setLevel", {
+	success: ResultMeta$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		level: LoggingLevel$1
+	}
+})) {};
+var GetPrompt$4 = class extends (/*#__PURE__*/ make$8("prompts/get", {
+	success: GetPromptResult$4,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$4(/*#__PURE__*/ Record(String$2, String$2))
+	}
+})) {};
+var ListPrompts$2 = class extends (/*#__PURE__*/ make$8("prompts/list", {
+	success: ListPromptsResult$3,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ListResources$2 = class extends (/*#__PURE__*/ make$8("resources/list", {
+	success: ListResourcesResult$3,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ListResourceTemplates$2 = class extends (/*#__PURE__*/ make$8("resources/templates/list", {
+	success: ListResourceTemplatesResult$3,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ReadResource$2 = class extends (/*#__PURE__*/ make$8("resources/read", {
+	success: ReadResourceResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		uri: String$2
+	}
+})) {};
+var Subscribe = class extends (/*#__PURE__*/ make$8("resources/subscribe", {
+	success: ResultMeta$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		uri: String$2
+	}
+})) {};
+var Unsubscribe = class extends (/*#__PURE__*/ make$8("resources/unsubscribe", {
+	success: ResultMeta$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		uri: String$2
+	}
+})) {};
+var CallTool$4 = class extends (/*#__PURE__*/ make$8("tools/call", {
+	success: CallToolResult$4,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$4(UnknownObject$4)
+	}
+})) {};
+var ListTools$3 = class extends (/*#__PURE__*/ make$8("tools/list", {
+	success: ListToolsResult$4,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var CreateMessage$3 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
+	success: CreateMessageResult$4,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$4),
+		modelPreferences: /*#__PURE__*/ optional$4(ModelPreferences$1),
+		systemPrompt: /*#__PURE__*/ optional$4(String$2),
+		includeContext: /*#__PURE__*/ optional$4(/*#__PURE__*/ Literals([
+			"none",
+			"thisServer",
+			"allServers"
+		])),
+		temperature: /*#__PURE__*/ optional$4(Finite),
+		maxTokens: Finite,
+		stopSequences: /*#__PURE__*/ optional$4(/*#__PURE__*/ ArraySchema(String$2)),
+		metadata: /*#__PURE__*/ optional$4(UnknownObject$4)
+	}
+})) {};
+var ListRoots$1 = class extends (/*#__PURE__*/ make$8("roots/list", {
+	success: ListRootsResult$2,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
+})) {};
+var CancelledNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/cancelled", { payload: {
+	...NotificationMeta.fields,
+	requestId: RequestId$1,
+	reason: /*#__PURE__*/ optional$4(String$2)
+} })) {};
+var ProgressNotification$2 = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
+	...NotificationMeta.fields,
+	progressToken: ProgressToken$1,
+	progress: Finite,
+	total: /*#__PURE__*/ optional$4(Finite)
+} })) {};
+var InitializedNotification = class extends (/*#__PURE__*/ make$8("notifications/initialized", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+var RootsListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/roots/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+var LoggingMessageNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/message", { payload: {
+	...NotificationMeta.fields,
+	level: LoggingLevel$1,
+	logger: /*#__PURE__*/ optional$4(String$2),
+	data: Any
+} })) {};
+var ResourceUpdatedNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/resources/updated", { payload: {
+	...NotificationMeta.fields,
+	uri: String$2
+} })) {};
+var ResourceListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+var ToolListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+var PromptListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
+var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$3, Complete$2, SetLevel, GetPrompt$4, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$2, Subscribe, Unsubscribe, CallTool$4, ListTools$3)) {};
+var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$2, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$3, ListRoots$1)) {};
+var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$2, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
+const protocolVersion$2 = "2025-03-26";
+const optional$3 = optional$4;
+const UnknownObject$3 = UnknownObject$4;
+const ServerCapabilities$2 = /*#__PURE__*/ Struct({
+	...ServerCapabilities$3.fields,
+	completions: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({}))
+});
+const AudioContent$3 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("audio"),
+	data: String$2,
+	mimeType: String$2,
+	annotations: /*#__PURE__*/ optional$3(Annotation)
+});
+const PromptOrToolContent = /*#__PURE__*/ Union([
+	TextContent$3,
+	ImageContent$3,
+	AudioContent$3,
+	EmbeddedResource$3
+]);
+const SamplingContent$1 = /*#__PURE__*/ Union([
+	TextContent$3,
+	ImageContent$3,
+	AudioContent$3
+]);
+const PromptMessage$3 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: PromptOrToolContent
+});
+const SamplingMessage$3 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: SamplingContent$1
+});
+const ToolAnnotations$1 = /*#__PURE__*/ Struct({
+	title: /*#__PURE__*/ optional$3(String$2),
+	readOnlyHint: /*#__PURE__*/ optional$3(Boolean$1),
+	destructiveHint: /*#__PURE__*/ optional$3(Boolean$1),
+	idempotentHint: /*#__PURE__*/ optional$3(Boolean$1),
+	openWorldHint: /*#__PURE__*/ optional$3(Boolean$1)
+});
+const Tool$3 = /*#__PURE__*/ Struct({
+	...Tool$4.fields,
+	annotations: /*#__PURE__*/ optional$3(ToolAnnotations$1)
+});
+const InitializeResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	protocolVersion: String$2,
+	capabilities: ServerCapabilities$2,
+	serverInfo: Implementation$3,
+	instructions: /*#__PURE__*/ optional$3(String$2)
+});
+const GetPromptResult$3 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	description: /*#__PURE__*/ optional$3(String$2),
+	messages: /*#__PURE__*/ ArraySchema(PromptMessage$3)
+});
+const ListToolsResult$3 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	tools: /*#__PURE__*/ ArraySchema(Tool$3)
+});
+const CallToolResult$3 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	content: /*#__PURE__*/ ArraySchema(PromptOrToolContent),
+	isError: /*#__PURE__*/ optional$3(Boolean$1)
+});
+const CreateMessageResult$3 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	role: Role$1,
+	content: SamplingContent$1,
+	model: String$2,
+	stopReason: /*#__PURE__*/ optional$3(String$2)
+});
+var Initialize$2 = class extends (/*#__PURE__*/ make$8("initialize", {
+	success: InitializeResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		protocolVersion: String$2,
+		capabilities: ClientCapabilities$3,
+		clientInfo: Implementation$3
+	}
+})) {};
+var GetPrompt$3 = class extends (/*#__PURE__*/ make$8("prompts/get", {
+	success: GetPromptResult$3,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, String$2))
+	}
+})) {};
+var ListTools$2 = class extends (/*#__PURE__*/ make$8("tools/list", {
+	success: ListToolsResult$3,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var CallTool$3 = class extends (/*#__PURE__*/ make$8("tools/call", {
+	success: CallToolResult$3,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$3(UnknownObject$3)
+	}
+})) {};
+var CreateMessage$2 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
+	success: CreateMessageResult$3,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$3),
+		modelPreferences: /*#__PURE__*/ optional$3(ModelPreferences$1),
+		systemPrompt: /*#__PURE__*/ optional$3(String$2),
+		includeContext: /*#__PURE__*/ optional$3(/*#__PURE__*/ Literals([
+			"none",
+			"thisServer",
+			"allServers"
+		])),
+		temperature: /*#__PURE__*/ optional$3(Finite),
+		maxTokens: Finite,
+		stopSequences: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(String$2)),
+		metadata: /*#__PURE__*/ optional$3(UnknownObject$3)
+	}
+})) {};
+var ProgressNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
+	...NotificationMeta.fields,
+	progressToken: ProgressToken$1,
+	progress: Finite,
+	total: /*#__PURE__*/ optional$3(Finite),
+	message: /*#__PURE__*/ optional$3(String$2)
+} })) {};
+var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$2, Complete$2, SetLevel, GetPrompt$3, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$2, Subscribe, Unsubscribe, CallTool$3, ListTools$2)) {};
+var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$2, ListRoots$1)) {};
+var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$1, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
+const protocolVersion$1 = "2025-06-18";
+const optional$2 = optional$4;
+const UnknownObject$2 = UnknownObject$4;
+const Meta$2 = /*#__PURE__*/ optional$2(UnknownObject$2);
+const Implementation$2 = /*#__PURE__*/ Struct({
+	name: String$2,
+	title: /*#__PURE__*/ optional$2(String$2),
+	version: String$2
+});
+const ClientCapabilities$2 = /*#__PURE__*/ Struct({
+	...ClientCapabilities$3.fields,
+	elicitation: /*#__PURE__*/ optional$2(/*#__PURE__*/ Struct({}))
+});
+const Annotations$2 = /*#__PURE__*/ Struct({
+	audience: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(Role$1)),
+	priority: /*#__PURE__*/ optional$2(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
+		minimum: 0,
+		maximum: 1
+	})))
+});
+const Resource$2 = /*#__PURE__*/ Struct({
+	...Resource$3.fields,
+	title: /*#__PURE__*/ optional$2(String$2),
+	annotations: /*#__PURE__*/ optional$2(Annotations$2),
+	_meta: Meta$2
+});
+const ResourceTemplate$2 = /*#__PURE__*/ Struct({
+	...ResourceTemplate$3.fields,
+	title: /*#__PURE__*/ optional$2(String$2),
+	annotations: /*#__PURE__*/ optional$2(Annotations$2),
+	_meta: Meta$2
+});
+const ResourceContents$1 = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
+	...TextResourceContents$1.fields,
+	_meta: Meta$2
+}), /* @__PURE__ */ Struct({
+	...BlobResourceContents$1.fields,
+	_meta: Meta$2
+})]);
+const PromptArgument = /*#__PURE__*/ Struct({
+	...PromptArgument$1.fields,
+	title: /*#__PURE__*/ optional$2(String$2)
+});
+const Prompt$2 = /*#__PURE__*/ Struct({
+	...Prompt$3.fields,
+	title: /*#__PURE__*/ optional$2(String$2),
+	arguments: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(PromptArgument)),
+	_meta: Meta$2
+});
+const EmbeddedResource$2 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("resource"),
+	resource: ResourceContents$1,
+	annotations: /*#__PURE__*/ optional$2(Annotations$2),
+	_meta: Meta$2
+});
+const ResourceLink$2 = /*#__PURE__*/ Struct({
+	...Resource$2.fields,
+	type: /*#__PURE__*/ Literal("resource_link")
+});
+const TextContent$2 = /*#__PURE__*/ Struct({
+	...TextContent$3.fields,
+	annotations: /*#__PURE__*/ optional$2(Annotations$2),
+	_meta: Meta$2
+});
+const ImageContent$2 = /*#__PURE__*/ Struct({
+	...ImageContent$3.fields,
+	annotations: /*#__PURE__*/ optional$2(Annotations$2),
+	_meta: Meta$2
+});
+const AudioContent$2 = /*#__PURE__*/ Struct({
+	...AudioContent$3.fields,
+	annotations: /*#__PURE__*/ optional$2(Annotations$2),
+	_meta: Meta$2
+});
+const ContentBlock$2 = /*#__PURE__*/ Union([
+	TextContent$2,
+	ImageContent$2,
+	AudioContent$2,
+	EmbeddedResource$2,
+	ResourceLink$2
+]);
+const SamplingContent = /*#__PURE__*/ Union([
+	TextContent$2,
+	ImageContent$2,
+	AudioContent$2
+]);
+const PromptMessage$2 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: ContentBlock$2
+});
+const SamplingMessage$2 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: SamplingContent
+});
+const ServerCapabilities$1 = /*#__PURE__*/ Struct({ ...ServerCapabilities$2.fields });
+const InitializeResult$1 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	protocolVersion: String$2,
+	capabilities: ServerCapabilities$1,
+	serverInfo: Implementation$2,
+	instructions: /*#__PURE__*/ optional$2(String$2)
+});
+var Initialize$1 = class extends (/*#__PURE__*/ make$8("initialize", {
+	success: InitializeResult$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		protocolVersion: String$2,
+		capabilities: ClientCapabilities$2,
+		clientInfo: Implementation$2
+	}
+})) {};
+const ToolJsonSchema = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("object"),
+	properties: /*#__PURE__*/ optional$2(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([UnknownObject$2, Boolean$1]))),
+	required: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2))
+}), [UnknownObject$2]);
+const Tool$2 = /*#__PURE__*/ Struct({
+	name: String$2,
+	title: /*#__PURE__*/ optional$2(String$2),
+	description: /*#__PURE__*/ optional$2(String$2),
+	inputSchema: ToolJsonSchema,
+	outputSchema: /*#__PURE__*/ optional$2(ToolJsonSchema),
+	annotations: /*#__PURE__*/ optional$2(ToolAnnotations$1),
+	_meta: Meta$2
+});
+const CallToolResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	content: /*#__PURE__*/ ArraySchema(ContentBlock$2),
+	structuredContent: /*#__PURE__*/ optional$2(UnknownObject$2),
+	isError: /*#__PURE__*/ optional$2(Boolean$1)
+});
+const CreateMessageResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	role: Role$1,
+	content: SamplingContent,
+	model: String$2,
+	stopReason: /*#__PURE__*/ optional$2(String$2)
+});
+var CreateMessage$1 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
+	success: CreateMessageResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$2),
+		modelPreferences: /*#__PURE__*/ optional$2(ModelPreferences$1),
+		systemPrompt: /*#__PURE__*/ optional$2(String$2),
+		includeContext: /*#__PURE__*/ optional$2(/*#__PURE__*/ Literals([
+			"none",
+			"thisServer",
+			"allServers"
+		])),
+		temperature: /*#__PURE__*/ optional$2(Finite),
+		maxTokens: Finite,
+		stopSequences: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2)),
+		metadata: /*#__PURE__*/ optional$2(UnknownObject$2)
+	}
+})) {};
+const PromptReference$1 = /*#__PURE__*/ Struct({
+	...PromptReference$2.fields,
+	title: /*#__PURE__*/ optional$2(String$2)
+});
+const ResourceTemplateReference$1 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("ref/resource"),
+	uri: String$2
+});
+const CompleteResult$1 = CompleteResult$2;
+var Complete$1 = class extends (/*#__PURE__*/ make$8("completion/complete", {
+	success: CompleteResult$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		ref: /*#__PURE__*/ Union([PromptReference$1, ResourceTemplateReference$1]),
+		argument: /*#__PURE__*/ Struct({
+			name: String$2,
+			value: String$2
+		}),
+		context: /*#__PURE__*/ optional$2(/*#__PURE__*/ Struct({ arguments: /*#__PURE__*/ optional$2(/*#__PURE__*/ Record(String$2, String$2)) }))
+	}
+})) {};
+const ListResourcesResult$2 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	resources: /*#__PURE__*/ ArraySchema(Resource$2)
+});
+const ListResourceTemplatesResult$2 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$2)
+});
+const ReadResourceResult$1 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	contents: /*#__PURE__*/ ArraySchema(ResourceContents$1)
+});
+const ListPromptsResult$2 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	prompts: /*#__PURE__*/ ArraySchema(Prompt$2)
+});
+const GetPromptResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	description: /*#__PURE__*/ optional$2(String$2),
+	messages: /*#__PURE__*/ ArraySchema(PromptMessage$2)
+});
+const ListToolsResult$2 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	tools: /*#__PURE__*/ ArraySchema(Tool$2)
+});
+var ListResources$1 = class extends (/*#__PURE__*/ make$8("resources/list", {
+	success: ListResourcesResult$2,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ListResourceTemplates$1 = class extends (/*#__PURE__*/ make$8("resources/templates/list", {
+	success: ListResourceTemplatesResult$2,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ReadResource$1 = class extends (/*#__PURE__*/ make$8("resources/read", {
+	success: ReadResourceResult$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		uri: String$2
+	}
+})) {};
+var ListPrompts$1 = class extends (/*#__PURE__*/ make$8("prompts/list", {
+	success: ListPromptsResult$2,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var GetPrompt$2 = class extends (/*#__PURE__*/ make$8("prompts/get", {
+	success: GetPromptResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$2(/*#__PURE__*/ Record(String$2, String$2))
+	}
+})) {};
+var ListTools$1 = class extends (/*#__PURE__*/ make$8("tools/list", {
+	success: ListToolsResult$2,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var CallTool$2 = class extends (/*#__PURE__*/ make$8("tools/call", {
+	success: CallToolResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$2(UnknownObject$2)
+	}
+})) {};
+const ElicitResult$2 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	action: /*#__PURE__*/ Literals([
+		"accept",
+		"decline",
+		"cancel"
+	]),
+	content: /*#__PURE__*/ optional$2(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
+		String$2,
+		Finite,
+		Boolean$1
+	])))
+});
+const RequestedSchema$2 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("object"),
+	properties: /*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
+		/* @__PURE__ */ Struct({
+			type: /*#__PURE__*/ Literal("string"),
+			title: /*#__PURE__*/ optional$2(String$2),
+			description: /*#__PURE__*/ optional$2(String$2),
+			minLength: /*#__PURE__*/ optional$2(Int),
+			maxLength: /*#__PURE__*/ optional$2(Int),
+			format: /*#__PURE__*/ optional$2(/*#__PURE__*/ Literals([
+				"email",
+				"uri",
+				"date",
+				"date-time"
+			]))
+		}),
+		/* @__PURE__ */ Struct({
+			type: /*#__PURE__*/ Literals(["number", "integer"]),
+			title: /*#__PURE__*/ optional$2(String$2),
+			description: /*#__PURE__*/ optional$2(String$2),
+			minimum: /*#__PURE__*/ optional$2(Finite),
+			maximum: /*#__PURE__*/ optional$2(Finite)
+		}),
+		/* @__PURE__ */ Struct({
+			type: /*#__PURE__*/ Literal("boolean"),
+			title: /*#__PURE__*/ optional$2(String$2),
+			description: /*#__PURE__*/ optional$2(String$2),
+			default: /*#__PURE__*/ optional$2(Boolean$1)
+		}),
+		/* @__PURE__ */ Struct({
+			type: /*#__PURE__*/ Literal("string"),
+			title: /*#__PURE__*/ optional$2(String$2),
+			description: /*#__PURE__*/ optional$2(String$2),
+			enum: /*#__PURE__*/ ArraySchema(String$2),
+			enumNames: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2))
+		})
+	])),
+	required: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2))
+});
+var Elicit$1 = class extends (/*#__PURE__*/ make$8("elicitation/create", {
+	success: ElicitResult$2,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		message: String$2,
+		requestedSchema: RequestedSchema$2
+	}
+})) {};
+var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$1, Complete$1, SetLevel, GetPrompt$2, ListPrompts$1, ListResources$1, ListResourceTemplates$1, ReadResource$1, Subscribe, Unsubscribe, CallTool$2, ListTools$1)) {};
+var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
+var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$1, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
+const protocolVersion = "2025-11-25";
+const optional$1 = optional$4;
+const UnknownObject$1 = UnknownObject$4;
+const Meta$1 = /*#__PURE__*/ optional$1(UnknownObject$1);
+const Icon = /*#__PURE__*/ Struct({
+	src: String$2,
+	mimeType: /*#__PURE__*/ optional$1(String$2),
+	sizes: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2)),
+	theme: /*#__PURE__*/ optional$1(/*#__PURE__*/ Literals(["light", "dark"]))
+});
+const Implementation$1 = /*#__PURE__*/ Struct({
+	...Implementation$2.fields,
+	description: /*#__PURE__*/ optional$1(String$2),
+	websiteUrl: /*#__PURE__*/ optional$1(String$2),
+	icons: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Icon))
+});
+const ClientCapabilities$1 = /*#__PURE__*/ Struct({
+	...ClientCapabilities$2.fields,
+	sampling: /*#__PURE__*/ optional$1(/*#__PURE__*/ Struct({
+		context: /*#__PURE__*/ optional$1(UnknownObject$1),
+		tools: /*#__PURE__*/ optional$1(UnknownObject$1)
+	})),
+	elicitation: /*#__PURE__*/ optional$1(/*#__PURE__*/ Struct({
+		form: /*#__PURE__*/ optional$1(UnknownObject$1),
+		url: /*#__PURE__*/ optional$1(UnknownObject$1)
+	}))
+});
+const Annotations$1 = /*#__PURE__*/ Struct({
+	...Annotations$2.fields,
+	lastModified: /*#__PURE__*/ optional$1(String$2)
+});
+const Resource$1 = /*#__PURE__*/ Struct({
+	...Resource$2.fields,
+	annotations: /*#__PURE__*/ optional$1(Annotations$1),
+	icons: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Icon))
+});
+const ResourceTemplate$1 = /*#__PURE__*/ Struct({
+	...ResourceTemplate$2.fields,
+	annotations: /*#__PURE__*/ optional$1(Annotations$1),
+	icons: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Icon))
+});
+const Prompt$1 = /*#__PURE__*/ Struct({
+	...Prompt$2.fields,
+	icons: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Icon))
+});
+const TextContent$1 = /*#__PURE__*/ Struct({
+	...TextContent$2.fields,
+	annotations: /*#__PURE__*/ optional$1(Annotations$1)
+});
+const ImageContent$1 = /*#__PURE__*/ Struct({
+	...ImageContent$2.fields,
+	annotations: /*#__PURE__*/ optional$1(Annotations$1)
+});
+const AudioContent$1 = /*#__PURE__*/ Struct({
+	...AudioContent$2.fields,
+	annotations: /*#__PURE__*/ optional$1(Annotations$1)
+});
+const EmbeddedResource$1 = /*#__PURE__*/ Struct({
+	...EmbeddedResource$2.fields,
+	annotations: /*#__PURE__*/ optional$1(Annotations$1)
+});
+const ContentBlock$1 = /*#__PURE__*/ Union([
+	TextContent$1,
+	ImageContent$1,
+	AudioContent$1,
+	/* @__PURE__ */ Struct({
+		...Resource$1.fields,
+		type: /*#__PURE__*/ Literal("resource_link")
+	}),
+	EmbeddedResource$1
+]);
+const PromptMessage$1 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: ContentBlock$1
+});
+const Tool$1 = /*#__PURE__*/ Struct({
+	...Tool$2.fields,
+	icons: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Icon))
+});
+const CallToolResult$1 = /*#__PURE__*/ Struct({
+	...CallToolResult$2.fields,
+	content: /*#__PURE__*/ ArraySchema(ContentBlock$1)
+});
+var CallTool$1 = class extends (/*#__PURE__*/ make$8("tools/call", {
+	success: CallToolResult$1,
+	error: McpError$1,
+	payload: CallTool$2.payloadSchema
+})) {};
+const ToolUseContent$1 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("tool_use"),
+	id: String$2,
+	name: String$2,
+	input: UnknownObject$1,
+	_meta: Meta$1
+});
+const SamplingMessageContentBlock$1 = /*#__PURE__*/ Union([
+	TextContent$1,
+	ImageContent$1,
+	AudioContent$1,
+	ToolUseContent$1,
+	/* @__PURE__ */ Struct({
+		type: /*#__PURE__*/ Literal("tool_result"),
+		toolUseId: String$2,
+		content: /*#__PURE__*/ ArraySchema(ContentBlock$1),
+		structuredContent: /*#__PURE__*/ optional$1(UnknownObject$1),
+		isError: /*#__PURE__*/ optional$1(Boolean$1),
+		_meta: Meta$1
+	})
+]);
+const SamplingMessage$1 = /*#__PURE__*/ Struct({
+	role: Role$1,
+	content: /*#__PURE__*/ Union([SamplingMessageContentBlock$1, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock$1)]),
+	_meta: Meta$1
+});
+const ToolChoice$1 = /*#__PURE__*/ Struct({ mode: /*#__PURE__*/ optional$1(/*#__PURE__*/ Literals([
+	"auto",
+	"required",
+	"none"
+])) });
+const CreateMessageResult$1 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	...SamplingMessage$1.fields,
+	model: String$2,
+	stopReason: /*#__PURE__*/ optional$1(String$2)
+});
+var CreateMessage = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
+	success: CreateMessageResult$1,
+	error: McpError$1,
+	payload: {
+		...CreateMessage$1.payloadSchema.fields,
+		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$1),
+		maxTokens: Int,
+		tools: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Tool$1)),
+		toolChoice: /*#__PURE__*/ optional$1(ToolChoice$1)
+	}
+})) {};
+const Root$1 = /*#__PURE__*/ Struct({
+	...Root$2.fields,
+	_meta: Meta$1
+});
+const ListRootsResult$1 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	roots: /*#__PURE__*/ ArraySchema(Root$1)
+});
+var ListRoots = class extends (/*#__PURE__*/ make$8("roots/list", {
+	success: ListRootsResult$1,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
+})) {};
+const StringSchema$1 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("string"),
+	title: /*#__PURE__*/ optional$1(String$2),
+	description: /*#__PURE__*/ optional$1(String$2),
+	minLength: /*#__PURE__*/ optional$1(Int),
+	maxLength: /*#__PURE__*/ optional$1(Int),
+	format: /*#__PURE__*/ optional$1(/*#__PURE__*/ Literals([
+		"email",
+		"uri",
+		"date",
+		"date-time"
+	])),
+	default: /*#__PURE__*/ optional$1(String$2)
+});
+const NumberSchema$1 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literals(["number", "integer"]),
+	title: /*#__PURE__*/ optional$1(String$2),
+	description: /*#__PURE__*/ optional$1(String$2),
+	minimum: /*#__PURE__*/ optional$1(Finite),
+	maximum: /*#__PURE__*/ optional$1(Finite),
+	default: /*#__PURE__*/ optional$1(Finite)
+});
+const BooleanSchema$1 = /*#__PURE__*/ Struct({
+	type: /*#__PURE__*/ Literal("boolean"),
+	title: /*#__PURE__*/ optional$1(String$2),
+	description: /*#__PURE__*/ optional$1(String$2),
+	default: /*#__PURE__*/ optional$1(Boolean$1)
+});
+const EnumOption = /*#__PURE__*/ Struct({
+	const: String$2,
+	title: String$2
+});
+const RequestedSchema$1 = /*#__PURE__*/ Struct({
+	$schema: /*#__PURE__*/ optional$1(String$2),
+	type: /*#__PURE__*/ Literal("object"),
+	properties: /*#__PURE__*/ Record(String$2, /* @__PURE__ */ Union([
+		/* @__PURE__ */ Union([
+			/* @__PURE__ */ Struct({
+				type: /*#__PURE__*/ Literal("string"),
+				title: /*#__PURE__*/ optional$1(String$2),
+				description: /*#__PURE__*/ optional$1(String$2),
+				enum: /*#__PURE__*/ ArraySchema(String$2),
+				enumNames: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2)),
+				default: /*#__PURE__*/ optional$1(String$2)
+			}),
+			/* @__PURE__ */ Union([/* @__PURE__ */ Struct({
+				type: /*#__PURE__*/ Literal("string"),
+				title: /*#__PURE__*/ optional$1(String$2),
+				description: /*#__PURE__*/ optional$1(String$2),
+				enum: /*#__PURE__*/ ArraySchema(String$2),
+				default: /*#__PURE__*/ optional$1(String$2)
+			}), /* @__PURE__ */ Struct({
+				type: /*#__PURE__*/ Literal("string"),
+				title: /*#__PURE__*/ optional$1(String$2),
+				description: /*#__PURE__*/ optional$1(String$2),
+				oneOf: /*#__PURE__*/ ArraySchema(EnumOption),
+				default: /*#__PURE__*/ optional$1(String$2)
+			})]),
+			/* @__PURE__ */ Union([/* @__PURE__ */ Struct({
+				type: /*#__PURE__*/ Literal("array"),
+				title: /*#__PURE__*/ optional$1(String$2),
+				description: /*#__PURE__*/ optional$1(String$2),
+				minItems: /*#__PURE__*/ optional$1(Int),
+				maxItems: /*#__PURE__*/ optional$1(Int),
+				items: /*#__PURE__*/ Struct({
+					type: /*#__PURE__*/ Literal("string"),
+					enum: /*#__PURE__*/ ArraySchema(String$2)
+				}),
+				default: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
+			}), /* @__PURE__ */ Struct({
+				type: /*#__PURE__*/ Literal("array"),
+				title: /*#__PURE__*/ optional$1(String$2),
+				description: /*#__PURE__*/ optional$1(String$2),
+				minItems: /*#__PURE__*/ optional$1(Int),
+				maxItems: /*#__PURE__*/ optional$1(Int),
+				items: /*#__PURE__*/ Struct({ anyOf: /*#__PURE__*/ ArraySchema(EnumOption) }),
+				default: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
+			})])
+		]),
+		StringSchema$1,
+		NumberSchema$1,
+		BooleanSchema$1
+	])),
+	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
+});
+const ElicitRequestParams$1 = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
+	...RequestMeta.fields,
+	mode: /*#__PURE__*/ optional$1(/*#__PURE__*/ Literal("form")),
+	message: String$2,
+	requestedSchema: RequestedSchema$1
+}), /* @__PURE__ */ Struct({
+	...RequestMeta.fields,
+	mode: /*#__PURE__*/ Literal("url"),
+	message: String$2,
+	elicitationId: String$2,
+	url: String$2
+})]);
+const ElicitResult$1 = /*#__PURE__*/ Struct({
+	...ResultMeta$1.fields,
+	action: /*#__PURE__*/ Literals([
+		"accept",
+		"decline",
+		"cancel"
+	]),
+	content: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
+		String$2,
+		Finite,
+		Boolean$1,
+		/*#__PURE__*/ ArraySchema(String$2)
+	])))
+});
+var Elicit = class extends (/*#__PURE__*/ make$8("elicitation/create", {
+	success: ElicitResult$1,
+	error: McpError$1,
+	payload: ElicitRequestParams$1
+})) {};
+var ElicitationCompleteNotification = class extends (/*#__PURE__*/ make$8("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
+const InitializeResult = /*#__PURE__*/ Struct({
+	...InitializeResult$1.fields,
+	serverInfo: Implementation$1
+});
+var Initialize = class extends (/*#__PURE__*/ make$8("initialize", {
+	success: InitializeResult,
+	error: McpError$1,
+	payload: {
+		...Initialize$1.payloadSchema.fields,
+		capabilities: ClientCapabilities$1,
+		clientInfo: Implementation$1
+	}
+})) {};
+const ListResourcesResult$1 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	resources: /*#__PURE__*/ ArraySchema(Resource$1)
+});
+const ListResourceTemplatesResult$1 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$1)
+});
+const ListPromptsResult$1 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	prompts: /*#__PURE__*/ ArraySchema(Prompt$1)
+});
+const GetPromptResult$1 = /*#__PURE__*/ Struct({
+	...GetPromptResult$2.fields,
+	messages: /*#__PURE__*/ ArraySchema(PromptMessage$1)
+});
+const ListToolsResult$1 = /*#__PURE__*/ Struct({
+	...PaginatedResult$1.fields,
+	tools: /*#__PURE__*/ ArraySchema(Tool$1)
+});
+var ListResources = class extends (/*#__PURE__*/ make$8("resources/list", {
+	success: ListResourcesResult$1,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ListResourceTemplates = class extends (/*#__PURE__*/ make$8("resources/templates/list", {
+	success: ListResourceTemplatesResult$1,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ListPrompts = class extends (/*#__PURE__*/ make$8("prompts/list", {
+	success: ListPromptsResult$1,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var GetPrompt$1 = class extends (/*#__PURE__*/ make$8("prompts/get", {
+	success: GetPromptResult$1,
+	error: McpError$1,
+	payload: {
+		...RequestMeta.fields,
+		name: String$2,
+		arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, String$2))
+	}
+})) {};
+var ListTools = class extends (/*#__PURE__*/ make$8("tools/list", {
+	success: ListToolsResult$1,
+	error: McpError$1,
+	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
+})) {};
+var ClientRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, Initialize, Complete$1, SetLevel, GetPrompt$1, ListPrompts, ListResources, ListResourceTemplates, ReadResource$1, Subscribe, Unsubscribe, CallTool$1, ListTools)) {};
+var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
+var ServerRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage, ListRoots, Elicit)) {};
+var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification$1, ProgressNotification$1, LoggingMessageNotification$1, ResourceUpdatedNotification$1, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpSchema/v2026_07_28.js
+const optional = optional$4;
+const UnknownObject = UnknownObject$4;
+const Meta = /*#__PURE__*/ optional(UnknownObject);
+const RequestId = /*#__PURE__*/ Union([String$2, Int]);
+const ProgressToken = RequestId;
+const Role = Role$1;
+const LoggingLevel = LoggingLevel$1;
+const Implementation = Implementation$1;
+const RequestParams = /*#__PURE__*/ Struct({ _meta: /* @__PURE__ */ StructWithRest(/*#__PURE__*/ Struct({
+	progressToken: /*#__PURE__*/ optional(ProgressToken),
+	"io.modelcontextprotocol/protocolVersion": String$2,
+	"io.modelcontextprotocol/clientInfo": /*#__PURE__*/ optional(Implementation),
+	"io.modelcontextprotocol/clientCapabilities": /* @__PURE__ */ StructWithRest(/*#__PURE__*/ Struct({
+		experimental: /*#__PURE__*/ optional(/*#__PURE__*/ Record(String$2, UnknownObject)),
+		roots: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({})),
+		sampling: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
+			context: /*#__PURE__*/ optional(UnknownObject),
+			tools: /*#__PURE__*/ optional(UnknownObject)
+		})),
+		elicitation: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
+			form: /*#__PURE__*/ optional(UnknownObject),
+			url: /*#__PURE__*/ optional(UnknownObject)
+		})),
+		extensions: /*#__PURE__*/ optional(/*#__PURE__*/ Record(String$2, UnknownObject))
+	}), [UnknownObject]),
+	"io.modelcontextprotocol/logLevel": /*#__PURE__*/ optional(LoggingLevel)
+}), [UnknownObject]) });
+const NotificationParams = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional(/* @__PURE__ */ StructWithRest(/*#__PURE__*/ Struct({ "io.modelcontextprotocol/subscriptionId": /*#__PURE__*/ optional(RequestId) }), [UnknownObject])) });
+const ResultMetaObject = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ "io.modelcontextprotocol/serverInfo": /*#__PURE__*/ optional(Implementation) }), [UnknownObject]);
+const ResultMeta = {
+	_meta: /*#__PURE__*/ optional(ResultMetaObject),
+	resultType: /*#__PURE__*/ Literal("complete")
+};
+const Annotations = Annotations$1;
+const Resource = /*#__PURE__*/ Struct({
+	...Resource$1.fields,
+	size: /*#__PURE__*/ optional(Int),
+	annotations: /*#__PURE__*/ optional(Annotations)
+});
+const TextContent = TextContent$1;
+const ImageContent = ImageContent$1;
+const AudioContent = AudioContent$1;
+const ContentBlock = /*#__PURE__*/ Union([
+	TextContent,
+	ImageContent,
+	AudioContent,
+	/* @__PURE__ */ Struct({
+		...Resource.fields,
+		type: /*#__PURE__*/ Literal("resource_link")
+	}),
+	EmbeddedResource$1
+]);
+({ ...Tool$1.fields });
+const SamplingMessageContentBlock = /*#__PURE__*/ Union([
+	TextContent,
+	ImageContent,
+	AudioContent,
+	ToolUseContent$1,
+	/* @__PURE__ */ Struct({
+		type: /*#__PURE__*/ Literal("tool_result"),
+		toolUseId: String$2,
+		content: /*#__PURE__*/ ArraySchema(ContentBlock),
+		structuredContent: /*#__PURE__*/ optional(Unknown),
+		isError: /*#__PURE__*/ optional(Boolean$1),
+		_meta: Meta
+	})
+]);
+const SamplingMessage = /*#__PURE__*/ Struct({
+	role: Role,
+	content: /*#__PURE__*/ Union([SamplingMessageContentBlock, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock)]),
+	_meta: Meta
+});
+({ ...ModelPreferences$1.fields });
+const InputResponses = /*#__PURE__*/ Record(String$2, /* @__PURE__ */ Union([
+	/* @__PURE__ */ Struct({
+		...SamplingMessage.fields,
+		model: String$2,
+		stopReason: /*#__PURE__*/ optional(String$2)
+	}),
+	/* @__PURE__ */ Struct({ roots: /*#__PURE__*/ ArraySchema(Root$1) }),
+	/* @__PURE__ */ Struct({
+		action: /*#__PURE__*/ Literals([
+			"accept",
+			"decline",
+			"cancel"
+		]),
+		content: /*#__PURE__*/ optional(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
+			String$2,
+			Finite,
+			Boolean$1,
+			/*#__PURE__*/ ArraySchema(String$2)
+		])))
+	})
+]));
+const InputRequiredResultMeta = {
+	_meta: /*#__PURE__*/ optional(ResultMetaObject),
+	resultType: /*#__PURE__*/ Literal("input_required")
+};
+({ ...InputRequiredResultMeta }), { ...InputRequiredResultMeta };
+const InputResponseRequestParams = {
+	...RequestParams.fields,
+	inputResponses: /*#__PURE__*/ optional(InputResponses),
+	requestState: /*#__PURE__*/ optional(String$2)
+};
+const CacheableResult = {
+	...ResultMeta,
+	ttlMs: /*#__PURE__*/ Int.check(/*#__PURE__*/ isGreaterThanOrEqualTo$1(0)),
+	cacheScope: /*#__PURE__*/ Literals(["public", "private"])
+};
+const PaginatedRequestParams = {
+	...RequestParams.fields,
+	cursor: /*#__PURE__*/ optional(String$2)
+};
+const PaginatedResult = {
+	...ResultMeta,
+	nextCursor: /*#__PURE__*/ optional(String$2)
+};
+({ ...CacheableResult });
+({
+	...PaginatedResult,
+	...CacheableResult
+});
+({
+	...PaginatedResult,
+	...CacheableResult
+});
+({ ...CacheableResult });
+({ ...InputResponseRequestParams });
+({
+	...PaginatedResult,
+	...CacheableResult
+});
+({ ...ResultMeta });
+({ ...InputResponseRequestParams });
+({
+	...PaginatedResult,
+	...CacheableResult
+});
+({ ...ResultMeta });
+({ ...InputResponseRequestParams });
+({ ...ResultMeta });
+({ ...RequestParams.fields });
+({ ...RequestParams.fields });
+({ ...NotificationParams.fields });
+({ ...NotificationParams.fields });
+({ ...NotificationParams.fields });
+({ ...NotificationParams.fields });
+({ ...NotificationParams.fields });
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpSkills.js
+const EXTENSION_ID = "io.modelcontextprotocol/skills";
+SkillResource.fields;
+({
+	...PaginatedResult,
+	...CacheableResult
+});
+({ ...CacheableResult });
+({ ...RequestParams.fields });
+({
+	...PaginatedResult,
+	...CacheableResult
+});
+({ ...PaginatedRequestParams });
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpProtocolRegistry.js
 const prefix = (protocol) => `@effect/mcp/${encodeURIComponent(protocol.protocolVersion)}/`;
 const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 	if (protocols.length === 0) return yield* new IllegalArgumentError("MCP protocol declaration must contain at least one MCP protocol");
@@ -21678,6 +24019,10 @@ const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 		clientRpcs,
 		select: (offeredVersion) => byVersion.get(offeredVersion) ?? snapshot[0],
 		protocolForInternalTag: (tag) => snapshot.find((protocol) => tag.startsWith(prefix(protocol))) ?? snapshot[0],
+		methodForInternalTag: (tag) => {
+			const protocol = snapshot.find((protocol) => tag.startsWith(prefix(protocol)));
+			return protocol === void 0 ? tag : tag.slice(prefix(protocol).length);
+		},
 		routeClientRequest: (protocol, request) => ({
 			...request,
 			tag: `${prefix(protocol)}${request.tag}`
@@ -21696,13 +24041,14 @@ const make$3 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 		})
 	};
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpStatefulRuntime.js
 const MCP_SESSION_ID_HEADER$2 = "mcp-session-id";
 const makeSession = (registration) => ({
 	initializePayload: registration.initializePayload,
 	negotiatedProfile: registration.negotiatedProfile,
 	protocol: registration.protocol,
 	resourceSubscriptions: registration.supportsResourceSubscriptions ? /* @__PURE__ */ new Set() : void 0,
+	listChangeRevision: registration.listChangeRevision,
 	logLevel: {
 		_tag: "Effect",
 		level: registration.logLevel
@@ -21758,8 +24104,9 @@ const make$2 = () => {
 			return sync(() => subscriptions.delete(uri)).pipe(asVoid);
 		},
 		effectLogLevel,
-		canDeliver: (clientId, headers, notification, fallbackLogLevel) => {
+		canDeliver: (clientId, headers, notification, fallbackLogLevel, listChangeRevision) => {
 			const session = resolveSession(clientId, headers);
+			if (listChangeRevision !== void 0) return session !== void 0 && listChangeRevision > session.listChangeRevision;
 			if (notification._tag === "LoggingMessage") {
 				const minimum = session?.logLevel;
 				return minimum?._tag === "Mcp" ? mcpLogLevels[notification.level].order >= mcpLogLevels[minimum.level].order : isGreaterThanOrEqualTo(mcpLogLevels[notification.level].effect, minimum?.level ?? fallbackLogLevel);
@@ -21776,7 +24123,7 @@ const make$2 = () => {
 		}
 	};
 };
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpRuntime.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpRuntime.js
 const MCP_SESSION_ID_HEADER$1 = "mcp-session-id";
 const MCP_PROTOCOL_VERSION_HEADER$1 = "mcp-protocol-version";
 const MCP_METHOD_HEADER = "mcp-method";
@@ -21914,6 +24261,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 		clientRpcs: registry.clientRpcs,
 		selectProtocol: registry.select,
 		protocolForInternalTag: registry.protocolForInternalTag,
+		methodForInternalTag: registry.methodForInternalTag,
 		routeClientRequest: registry.routeClientRequest,
 		prepareRequest: fnUntraced(function* (clientId, headers, request) {
 			const metadata = asRecord(request.payload)?._meta;
@@ -22027,12 +24375,13 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 			sessionTerminationListeners.delete(listener);
 		})),
 		deliveryClientIds: () => stateful?.initializedClientIds() ?? [],
-		canDeliver: (clientId, headers, notification, fallback) => stateful?.canDeliver(clientId, headers, notification, fallback) ?? true,
+		canDeliver: (clientId, headers, notification, fallback, listChangeRevision) => stateful?.canDeliver(clientId, headers, notification, fallback, listChangeRevision) ?? true,
 		installHandlers: fnUntraced(function* (options) {
 			const contextMap = /* @__PURE__ */ new Map();
 			const installationContext = {
 				subscribeServerNotifications: options.subscribeServerNotifications,
 				getListChangeRevision: options.getListChangeRevision,
+				awaitClientEnd: options.awaitClientEnd,
 				...options.sendNotification === void 0 ? {} : { sendNotification: options.sendNotification },
 				...options.markSubscriptionCancelled === void 0 ? {} : { markSubscriptionCancelled: options.markSubscriptionCancelled },
 				...options.terminateSubscription === void 0 ? {} : { terminateSubscription: options.terminateSubscription },
@@ -22041,6 +24390,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 				registrationPresence: options.core.registrationPresence
 			};
 			const handlerTarget = registry.handlerTarget(contextMap, installationContext);
+			const sessionfulExtensions = options.serverInfo.extensions === void 0 ? void 0 : remove$3(options.serverInfo.extensions, EXTENSION_ID);
 			for (const protocol of registry.protocols) {
 				if (protocol.runtime._tag === "Stateless") {
 					yield* protocol.installHandlers(options.core, void 0, handlerTarget);
@@ -22061,9 +24411,9 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 									listChanged: true,
 									subscribe: httpRequest === void 0
 								} } : {},
-								...presence.prompts ? { prompts: { listChanged: true } } : {},
-								...options.serverInfo.extensions ? { extensions: options.serverInfo.extensions } : {}
+								...presence.prompts ? { prompts: { listChanged: true } } : {}
 							};
+							if (sessionfulExtensions !== void 0) capabilities.extensions = sessionfulExtensions;
 							const registration = {
 								initializePayload: Initialize$4.payloadSchema.make({
 									protocolVersion,
@@ -22074,10 +24424,11 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 								negotiatedProfile: profile,
 								protocol,
 								supportsResourceSubscriptions: httpRequest === void 0 && capabilities.resources?.subscribe === true,
-								logLevel: options.defaultLogLevel
+								logLevel: options.defaultLogLevel,
+								listChangeRevision: options.getListChangeRevision?.() ?? 0
 							};
 							if (httpRequest !== void 0) {
-								const sessionId = crypto.randomUUID();
+								const sessionId = uuidV4Unsafe();
 								stateful.registerHttp(sessionId, registration);
 								appendPreResponseHandlerUnsafe(fiber.context, (_request, response) => succeed$3(setHeaders(response, {
 									[MCP_SESSION_ID_HEADER$1]: sessionId,
@@ -22087,7 +24438,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 							return succeed$3({
 								capabilities,
 								instructions: options.serverInfo.instructions,
-								serverInfo: Implementation$3.make({
+								serverInfo: Implementation$4.make({
 									name: options.serverInfo.name,
 									version: options.serverInfo.version,
 									description: options.serverInfo.description,
@@ -22111,394 +24462,13 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 	});
 });
 const layer$2 = (protocols) => effect(ServerRuntime)(make$1(protocols));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2024_11_05.js
-const protocolVersion$3 = "2024-11-05";
-const optional$3 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$5(schema)), {
-	decode: passthrough$1(),
-	encode: transformOptional(flatMap$4(fromUndefinedOr))
-}));
-const UnknownObject$3 = /*#__PURE__*/ Record(String$2, Unknown);
-const RequestId = /*#__PURE__*/ Union([String$2, Finite]);
-const ProgressToken = /*#__PURE__*/ Union([String$2, Finite]);
-const Role = /*#__PURE__*/ Literals(["user", "assistant"]);
-const LoggingLevel = /*#__PURE__*/ Literals([
-	"debug",
-	"info",
-	"notice",
-	"warning",
-	"error",
-	"critical",
-	"alert",
-	"emergency"
-]);
-const RequestMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(/*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({ progressToken: /*#__PURE__*/ optional$3(ProgressToken) }), [UnknownObject$3])) });
-const NotificationMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(UnknownObject$3) });
-const ResultMeta = /*#__PURE__*/ Struct({ _meta: /*#__PURE__*/ optional$3(UnknownObject$3) });
-const PaginatedRequest = /*#__PURE__*/ Struct({
-	...RequestMeta.fields,
-	cursor: /*#__PURE__*/ optional$3(String$2)
-});
-const PaginatedResult = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	nextCursor: /*#__PURE__*/ optional$3(String$2)
-});
-const Implementation$2 = /*#__PURE__*/ Struct({
-	name: String$2,
-	version: String$2
-});
-const ClientCapabilities$2 = /*#__PURE__*/ Struct({
-	extensions: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
-		String$2,
-		"/",
-		String$2
-	]), Unknown)),
-	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, UnknownObject$3)),
-	roots: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean$1) })),
-	sampling: /*#__PURE__*/ optional$3(UnknownObject$3)
-});
-const ServerCapabilities$2 = /*#__PURE__*/ Struct({
-	extensions: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(/*#__PURE__*/ TemplateLiteral([
-		String$2,
-		"/",
-		String$2
-	]), Unknown)),
-	experimental: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, UnknownObject$3)),
-	logging: /*#__PURE__*/ optional$3(UnknownObject$3),
-	prompts: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean$1) })),
-	resources: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({
-		subscribe: /*#__PURE__*/ optional$3(Boolean$1),
-		listChanged: /*#__PURE__*/ optional$3(Boolean$1)
-	})),
-	tools: /*#__PURE__*/ optional$3(/*#__PURE__*/ Struct({ listChanged: /*#__PURE__*/ optional$3(Boolean$1) }))
-});
-const McpError = /*#__PURE__*/ Struct({
-	code: Int,
-	message: String$2,
-	data: /*#__PURE__*/ optional$3(Any)
-});
-const Annotation = /*#__PURE__*/ Struct({
-	audience: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(Role)),
-	priority: /*#__PURE__*/ optional$3(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
-		minimum: 0,
-		maximum: 1
-	})))
-});
-const TextResourceContents$1 = /*#__PURE__*/ Struct({
-	uri: String$2,
-	mimeType: /*#__PURE__*/ optional$3(String$2),
-	text: String$2
-});
-const BlobResourceContents$1 = /*#__PURE__*/ Struct({
-	uri: String$2,
-	mimeType: /*#__PURE__*/ optional$3(String$2),
-	blob: String$2
-});
-const ResourceContents$1 = /*#__PURE__*/ Union([TextResourceContents$1, BlobResourceContents$1]);
-const TextContent$2 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("text"),
-	text: String$2,
-	annotations: /*#__PURE__*/ optional$3(Annotation)
-});
-const ImageContent$2 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("image"),
-	data: String$2,
-	mimeType: String$2,
-	annotations: /*#__PURE__*/ optional$3(Annotation)
-});
-const EmbeddedResource$2 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("resource"),
-	resource: ResourceContents$1,
-	annotations: /*#__PURE__*/ optional$3(Annotation)
-});
-const PromptOrToolContent$1 = /*#__PURE__*/ Union([
-	TextContent$2,
-	ImageContent$2,
-	EmbeddedResource$2
-]);
-const SamplingContent$2 = /*#__PURE__*/ Union([TextContent$2, ImageContent$2]);
-const Resource$2 = /*#__PURE__*/ Struct({
-	uri: String$2,
-	name: String$2,
-	description: /*#__PURE__*/ optional$3(String$2),
-	mimeType: /*#__PURE__*/ optional$3(String$2),
-	size: /*#__PURE__*/ optional$3(Finite),
-	annotations: /*#__PURE__*/ optional$3(Annotation)
-});
-const ResourceTemplate$2 = /*#__PURE__*/ Struct({
-	uriTemplate: String$2,
-	name: String$2,
-	description: /*#__PURE__*/ optional$3(String$2),
-	mimeType: /*#__PURE__*/ optional$3(String$2),
-	annotations: /*#__PURE__*/ optional$3(Annotation)
-});
-const PromptArgument$1 = /*#__PURE__*/ Struct({
-	name: String$2,
-	description: /*#__PURE__*/ optional$3(String$2),
-	required: /*#__PURE__*/ optional$3(Boolean$1)
-});
-const Prompt$2 = /*#__PURE__*/ Struct({
-	name: String$2,
-	description: /*#__PURE__*/ optional$3(String$2),
-	arguments: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(PromptArgument$1))
-});
-const PromptMessage$3 = /*#__PURE__*/ Struct({
-	role: Role,
-	content: PromptOrToolContent$1
-});
-const Tool$3 = /*#__PURE__*/ Struct({
-	name: String$2,
-	description: /*#__PURE__*/ optional$3(String$2),
-	inputSchema: /* @__PURE__ */ Struct({
-		type: /*#__PURE__*/ Literal("object"),
-		properties: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, UnknownObject$3)),
-		required: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(String$2))
-	})
-});
-const ModelPreferences = /*#__PURE__*/ Struct({
-	hints: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(/* @__PURE__ */ Struct({ name: /*#__PURE__*/ optional$3(String$2) }))),
-	costPriority: /*#__PURE__*/ optional$3(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
-		minimum: 0,
-		maximum: 1
-	}))),
-	speedPriority: /*#__PURE__*/ optional$3(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
-		minimum: 0,
-		maximum: 1
-	}))),
-	intelligencePriority: /*#__PURE__*/ optional$3(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
-		minimum: 0,
-		maximum: 1
-	})))
-});
-const SamplingMessage$3 = /*#__PURE__*/ Struct({
-	role: Role,
-	content: SamplingContent$2
-});
-const ResourceReference = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("ref/resource"),
-	uri: String$2
-});
-const PromptReference$1 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("ref/prompt"),
-	name: String$2
-});
-const Root$1 = /*#__PURE__*/ Struct({
-	uri: String$2,
-	name: /*#__PURE__*/ optional$3(String$2)
-});
-const InitializeResult$3 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	protocolVersion: String$2,
-	capabilities: ServerCapabilities$2,
-	serverInfo: Implementation$2,
-	instructions: /*#__PURE__*/ optional$3(String$2)
-});
-const ListResourcesResult$2 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	resources: /*#__PURE__*/ ArraySchema(Resource$2)
-});
-const ListResourceTemplatesResult$2 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$2)
-});
-const ReadResourceResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	contents: /*#__PURE__*/ ArraySchema(ResourceContents$1)
-});
-const ListPromptsResult$2 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	prompts: /*#__PURE__*/ ArraySchema(Prompt$2)
-});
-const GetPromptResult$3 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	description: /*#__PURE__*/ optional$3(String$2),
-	messages: /*#__PURE__*/ ArraySchema(PromptMessage$3)
-});
-const ListToolsResult$3 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	tools: /*#__PURE__*/ ArraySchema(Tool$3)
-});
-const CallToolResult$3 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	content: /*#__PURE__*/ ArraySchema(PromptOrToolContent$1),
-	isError: /*#__PURE__*/ optional$3(Boolean$1)
-});
-const CreateMessageResult$3 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	role: Role,
-	content: SamplingContent$2,
-	model: String$2,
-	stopReason: /*#__PURE__*/ optional$3(String$2)
-});
-const CompleteResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	completion: /*#__PURE__*/ Struct({
-		values: /*#__PURE__*/ ArraySchema(String$2),
-		total: /*#__PURE__*/ optional$3(Finite),
-		hasMore: /*#__PURE__*/ optional$3(Boolean$1)
-	})
-});
-const ListRootsResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	roots: /*#__PURE__*/ ArraySchema(Root$1)
-});
-var Ping = class extends (/*#__PURE__*/ make$8("ping", {
-	success: ResultMeta,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
-})) {};
-var Initialize$3 = class extends (/*#__PURE__*/ make$8("initialize", {
-	success: InitializeResult$3,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		protocolVersion: String$2,
-		capabilities: ClientCapabilities$2,
-		clientInfo: Implementation$2
-	}
-})) {};
-var Complete$1 = class extends (/*#__PURE__*/ make$8("completion/complete", {
-	success: CompleteResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		ref: /*#__PURE__*/ Union([PromptReference$1, ResourceReference]),
-		argument: /*#__PURE__*/ Struct({
-			name: String$2,
-			value: String$2
-		})
-	}
-})) {};
-var SetLevel = class extends (/*#__PURE__*/ make$8("logging/setLevel", {
-	success: ResultMeta,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		level: LoggingLevel
-	}
-})) {};
-var GetPrompt$3 = class extends (/*#__PURE__*/ make$8("prompts/get", {
-	success: GetPromptResult$3,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional$3(/*#__PURE__*/ Record(String$2, String$2))
-	}
-})) {};
-var ListPrompts$2 = class extends (/*#__PURE__*/ make$8("prompts/list", {
-	success: ListPromptsResult$2,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ListResources$2 = class extends (/*#__PURE__*/ make$8("resources/list", {
-	success: ListResourcesResult$2,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ListResourceTemplates$2 = class extends (/*#__PURE__*/ make$8("resources/templates/list", {
-	success: ListResourceTemplatesResult$2,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ReadResource$1 = class extends (/*#__PURE__*/ make$8("resources/read", {
-	success: ReadResourceResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		uri: String$2
-	}
-})) {};
-var Subscribe = class extends (/*#__PURE__*/ make$8("resources/subscribe", {
-	success: ResultMeta,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		uri: String$2
-	}
-})) {};
-var Unsubscribe = class extends (/*#__PURE__*/ make$8("resources/unsubscribe", {
-	success: ResultMeta,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		uri: String$2
-	}
-})) {};
-var CallTool$3 = class extends (/*#__PURE__*/ make$8("tools/call", {
-	success: CallToolResult$3,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional$3(UnknownObject$3)
-	}
-})) {};
-var ListTools$3 = class extends (/*#__PURE__*/ make$8("tools/list", {
-	success: ListToolsResult$3,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var CreateMessage$3 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
-	success: CreateMessageResult$3,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$3),
-		modelPreferences: /*#__PURE__*/ optional$3(ModelPreferences),
-		systemPrompt: /*#__PURE__*/ optional$3(String$2),
-		includeContext: /*#__PURE__*/ optional$3(/*#__PURE__*/ Literals([
-			"none",
-			"thisServer",
-			"allServers"
-		])),
-		temperature: /*#__PURE__*/ optional$3(Finite),
-		maxTokens: Finite,
-		stopSequences: /*#__PURE__*/ optional$3(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$3(UnknownObject$3)
-	}
-})) {};
-var ListRoots$1 = class extends (/*#__PURE__*/ make$8("roots/list", {
-	success: ListRootsResult$1,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
-})) {};
-var CancelledNotification = class extends (/*#__PURE__*/ make$8("notifications/cancelled", { payload: {
-	...NotificationMeta.fields,
-	requestId: RequestId,
-	reason: /*#__PURE__*/ optional$3(String$2)
-} })) {};
-var ProgressNotification$1 = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
-	...NotificationMeta.fields,
-	progressToken: ProgressToken,
-	progress: Finite,
-	total: /*#__PURE__*/ optional$3(Finite)
-} })) {};
-var InitializedNotification = class extends (/*#__PURE__*/ make$8("notifications/initialized", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var RootsListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/roots/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var LoggingMessageNotification = class extends (/*#__PURE__*/ make$8("notifications/message", { payload: {
-	...NotificationMeta.fields,
-	level: LoggingLevel,
-	logger: /*#__PURE__*/ optional$3(String$2),
-	data: Any
-} })) {};
-var ResourceUpdatedNotification = class extends (/*#__PURE__*/ make$8("notifications/resources/updated", { payload: {
-	...NotificationMeta.fields,
-	uri: String$2
-} })) {};
-var ResourceListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/resources/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var ToolListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/tools/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var PromptListChangedNotification = class extends (/*#__PURE__*/ make$8("notifications/prompts/list_changed", { payload: /*#__PURE__*/ UndefinedOr(NotificationMeta) })) {};
-var ClientRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$3, Complete$1, SetLevel, GetPrompt$3, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$3, ListTools$3)) {};
-var ClientNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification$1, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$3 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$3, ListRoots$1)) {};
-var ServerNotificationRpcs$3 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification$1, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpProtocol/v2024_11_05.js
 const ClientRpcs$3 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$3.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$3);
 const AdapterRpcs$3 = /*#__PURE__*/ ClientRpcs$3.omit("ping");
 const profileFromInitialize$2 = (initialize) => ({
 	protocolVersion: protocolVersion$3,
-	clientCapabilities: ClientCapabilities$3.make(initialize.capabilities),
-	clientInfo: Implementation$3.make(initialize.clientInfo),
+	clientCapabilities: ClientCapabilities$4.make(initialize.capabilities),
+	clientInfo: Implementation$4.make(initialize.clientInfo),
 	requestMetadata: initialize._meta
 });
 const unsupported$3 = (operation, reason) => new McpReverseOperationUnsupported({
@@ -22519,14 +24489,14 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 	const projected = value(content).pipe(when({ type: "text" }, (content) => ({
 		...content,
 		annotations: content.annotations
-	})), when({ type: "image" }, (content) => ImageContent$2.make({
+	})), when({ type: "image" }, (content) => ImageContent$3.make({
 		type: "image",
 		mimeType: content.mimeType,
 		data: encode$1(content.data),
 		annotations: content.annotations
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
-		if ("text" in resource) return EmbeddedResource$2.make({
+		if ("text" in resource) return EmbeddedResource$3.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -22535,7 +24505,7 @@ const projectContent$3 = /*#__PURE__*/ fnUntraced(function* (content) {
 			},
 			annotations: content.annotations
 		});
-		return EmbeddedResource$2.make({
+		return EmbeddedResource$3.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -22578,12 +24548,12 @@ const protocol$3 = /*#__PURE__*/ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult$2.make({ resources }))),
-		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates }))),
+		"resources/list": (pageRequest) => listForClient(core.resources.list, pageRequest?.cursor).pipe(map$4((resources) => ListResourcesResult$3.make({ resources }))),
+		"resources/templates/list": (pageRequest) => listForClient(core.resources.listTemplates, pageRequest?.cursor).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$3.make({ resourceTemplates }))),
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return ReadResourceResult$1.make({
+			return ReadResourceResult$2.make({
 				contents: result.contents.map((content) => "text" in content ? {
 					uri: content.uri,
 					mimeType: content.mimeType,
@@ -22598,7 +24568,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult$2.make({ prompts: prompts.map((prompt) => ({
+		"prompts/list": (pageRequest) => listForClient(core.prompts.list, pageRequest?.cursor).pipe(map$4((prompts) => ListPromptsResult$3.make({ prompts: prompts.map((prompt) => ({
 			name: prompt.name,
 			description: prompt.description,
 			arguments: prompt.arguments?.map((argument) => ({
@@ -22619,7 +24589,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
-			return GetPromptResult$3.make({
+			return GetPromptResult$4.make({
 				description: result.description,
 				messages,
 				_meta: result._meta
@@ -22638,7 +24608,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 				argument: completeRequest.argument,
 				metadata: completeRequest._meta
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return CompleteResult$1.make({
+			return CompleteResult$2.make({
 				completion: {
 					values: Array.from(result.values),
 					total: result.total,
@@ -22647,9 +24617,8 @@ const protocol$3 = /*#__PURE__*/ make$4({
 				_meta: result.metadata
 			});
 		}),
-		"tools/list": fnUntraced(function* () {
-			const request = yield* McpServerClient;
-			return yield* core.tools.list(profileFromClient(request)).pipe(map$4((tools) => ListToolsResult$3.make({ tools: tools.map((tool) => Tool$3.make({
+		"tools/list": fnUntraced(function* (pageRequest) {
+			return yield* listForClient(core.tools.list, pageRequest?.cursor).pipe(map$4((tools) => ListToolsResult$4.make({ tools: tools.map((tool) => Tool$4.make({
 				name: tool.name,
 				description: tool.description,
 				inputSchema: projectLegacyToolInputSchema(tool.inputSchema)
@@ -22662,7 +24631,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 				arguments: call.arguments ?? {}
 			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion$3, outcome)), mapError$2(ProtocolError.fromTool));
 			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent$3).pipe(mapError$2(ProtocolError.fromTool));
-			return CallToolResult$3.make({
+			return CallToolResult$4.make({
 				content,
 				isError: result.isError,
 				_meta: result._meta
@@ -22674,7 +24643,7 @@ const protocol$3 = /*#__PURE__*/ make$4({
 			yield* requireCapability$3(profile, "roots/list", "roots");
 			const wireRequest = yield* transcode(ListRoots$2.payloadSchema, ListRoots$1.payloadSchema, request).pipe(mapError$2(() => unsupported$3("roots/list", "Request is not representable by this protocol")));
 			const { roots } = yield* client["roots/list"](wireRequest).pipe(mapError$2(reverseError("roots/list")));
-			return new ListRootsResult$2({ roots });
+			return new ListRootsResult$3({ roots });
 		}),
 		createMessage: fnUntraced(function* (request) {
 			yield* requireCapability$3(profile, "sampling/createMessage", "sampling");
@@ -22685,154 +24654,19 @@ const protocol$3 = /*#__PURE__*/ make$4({
 		elicit: () => fail$3(unsupported$3("elicitation/create", "Elicitation was introduced after this protocol revision"))
 	}),
 	projectNotification: (notification) => makeNotificationProjector({ supportsProgressMessage: false }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification$1.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
 	})))
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_03_26.js
-const protocolVersion$2 = "2025-03-26";
-const optional$2 = optional$3;
-const UnknownObject$2 = UnknownObject$3;
-const ServerCapabilities$1 = /*#__PURE__*/ Struct({
-	...ServerCapabilities$2.fields,
-	completions: /*#__PURE__*/ optional$2(/*#__PURE__*/ Struct({}))
-});
-const AudioContent$2 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("audio"),
-	data: String$2,
-	mimeType: String$2,
-	annotations: /*#__PURE__*/ optional$2(Annotation)
-});
-const PromptOrToolContent = /*#__PURE__*/ Union([
-	TextContent$2,
-	ImageContent$2,
-	AudioContent$2,
-	EmbeddedResource$2
-]);
-const SamplingContent$1 = /*#__PURE__*/ Union([
-	TextContent$2,
-	ImageContent$2,
-	AudioContent$2
-]);
-const PromptMessage$2 = /*#__PURE__*/ Struct({
-	role: Role,
-	content: PromptOrToolContent
-});
-const SamplingMessage$2 = /*#__PURE__*/ Struct({
-	role: Role,
-	content: SamplingContent$1
-});
-const ToolAnnotations = /*#__PURE__*/ Struct({
-	title: /*#__PURE__*/ optional$2(String$2),
-	readOnlyHint: /*#__PURE__*/ optional$2(Boolean$1),
-	destructiveHint: /*#__PURE__*/ optional$2(Boolean$1),
-	idempotentHint: /*#__PURE__*/ optional$2(Boolean$1),
-	openWorldHint: /*#__PURE__*/ optional$2(Boolean$1)
-});
-const Tool$2 = /*#__PURE__*/ Struct({
-	...Tool$3.fields,
-	annotations: /*#__PURE__*/ optional$2(ToolAnnotations)
-});
-const InitializeResult$2 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	protocolVersion: String$2,
-	capabilities: ServerCapabilities$1,
-	serverInfo: Implementation$2,
-	instructions: /*#__PURE__*/ optional$2(String$2)
-});
-const GetPromptResult$2 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	description: /*#__PURE__*/ optional$2(String$2),
-	messages: /*#__PURE__*/ ArraySchema(PromptMessage$2)
-});
-const ListToolsResult$2 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	tools: /*#__PURE__*/ ArraySchema(Tool$2)
-});
-const CallToolResult$2 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	content: /*#__PURE__*/ ArraySchema(PromptOrToolContent),
-	isError: /*#__PURE__*/ optional$2(Boolean$1)
-});
-const CreateMessageResult$2 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	role: Role,
-	content: SamplingContent$1,
-	model: String$2,
-	stopReason: /*#__PURE__*/ optional$2(String$2)
-});
-var Initialize$2 = class extends (/*#__PURE__*/ make$8("initialize", {
-	success: InitializeResult$2,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		protocolVersion: String$2,
-		capabilities: ClientCapabilities$2,
-		clientInfo: Implementation$2
-	}
-})) {};
-var GetPrompt$2 = class extends (/*#__PURE__*/ make$8("prompts/get", {
-	success: GetPromptResult$2,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional$2(/*#__PURE__*/ Record(String$2, String$2))
-	}
-})) {};
-var ListTools$2 = class extends (/*#__PURE__*/ make$8("tools/list", {
-	success: ListToolsResult$2,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var CallTool$2 = class extends (/*#__PURE__*/ make$8("tools/call", {
-	success: CallToolResult$2,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional$2(UnknownObject$2)
-	}
-})) {};
-var CreateMessage$2 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
-	success: CreateMessageResult$2,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$2),
-		modelPreferences: /*#__PURE__*/ optional$2(ModelPreferences),
-		systemPrompt: /*#__PURE__*/ optional$2(String$2),
-		includeContext: /*#__PURE__*/ optional$2(/*#__PURE__*/ Literals([
-			"none",
-			"thisServer",
-			"allServers"
-		])),
-		temperature: /*#__PURE__*/ optional$2(Finite),
-		maxTokens: Finite,
-		stopSequences: /*#__PURE__*/ optional$2(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$2(UnknownObject$2)
-	}
-})) {};
-var ProgressNotification = class extends (/*#__PURE__*/ make$8("notifications/progress", { payload: {
-	...NotificationMeta.fields,
-	progressToken: ProgressToken,
-	progress: Finite,
-	total: /*#__PURE__*/ optional$2(Finite),
-	message: /*#__PURE__*/ optional$2(String$2)
-} })) {};
-var ClientRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$2, Complete$1, SetLevel, GetPrompt$2, ListPrompts$2, ListResources$2, ListResourceTemplates$2, ReadResource$1, Subscribe, Unsubscribe, CallTool$2, ListTools$2)) {};
-var ClientNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$2 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$2, ListRoots$1)) {};
-var ServerNotificationRpcs$2 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_03_26.js
 const ClientRpcs$2 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$2.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$2);
 const AdapterRpcs$2 = /*#__PURE__*/ ClientRpcs$2.omit("ping");
 const profileFromInitialize$1 = (initialize) => ({
 	protocolVersion: protocolVersion$2,
-	clientCapabilities: ClientCapabilities$3.make(initialize.capabilities),
-	clientInfo: Implementation$3.make(initialize.clientInfo),
+	clientCapabilities: ClientCapabilities$4.make(initialize.capabilities),
+	clientInfo: Implementation$4.make(initialize.clientInfo),
 	requestMetadata: initialize._meta
 });
 const unsupported$2 = (operation, reason) => new McpReverseOperationUnsupported({
@@ -22852,7 +24686,7 @@ const projectContent$2 = /*#__PURE__*/ fnUntraced(function* (content) {
 		annotations: content.annotations
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
-		if ("text" in resource) return EmbeddedResource$2.make({
+		if ("text" in resource) return EmbeddedResource$3.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -22861,7 +24695,7 @@ const projectContent$2 = /*#__PURE__*/ fnUntraced(function* (content) {
 			},
 			annotations: content.annotations
 		});
-		return EmbeddedResource$2.make({
+		return EmbeddedResource$3.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -22922,7 +24756,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult$2.make({ resources: resources.map((resource) => ({
+		"resources/list": (pageRequest) => listForClient(core.resources.list, pageRequest?.cursor).pipe(map$4((resources) => ListResourcesResult$3.make({ resources: resources.map((resource) => ({
 			uri: resource.uri,
 			name: resource.name,
 			description: resource.description,
@@ -22930,7 +24764,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 			size: resource.size,
 			annotations: resource.annotations
 		})) }))),
-		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates: resourceTemplates.map((template) => ({
+		"resources/templates/list": (pageRequest) => listForClient(core.resources.listTemplates, pageRequest?.cursor).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$3.make({ resourceTemplates: resourceTemplates.map((template) => ({
 			uriTemplate: template.uriTemplate,
 			name: template.name,
 			description: template.description,
@@ -22940,14 +24774,14 @@ const protocol$2 = /*#__PURE__*/ make$4({
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return ReadResourceResult$1.make({
+			return ReadResourceResult$2.make({
 				contents: result.contents.map(projectResourceContents$1),
 				_meta: result._meta
 			});
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult$2.make({ prompts: prompts.map((prompt) => ({
+		"prompts/list": (pageRequest) => listForClient(core.prompts.list, pageRequest?.cursor).pipe(map$4((prompts) => ListPromptsResult$3.make({ prompts: prompts.map((prompt) => ({
 			name: prompt.name,
 			description: prompt.description,
 			arguments: prompt.arguments?.map((argument) => ({
@@ -22968,7 +24802,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
-			return GetPromptResult$2.make({
+			return GetPromptResult$3.make({
 				description: result.description,
 				messages,
 				_meta: result._meta
@@ -22987,7 +24821,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 				argument: completeRequest.argument,
 				metadata: completeRequest._meta
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return CompleteResult$1.make({
+			return CompleteResult$2.make({
 				completion: {
 					values: Array.from(result.values),
 					total: result.total,
@@ -22996,14 +24830,13 @@ const protocol$2 = /*#__PURE__*/ make$4({
 				_meta: result.metadata
 			});
 		}),
-		"tools/list": fnUntraced(function* () {
-			const request = yield* McpServerClient;
-			const tools = yield* core.tools.list(profileFromClient(request));
-			return ListToolsResult$2.make({ tools: tools.map((tool) => Tool$2.make({
+		"tools/list": fnUntraced(function* (pageRequest) {
+			const tools = yield* listForClient(core.tools.list, pageRequest?.cursor);
+			return ListToolsResult$3.make({ tools: tools.map((tool) => Tool$3.make({
 				name: tool.name,
 				description: tool.description,
 				inputSchema: projectLegacyToolInputSchema(tool.inputSchema),
-				annotations: tool.title === void 0 && tool.annotations === void 0 ? void 0 : ToolAnnotations.make({
+				annotations: tool.title === void 0 && tool.annotations === void 0 ? void 0 : ToolAnnotations$1.make({
 					...tool.annotations,
 					title: tool.title
 				})
@@ -23016,7 +24849,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 				arguments: call.arguments ?? {}
 			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion$2, outcome)), mapError$2(ProtocolError.fromTool));
 			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent$2).pipe(mapError$2(ProtocolError.fromTool));
-			return CallToolResult$2.make({
+			return CallToolResult$3.make({
 				content,
 				isError: result.isError,
 				_meta: result._meta
@@ -23028,7 +24861,7 @@ const protocol$2 = /*#__PURE__*/ make$4({
 			yield* requireCapability$2(profile, "roots/list", "roots");
 			const wireRequest = yield* transcode(ListRoots$2.payloadSchema, ListRoots$1.payloadSchema, request).pipe(mapError$2(() => unsupported$2("roots/list", "Request is not representable by this protocol")));
 			const { roots } = yield* client["roots/list"](wireRequest).pipe(mapError$2(reverseError("roots/list")));
-			return new ListRootsResult$2({ roots });
+			return new ListRootsResult$3({ roots });
 		}),
 		createMessage: fnUntraced(function* (request) {
 			yield* requireCapability$2(profile, "sampling/createMessage", "sampling");
@@ -23039,330 +24872,13 @@ const protocol$2 = /*#__PURE__*/ make$4({
 		elicit: () => fail$3(unsupported$2("elicitation/create", "Elicitation was introduced after this protocol revision"))
 	}),
 	projectNotification: (notification) => makeNotificationProjector({ supportsProgressMessage: true }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification$1.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
 	})))
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_06_18.js
-const protocolVersion$1 = "2025-06-18";
-const optional$1 = optional$3;
-const UnknownObject$1 = UnknownObject$3;
-const Meta$1 = /*#__PURE__*/ optional$1(UnknownObject$1);
-const Implementation$1 = /*#__PURE__*/ Struct({
-	name: String$2,
-	title: /*#__PURE__*/ optional$1(String$2),
-	version: String$2
-});
-const ClientCapabilities$1 = /*#__PURE__*/ Struct({
-	...ClientCapabilities$2.fields,
-	elicitation: /*#__PURE__*/ optional$1(/*#__PURE__*/ Struct({}))
-});
-const Annotations$1 = /*#__PURE__*/ Struct({
-	audience: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(Role)),
-	priority: /*#__PURE__*/ optional$1(/*#__PURE__*/ Finite.check(/*#__PURE__*/ isBetween({
-		minimum: 0,
-		maximum: 1
-	})))
-});
-const Resource$1 = /*#__PURE__*/ Struct({
-	...Resource$2.fields,
-	title: /*#__PURE__*/ optional$1(String$2),
-	annotations: /*#__PURE__*/ optional$1(Annotations$1),
-	_meta: Meta$1
-});
-const ResourceTemplate$1 = /*#__PURE__*/ Struct({
-	...ResourceTemplate$2.fields,
-	title: /*#__PURE__*/ optional$1(String$2),
-	annotations: /*#__PURE__*/ optional$1(Annotations$1),
-	_meta: Meta$1
-});
-const ResourceContents = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
-	...TextResourceContents$1.fields,
-	_meta: Meta$1
-}), /* @__PURE__ */ Struct({
-	...BlobResourceContents$1.fields,
-	_meta: Meta$1
-})]);
-const PromptArgument = /*#__PURE__*/ Struct({
-	...PromptArgument$1.fields,
-	title: /*#__PURE__*/ optional$1(String$2)
-});
-const Prompt$1 = /*#__PURE__*/ Struct({
-	...Prompt$2.fields,
-	title: /*#__PURE__*/ optional$1(String$2),
-	arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(PromptArgument)),
-	_meta: Meta$1
-});
-const EmbeddedResource$1 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("resource"),
-	resource: ResourceContents,
-	annotations: /*#__PURE__*/ optional$1(Annotations$1),
-	_meta: Meta$1
-});
-const ResourceLink$1 = /*#__PURE__*/ Struct({
-	...Resource$1.fields,
-	type: /*#__PURE__*/ Literal("resource_link")
-});
-const TextContent$1 = /*#__PURE__*/ Struct({
-	...TextContent$2.fields,
-	annotations: /*#__PURE__*/ optional$1(Annotations$1),
-	_meta: Meta$1
-});
-const ImageContent$1 = /*#__PURE__*/ Struct({
-	...ImageContent$2.fields,
-	annotations: /*#__PURE__*/ optional$1(Annotations$1),
-	_meta: Meta$1
-});
-const AudioContent$1 = /*#__PURE__*/ Struct({
-	...AudioContent$2.fields,
-	annotations: /*#__PURE__*/ optional$1(Annotations$1),
-	_meta: Meta$1
-});
-const ContentBlock$1 = /*#__PURE__*/ Union([
-	TextContent$1,
-	ImageContent$1,
-	AudioContent$1,
-	EmbeddedResource$1,
-	ResourceLink$1
-]);
-const SamplingContent = /*#__PURE__*/ Union([
-	TextContent$1,
-	ImageContent$1,
-	AudioContent$1
-]);
-const PromptMessage$1 = /*#__PURE__*/ Struct({
-	role: Role,
-	content: ContentBlock$1
-});
-const SamplingMessage$1 = /*#__PURE__*/ Struct({
-	role: Role,
-	content: SamplingContent
-});
-const ServerCapabilities = /*#__PURE__*/ Struct({ ...ServerCapabilities$1.fields });
-const InitializeResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	protocolVersion: String$2,
-	capabilities: ServerCapabilities,
-	serverInfo: Implementation$1,
-	instructions: /*#__PURE__*/ optional$1(String$2)
-});
-var Initialize$1 = class extends (/*#__PURE__*/ make$8("initialize", {
-	success: InitializeResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		protocolVersion: String$2,
-		capabilities: ClientCapabilities$1,
-		clientInfo: Implementation$1
-	}
-})) {};
-const ToolJsonSchema = /*#__PURE__*/ StructWithRest(/*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([UnknownObject$1, Boolean$1]))),
-	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
-}), [UnknownObject$1]);
-const Tool$1 = /*#__PURE__*/ Struct({
-	name: String$2,
-	title: /*#__PURE__*/ optional$1(String$2),
-	description: /*#__PURE__*/ optional$1(String$2),
-	inputSchema: ToolJsonSchema,
-	outputSchema: /*#__PURE__*/ optional$1(ToolJsonSchema),
-	annotations: /*#__PURE__*/ optional$1(ToolAnnotations),
-	_meta: Meta$1
-});
-const CallToolResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	content: /*#__PURE__*/ ArraySchema(ContentBlock$1),
-	structuredContent: /*#__PURE__*/ optional$1(UnknownObject$1),
-	isError: /*#__PURE__*/ optional$1(Boolean$1)
-});
-const CreateMessageResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	role: Role,
-	content: SamplingContent,
-	model: String$2,
-	stopReason: /*#__PURE__*/ optional$1(String$2)
-});
-var CreateMessage$1 = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
-	success: CreateMessageResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		messages: /*#__PURE__*/ ArraySchema(SamplingMessage$1),
-		modelPreferences: /*#__PURE__*/ optional$1(ModelPreferences),
-		systemPrompt: /*#__PURE__*/ optional$1(String$2),
-		includeContext: /*#__PURE__*/ optional$1(/*#__PURE__*/ Literals([
-			"none",
-			"thisServer",
-			"allServers"
-		])),
-		temperature: /*#__PURE__*/ optional$1(Finite),
-		maxTokens: Finite,
-		stopSequences: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2)),
-		metadata: /*#__PURE__*/ optional$1(UnknownObject$1)
-	}
-})) {};
-const PromptReference = /*#__PURE__*/ Struct({
-	...PromptReference$1.fields,
-	title: /*#__PURE__*/ optional$1(String$2)
-});
-const ResourceTemplateReference = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("ref/resource"),
-	uri: String$2
-});
-const CompleteResult = CompleteResult$1;
-var Complete = class extends (/*#__PURE__*/ make$8("completion/complete", {
-	success: CompleteResult,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		ref: /*#__PURE__*/ Union([PromptReference, ResourceTemplateReference]),
-		argument: /*#__PURE__*/ Struct({
-			name: String$2,
-			value: String$2
-		}),
-		context: /*#__PURE__*/ optional$1(/*#__PURE__*/ Struct({ arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, String$2)) }))
-	}
-})) {};
-const ListResourcesResult$1 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	resources: /*#__PURE__*/ ArraySchema(Resource$1)
-});
-const ListResourceTemplatesResult$1 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate$1)
-});
-const ReadResourceResult = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	contents: /*#__PURE__*/ ArraySchema(ResourceContents)
-});
-const ListPromptsResult$1 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	prompts: /*#__PURE__*/ ArraySchema(Prompt$1)
-});
-const GetPromptResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	description: /*#__PURE__*/ optional$1(String$2),
-	messages: /*#__PURE__*/ ArraySchema(PromptMessage$1)
-});
-const ListToolsResult$1 = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	tools: /*#__PURE__*/ ArraySchema(Tool$1)
-});
-var ListResources$1 = class extends (/*#__PURE__*/ make$8("resources/list", {
-	success: ListResourcesResult$1,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ListResourceTemplates$1 = class extends (/*#__PURE__*/ make$8("resources/templates/list", {
-	success: ListResourceTemplatesResult$1,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ReadResource = class extends (/*#__PURE__*/ make$8("resources/read", {
-	success: ReadResourceResult,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		uri: String$2
-	}
-})) {};
-var ListPrompts$1 = class extends (/*#__PURE__*/ make$8("prompts/list", {
-	success: ListPromptsResult$1,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var GetPrompt$1 = class extends (/*#__PURE__*/ make$8("prompts/get", {
-	success: GetPromptResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, String$2))
-	}
-})) {};
-var ListTools$1 = class extends (/*#__PURE__*/ make$8("tools/list", {
-	success: ListToolsResult$1,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var CallTool$1 = class extends (/*#__PURE__*/ make$8("tools/call", {
-	success: CallToolResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional$1(UnknownObject$1)
-	}
-})) {};
-const ElicitResult$1 = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	action: /*#__PURE__*/ Literals([
-		"accept",
-		"decline",
-		"cancel"
-	]),
-	content: /*#__PURE__*/ optional$1(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
-		String$2,
-		Finite,
-		Boolean$1
-	])))
-});
-const RequestedSchema$1 = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
-		/* @__PURE__ */ Struct({
-			type: /*#__PURE__*/ Literal("string"),
-			title: /*#__PURE__*/ optional$1(String$2),
-			description: /*#__PURE__*/ optional$1(String$2),
-			minLength: /*#__PURE__*/ optional$1(Int),
-			maxLength: /*#__PURE__*/ optional$1(Int),
-			format: /*#__PURE__*/ optional$1(/*#__PURE__*/ Literals([
-				"email",
-				"uri",
-				"date",
-				"date-time"
-			]))
-		}),
-		/* @__PURE__ */ Struct({
-			type: /*#__PURE__*/ Literals(["number", "integer"]),
-			title: /*#__PURE__*/ optional$1(String$2),
-			description: /*#__PURE__*/ optional$1(String$2),
-			minimum: /*#__PURE__*/ optional$1(Finite),
-			maximum: /*#__PURE__*/ optional$1(Finite)
-		}),
-		/* @__PURE__ */ Struct({
-			type: /*#__PURE__*/ Literal("boolean"),
-			title: /*#__PURE__*/ optional$1(String$2),
-			description: /*#__PURE__*/ optional$1(String$2),
-			default: /*#__PURE__*/ optional$1(Boolean$1)
-		}),
-		/* @__PURE__ */ Struct({
-			type: /*#__PURE__*/ Literal("string"),
-			title: /*#__PURE__*/ optional$1(String$2),
-			description: /*#__PURE__*/ optional$1(String$2),
-			enum: /*#__PURE__*/ ArraySchema(String$2),
-			enumNames: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
-		})
-	])),
-	required: /*#__PURE__*/ optional$1(/*#__PURE__*/ ArraySchema(String$2))
-});
-var Elicit$1 = class extends (/*#__PURE__*/ make$8("elicitation/create", {
-	success: ElicitResult$1,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		message: String$2,
-		requestedSchema: RequestedSchema$1
-	}
-})) {};
-var ClientRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, Initialize$1, Complete, SetLevel, GetPrompt$1, ListPrompts$1, ListResources$1, ListResourceTemplates$1, ReadResource, Subscribe, Unsubscribe, CallTool$1, ListTools$1)) {};
-var ClientNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs$1 = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage$1, ListRoots$1, Elicit$1)) {};
-var ServerNotificationRpcs$1 = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification)) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_06_18.js
 const ClientRpcs$1 = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs$1.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs$1);
 const AdapterRpcs$1 = /*#__PURE__*/ ClientRpcs$1.omit("ping");
 const isToolOutputSchema$1 = (schema) => {
@@ -23373,8 +24889,8 @@ const isToolOutputSchema$1 = (schema) => {
 };
 const profileFromInitialize = (initialize) => ({
 	protocolVersion: protocolVersion$1,
-	clientCapabilities: ClientCapabilities$3.make(initialize.capabilities),
-	clientInfo: Implementation$3.make(initialize.clientInfo),
+	clientCapabilities: ClientCapabilities$4.make(initialize.capabilities),
+	clientInfo: Implementation$4.make(initialize.clientInfo),
 	requestMetadata: initialize._meta
 });
 const unsupported$1 = (operation, reason) => new McpReverseOperationUnsupported({
@@ -23392,7 +24908,7 @@ const projectContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
 		_meta: content._meta
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
-		if ("text" in resource) return EmbeddedResource$1.make({
+		if ("text" in resource) return EmbeddedResource$2.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -23403,7 +24919,7 @@ const projectContent$1 = /*#__PURE__*/ fnUntraced(function* (content) {
 			annotations: content.annotations,
 			_meta: content._meta
 		});
-		return EmbeddedResource$1.make({
+		return EmbeddedResource$2.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -23466,19 +24982,19 @@ const protocol$1 = /*#__PURE__*/ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": (_pageRequest) => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult$1.make({ resources }))),
-		"resources/templates/list": (_pageRequest) => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$1.make({ resourceTemplates }))),
+		"resources/list": (pageRequest) => listForClient(core.resources.list, pageRequest?.cursor).pipe(map$4((resources) => ListResourcesResult$2.make({ resources }))),
+		"resources/templates/list": (pageRequest) => listForClient(core.resources.listTemplates, pageRequest?.cursor).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$2.make({ resourceTemplates }))),
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return ReadResourceResult.make({
+			return ReadResourceResult$1.make({
 				contents: result.contents.map(projectResourceContents),
 				_meta: result._meta
 			});
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": (_pageRequest) => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult$1.make({ prompts }))),
+		"prompts/list": (pageRequest) => listForClient(core.prompts.list, pageRequest?.cursor).pipe(map$4((prompts) => ListPromptsResult$2.make({ prompts }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -23491,7 +25007,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
-			return GetPromptResult$1.make({
+			return GetPromptResult$2.make({
 				description: result.description,
 				messages,
 				_meta: result._meta
@@ -23512,7 +25028,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 				context: completeRequest.context?.arguments === void 0 ? void 0 : { arguments: completeRequest.context.arguments },
 				metadata: completeRequest._meta
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return CompleteResult.make({
+			return CompleteResult$1.make({
 				completion: {
 					values: Array.from(result.values),
 					total: result.total,
@@ -23521,16 +25037,15 @@ const protocol$1 = /*#__PURE__*/ make$4({
 				_meta: result.metadata
 			});
 		}),
-		"tools/list": fnUntraced(function* () {
-			const request = yield* McpServerClient;
-			const tools = yield* core.tools.list(profileFromClient(request));
-			return ListToolsResult$1.make({ tools: tools.map((tool) => Tool$1.make({
+		"tools/list": fnUntraced(function* (pageRequest) {
+			const tools = yield* listForClient(core.tools.list, pageRequest?.cursor);
+			return ListToolsResult$2.make({ tools: tools.map((tool) => Tool$2.make({
 				name: tool.name,
 				title: tool.title,
 				description: tool.description,
 				inputSchema: tool.inputSchema,
 				outputSchema: isToolOutputSchema$1(tool.outputSchema) ? tool.outputSchema : void 0,
-				annotations: tool.annotations === void 0 ? void 0 : ToolAnnotations.make({
+				annotations: tool.annotations === void 0 ? void 0 : ToolAnnotations$1.make({
 					title: tool.annotations.title,
 					readOnlyHint: tool.annotations.readOnlyHint,
 					destructiveHint: tool.annotations.destructiveHint,
@@ -23548,7 +25063,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion$1, outcome)), mapError$2(ProtocolError.fromTool));
 			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent$1).pipe(mapError$2(ProtocolError.fromTool));
 			const structuredContent = projectStructuredContent$1(result.structuredContent);
-			return CallToolResult$1.make({
+			return CallToolResult$2.make({
 				content,
 				structuredContent,
 				isError: result.isError,
@@ -23561,7 +25076,7 @@ const protocol$1 = /*#__PURE__*/ make$4({
 			yield* requireCapability$1(profile, "roots/list", "roots");
 			const wireRequest = yield* transcode(ListRoots$2.payloadSchema, ListRoots$1.payloadSchema, request).pipe(mapError$2(() => unsupported$1("roots/list", "Request is not representable by this protocol")));
 			const { roots } = yield* client["roots/list"](wireRequest).pipe(mapError$2(reverseError("roots/list")));
-			return new ListRootsResult$2({ roots });
+			return new ListRootsResult$3({ roots });
 		}),
 		createMessage: fnUntraced(function* (request) {
 			yield* requireCapability$1(profile, "sampling/createMessage", "sampling");
@@ -23578,345 +25093,13 @@ const protocol$1 = /*#__PURE__*/ make$4({
 		})
 	}),
 	projectNotification: (notification) => makeNotificationProjector({ supportsProgressMessage: true }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification$1.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
 	})))
 });
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpSchema/v2025_11_25.js
-const protocolVersion = "2025-11-25";
-const optional = optional$3;
-const UnknownObject = UnknownObject$3;
-const Meta = /*#__PURE__*/ optional(UnknownObject);
-const Icon = /*#__PURE__*/ Struct({
-	src: String$2,
-	mimeType: /*#__PURE__*/ optional(String$2),
-	sizes: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2)),
-	theme: /*#__PURE__*/ optional(/*#__PURE__*/ Literals(["light", "dark"]))
-});
-const Implementation = /*#__PURE__*/ Struct({
-	...Implementation$1.fields,
-	description: /*#__PURE__*/ optional(String$2),
-	websiteUrl: /*#__PURE__*/ optional(String$2),
-	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
-});
-const ClientCapabilities = /*#__PURE__*/ Struct({
-	...ClientCapabilities$1.fields,
-	sampling: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
-		context: /*#__PURE__*/ optional(UnknownObject),
-		tools: /*#__PURE__*/ optional(UnknownObject)
-	})),
-	elicitation: /*#__PURE__*/ optional(/*#__PURE__*/ Struct({
-		form: /*#__PURE__*/ optional(UnknownObject),
-		url: /*#__PURE__*/ optional(UnknownObject)
-	}))
-});
-const Annotations = /*#__PURE__*/ Struct({
-	...Annotations$1.fields,
-	lastModified: /*#__PURE__*/ optional(String$2)
-});
-const Resource = /*#__PURE__*/ Struct({
-	...Resource$1.fields,
-	annotations: /*#__PURE__*/ optional(Annotations),
-	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
-});
-const ResourceTemplate = /*#__PURE__*/ Struct({
-	...ResourceTemplate$1.fields,
-	annotations: /*#__PURE__*/ optional(Annotations),
-	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
-});
-const Prompt = /*#__PURE__*/ Struct({
-	...Prompt$1.fields,
-	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
-});
-const TextContent = /*#__PURE__*/ Struct({
-	...TextContent$1.fields,
-	annotations: /*#__PURE__*/ optional(Annotations)
-});
-const ImageContent = /*#__PURE__*/ Struct({
-	...ImageContent$1.fields,
-	annotations: /*#__PURE__*/ optional(Annotations)
-});
-const AudioContent = /*#__PURE__*/ Struct({
-	...AudioContent$1.fields,
-	annotations: /*#__PURE__*/ optional(Annotations)
-});
-const EmbeddedResource = /*#__PURE__*/ Struct({
-	...EmbeddedResource$1.fields,
-	annotations: /*#__PURE__*/ optional(Annotations)
-});
-const ContentBlock = /*#__PURE__*/ Union([
-	TextContent,
-	ImageContent,
-	AudioContent,
-	/* @__PURE__ */ Struct({
-		...Resource.fields,
-		type: /*#__PURE__*/ Literal("resource_link")
-	}),
-	EmbeddedResource
-]);
-const PromptMessage = /*#__PURE__*/ Struct({
-	role: Role,
-	content: ContentBlock
-});
-const Tool = /*#__PURE__*/ Struct({
-	...Tool$1.fields,
-	icons: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Icon))
-});
-const CallToolResult = /*#__PURE__*/ Struct({
-	...CallToolResult$1.fields,
-	content: /*#__PURE__*/ ArraySchema(ContentBlock)
-});
-var CallTool = class extends (/*#__PURE__*/ make$8("tools/call", {
-	success: CallToolResult,
-	error: McpError,
-	payload: CallTool$1.payloadSchema
-})) {};
-const SamplingMessageContentBlock = /*#__PURE__*/ Union([
-	TextContent,
-	ImageContent,
-	AudioContent,
-	/* @__PURE__ */ Struct({
-		type: /*#__PURE__*/ Literal("tool_use"),
-		id: String$2,
-		name: String$2,
-		input: UnknownObject,
-		_meta: Meta
-	}),
-	/* @__PURE__ */ Struct({
-		type: /*#__PURE__*/ Literal("tool_result"),
-		toolUseId: String$2,
-		content: /*#__PURE__*/ ArraySchema(ContentBlock),
-		structuredContent: /*#__PURE__*/ optional(UnknownObject),
-		isError: /*#__PURE__*/ optional(Boolean$1),
-		_meta: Meta
-	})
-]);
-const SamplingMessage = /*#__PURE__*/ Struct({
-	role: Role,
-	content: /*#__PURE__*/ Union([SamplingMessageContentBlock, /*#__PURE__*/ ArraySchema(SamplingMessageContentBlock)]),
-	_meta: Meta
-});
-const ToolChoice = /*#__PURE__*/ Struct({ mode: /*#__PURE__*/ optional(/*#__PURE__*/ Literals([
-	"auto",
-	"required",
-	"none"
-])) });
-const CreateMessageResult = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	...SamplingMessage.fields,
-	model: String$2,
-	stopReason: /*#__PURE__*/ optional(String$2)
-});
-var CreateMessage = class extends (/*#__PURE__*/ make$8("sampling/createMessage", {
-	success: CreateMessageResult,
-	error: McpError,
-	payload: {
-		...CreateMessage$1.payloadSchema.fields,
-		messages: /*#__PURE__*/ ArraySchema(SamplingMessage),
-		maxTokens: Int,
-		tools: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(Tool)),
-		toolChoice: /*#__PURE__*/ optional(ToolChoice)
-	}
-})) {};
-const Root = /*#__PURE__*/ Struct({
-	...Root$1.fields,
-	_meta: Meta
-});
-const ListRootsResult = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	roots: /*#__PURE__*/ ArraySchema(Root)
-});
-var ListRoots = class extends (/*#__PURE__*/ make$8("roots/list", {
-	success: ListRootsResult,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(RequestMeta)
-})) {};
-const StringSchema = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("string"),
-	title: /*#__PURE__*/ optional(String$2),
-	description: /*#__PURE__*/ optional(String$2),
-	minLength: /*#__PURE__*/ optional(Int),
-	maxLength: /*#__PURE__*/ optional(Int),
-	format: /*#__PURE__*/ optional(/*#__PURE__*/ Literals([
-		"email",
-		"uri",
-		"date",
-		"date-time"
-	])),
-	default: /*#__PURE__*/ optional(String$2)
-});
-const NumberSchema = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literals(["number", "integer"]),
-	title: /*#__PURE__*/ optional(String$2),
-	description: /*#__PURE__*/ optional(String$2),
-	minimum: /*#__PURE__*/ optional(Finite),
-	maximum: /*#__PURE__*/ optional(Finite),
-	default: /*#__PURE__*/ optional(Finite)
-});
-const BooleanSchema = /*#__PURE__*/ Struct({
-	type: /*#__PURE__*/ Literal("boolean"),
-	title: /*#__PURE__*/ optional(String$2),
-	description: /*#__PURE__*/ optional(String$2),
-	default: /*#__PURE__*/ optional(Boolean$1)
-});
-const EnumOption = /*#__PURE__*/ Struct({
-	const: String$2,
-	title: String$2
-});
-const RequestedSchema = /*#__PURE__*/ Struct({
-	$schema: /*#__PURE__*/ optional(String$2),
-	type: /*#__PURE__*/ Literal("object"),
-	properties: /*#__PURE__*/ Record(String$2, /* @__PURE__ */ Union([
-		/* @__PURE__ */ Union([
-			/* @__PURE__ */ Struct({
-				type: /*#__PURE__*/ Literal("string"),
-				title: /*#__PURE__*/ optional(String$2),
-				description: /*#__PURE__*/ optional(String$2),
-				enum: /*#__PURE__*/ ArraySchema(String$2),
-				enumNames: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2)),
-				default: /*#__PURE__*/ optional(String$2)
-			}),
-			/* @__PURE__ */ Union([/* @__PURE__ */ Struct({
-				type: /*#__PURE__*/ Literal("string"),
-				title: /*#__PURE__*/ optional(String$2),
-				description: /*#__PURE__*/ optional(String$2),
-				enum: /*#__PURE__*/ ArraySchema(String$2),
-				default: /*#__PURE__*/ optional(String$2)
-			}), /* @__PURE__ */ Struct({
-				type: /*#__PURE__*/ Literal("string"),
-				title: /*#__PURE__*/ optional(String$2),
-				description: /*#__PURE__*/ optional(String$2),
-				oneOf: /*#__PURE__*/ ArraySchema(EnumOption),
-				default: /*#__PURE__*/ optional(String$2)
-			})]),
-			/* @__PURE__ */ Union([/* @__PURE__ */ Struct({
-				type: /*#__PURE__*/ Literal("array"),
-				title: /*#__PURE__*/ optional(String$2),
-				description: /*#__PURE__*/ optional(String$2),
-				minItems: /*#__PURE__*/ optional(Int),
-				maxItems: /*#__PURE__*/ optional(Int),
-				items: /*#__PURE__*/ Struct({
-					type: /*#__PURE__*/ Literal("string"),
-					enum: /*#__PURE__*/ ArraySchema(String$2)
-				}),
-				default: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2))
-			}), /* @__PURE__ */ Struct({
-				type: /*#__PURE__*/ Literal("array"),
-				title: /*#__PURE__*/ optional(String$2),
-				description: /*#__PURE__*/ optional(String$2),
-				minItems: /*#__PURE__*/ optional(Int),
-				maxItems: /*#__PURE__*/ optional(Int),
-				items: /*#__PURE__*/ Struct({ anyOf: /*#__PURE__*/ ArraySchema(EnumOption) }),
-				default: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2))
-			})])
-		]),
-		StringSchema,
-		NumberSchema,
-		BooleanSchema
-	])),
-	required: /*#__PURE__*/ optional(/*#__PURE__*/ ArraySchema(String$2))
-});
-const ElicitRequestParams = /*#__PURE__*/ Union([/* @__PURE__ */ Struct({
-	...RequestMeta.fields,
-	mode: /*#__PURE__*/ optional(/*#__PURE__*/ Literal("form")),
-	message: String$2,
-	requestedSchema: RequestedSchema
-}), /* @__PURE__ */ Struct({
-	...RequestMeta.fields,
-	mode: /*#__PURE__*/ Literal("url"),
-	message: String$2,
-	elicitationId: String$2,
-	url: String$2
-})]);
-const ElicitResult = /*#__PURE__*/ Struct({
-	...ResultMeta.fields,
-	action: /*#__PURE__*/ Literals([
-		"accept",
-		"decline",
-		"cancel"
-	]),
-	content: /*#__PURE__*/ optional(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([
-		String$2,
-		Finite,
-		Boolean$1,
-		/*#__PURE__*/ ArraySchema(String$2)
-	])))
-});
-var Elicit = class extends (/*#__PURE__*/ make$8("elicitation/create", {
-	success: ElicitResult,
-	error: McpError,
-	payload: ElicitRequestParams
-})) {};
-var ElicitationCompleteNotification = class extends (/*#__PURE__*/ make$8("notifications/elicitation/complete", { payload: { elicitationId: String$2 } })) {};
-const InitializeResult = /*#__PURE__*/ Struct({
-	...InitializeResult$1.fields,
-	serverInfo: Implementation
-});
-var Initialize = class extends (/*#__PURE__*/ make$8("initialize", {
-	success: InitializeResult,
-	error: McpError,
-	payload: {
-		...Initialize$1.payloadSchema.fields,
-		capabilities: ClientCapabilities,
-		clientInfo: Implementation
-	}
-})) {};
-const ListResourcesResult = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	resources: /*#__PURE__*/ ArraySchema(Resource)
-});
-const ListResourceTemplatesResult = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	resourceTemplates: /*#__PURE__*/ ArraySchema(ResourceTemplate)
-});
-const ListPromptsResult = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	prompts: /*#__PURE__*/ ArraySchema(Prompt)
-});
-const GetPromptResult = /*#__PURE__*/ Struct({
-	...GetPromptResult$1.fields,
-	messages: /*#__PURE__*/ ArraySchema(PromptMessage)
-});
-const ListToolsResult = /*#__PURE__*/ Struct({
-	...PaginatedResult.fields,
-	tools: /*#__PURE__*/ ArraySchema(Tool)
-});
-var ListResources = class extends (/*#__PURE__*/ make$8("resources/list", {
-	success: ListResourcesResult,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ListResourceTemplates = class extends (/*#__PURE__*/ make$8("resources/templates/list", {
-	success: ListResourceTemplatesResult,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ListPrompts = class extends (/*#__PURE__*/ make$8("prompts/list", {
-	success: ListPromptsResult,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var GetPrompt = class extends (/*#__PURE__*/ make$8("prompts/get", {
-	success: GetPromptResult,
-	error: McpError,
-	payload: {
-		...RequestMeta.fields,
-		name: String$2,
-		arguments: /*#__PURE__*/ optional(/*#__PURE__*/ Record(String$2, String$2))
-	}
-})) {};
-var ListTools = class extends (/*#__PURE__*/ make$8("tools/list", {
-	success: ListToolsResult,
-	error: McpError,
-	payload: /*#__PURE__*/ UndefinedOr(PaginatedRequest)
-})) {};
-var ClientRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, Initialize, Complete, SetLevel, GetPrompt, ListPrompts, ListResources, ListResourceTemplates, ReadResource, Subscribe, Unsubscribe, CallTool, ListTools)) {};
-var ClientNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, InitializedNotification, RootsListChangedNotification)) {};
-var ServerRequestRpcs = class extends (/*#__PURE__*/ make$6(Ping, CreateMessage, ListRoots, Elicit)) {};
-var ServerNotificationRpcs = class extends (/*#__PURE__*/ make$6(CancelledNotification, ProgressNotification, LoggingMessageNotification, ResourceUpdatedNotification, ResourceListChangedNotification, ToolListChangedNotification, PromptListChangedNotification, ElicitationCompleteNotification)) {};
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/internal/mcpProtocol/v2025_11_25.js
 const ClientRpcs = /*#__PURE__*/ (/* @__PURE__ */ ClientRequestRpcs.omit("ping").middleware(McpServerClientMiddleware).add(Ping)).merge(ClientNotificationRpcs);
 const AdapterRpcs = /*#__PURE__*/ ClientRpcs.omit("ping");
 const isToolOutputSchema = (schema) => {
@@ -23946,7 +25129,7 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 		_meta: content._meta
 	})), when({ type: "resource" }, (content) => {
 		const resource = content.resource;
-		if ("text" in resource) return EmbeddedResource.make({
+		if ("text" in resource) return EmbeddedResource$1.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -23957,7 +25140,7 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 			annotations: content.annotations,
 			_meta: content._meta
 		});
-		return EmbeddedResource.make({
+		return EmbeddedResource$1.make({
 			type: "resource",
 			resource: {
 				uri: resource.uri,
@@ -23972,7 +25155,7 @@ const projectContent = /*#__PURE__*/ fnUntraced(function* (content) {
 });
 const projectStructuredContent = (content) => content === void 0 || isObject(content) ? content : void 0;
 const isObject = (value) => isReadonlyObject(value);
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpProtocol.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/McpProtocol.js
 const v2025_11_25 = /* @__PURE__ */ make$4({
 	protocolVersion,
 	runtime: /*#__PURE__*/ stateful({
@@ -23987,8 +25170,8 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 	makeHandlers: (core, lifecycle) => AdapterRpcs.of({
 		initialize: (request, { client }) => lifecycle.initialize(protocolVersion, {
 			protocolVersion,
-			clientCapabilities: ClientCapabilities$3.make(request.capabilities),
-			clientInfo: Implementation$3.make(request.clientInfo),
+			clientCapabilities: ClientCapabilities$4.make(request.capabilities),
+			clientInfo: Implementation$4.make(request.clientInfo),
 			requestMetadata: request._meta
 		}, client.id).pipe(map$4((result) => InitializeResult.make({
 			protocolVersion,
@@ -24015,12 +25198,12 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 			metadata: progress._meta
 		}), client.id, headers),
 		"notifications/roots/list_changed": (_, { client, headers }) => lifecycle.clientNotification(ClientNotification.RootsChanged(), client.id, headers),
-		"resources/list": () => McpServerClient.use((request) => core.resources.list(profileFromClient(request))).pipe(map$4((resources) => ListResourcesResult.make({ resources: resources.map((resource) => Resource.make(resource)) }))),
-		"resources/templates/list": () => McpServerClient.use((request) => core.resources.listTemplates(profileFromClient(request))).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult.make({ resourceTemplates: resourceTemplates.map((resourceTemplate) => ResourceTemplate.make(resourceTemplate)) }))),
+		"resources/list": (pageRequest) => listForClient(core.resources.list, pageRequest?.cursor).pipe(map$4((resources) => ListResourcesResult$1.make({ resources: resources.map((resource) => Resource$1.make(resource)) }))),
+		"resources/templates/list": (pageRequest) => listForClient(core.resources.listTemplates, pageRequest?.cursor).pipe(map$4((resourceTemplates) => ListResourceTemplatesResult$1.make({ resourceTemplates: resourceTemplates.map((resourceTemplate) => ResourceTemplate$1.make(resourceTemplate)) }))),
 		"resources/read": fnUntraced(function* ({ uri }) {
 			const request = yield* McpServerClient;
 			const result = yield* core.resources.read(uri, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return ReadResourceResult.make({
+			return ReadResourceResult$1.make({
 				contents: result.contents.map((content) => "text" in content ? {
 					uri: content.uri,
 					mimeType: content.mimeType,
@@ -24037,7 +25220,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 		}),
 		"resources/subscribe": ({ uri }, { client, headers }) => lifecycle.subscribe(uri, client.id, headers).pipe(as({})),
 		"resources/unsubscribe": ({ uri }, { client, headers }) => lifecycle.unsubscribe(uri, client.id, headers).pipe(as({})),
-		"prompts/list": () => McpServerClient.use((request) => core.prompts.list(profileFromClient(request))).pipe(map$4((prompts) => ListPromptsResult.make({ prompts: prompts.map((prompt) => Prompt.make(prompt)) }))),
+		"prompts/list": (pageRequest) => listForClient(core.prompts.list, pageRequest?.cursor).pipe(map$4((prompts) => ListPromptsResult$1.make({ prompts: prompts.map((prompt) => Prompt$1.make(prompt)) }))),
 		"prompts/get": fnUntraced(function* ({ arguments: args, name }) {
 			const request = yield* McpServerClient;
 			const outcome = yield* core.prompts.get(name, args ?? {}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
@@ -24050,7 +25233,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 				role: message.role,
 				content
 			})), mapError$2(ProtocolError.fromTool)));
-			return GetPromptResult.make({
+			return GetPromptResult$1.make({
 				description: result.description,
 				messages,
 				_meta: result._meta
@@ -24071,7 +25254,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 				context: completeRequest.context?.arguments === void 0 ? void 0 : { arguments: completeRequest.context.arguments },
 				metadata: completeRequest._meta
 			}, invocationFromClient(request)).pipe(mapError$2(ProtocolError.fromFeature));
-			return CompleteResult.make({
+			return CompleteResult$1.make({
 				completion: {
 					values: Array.from(result.values),
 					total: result.total,
@@ -24080,17 +25263,16 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 				_meta: result.metadata
 			});
 		}),
-		"tools/list": fnUntraced(function* () {
-			const request = yield* McpServerClient;
-			const tools = yield* core.tools.list(profileFromClient(request));
-			return ListToolsResult.make({ tools: tools.map((tool) => Tool.make({
+		"tools/list": fnUntraced(function* (pageRequest) {
+			const tools = yield* listForClient(core.tools.list, pageRequest?.cursor);
+			return ListToolsResult$1.make({ tools: tools.map((tool) => Tool$1.make({
 				name: tool.name,
 				title: tool.title,
 				description: tool.description,
 				inputSchema: tool.inputSchema,
 				outputSchema: isToolOutputSchema(tool.outputSchema) ? tool.outputSchema : void 0,
 				icons: tool.icons,
-				annotations: tool.annotations === void 0 ? void 0 : ToolAnnotations.make({
+				annotations: tool.annotations === void 0 ? void 0 : ToolAnnotations$1.make({
 					title: tool.annotations.title,
 					readOnlyHint: tool.annotations.readOnlyHint,
 					destructiveHint: tool.annotations.destructiveHint,
@@ -24105,8 +25287,8 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 			const result = yield* core.tools.call({
 				...call,
 				arguments: call.arguments ?? {}
-			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion, outcome)), catchTag(["InvalidToolInput", "ToolExecutionError"], (error) => succeed$3(CallToolResult$4.make({
-				content: [TextContent$3.make({
+			}, invocationFromClient(request)).pipe(flatMap((outcome) => requireCompleteOperation(protocolVersion, outcome)), catchTag(["InvalidToolInput", "ToolExecutionError"], (error) => succeed$3(CallToolResult$5.make({
+				content: [TextContent$4.make({
 					type: "text",
 					text: error.message
 				})],
@@ -24114,7 +25296,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 			}))), mapError$2(ProtocolError.fromTool));
 			const content = yield* forEach$1(unwrapStringStructuredContent(result), projectContent).pipe(mapError$2(ProtocolError.fromTool));
 			const structuredContent = projectStructuredContent(result.structuredContent);
-			return CallToolResult.make({
+			return CallToolResult$1.make({
 				content,
 				structuredContent,
 				isError: result.isError,
@@ -24127,7 +25309,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 			yield* requireCapability(profile, "roots/list", "roots");
 			const wireRequest = yield* transcode(ListRoots$2.payloadSchema, ListRoots.payloadSchema, request).pipe(mapError$2(() => unsupported("roots/list", "Request is not representable by this protocol")));
 			const { roots } = yield* client["roots/list"](wireRequest).pipe(mapError$2(reverseError("roots/list")));
-			return new ListRootsResult$2({ roots });
+			return new ListRootsResult$3({ roots });
 		}),
 		createMessage: fnUntraced(function* (request) {
 			yield* requireCapability(profile, "sampling/createMessage", "sampling");
@@ -24151,7 +25333,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 		tag: "notifications/elicitation/complete",
 		payload: { elicitationId: notification.elicitationId }
 	}) : makeNotificationProjector({ supportsProgressMessage: true }, notification),
-	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification.payloadSchema)(payload).pipe(map$4((request) => ({
+	normalizeCancellation: (payload) => decodeUnknownEffect(CancelledNotification$1.payloadSchema)(payload).pipe(map$4((request) => ({
 		requestId: request.requestId,
 		reason: request.reason,
 		metadata: request._meta
@@ -24160,7 +25342,7 @@ const v2025_11_25 = /* @__PURE__ */ make$4({
 const v2025_06_18 = protocol$1;
 const v2025_03_26 = protocol$2;
 const v2024_11_05 = protocol$3;
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/rpc/RpcServer.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/RpcServer.js
 const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const enableTracing = options.disableTracing !== true;
 	const enableSpanPropagation = options.disableSpanPropagation !== true;
@@ -24171,7 +25353,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$40(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$41(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
 	const shutdownLatch = makeUnsafe$1(false);
@@ -24245,15 +25427,19 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	};
 	const handleRequest = (requestFiber, client, request, opts) => {
 		if (client.fibers.has(request.id)) return interrupt$1;
+		const isNotification = request.isNotification === true;
+		const isDiscard = !isNotification && request.discard === true;
+		let acknowledged = false;
+		const respond = (exit) => isNotification || acknowledged ? void_$1 : options.onFromServer({
+			_tag: "Exit",
+			clientId: client.id,
+			requestId: request.id,
+			exit
+		});
 		const rpc = group.requests.get(request.tag);
 		const entry = getOrUndefinedUnsafe(services, rpc?.key);
 		if (!rpc || !entry) {
-			const write = catchDefect(options.onFromServer({
-				_tag: "Exit",
-				clientId: client.id,
-				requestId: request.id,
-				exit: die$3(`Unknown request tag: ${request.tag}`)
-			}), (defect) => sendDefect(client, defect));
+			const write = catchDefect(respond(die$3(`Unknown request tag: ${request.tag}`)), (defect) => sendDefect(client, defect));
 			if (!client.ended || client.fibers.size > 0) return write;
 			return ensuring$2(write, endClient(client));
 		}
@@ -24265,15 +25451,28 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			headers: request.headers,
 			payload: request.payload
 		};
-		const result = runHandler(entry, request.payload, metadata);
+		let handlerResult;
+		let constructionFailed = false;
+		try {
+			handlerResult = entry.handler(request.payload, metadata);
+		} catch (defect) {
+			handlerResult = die$2(defect);
+			constructionFailed = true;
+		}
+		const result = handlerResult;
 		const isWrapper$1 = isWrapper(result);
 		const isFork = isWrapper$1 && result.fork;
 		const isUninterruptible = isWrapper$1 && result.uninterruptible;
 		const streamOrEffect = isWrapper$1 ? result.value : result;
 		let writeFailure;
-		const handler = isStream ? streamEffect(client, request, streamOrEffect, (cause) => {
+		let handler = isStream && !constructionFailed ? streamEffect(client, request, streamOrEffect, (cause) => {
 			writeFailure = cause;
 		}) : streamOrEffect;
+		if (isDiscard && !constructionFailed) handler = andThen(suspend$3(() => {
+			const ack = respond(void_$2);
+			acknowledged = true;
+			return ack;
+		}), handler);
 		const withMiddleware = rpc.middlewares.size === 0 ? handler : isStream ? flatMap(exit(applyMiddleware(services, handler, metadata)), (exit) => writeFailure ? failCause$3(writeFailure) : exit) : applyMiddleware(services, handler, metadata);
 		let responded = false;
 		const scope = makeUnsafe$5();
@@ -24285,25 +25484,15 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 				if (isDeferred(exit.value)) {
 					deferred = exit.value;
 					write = void_$1;
-				} else write = options.onFromServer({
-					_tag: "Exit",
-					clientId: client.id,
-					requestId: request.id,
-					exit
-				});
+				} else write = respond(exit);
 			} else if (writeFailure) return closeUnsafe(scope, exit) ?? void_$1;
-			else if (!disableFatalDefects && hasDies(exit.cause) && !hasInterrupts$1(exit.cause)) write = sendDefect(client, squash(exit.cause));
-			else write = options.onFromServer({
-				_tag: "Exit",
-				clientId: client.id,
-				requestId: request.id,
-				exit
-			});
+			else if (!disableFatalDefects && !isNotification && !isDiscard && hasDies(exit.cause) && !hasInterrupts$1(exit.cause)) write = sendDefect(client, squash(exit.cause));
+			else write = respond(exit);
 			const close = closeUnsafe(scope, exit);
 			if (exit._tag === "Failure") reportCauseUnsafe(getCurrent(), exit.cause);
 			return close ? ensuring$2(write, close) : write;
 		});
-		if (opts?.onRequest) effect = opts.onRequest(effect);
+		if (opts?.onRequest) effect = opts.onRequest(effect, request);
 		if (enableTracing) {
 			const parentSpan = getOrUndefined(requestFiber.context, ParentSpan);
 			effect = withSpan(effect, spanName(spanPrefix, request.tag), {
@@ -24328,23 +25517,16 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			return effect;
 		}), isUninterruptible ? { uninterruptible: true } : void 0)).addObserver(function onExit(exit) {
 			if (deferred) {
-				const fiber = trackFiber(runFork(onExit$1(_await(deferred), (exit) => options.onFromServer({
-					_tag: "Exit",
-					clientId: client.id,
-					requestId: request.id,
-					exit
-				}))));
+				const fiber = trackFiber(runFork(onExit$1(_await(deferred), (exit) => {
+					if (exit._tag === "Failure" && (isNotification || acknowledged)) reportCauseUnsafe(getCurrent(), exit.cause);
+					return respond(exit);
+				})));
 				client.fibers.set(request.id, fiber);
 				deferred = void 0;
 				fiber.addObserver(onExit);
 				return;
 			}
-			if (!responded && exit._tag === "Failure") trackFiber(runFork(options.onFromServer({
-				_tag: "Exit",
-				clientId: client.id,
-				requestId: request.id,
-				exit: interrupt$2()
-			})));
+			if (!responded && !isNotification && !acknowledged && exit._tag === "Failure") trackFiber(runFork(respond(interrupt$2())));
 			client.fibers.delete(request.id);
 			client.latches?.delete(request.id);
 			if (client.ended && client.fibers.size === 0) trackFiber(runFork(endClient(client)));
@@ -24352,7 +25534,8 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 		return void_$1;
 	};
 	const streamEffect = (client, request, stream, onWriteFailure) => {
-		const writeChunk = (values) => onError(options.onFromServer({
+		const silent = request.isNotification === true || request.discard === true;
+		const writeChunk = (values) => silent ? void_$1 : onError(options.onFromServer({
 			_tag: "Chunk",
 			clientId: client.id,
 			requestId: request.id,
@@ -24362,7 +25545,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			return void_$1;
 		});
 		let latch;
-		if (supportsAck) {
+		if (supportsAck && !silent) {
 			client.latches ??= /* @__PURE__ */ new Map();
 			latch = client.latches.get(request.id);
 			if (!latch) {
@@ -24439,13 +25622,6 @@ const handlerContext = (entry, fiberContext) => {
 	}
 	return merged;
 };
-const runHandler = (entry, payload, metadata) => {
-	try {
-		return entry.handler(payload, metadata);
-	} catch (defect) {
-		return die$2(defect);
-	}
-};
 const applyMiddleware = (context, handler, options) => {
 	for (const service of options.rpc.middlewares) handler = getUnsafe(context, service)(handler, options);
 	return handler;
@@ -24454,7 +25630,8 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
 	const { encodeDefectUnsafe, encodeUnknownRequestExit } = defectCodecs(codecFor);
 	const services = yield* context();
-	const scope = yield* make$44();
+	const scope = yield* make$45();
+	const writeOptions = options?.onRequest ? { onRequest: options.onRequest } : void 0;
 	const server = yield* makeNoSerialization(group, {
 		...options,
 		disableClientAcks: !supportsAck,
@@ -24481,11 +25658,16 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 			}
 		}
 	}).pipe(provide$3(scope));
+	const onDisconnect = options?.onDisconnect;
+	const handleDisconnect = onDisconnect ? (clientId) => andThen(server.disconnect(clientId), ignoreCause(suspend$3(() => onDisconnect(clientId)), {
+		log: "Unhandled",
+		message: "RpcServer onDisconnect hook failed"
+	}).pipe(forkIn(scope))) : server.disconnect;
 	yield* forkChild(whileLoop({
 		while: constTrue,
 		body: constant(flatMap(take(disconnects), (clientId) => {
 			clients.delete(clientId);
-			return server.disconnect(clientId);
+			return handleDisconnect(clientId);
 		})),
 		step: constVoid
 	}));
@@ -24502,6 +25684,19 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 			schemasCache.set(rpc, schemas);
 		}
 		return schemas;
+	};
+	const discardSchemasCache = /* @__PURE__ */ new WeakMap();
+	const getDiscardSchemas = (rpc, schemas) => {
+		let discardSchemas = discardSchemasCache.get(rpc);
+		if (!discardSchemas) {
+			const exitSchema$1 = exitSchema(rpc);
+			discardSchemas = {
+				...schemas,
+				encodeExit: encodeUnknownEffect(codecFor(Exit(Void, exitSchema$1.error, exitSchema$1.defect)), get$2(rpc.annotations, ParseOptions))
+			};
+			discardSchemasCache.set(rpc, discardSchemas);
+		}
+		return discardSchemas;
 	};
 	const clients = /* @__PURE__ */ new Map();
 	const responseEnvelope = (requestId, tag, value) => tag === "Chunk" ? {
@@ -24536,17 +25731,29 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 		module: "RpcServer",
 		method: "sendDefect"
 	}));
+	const dropNotification = (reason) => annotateLogs(logDebug(`Dropped RPC notification: ${reason}`), {
+		module: "RpcServer",
+		method: "dropNotification"
+	});
 	const writeDecodedRequest = (client, requestId, schemas, request, payload) => {
-		client.schemas.set(requestId, supportsTransferables ? {
+		let headers;
+		try {
+			headers = fromInput$1(request.headers);
+		} catch {
+			const reason = "Invalid request headers";
+			return request.isNotification === true ? dropNotification(reason) : sendRequestDefect(client, requestId, schemas.encodeExit, reason);
+		}
+		if (request.isNotification !== true) client.schemas.set(requestId, supportsTransferables ? {
 			...schemas,
 			collector: makeCollectorUnsafe()
 		} : schemas);
 		const decoded = request;
 		decoded.id = requestId;
 		decoded.payload = payload;
-		decoded.headers = fromInput$1(request.headers);
-		return server.write(client.id, decoded);
+		decoded.headers = headers;
+		return server.write(client.id, decoded, writeOptions);
 	};
+	let notificationCount = 0;
 	return yield* run((clientId, request) => {
 		let client = clients.get(clientId);
 		if (!client) {
@@ -24559,22 +25766,31 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 		switch (request._tag) {
 			case "Request": {
 				const tag = Object.hasOwn(request, "tag") ? request.tag : "";
+				const isNotification = request.isNotification === true;
 				let requestId;
-				switch (typeof request.id) {
+				if (isNotification) requestId = RequestId$3(`@effect/rpc/notification/${notificationCount++}`);
+				else switch (typeof request.id) {
 					case "number":
 					case "string":
-						requestId = RequestId$2(request.id);
+						requestId = RequestId$3(request.id);
 						break;
 					default: return sendDefect(client, `Invalid request id: ${request.id}`);
 				}
 				const rpc = group.requests.get(tag);
-				if (!rpc) return sendRequestDefect(client, requestId, encodeUnknownRequestExit, `Unknown request tag: ${tag}`);
+				if (!rpc) {
+					const reason = `Unknown request tag: ${tag}`;
+					return isNotification ? dropNotification(reason) : sendRequestDefect(client, requestId, encodeUnknownRequestExit, reason);
+				}
 				const schemas = getSchemas(rpc);
+				const replySchemas = !isNotification && request.discard === true ? getDiscardSchemas(rpc, schemas) : schemas;
 				const decoded = schemas.decode(request.payload);
-				if (isExit(decoded) && isSuccess(decoded)) return writeDecodedRequest(client, requestId, schemas, request, decoded.value);
+				if (isExit(decoded) && isSuccess(decoded)) return writeDecodedRequest(client, requestId, replySchemas, request, decoded.value);
 				return matchEffect(provideContext$2(decoded, schemas.context), {
-					onFailure: (error) => sendRequestDefect(client, requestId, schemas.encodeExit, defaultFormatter(error.issue)),
-					onSuccess: (payload) => writeDecodedRequest(client, requestId, schemas, request, payload)
+					onFailure: (error) => {
+						const reason = defaultFormatter(error.issue);
+						return isNotification ? dropNotification(reason) : sendRequestDefect(client, requestId, replySchemas.encodeExit, reason);
+					},
+					onSuccess: (payload) => writeDecodedRequest(client, requestId, replySchemas, request, payload)
 				});
 			}
 			case "Ping": return catchCause$2(send(client.id, constPong), (cause) => sendDefect(client, squash(cause)));
@@ -24582,7 +25798,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 			case "Ack": return server.write(clientId, request);
 			case "Interrupt": return server.write(clientId, {
 				...request,
-				requestId: RequestId$2(request.requestId),
+				requestId: RequestId$3(request.requestId),
 				interruptors: []
 			});
 			default: return sendDefect(client, `Unknown request tag: ${request._tag}`);
@@ -24592,7 +25808,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 var Protocol = class extends (/*#__PURE__*/ Service$1()("effect/rpc/RpcServer/Protocol")) {
 	static make = /*#__PURE__*/ withRun();
 };
-const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(function* () {
+const makeProtocolStdio = /*#__PURE__*/ gen(function* () {
 	const stdio = yield* Stdio;
 	const fiber = getCurrent();
 	const serialization = yield* RpcSerialization;
@@ -24609,9 +25825,12 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 				step: constVoid
 			});
 		}), sandbox, tapError(logError), retry(spaced(500)), andThen(() => writeRequest(0, constEof)), forkScoped);
-		yield* fromQueue(queue).pipe(run(stdio.stdout()), retry(spaced(500)), ensuring$2(forkDetach(interrupt(fiber), { startImmediately: true })), forkScoped);
+		yield* fromQueue(queue).pipe(run(stdio.stdout()), retry(spaced(500)), onExit$1((exit) => {
+			if (isFailure(exit) && hasInterruptsOnly(exit.cause)) return void_$1;
+			return forkDetach(isSuccess(exit) ? interruptAs(fiber, void 0, make$49(InterruptExitCode, 0)) : interrupt(fiber), { startImmediately: true });
+		}), forkScoped);
 		return {
-			disconnects: yield* make$41(),
+			disconnects: yield* make$42(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -24629,13 +25848,14 @@ const layerProtocolStdio = /*#__PURE__*/ effect(Protocol, /* @__PURE__ */ gen(fu
 			codecFor: serialization.codecFor
 		};
 	}));
-}));
-// ../../node_modules/.pnpm/effect@4.0.7/node_modules/effect/dist/ai/McpServer.js
+});
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ai/McpServer.js
 const internalState = /*#__PURE__*/ new WeakMap();
 const RequestNotificationQueue = /*#__PURE__*/ Reference("effect/ai/McpServer/RequestNotificationQueue", { defaultValue: () => void 0 });
+const RequestLiveness = /*#__PURE__*/ Reference("effect/ai/McpServer/RequestLiveness", { defaultValue: () => void 0 });
 const isRequestNotification = (notification) => notification._tag === "Progress" || notification._tag === "LoggingMessage";
 const BroadcastServerNotificationRpcs = /*#__PURE__*/ ServerNotificationRpcs$4.omit("notifications/elicitation/complete");
-const isLoggingLevel = /*#__PURE__*/ is$2(LoggingLevel$1);
+const isLoggingLevel = /*#__PURE__*/ is$2(LoggingLevel$2);
 const toInternalServerNotification = (message) => {
 	switch (message.tag) {
 		case "notifications/cancelled": return ServerNotification.Cancelled({
@@ -24666,7 +25886,22 @@ const toInternalServerNotification = (message) => {
 		default: return;
 	}
 };
-const omitRequestServices = /*#__PURE__*/ omit$2(McpRequestContext, McpServerClient, HttpServerRequest, CurrentLogLevel);
+const middlewareKeyPrefix = "effect/ai/McpServer/Middleware-";
+const requestServiceKeys = /*#__PURE__*/ new Set([
+	McpRequestContext.key,
+	McpServerClient.key,
+	HttpServerRequest.key,
+	ParsedSearchParams.key,
+	RouteContext.key,
+	CurrentLogLevel.key,
+	Scope.key,
+	ParentSpan.key
+]);
+const omitRequestServices = (context) => {
+	const services = /* @__PURE__ */ new Map();
+	for (const [key, value] of context.mapUnsafe) if (!requestServiceKeys.has(key) && !key.startsWith(middlewareKeyPrefix)) services.set(key, value);
+	return makeUnsafe$7(services);
+};
 const provideInvocationContext = (effect, invocation) => {
 	let provided = provideService(effect, McpRequestContext, invocation.requestContext);
 	const requestMetadata = invocation.requestContext.requestMetadata;
@@ -24674,14 +25909,133 @@ const provideInvocationContext = (effect, invocation) => {
 	if (isLoggingLevel(logLevel)) provided = provideService(provided, CurrentLogLevel, mcpLogLevels[logLevel].effect);
 	return invocation.serverClient === void 0 ? provided : provideService(provided, McpServerClient, invocation.serverClient);
 };
+var Hidden = class extends (/*#__PURE__*/ TaggedError$1("effect/ai/McpServer/Hidden")) {};
+const gates = /*#__PURE__*/ new WeakSet();
+const getMiddleware = (context) => {
+	const inners = /* @__PURE__ */ new Map();
+	const unplacedOuters = /* @__PURE__ */ new Map();
+	for (const [key, stack] of context.mapUnsafe) {
+		if (!key.startsWith(middlewareKeyPrefix)) continue;
+		for (let i = stack.length - 1; i >= 0; i--) {
+			const fn = stack[i];
+			if (!inners.has(fn)) {
+				inners.set(fn, []);
+				unplacedOuters.set(fn, 0);
+			}
+			const outer = stack[i + 1];
+			if (outer !== void 0 && outer !== fn) {
+				inners.get(outer).push(fn);
+				unplacedOuters.set(fn, unplacedOuters.get(fn) + 1);
+			}
+		}
+	}
+	const outermostFirst = [];
+	while (unplacedOuters.size > 0) {
+		let next = unplacedOuters.keys().next().value;
+		for (const [fn, count] of unplacedOuters) if (count === 0) {
+			next = fn;
+			break;
+		}
+		unplacedOuters.delete(next);
+		outermostFirst.push(next);
+		for (const fn of inners.get(next)) {
+			const count = unplacedOuters.get(fn);
+			if (count !== void 0) unplacedOuters.set(fn, count - 1);
+		}
+	}
+	return outermostFirst.reverse();
+};
+const isMcpError = (error) => hasProperty(error, "code") && typeof error.code === "number" && hasProperty(error, "message") && typeof error.message === "string";
+const HandlerFailure = /*#__PURE__*/ Reference("effect/ai/McpServer/HandlerFailure", { defaultValue: () => false });
+const handlerFailure = /*#__PURE__*/ make$49(HandlerFailure, true);
+const internalError = /*#__PURE__*/ new InternalError({ message: "Internal error" });
+const rejectWith = (error) => fail$3(new RequestRejected({
+	code: error.code,
+	message: error.message,
+	data: error.data,
+	error
+}));
+const notFound = (method, target) => {
+	switch (method) {
+		case "tools/call": return new ToolNotFound({ name: target });
+		case "resources/read": return new ResourceNotFound({ uri: target });
+		case "prompts/get": return new PromptNotFound({ name: target });
+		case "completion/complete": return new InvalidParams({ message: "Unknown completion reference or argument" });
+		case "skills/get": return new SkillNotFound({ uri: target });
+	}
+};
+const isHidden = (error) => error instanceof Hidden;
+const catchHidden = (onHidden) => (self) => catchCause$2(self, (cause) => {
+	const failure = findFail(cause);
+	return !hasInterrupts$1(cause) && isSuccess$1(failure) && isHidden(failure.success.error) ? onHidden() : failCause$3(cause);
+});
+const middlewareStack = (localMiddleware, globalMiddleware) => {
+	if (globalMiddleware.length === 0) return localMiddleware;
+	if (localMiddleware.length === 0) return globalMiddleware;
+	const stack = [...localMiddleware, ...globalMiddleware];
+	return stack.filter((fn, index) => stack.lastIndexOf(fn) === index);
+};
+const runMiddleware = (handler, middleware, invocation, request) => {
+	const effect = middleware.length === 0 ? handler : withFiber((fiber) => {
+		const headers = getOrUndefined(fiber.context, HttpServerRequest)?.headers ?? empty$6;
+		const options = {
+			...request,
+			requestContext: invocation.requestContext,
+			headers,
+			sessionId: headers[MCP_SESSION_ID_HEADER]
+		};
+		const handled = catchCause$2(handler, (cause) => failCause$3(annotate$1(cause, handlerFailure)));
+		return middleware.reduce((effect, fn) => fn(effect, options), handled);
+	});
+	return provideInvocationContext(effect, invocation).pipe(catchCause$2((cause) => {
+		if (hasInterrupts$1(cause)) return failCause$3(cause);
+		const failure = findFail(cause);
+		if (isSuccess$1(failure) && !hasDies(cause)) {
+			const error = failure.success.error;
+			if (isHidden(error)) return fail$3(error);
+			if (middleware.length === 0 || get$2(reasonAnnotations(failure.success), HandlerFailure)) return failCause$3(cause);
+			if (isMcpError(error)) return rejectWith(error);
+		}
+		return logError(cause).pipe(andThen(report(cause)), andThen(rejectWith(internalError)));
+	}));
+};
+const makeInvoke = (context, globalMiddleware) => {
+	const services = context === void 0 ? empty$11() : omitRequestServices(context);
+	const localMiddleware = context === void 0 ? [] : getMiddleware(context);
+	const invoke = (handler, invocation, request) => runMiddleware(services.mapUnsafe.size === 0 ? handler : updateContext(handler, (context) => merge$2(services, context)), middlewareStack(localMiddleware, globalMiddleware), invocation, request).pipe(catchHidden(() => fail$3(notFound(request.method, request.target))));
+	const visible = (method, target) => (invocation) => {
+		const middleware = middlewareStack(localMiddleware, globalMiddleware);
+		const innermost = middleware.findIndex((fn) => gates.has(fn));
+		if (innermost === -1) return succeed$3(true);
+		return runMiddleware(void_$1, middleware.slice(innermost), invocation, {
+			method,
+			target,
+			payload: void 0
+		}).pipe(as(true), catchHidden(() => succeed$3(false)));
+	};
+	return {
+		invoke,
+		visible
+	};
+};
+const isEnabled = (annotations) => {
+	const enabledWhen = getOrUndefined(annotations, EnabledWhen);
+	return (profile) => enabledWhen === void 0 || enabledWhen({
+		protocolVersion: profile.protocolVersion,
+		capabilities: profile.clientCapabilities,
+		clientInfo: profile.clientInfo
+	});
+};
+const rejectedError = (rejected) => fail$3(rejected.error);
 var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/McpServer")) {
 	static make = /*#__PURE__*/ gen(function* () {
 		const internalCore = yield* make$5;
-		const tools = empty$9();
+		const tools = empty$10();
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$41();
+		const notificationsQueue = yield* make$42();
+		const globalMiddleware = [];
 		const notificationDelivery = {
 			consumers: 0,
 			listChangeRevision: 0,
@@ -24692,7 +26046,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const dispatcher = (yield* Scheduler).makeDispatcher();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
-			onFromClient: (options) => make$45().pipe(flatMap((delivered) => withFiber((fiber) => {
+			onFromClient: (options) => make$46().pipe(flatMap((delivered) => withFiber((fiber) => {
 				const message = options.message;
 				if (message._tag !== "Request") return void_$1;
 				const notification = toInternalServerNotification(message);
@@ -24700,6 +26054,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				const queued = {
 					notification,
 					delivered,
+					requestLiveness: get$2(fiber.context, RequestLiveness),
 					requestContext: getOrUndefined(fiber.context, McpRequestContext),
 					requestHeaders: getOrUndefined(fiber.context, HttpServerRequest)?.headers
 				};
@@ -24736,9 +26091,27 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				return enqueued && queued.requestContext !== void 0 && notificationDelivery.consumers > 0 ? andThen(_await(delivered), acknowledge) : acknowledge;
 			})))
 		});
+		const addResource = (options, checkOwnership) => suspend$3(() => {
+			if (checkOwnership && internalCore.skills.ownsFile(options.resource.uri)) return die$2(new IllegalArgumentError(`Resource ${options.resource.uri} is a file of a registered skill`));
+			const existingIndex = resources.findIndex(({ resource }) => resource.uri === options.resource.uri);
+			if (existingIndex === -1) resources.push(options);
+			else resources[existingIndex] = options;
+			const { invoke, visible } = makeInvoke(options.services, globalMiddleware);
+			internalCore.resources.register({
+				descriptor: options.resource,
+				visible: visible("resources/list", options.resource.uri),
+				isVisible: isEnabled(options.annotations),
+				read: (invocation) => invoke(options.handle, invocation, {
+					method: "resources/read",
+					target: options.resource.uri,
+					payload: { uri: options.resource.uri }
+				})
+			});
+			return notifications.client["notifications/resources/list_changed"]({});
+		});
 		const service = McpServer.of({
 			notifications: notifications.client,
-			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$45().pipe(flatMap((delivered) => offer(notificationsQueue, {
+			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$46().pipe(flatMap((delivered) => offer(notificationsQueue, {
 				notification: ServerNotification.ElicitationComplete({ elicitationId }),
 				targetClientId: clientId,
 				delivered
@@ -24750,18 +26123,19 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				const existingIndex = tools.findIndex(({ tool }) => tool.name === options.tool.name);
 				if (existingIndex === -1) tools.push(options);
 				else tools[existingIndex] = options;
-				const enabledWhen = getOrUndefined(options.annotations, EnabledWhen);
+				const { invoke, visible } = makeInvoke(options.services, globalMiddleware);
 				yield* internalCore.tools.register({
-					descriptor: new Tool$4({
+					descriptor: new Tool$5({
 						...options.tool,
 						title: options.tool.title ?? options.tool.annotations?.title
 					}),
-					isVisible: (profile) => enabledWhen === void 0 || enabledWhen({
-						protocolVersion: profile.protocolVersion,
-						capabilities: profile.clientCapabilities,
-						clientInfo: profile.clientInfo
-					}),
-					handle: (call, invocation) => provideInvocationContext(options.handle(call.arguments), invocation).pipe(catchTags({
+					visible: visible("tools/list", options.tool.name),
+					isVisible: isEnabled(options.annotations),
+					handle: (call, invocation, beforeHandle) => invoke(andThen(beforeHandle, () => options.handle(call.arguments)), invocation, {
+						method: "tools/call",
+						target: call.name,
+						payload: call
+					}).pipe(catchTags({
 						InternalError: (error) => fail$3(new ToolExecutionError({
 							name: options.tool.name,
 							message: error.message
@@ -24776,7 +26150,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			}),
 			callTool: fnUntraced(function* (request) {
 				const client = yield* McpServerClient;
-				const result = yield* internalCore.tools.call(request, invocationFromClient(client)).pipe(mapError$2((error) => new InvalidParams({ message: error._tag === "ToolNotFound" ? `Tool '${error.name}' not found` : error.message })));
+				const result = yield* internalCore.tools.call(request, invocationFromClient(client)).pipe(catch_$2((error) => error._tag === "RequestRejected" ? rejectedError(error) : fail$3(new InvalidParams({ message: error._tag === "ToolNotFound" ? `Tool '${error.name}' not found` : error.message }))));
 				if (result._tag === "InputRequired") return yield* new InvalidParams({ message: "Client input is not supported by this MCP protocol" });
 				return result.value;
 			}),
@@ -24786,25 +26160,8 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			get resourceTemplates() {
 				return resourceTemplates;
 			},
-			addResource: fnUntraced(function* (options) {
-				const existingIndex = resources.findIndex(({ resource }) => resource.uri === options.resource.uri);
-				if (existingIndex === -1) resources.push(options);
-				else resources[existingIndex] = options;
-				yield* internalCore.resources.register({
-					descriptor: options.resource,
-					isVisible: (profile) => {
-						const enabledWhen = getOrUndefined(options.annotations, EnabledWhen);
-						return enabledWhen === void 0 || enabledWhen({
-							protocolVersion: profile.protocolVersion,
-							capabilities: profile.clientCapabilities,
-							clientInfo: profile.clientInfo
-						});
-					},
-					read: (invocation) => provideInvocationContext(options.handle, invocation)
-				});
-				yield* notifications.client["notifications/resources/list_changed"]({});
-			}),
-			addResourceTemplate: fnUntraced(function* ({ annotations, completions, handle, routerPath, template }) {
+			addResource: (options) => addResource(options, true),
+			addResourceTemplate: fnUntraced(function* ({ annotations, completions, handle, routerPath, services, template }) {
 				const existingIndex = resourceTemplates.findIndex(({ template: current }) => current.uriTemplate === template.uriTemplate);
 				if (existingIndex === -1) resourceTemplates.push({
 					template,
@@ -24814,18 +26171,13 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 					template,
 					annotations
 				};
+				const { invoke, visible } = makeInvoke(services, globalMiddleware);
 				const templateMatcher = makeUriMatcher();
 				templateMatcher.add(routerPath, true);
 				yield* internalCore.resources.registerTemplate({
 					descriptor: template,
-					isVisible: (profile) => {
-						const enabledWhen = getOrUndefined(annotations, EnabledWhen);
-						return enabledWhen === void 0 || enabledWhen({
-							protocolVersion: profile.protocolVersion,
-							capabilities: profile.clientCapabilities,
-							clientInfo: profile.clientInfo
-						});
-					},
+					visible: visible("resources/templates/list", template.uriTemplate),
+					isVisible: isEnabled(annotations),
 					match: (uri) => {
 						const match = templateMatcher.find(uri);
 						if (match === void 0) return;
@@ -24833,9 +26185,17 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 						for (const key of Object.keys(match.params)) params[Number(key)] = match.params[key];
 						return params;
 					},
-					read: (uri, params, invocation) => provideInvocationContext(handle(uri, Array.from(params)), invocation)
+					read: (uri, params, invocation) => invoke(handle(uri, Array.from(params)), invocation, {
+						method: "resources/read",
+						target: uri,
+						payload: { uri }
+					})
 				});
-				for (const [param, handle] of Object.entries(completions)) yield* internalCore.completions.register(`resource/${template.uriTemplate}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$4((result) => ({
+				for (const [param, handle] of Object.entries(completions)) yield* internalCore.completions.register(`resource/${template.uriTemplate}/${param}`, (request, invocation) => invoke(handle(request.argument.value, request.context), invocation, {
+					method: "completion/complete",
+					target: template.uriTemplate,
+					payload: request
+				}).pipe(map$4((result) => ({
 					values: result.completion.values,
 					total: result.completion.total,
 					hasMore: result.completion.hasMore,
@@ -24845,7 +26205,10 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			}),
 			findResource: fnUntraced(function* (uri) {
 				const client = yield* McpServerClient;
-				return yield* internalCore.resources.read(uri, invocationFromClient(client)).pipe(catchTag("ResourceNotFound", (error) => fail$3(new InvalidParams({ message: `Resource '${error.uri}' not found` }))));
+				return yield* internalCore.resources.read(uri, invocationFromClient(client)).pipe(catchTags({
+					ResourceNotFound: (error) => fail$3(new InvalidParams({ message: `Resource '${error.uri}' not found` })),
+					RequestRejected: rejectedError
+				}));
 			}),
 			get prompts() {
 				return prompts;
@@ -24854,19 +26217,25 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 				const existingIndex = prompts.findIndex(({ prompt }) => prompt.name === options.prompt.name);
 				if (existingIndex === -1) prompts.push(options);
 				else prompts[existingIndex] = options;
+				const { invoke, visible } = makeInvoke(options.services, globalMiddleware);
 				yield* internalCore.prompts.register({
 					descriptor: options.prompt,
-					isVisible: (profile) => {
-						const enabledWhen = getOrUndefined(options.annotations, EnabledWhen);
-						return enabledWhen === void 0 || enabledWhen({
-							protocolVersion: profile.protocolVersion,
-							capabilities: profile.clientCapabilities,
-							clientInfo: profile.clientInfo
-						});
-					},
-					get: (params, invocation) => provideInvocationContext(options.handle(params), invocation).pipe(map$4((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
+					visible: visible("prompts/list", options.prompt.name),
+					isVisible: isEnabled(options.annotations),
+					get: (params, invocation) => invoke(options.handle(params), invocation, {
+						method: "prompts/get",
+						target: options.prompt.name,
+						payload: {
+							name: options.prompt.name,
+							arguments: params
+						}
+					}).pipe(map$4((result) => isTagged(result, "InputRequired") ? OperationOutcome.InputRequired(result) : OperationOutcome.Complete(result)))
 				});
-				for (const [param, handle] of Object.entries(options.completions)) yield* internalCore.completions.register(`prompt/${options.prompt.name}/${param}`, (request, invocation) => provideInvocationContext(handle(request.argument.value, request.context), invocation).pipe(map$4((result) => ({
+				for (const [param, handle] of Object.entries(options.completions)) yield* internalCore.completions.register(`prompt/${options.prompt.name}/${param}`, (request, invocation) => invoke(handle(request.argument.value, request.context), invocation, {
+					method: "completion/complete",
+					target: options.prompt.name,
+					payload: request
+				}).pipe(map$4((result) => ({
 					values: result.completion.values,
 					total: result.completion.total,
 					hasMore: result.completion.hasMore,
@@ -24876,7 +26245,10 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 			}),
 			getPromptResult: fnUntraced(function* ({ arguments: params, name }) {
 				const client = yield* McpServerClient;
-				const outcome = yield* internalCore.prompts.get(name, params ?? {}, invocationFromClient(client)).pipe(catchTag("PromptNotFound", () => new InvalidParams({ message: `Prompt '${name}' not found` })));
+				const outcome = yield* internalCore.prompts.get(name, params ?? {}, invocationFromClient(client)).pipe(catchTags({
+					PromptNotFound: () => new InvalidParams({ message: `Prompt '${name}' not found` }),
+					RequestRejected: rejectedError
+				}));
 				return outcome._tag === "Complete" ? outcome.value : yield* new InvalidParams({ message: "Client input is not supported by this MCP protocol" });
 			}),
 			completion: fnUntraced(function* (complete) {
@@ -24892,7 +26264,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 					},
 					argument: complete.argument,
 					context: complete.context
-				}, invocationFromClient(client));
+				}, invocationFromClient(client)).pipe(catchTag("RequestRejected", rejectedError));
 				return {
 					_meta: result.metadata,
 					completion: {
@@ -24905,8 +26277,10 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		});
 		internalState.set(service, {
 			core: internalCore,
+			addSkillFile: (options) => addResource(options, false),
 			notifications: notificationsQueue,
-			notificationDelivery
+			notificationDelivery,
+			globalMiddleware
 		});
 		return service;
 	});
@@ -24918,16 +26292,122 @@ const MCP_INVALID_BATCH_METHOD = "invalid/json-rpc-batch";
 const cancelledResponses = /*#__PURE__*/ new WeakMap();
 const httpPostResponses = /*#__PURE__*/ new WeakMap();
 const requestKey = (requestId) => `${typeof requestId}:${requestId}`;
+const requestErrorCodes = /*#__PURE__*/ new Set([
+	-32700,
+	-32600,
+	-32601,
+	-32602,
+	-32002
+]);
+const remoteParentSpan = (params) => {
+	const meta = params?._meta;
+	if (!isReadonlyObject(meta) || typeof meta.traceparent !== "string") return;
+	return getOrUndefined$1(w3c(fromInput$1({ traceparent: meta.traceparent })));
+};
+const requestSpanOptions = (method, request, options) => {
+	const params = isReadonlyObject(request.payload) ? request.payload : void 0;
+	const attributes = {
+		"mcp.method.name": method,
+		"mcp.protocol.version": options.protocolVersion
+	};
+	if (request.isNotification !== true) attributes["jsonrpc.request.id"] = String(request.id);
+	if (options.sessionId !== void 0) attributes["mcp.session.id"] = options.sessionId;
+	if (options.networkTransport !== void 0) attributes["network.transport"] = options.networkTransport;
+	let target;
+	switch (method) {
+		case "tools/call":
+			attributes["gen_ai.operation.name"] = "execute_tool";
+			if (typeof params?.name === "string") {
+				target = params.name;
+				attributes["gen_ai.tool.name"] = target;
+			}
+			if (options.recordToolArguments && params?.arguments !== void 0) attributes["gen_ai.tool.call.arguments"] = stringifyToolArguments(params.arguments);
+			break;
+		case "prompts/get":
+			if (typeof params?.name === "string") {
+				target = params.name;
+				attributes["gen_ai.prompt.name"] = target;
+			}
+			break;
+		case "resources/read":
+		case "resources/subscribe":
+		case "resources/unsubscribe": if (typeof params?.uri === "string") attributes["mcp.resource.uri"] = params.uri;
+	}
+	return {
+		name: target === void 0 ? method : `${method} ${target}`,
+		kind: "server",
+		attributes,
+		parent: remoteParentSpan(params)
+	};
+};
+const CurrentRequestSpan = /*#__PURE__*/ Reference("effect/ai/McpServer/CurrentRequestSpan", { defaultValue: () => void 0 });
+const errorResponseSpans = /*#__PURE__*/ new WeakSet();
+const recordErrorResponse = (span, code) => {
+	errorResponseSpans.add(span);
+	span.attribute("rpc.status_code", String(code));
+	span.attribute("error.type", String(code));
+};
+const endRequestSpan = (span, method, exit, endTime) => {
+	if (errorResponseSpans.has(span)) return span.end(endTime, exit);
+	if (isSuccess(exit)) {
+		if (method === "tools/call" && hasProperty(exit.value, "isError") && exit.value.isError === true) span.attribute("error.type", "tool_error");
+		return span.end(endTime, exit);
+	}
+	const error = findErrorOption(exit.cause);
+	if (isNone(error) || !hasProperty(error.value, "code") || typeof error.value.code !== "number") return span.end(endTime, exit);
+	const code = error.value.code;
+	span.attribute("rpc.status_code", String(code));
+	if (requestErrorCodes.has(code)) return span.end(endTime, void_$2);
+	span.attribute("error.type", String(code));
+	span.end(endTime, exit);
+};
 var McpClientKey = class extends Class$1 {};
+const normalizeCacheHints = (cacheHints) => {
+	if (cacheHints === void 0) return succeed$3(void 0);
+	const normalized = {};
+	for (const [name, hint] of Object.entries(cacheHints)) {
+		if (hint === void 0) continue;
+		const ttlMs = match$3(fromInput$2(hint.ttl), {
+			onNone: () => NaN,
+			onSome: (ttl) => Math.floor(toMillis(ttl))
+		});
+		if (!Number.isSafeInteger(ttlMs) || ttlMs < 0 || hint.cacheScope !== "private") return fail$3(new IllegalArgumentError(`McpServer cacheHints.${name} must have a finite, nonnegative ttl and a "private" cacheScope`));
+		normalized[name] = {
+			ttlMs,
+			cacheScope: "private"
+		};
+	}
+	return succeed$3(normalized);
+};
 const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, transport, requestScoped) {
 	const protocol = yield* Protocol;
 	const server = yield* McpServer;
 	const defaultLogLevel = yield* CurrentLogLevel;
 	const isHttp = transport === "http";
+	const networkTransport = isHttp ? "tcp" : transport === "stdio" ? "pipe" : void 0;
+	const traceRequest = (effect, request) => withFiber((fiber) => {
+		const method = runtime.methodForInternalTag(request.tag);
+		const { name, ...spanOptions } = requestSpanOptions(method, request, {
+			protocolVersion: runtime.protocolForInternalTag(request.tag).protocolVersion,
+			networkTransport,
+			sessionId: isHttp ? getOrUndefined(fiber.context, HttpServerRequest)?.headers[MCP_SESSION_ID_HEADER] : void 0,
+			recordToolArguments: fiber.getRef(RecordToolArguments)
+		});
+		const ambientParent = getOrUndefined(fiber.context, ParentSpan);
+		return flatMap(makeSpan(name, {
+			...spanOptions,
+			links: spanOptions.parent !== void 0 && ambientParent !== void 0 ? [{
+				span: ambientParent,
+				attributes: {}
+			}] : void 0
+		}), (span) => onExit$1(effect.pipe(provideService(ParentSpan, span), provideService(CurrentRequestSpan, span)), (exit) => sync(() => endRequestSpan(span, method, exit, fiber.getRef(Clock).currentTimeNanosUnsafe()))));
+	});
 	const clientStates = /* @__PURE__ */ new Map();
 	const activeRequests = /* @__PURE__ */ new Map();
+	const stdioEnd = transport === "stdio" ? makeUnsafe$1() : void 0;
 	const reverseRequestClients = /* @__PURE__ */ new Map();
 	const disconnectClient = (clientId) => {
+		for (const request of activeRequests.get(clientId)?.values() ?? []) request.liveness.active = false;
 		activeRequests.delete(clientId);
 		clientStates.delete(clientId);
 		runtime.disconnect(clientId);
@@ -24976,6 +26456,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		const key = requestKey(requestId);
 		const request = requests?.get(key);
 		if (request === void 0) return false;
+		request.liveness.active = false;
 		requests.set(key, {
 			...request,
 			cancelled: true
@@ -25000,6 +26481,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		getListChangeRevision: () => notificationDelivery.listChangeRevision,
 		...!protocol.supportsNotifications || options.allowSubscriptions === false ? {} : {
 			sendNotification,
+			awaitClientEnd: stdioEnd?.await,
 			markSubscriptionCancelled: (clientId, requestId) => sync(() => {
 				cancelRequest(clientId, requestId);
 			}),
@@ -25097,6 +26579,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 				const requests = activeRequests.get(clientId);
 				const key = requestKey(response.requestId);
 				const active = requests?.get(key);
+				if (active !== void 0) active.liveness.active = false;
 				if (requests !== void 0 && requests.delete(key) && requests.size === 0) activeRequests.delete(clientId);
 				if (active?.cancelled === true) {
 					if (transport === "custom") return void_$1;
@@ -25107,7 +26590,9 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 				if (response.exit._tag === "Failure" && !response.exit.cause.some((failure) => failure._tag === "Fail")) return sendRequestError(clientId, response.requestId, {
 					code: INTERNAL_ERROR_CODE,
 					message: "Internal error"
-				});
+				}).pipe(andThen(CurrentRequestSpan), map$4((span) => {
+					if (span !== void 0) recordErrorResponse(span, INTERNAL_ERROR_CODE);
+				}));
 			}
 			return protocol.send(clientId, response);
 		},
@@ -25174,7 +26659,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 									const handler = handlers.mapUnsafe.get(rpc.key);
 									const handled = handler ? handler.handler(payload, {
 										rpc,
-										requestId: RequestId$2(request.id),
+										requestId: RequestId$3(request.id),
 										client: new ServerClient(clientId),
 										headers
 									}) : void_$1;
@@ -25187,17 +26672,19 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 							}
 							const decoded = yield* result$1(selectedProtocol.payloadCodecs(rpc).decode(request.payload));
 							if (isFailure$1(decoded)) return yield* request.isNotification ? void_$1 : sendRequestError(clientId, request.id, new InvalidParams({ message: "Invalid method parameters" }));
+							const liveness = { active: true };
 							if (request.isNotification !== true) {
 								const requests = activeRequests.get(clientId) ?? /* @__PURE__ */ new Map();
 								requests.set(requestKey(request.id), {
-									requestId: RequestId$2(request.id),
+									requestId: RequestId$3(request.id),
 									prepared,
+									liveness,
 									cancelled: false,
 									httpPost: httpRequest === void 0 ? void 0 : httpPostResponses.get(httpRequest)
 								});
 								activeRequests.set(clientId, requests);
 							}
-							const handled = f(clientId, routedRequest);
+							const handled = provideService(f(clientId, routedRequest), RequestLiveness, liveness);
 							return yield* prepared.requestContext === void 0 ? handled : provideService(handled, McpRequestContext, prepared.requestContext);
 						}).pipe(catch_$2((error) => request.isNotification ? void_$1 : sendRequestError(clientId, request.id, isTagged(error, "ProtocolError") ? ProtocolError.fromFeature(error) : new InvalidParams({ message: "Invalid request metadata" }))));
 					}
@@ -25205,7 +26692,10 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 					case "Ack":
 					case "Interrupt": return f(clientId, request);
 					case "Eof":
-						if (!isHttp) disconnectClient(clientId);
+						if (!isHttp) {
+							stdioEnd?.openUnsafe();
+							disconnectClient(clientId);
+						}
 						return f(clientId, request);
 					case "Pong":
 					case "Exit":
@@ -25222,7 +26712,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 						const selectedProtocol = clientState?.protocol ?? runtime.protocols[0];
 						const profile = reverseKey?.profile ?? clientState?.profile ?? {
 							protocolVersion: selectedProtocol.protocolVersion,
-							clientCapabilities: {},
+							clientCapabilities: new ClientCapabilities$4({}),
 							clientInfo: {
 								name: "unknown",
 								version: "unknown"
@@ -25289,11 +26779,15 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 				if (notification._tag === "LoggingMessage" && selectedProtocol.runtime._tag === "Stateless") {
 					const metadata = requestContext?.requestMetadata;
 					const level = hasProperty(metadata, "io.modelcontextprotocol/logLevel") ? metadata["io.modelcontextprotocol/logLevel"] : void 0;
-					if (requestContext?.clientId !== clientId || !isLoggingLevel(level) || LoggingLevel$1.literals.indexOf(notification.level) < LoggingLevel$1.literals.indexOf(level)) return;
-				} else if (!runtime.canDeliver(clientId, (requestContext?.clientId === clientId ? requestHeaders : void 0) ?? clientStates.get(clientId)?.sessionHeaders ?? empty$6, notification, defaultLogLevel)) return;
+					if (requestContext?.clientId !== clientId || !isLoggingLevel(level) || LoggingLevel$2.literals.indexOf(notification.level) < LoggingLevel$2.literals.indexOf(level)) return;
+				} else if (!runtime.canDeliver(clientId, (requestContext?.clientId === clientId ? requestHeaders : void 0) ?? clientStates.get(clientId)?.sessionHeaders ?? empty$6, notification, defaultLogLevel, listChangeRevision)) return;
 				const rpc = selectedProtocol.serverNotificationRpcs.requests.get(projected.tag);
 				if (!rpc) return;
 				const encoded = yield* selectedProtocol.payloadCodecs(rpc).encode(projected.payload);
+				if (notification._tag === "Progress") {
+					if (!(yield* patchedProtocol.clientIds).has(clientId)) return;
+					if (queued.requestLiveness?.active === false) return;
+				}
 				yield* patchedProtocol.send(clientId, {
 					_tag: "Request",
 					id: "",
@@ -25315,15 +26809,21 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		}).pipe(forkScoped({ startImmediately: true }));
 	})), ignoreCause, forever, forkScoped);
 	return yield* make(runtime.clientRpcs, {
-		spanPrefix: "McpServer",
-		disableFatalDefects: true
+		disableTracing: true,
+		disableFatalDefects: true,
+		onDisconnect: (clientId) => sync(() => disconnectClient(clientId)),
+		onRequest: (effect, request) => traceRequest(effect, request)
 	}).pipe(provideService(Protocol, patchedProtocol), provideService(McpServerClientMiddleware, clientMiddleware), provide(handlers));
 }, scoped);
 const layerWithRuntime = (options, transport) => effectDiscard(gen(function* () {
+	const cacheHints = yield* normalizeCacheHints(options.cacheHints);
 	const runtime = yield* ServerRuntime;
-	yield* forkScoped(runWithRuntime(options, runtime, transport));
-})).pipe(provideMerge(McpServer.layer));
-const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$2(layer$2(options.protocols)), provide$2(layerProtocolStdio), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
+	yield* forkScoped(runWithRuntime({
+		...options,
+		cacheHints
+	}, runtime, transport));
+})).pipe(provide$2(options.registrations ?? empty$9), provideMerge(McpServer.layer));
+const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$2(layer$2(options.protocols)), provide$2(effect(Protocol, makeProtocolStdio)), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
 const mcpStdioSerialization = (protocols) => {
 	const serialization = mcpJsonRpcSerialization({ contentType: "application/json-rpc" });
 	return RpcSerialization.of({
@@ -25374,7 +26874,7 @@ const mcpStdioSerialization = (protocols) => {
 		}
 	});
 };
-const isEncodedMcpFailureCause = /*#__PURE__*/ is$2(/*#__PURE__*/ TaggedStruct("Cause", { data: /*#__PURE__*/ Tuple([/*#__PURE__*/ TaggedStruct("Fail", { error: /*#__PURE__*/ toEncoded(McpError$1) })]) }));
+const isEncodedMcpFailureCause = /*#__PURE__*/ is$2(/*#__PURE__*/ TaggedStruct("Cause", { data: /*#__PURE__*/ Tuple([/*#__PURE__*/ TaggedStruct("Fail", { error: /*#__PURE__*/ toEncoded(McpError$2) })]) }));
 const normalizeMcpJsonRpcResponse = (response) => {
 	if (Array.isArray(response)) return response.map(normalizeMcpJsonRpcResponse);
 	if (!isReadonlyObject(response) || !hasProperty(response, "error")) return response;
@@ -25429,7 +26929,7 @@ const getJsonRpcProtocolVersion = (message) => {
 	return isSuccess$1(decoded) ? decoded.success.params.protocolVersion : void 0;
 };
 const INTERNAL_TOOL_ERROR_MESSAGE = "Tool execution failed due to an internal server error.";
-const toolErrorResult = (message) => new CallToolResult$4({
+const toolErrorResult = (message) => new CallToolResult$5({
 	isError: true,
 	content: [{
 		type: "text",
@@ -25453,11 +26953,10 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 		}
 		return makeUnsafe$7(services);
 	}));
-	const services = omitRequestServices(yield* context());
-	const reportCause = (cause) => provideContext$2(report(cause), services);
+	const services = yield* context();
 	const internalToolError = (cause) => {
 		const failure = findFail(cause);
-		return isFailure$1(failure) && !hasDies(cause) ? failCause$3(failure.failure) : logError(cause).pipe(andThen(reportCause(cause)), as(toolErrorResult(INTERNAL_TOOL_ERROR_MESSAGE)));
+		return isFailure$1(failure) && !hasDies(cause) ? failCause$3(failure.failure) : logError(cause).pipe(andThen(report(cause)), as(toolErrorResult(INTERNAL_TOOL_ERROR_MESSAGE)));
 	};
 	const registrations = [];
 	for (const tool of Object.values(built.tools)) {
@@ -25469,13 +26968,28 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 			errors: "all"
 		};
 		const annotations = tool.annotations;
-		const toolMeta = getOrUndefined(annotations, Meta$2);
+		const toolMeta = getOrUndefined(annotations, Meta$3);
 		const isDeclaredFailure = is$2(tool.failureSchema);
-		const encodeFailure = encodeUnknownEffect(tool.failureSchema);
-		const declaredFailureResult = (error) => error instanceof Error && error.message !== "" ? succeed$3(toolErrorResult(error.message)) : map$4(encodeFailure(error), (encoded) => new CallToolResult$4({
+		const encodeFailureJson = encodeUnknownEffect(toCodecJson(tool.failureSchema));
+		const encodeFailure = (toolResult) => mapError$2(encodeFailureJson(toolResult), (cause) => make$11({
+			module: "McpServer",
+			method: "registerToolkit",
+			reason: new ToolResultEncodingError({
+				toolName: tool.name,
+				toolResult,
+				description: cause.message
+			})
+		}));
+		const failureResult = (encoded) => new CallToolResult$5({
 			isError: true,
 			content: toolResultContent(encoded)
-		}));
+		});
+		const declaredFailureResult = (error) => error instanceof Error && error.message !== "" ? succeed$3(toolErrorResult(error.message)) : map$4(encodeFailure(error), failureResult);
+		const successResult = (structuredContent) => new CallToolResult$5({
+			isError: false,
+			structuredContent,
+			content: toolResultContent(structuredContent)
+		});
 		const handleCause = (cause) => {
 			const failure = findFail(cause);
 			if (isSuccess$1(failure)) {
@@ -25488,7 +27002,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 		};
 		const outputSchema = yield* decodeUnknownEffect(ToolOutputJson)(toolJsonSchema(tool.successSchema, false)).pipe(orDie);
 		const inputSchema = yield* decodeUnknownEffect(ToolJson)(rawJsonSchema ?? toolJsonSchema(tool.parametersSchema, strict)).pipe(catchTag("SchemaError", (error) => die$2(rawJsonSchema !== void 0 ? `McpServer cannot register tool '${tool.name}': its raw JSON Schema must have an object root (type: "object").\n\n${error.message}` : `McpServer cannot register tool '${tool.name}': its parameters must encode to a JSON Schema with an object root (type: "object"), such as a Schema.Struct. Use Tool.EmptyParams for a tool without parameters.\n\n${error.message}`)));
-		const mcpTool = new Tool$4({
+		const mcpTool = new Tool$5({
 			name: tool.name,
 			description: getDescription(tool),
 			inputSchema,
@@ -25506,12 +27020,15 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 			tool: mcpTool,
 			annotations,
 			handle(payload) {
-				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap, runLast, flatMap(fromOption), flatMap((result) => result.isFailure && result.failureOrigin !== "handler" ? failCause$3(annotate$1(fail$5(result.result), make$48(FailureOrigin, result.failureOrigin ?? "result"))) : succeed$3(new CallToolResult$4({
-					isError: result.isFailure,
-					structuredContent: result.isFailure ? void 0 : result.encodedResult,
-					content: toolResultContent(result.encodedResult)
-				}))), catchCause$2(handleCause), provideContext$2(services));
-			}
+				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap, runLast, flatMap(fromOption), flatMap((result) => {
+					if (!result.isFailure) return succeed$3(result.result === void 0 ? new CallToolResult$5({
+						isError: false,
+						content: []
+					}) : successResult(result.encodedResult));
+					return result.failureOrigin === "handler" ? succeed$3(failureResult(result.encodedResult)) : failCause$3(annotate$1(fail$5(result.result), make$49(FailureOrigin, result.failureOrigin ?? "result")));
+				}), catchCause$2(handleCause));
+			},
+			services
 		});
 	}
 	for (const registration of registrations) yield* registry.addTool(registration);
@@ -25528,15 +27045,21 @@ const toolJsonSchema = (schema, strict) => {
 		$defs: document.definitions
 	};
 };
+const handlerFailureToInternalError = (cause) => hasDies(cause) || hasInterrupts$1(cause) ? failCause$3(cause) : fail$3(new InternalError({ message: prettyErrors(cause)[0].message }));
+const completionHandler = (handle, encodeValues) => (input, context) => handle(input, context).pipe(flatMap(encodeValues), map$4((values) => ({ completion: {
+	values,
+	total: values.length,
+	hasMore: false
+} })), catchCause$2(handlerFailureToInternalError));
 const registerPrompt = (options) => {
-	const args = empty$9();
+	const args = empty$10();
 	const props = options.parameters ?? {};
 	for (const [name, prop] of Object.entries(props)) args.push({
 		name,
 		description: resolveDescription(prop.ast),
 		required: !isOptional(prop.ast)
 	});
-	const prompt = new Prompt$3({
+	const prompt = new Prompt$4({
 		name: options.name,
 		title: options.title,
 		description: options.description,
@@ -25546,41 +27069,28 @@ const registerPrompt = (options) => {
 	const completion = options.completion ?? {};
 	return gen(function* () {
 		const registry = yield* McpServer;
-		const services = omitRequestServices(yield* context());
+		const services = yield* context();
 		const completions = Object.create(null);
-		for (const [param, handle] of Object.entries(completion)) {
-			const encodeArray = encodeEffect(ArraySchema(props[param]));
-			const handler = (input, context) => handle(input, context).pipe(flatMap(encodeArray), map$4((values) => ({ completion: {
-				values,
-				total: values.length,
-				hasMore: false
-			} })), catchCause$2((cause) => {
-				const prettyError = prettyErrors(cause)[0];
-				return fail$3(new InternalError({ message: prettyError.message }));
-			}), provide(services));
-			completions[param] = handler;
-		}
+		for (const [param, handle] of Object.entries(completion)) completions[param] = completionHandler(handle, encodeUnknownEffect(ArraySchema(props[param])));
 		yield* registry.addPrompt({
 			prompt,
 			completions,
-			annotations: options.annotations ?? empty$10(),
-			handle: (params) => decode(params).pipe(mapError$2((error) => new InvalidParams({ message: error.message })), flatMap((params) => options.content(params).pipe(catchCause$2((cause) => {
-				const prettyError = prettyErrors(cause)[0];
-				return fail$3(new InternalError({ message: prettyError.message }));
-			}))), map$4((messages) => {
+			services,
+			annotations: options.annotations ?? empty$11(),
+			handle: (params) => decode(params).pipe(mapError$2((error) => new InvalidParams({ message: error.message })), flatMap((params) => options.content(params).pipe(catchCause$2(handlerFailureToInternalError))), map$4((messages) => {
 				messages = typeof messages === "string" ? [{
 					role: "user",
-					content: TextContent$3.make({ text: messages })
+					content: TextContent$4.make({ text: messages })
 				}] : messages;
-				return new GetPromptResult$4({
+				return new GetPromptResult$5({
 					messages,
 					description: prompt.description
 				});
-			}), provideContext$2(services))
+			}))
 		});
 	});
 };
-const prompt = (options) => effectDiscard(registerPrompt(options)).pipe(provide$2(McpServer.layer));
+const prompt = (options) => effectDiscard(registerPrompt(options));
 const makeUriMatcher = () => {
 	const router = make$19({
 		ignoreTrailingSlash: true,
@@ -25854,7 +27364,7 @@ const NotifiedToolkit = effectDiscard(gen(function* () {
 		state.lookup = fiber;
 	}) : void_$1);
 	const noted = (tool, result) => suspend$3(() => {
-		if (state.told || !(result instanceof CallToolResult$4)) return succeed$3(result);
+		if (state.told || !(result instanceof CallToolResult$5)) return succeed$3(result);
 		if (SPEAKING_OF_UPDATES.has(tool)) {
 			state.told = true;
 			return succeed$3(result);
@@ -25867,7 +27377,7 @@ const NotifiedToolkit = effectDiscard(gen(function* () {
 		return as(telemetry.capture("update_offered", {
 			tool,
 			version: update.version
-		}), new CallToolResult$4({
+		}), new CallToolResult$5({
 			_meta: result._meta,
 			content: [...result.content, {
 				text: updateNote(update, updates.current),
@@ -25899,7 +27409,7 @@ const SetupPrompt = prompt({
 	name: SETUP_PROMPT.name,
 	title: SETUP_PROMPT.title
 });
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/internal/stream.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/stream.js
 const destroyStream = (stream, cleanup, onDestroyed) => {
 	if (!("closed" in stream)) {
 		cleanup();
@@ -25926,7 +27436,7 @@ const destroyStream = (stream, cleanup, onDestroyed) => {
 	cleanup();
 	if (!stream.closed) stream.destroy();
 };
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeSink.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeSink.js
 const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
 const fromWritableChannel = (options) => fromTransform$1((pull) => {
 	const writable = options.evaluate();
@@ -26008,19 +27518,21 @@ const pullIntoWritable = (options) => withFiber((fiber) => {
 		} else removeErrorListener();
 	})));
 });
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.0.7_effect@4.0.7/node_modules/@effect/platform-node-shared/dist/NodeStream.js
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeStream.js
 const fromReadable = (options) => fromChannel(fromReadableChannel(options));
 const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
 	scope,
 	readable: options.evaluate(),
 	onError: options.onError ?? defaultOnError,
 	chunkSize: options.chunkSize,
+	readSize: options.readSize,
 	closeOnDone: options.closeOnDone
 }));
 const readableToPullUnsafe = (options) => {
 	const readable = options.readable;
+	const chunkSize = options.chunkSize ?? 4096;
 	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$30(void 0);
+	const exit = options.exit ?? make$31(void 0);
 	const latch = options.latch ?? makeUnsafe$1(false);
 	function onReadable() {
 		latch.openUnsafe();
@@ -26034,7 +27546,7 @@ const readableToPullUnsafe = (options) => {
 		latch.openUnsafe();
 	});
 	const pull = suspend$3(function loop() {
-		let item = options.readable.read(options.chunkSize);
+		let item = options.readable.read(options.readSize);
 		if (item === null) {
 			if (exit.current) return exit.current;
 			if (readable.readableEnded) return fail$3(Done$1());
@@ -26042,8 +27554,8 @@ const readableToPullUnsafe = (options) => {
 			return flatMap(latch.await, loop);
 		}
 		const chunk = of(item);
-		while (true) {
-			item = options.readable.read(options.chunkSize);
+		while (chunk.length < chunkSize) {
+			item = options.readable.read(options.readSize);
 			if (item === null) break;
 			chunk.push(item);
 		}
@@ -26056,7 +27568,7 @@ const readableToPullUnsafe = (options) => {
 	})), pull);
 };
 const defaultOnError = (error) => new UnknownError$1(error);
-// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeStdio.js
+// ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeStdio.js
 const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
@@ -26141,7 +27653,7 @@ const reportCrash = (cause) => gen(function* () {
 	yield* telemetry.flush;
 }).pipe(provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, ignore$1);
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
-// ../../node_modules/.pnpm/@effect+platform-node@4.0.7_effect@4.0.7/node_modules/@effect/platform-node/dist/NodeRuntime.js
+// ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeRuntime.js
 const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {
 	let receivedSignal = false;
 	fiber.addObserver((exit) => {
