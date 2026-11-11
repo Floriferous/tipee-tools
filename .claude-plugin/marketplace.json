@@ -12,7 +12,7 @@
         "source": "git-subdir",
         "url": "Floriferous/tipee-tools",
         "path": "plugins/tipee",
-        "ref": "v1.2.0"
+        "ref": "v1.3.0"
       }
     }
   ]

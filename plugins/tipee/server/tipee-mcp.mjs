@@ -28975,7 +28975,7 @@ const SERVER_ICON = Icon$1.make({
 });
 // ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.3.0";
 const INSTRUCTIONS = join$2([
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
