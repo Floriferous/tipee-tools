@@ -3,7 +3,7 @@
 // the next step, with a link into the user's tipee when the fix is a right
 // to tick.
 
-import { Data, Effect, Option, Predicate, Schema } from 'effect';
+import { Array as Arr, Data, Effect, Option, Predicate, Schema } from 'effect';
 import { HttpClientError } from 'effect/http';
 
 import { InvalidRequest, TipeeError } from './Errors.ts';
@@ -12,8 +12,22 @@ import { operation } from './Operations.ts';
 import type { Operation } from './Operations.ts';
 import { SETTINGS, pages, rightFor } from './Rights.ts';
 import { TipeeClient } from './TipeeClient.ts';
+import type { TipeeApi } from './TipeeClient.ts';
 
-type Method = (request: { readonly payload: unknown }) => Effect.Effect<unknown, unknown>;
+// What any method of the client fails with: the union, over every operation,
+// of the errors the derived client declares (transport and status failures,
+// schema errors, TipeeClient's timeouts, and the 409 bodies tipee documents).
+type ClientError = {
+  readonly [Group in keyof TipeeApi]: {
+    readonly [Name in keyof TipeeApi[Group]]: TipeeApi[Group][Name] extends (
+      ...args: never
+    ) => Effect.Effect<unknown, infer E, unknown>
+      ? E
+      : never;
+  }[keyof TipeeApi[Group]];
+}[keyof TipeeApi];
+
+type Method = (request: { readonly payload: unknown }) => Effect.Effect<unknown, ClientError>;
 
 /**
  * A write tipee applied while answering with a success status its document
@@ -50,8 +64,8 @@ const call = Effect.fnUntraced(function* (target: Operation, params: unknown) {
   // Checked against the document before anything is sent, so a schema
   // error afterwards can only be tipee's answer.
   yield* Schema.decodeUnknownEffect(target.parameters)(params).pipe(
-    Effect.mapError(
-      (cause) => new TipeeError({ reason: new InvalidRequest({ details: cause.message }) }),
+    Effect.mapError((cause) =>
+      TipeeError.make({ reason: InvalidRequest.make({ details: cause.message }) }),
     ),
   );
   const methods = api as unknown as Record<string, Record<string, Method> | undefined>;
@@ -101,12 +115,12 @@ interface Page {
 const integrations: Effect.Effect<ReadonlyArray<Listed>, TipeeError, TipeeClient> = Effect.gen(
   function* () {
     const kinds = (yield* call(operation('kinds_list'), {})) as ReadonlyArray<Kind>;
-    const kind = kinds.find((candidate) => candidate.machine_name === 'integration');
-    if (kind === undefined) {
+    const kind = Arr.findFirst(kinds, (candidate) => candidate.machine_name === 'integration');
+    if (Option.isNone(kind)) {
       return [];
     }
     const page = (yield* call(operation('resources_list'), {
-      kind_id: kind.id,
+      kind_id: kind.value.id,
       orders: [{ attribute: 'last_name', direction: 'asc', key: 'resource.attribute' }],
       pagination: { limit: PAGE_SIZE, next_token: null },
     })) as Page;
@@ -191,7 +205,7 @@ const explain = Effect.fnUntraced(function* (
 ) {
   const { instance } = yield* TipeeClient;
   const { reason } = failure;
-  const fixed = (fix: string): TipeeError => new TipeeError({ fix, reason });
+  const fixed = (fix: string): TipeeError => TipeeError.make({ fix, reason });
   if (reason._tag === 'RightsMissing') {
     return fixed(
       `Open ${pages(instance).integrations}, pick the integration whose key you pasted, ` +

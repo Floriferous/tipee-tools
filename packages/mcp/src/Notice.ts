@@ -9,6 +9,7 @@
 
 import { Deferred, Effect, Layer, Option, Ref, Schema } from 'effect';
 import { McpSchema, McpServer } from 'effect/ai';
+import { dual } from 'effect/Function';
 
 import { Telemetry } from './Telemetry.ts';
 import { TipeeToolkit } from './Tools.ts';
@@ -19,10 +20,16 @@ import type { Update } from './Updates.ts';
 const SPEAKING_OF_UPDATES = new Set(['check_setup', 'update_plugin']);
 
 // What Claude reads after a tool's answer when a newer version exists.
-export const updateNote = (update: Update, current: string): string =>
-  `tipee for Claude ${update.version} is available (this is ${current}). When the current ` +
-  'task allows, tell the user in one sentence and offer to install it with update_plugin; ' +
-  'say it once.';
+export const updateNote: {
+  (current: string): (update: Update) => string;
+  (update: Update, current: string): string;
+} = dual(
+  2,
+  (update: Update, current: string): string =>
+    `tipee for Claude ${update.version} is available (this is ${current}). When the current ` +
+    'task allows, tell the user in one sentence and offer to install it with update_plugin; ' +
+    'say it once.',
+);
 
 type Result = McpSchema.CallToolResult | McpSchema.InputRequired;
 
@@ -64,7 +71,7 @@ export const NotifiedToolkit = Layer.effectDiscard(
           return result;
         }
         yield* telemetry.capture('update_offered', { tool, version: update.value.version });
-        return new McpSchema.CallToolResult({
+        return McpSchema.CallToolResult.make({
           _meta: result._meta,
           content: [
             ...result.content,

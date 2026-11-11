@@ -2,7 +2,7 @@
 // tipee's Retry-After asks, and not at all when that is longer than a tool
 // call can afford.
 
-import { describe, expect, it } from '@effect/vitest';
+import { describe, expect, it, layer } from '@effect/vitest';
 import { Clock, Effect, Layer } from 'effect';
 import { HttpClient, HttpClientResponse } from 'effect/http';
 
@@ -42,36 +42,42 @@ describe('Retry-After', () => {
 });
 
 describe('waiting', () => {
-  it.effect('waits at least as long as Retry-After asks', () =>
-    Effect.gen(function* () {
-      const { client, sentAt } = scripted((attempt) =>
-        attempt === 1
-          ? Response.json(
-              { message: 'Slow down.' },
-              { headers: { 'Retry-After': '5' }, status: HTTP_TOO_MANY_REQUESTS },
-            )
-          : Response.json([]),
-      );
-      yield* settled(call('kinds_list', {})).pipe(Effect.provide(client));
-
-      expect(sentAt).toHaveLength(2);
-      expect((sentAt[1] ?? 0) - (sentAt[0] ?? 0)).toBeGreaterThanOrEqual(5000);
-    }),
-  );
-
-  it.effect('passes a wait longer than it can afford straight back', () =>
-    Effect.gen(function* () {
-      const { client, sentAt } = scripted(() =>
-        Response.json(
+  const lifting = scripted((attempt) =>
+    attempt === 1
+      ? Response.json(
           { message: 'Slow down.' },
-          { headers: { 'Retry-After': '30' }, status: HTTP_TOO_MANY_REQUESTS },
-        ),
-      );
-      const error = yield* settled(failure(call('kinds_list', {}))).pipe(Effect.provide(client));
-
-      expect(sentAt).toHaveLength(1);
-      expect(error.reason._tag).toBe('RateLimited');
-      expect(error.message).toContain('Retry-After: 30');
-    }),
+          { headers: { 'Retry-After': '5' }, status: HTTP_TOO_MANY_REQUESTS },
+        )
+      : Response.json([]),
   );
+  layer(lifting.client)((it) => {
+    it.effect('waits at least as long as Retry-After asks', () =>
+      Effect.gen(function* () {
+        const { sentAt } = lifting;
+        yield* settled(call('kinds_list', {}));
+
+        expect(sentAt).toHaveLength(2);
+        expect((sentAt[1] ?? 0) - (sentAt[0] ?? 0)).toBeGreaterThanOrEqual(5000);
+      }),
+    );
+  });
+
+  const tooLong = scripted(() =>
+    Response.json(
+      { message: 'Slow down.' },
+      { headers: { 'Retry-After': '30' }, status: HTTP_TOO_MANY_REQUESTS },
+    ),
+  );
+  layer(tooLong.client)((it) => {
+    it.effect('passes a wait longer than it can afford straight back', () =>
+      Effect.gen(function* () {
+        const { sentAt } = tooLong;
+        const error = yield* call('kinds_list', {}).pipe(failure, settled);
+
+        expect(sentAt).toHaveLength(1);
+        expect(error.reason._tag).toBe('RateLimited');
+        expect(error.message).toContain('Retry-After: 30');
+      }),
+    );
+  });
 });

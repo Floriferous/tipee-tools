@@ -1,11 +1,31 @@
 // What the generator and the refresh share about the vendored OpenAPI
 // document: where it lives, its shape, and which operations become tools.
 
-import { readFileSync, readdirSync } from 'node:fs';
-import path from 'node:path';
+import {
+  Array as Arr,
+  Effect,
+  FileSystem,
+  Function as Fn,
+  Path,
+  Predicate,
+  Record as Rec,
+  Schema as Codec,
+  String as Str,
+} from 'effect';
 
-export const root = path.join(import.meta.dirname, '..');
-export const specDirectory = path.join(root, 'spec');
+// This package and its spec/ directory.
+export const root = Path.Path.useSync((path) => path.join(import.meta.dirname, '..'));
+export const specDirectory = Path.Path.useSync((path) =>
+  path.join(import.meta.dirname, '..', 'spec'),
+);
+
+// A script that cannot go on: the message says what to update.
+export class SpecError extends Codec.TaggedError<SpecError, { readonly brand: unique symbol }>()(
+  'SpecError',
+  {
+    message: Codec.String,
+  },
+) {}
 
 export interface Schema {
   readonly oneOf?: ReadonlyArray<Schema>;
@@ -22,6 +42,12 @@ export interface Schema {
   readonly examples?: unknown;
   readonly [key: string]: unknown;
 }
+// One operation of the JSON Patch generate.ts applies to the document.
+export interface Patch {
+  readonly op: 'add' | 'remove' | 'replace';
+  readonly path: string;
+  readonly value?: unknown;
+}
 export interface Operation {
   readonly requestBody?: unknown;
   readonly responses?: unknown;
@@ -33,16 +59,43 @@ export interface Document {
   readonly components: { readonly schemas: Record<string, Schema> };
 }
 
+// The parts of the document every script reads. Decoding checks them and
+// keeps the document as parsed: a decoded struct would drop the keys it does
+// not name and reorder the rest, and the patch and the comparisons need them.
+const Shape = Codec.Struct({
+  components: Codec.Struct({ schemas: Codec.Record(Codec.String, Codec.Unknown) }),
+  info: Codec.Struct({ version: Codec.String }),
+  paths: Codec.Record(Codec.String, Codec.Record(Codec.String, Codec.Unknown)),
+});
+const isDocument = (value: unknown): value is Document => Codec.is(Shape)(value);
+const decodeJson = Codec.decodeEffect(Codec.fromJsonString(Codec.Unknown));
+
+// Parses an OpenAPI document read from `source`.
+export const decodeDocument = Effect.fn('decodeDocument')(function* (text: string, source: string) {
+  const document = yield* decodeJson(text);
+  if (!isDocument(document)) {
+    return yield* SpecError.make({ message: `${source} is not an OpenAPI document` });
+  }
+  return document;
+});
+
 // The one document in spec/, named tipee-<version>.json.
-export const vendored = (): { readonly file: string; readonly document: Document } => {
-  const specs = readdirSync(specDirectory).filter((file) => file.endsWith('.json'));
+export const vendored = Effect.fn('vendored')(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const directory = yield* specDirectory;
+  const specs = yield* Effect.map(fs.readDirectory(directory), Arr.filter(Str.endsWith('.json')));
   const [spec] = specs;
   if (spec === undefined || specs.length !== 1) {
-    throw new Error(`expected exactly one spec in ${specDirectory}, found ${specs.length}`);
+    return yield* SpecError.make({
+      message: `expected exactly one spec in ${directory}, found ${specs.length}`,
+    });
   }
-  const file = path.join(specDirectory, spec);
-  return { document: JSON.parse(readFileSync(file, 'utf8')) as Document, file };
-};
+  const file = path.join(directory, spec);
+  const text = yield* fs.readFileString(file);
+  const document = yield* decodeDocument(text, file);
+  return { document, file };
+});
 
 // Operations left out of the tools on purpose, listed before tipee's stable
 // document has them (a route it lacks is skipped). Granting and revoking roles
@@ -59,40 +112,39 @@ export const EXCLUDED: ReadonlySet<string> = new Set([
 
 // A JSON Pointer segment.
 export const pointer = (segment: string): string =>
-  segment.replaceAll('~', '~0').replaceAll('/', '~1');
+  Fn.pipe(segment, Str.replaceAll('~', '~0'), Str.replaceAll('/', '~1'));
 
-// Adds to `found` the component schemas a node refers to, directly or
-// through other schemas.
-export const referenced = (
-  document: Document,
-  node: unknown,
-  found = new Set<string>(),
-): Set<string> => {
-  if (Array.isArray(node)) {
+// The component schemas a node refers to, directly or through other schemas.
+const collect = (document: Document, node: unknown, found: Set<string>): Set<string> => {
+  if (Arr.isArray(node)) {
     for (const item of node) {
-      referenced(document, item, found);
+      collect(document, item, found);
     }
-  } else if (typeof node === 'object' && node !== null) {
-    for (const [key, value] of Object.entries(node)) {
-      if (key === '$ref' && typeof value === 'string') {
-        const name = value.replace('#/components/schemas/', '');
+  } else if (Predicate.isObject(node)) {
+    for (const [key, value] of Rec.toEntries(node)) {
+      if (key === '$ref' && Predicate.isString(value)) {
+        const name = Str.replace('#/components/schemas/', '')(value);
         if (!found.has(name)) {
           found.add(name);
-          referenced(document, document.components.schemas[name], found);
+          collect(document, document.components.schemas[name], found);
         }
       } else {
-        referenced(document, value, found);
+        collect(document, value, found);
       }
     }
   }
   return found;
 };
+export const referenced: {
+  (node: unknown): (document: Document) => ReadonlySet<string>;
+  (document: Document, node: unknown): ReadonlySet<string>;
+} = Fn.dual(2, (document: Document, node: unknown) => collect(document, node, new Set()));
 
 // The routes that become tools.
 export const toolRoutes = (document: Document): ReadonlyArray<string> =>
-  Object.keys(document.paths).filter((route) => !EXCLUDED.has(route));
+  Arr.filter(Rec.keys(document.paths), (route) => !EXCLUDED.has(route));
 
 // A route's tool name, the way Operations.ts derives it: `schedules_list` for
 // `/api/schedule/schedules.list`.
 export const toolName = (route: string): string =>
-  route.replace(/^\/api\/[^/]+\//u, '').replaceAll(/[.-]/gu, '_');
+  Fn.pipe(route, Str.replace(/^\/api\/[^/]+\//u, ''), Str.replaceAll(/[.-]/gu, '_'));

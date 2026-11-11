@@ -13,31 +13,42 @@ import {
   UnexpectedStatus,
 } from '@tipee-tools/core';
 import { server } from '@tipee-tools/core/testing';
-import { Cause, ConfigProvider, Effect, Layer } from 'effect';
+import { Array as Arr, Cause, ConfigProvider, Context, Effect, Layer, Schema } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { HttpResponse, http } from 'msw/http';
 
 import { Telemetry, framesOf, reportCrash } from '../src/index.ts';
+import { bodyOf, resolver, toJson } from './wire.ts';
 
 const POSTHOG = 'https://posthog.test';
 const KEY = 'phc_test';
 const INSTANCE = 'acme';
 const API_KEY = 'super-secret-key';
 
-interface Batch {
-  readonly api_key: string;
-  readonly batch: Array<{
-    readonly event: string;
-    readonly distinct_id: string;
-    readonly properties: Record<string, unknown>;
-  }>;
-}
+const Batch = Schema.Struct({
+  api_key: Schema.String,
+  batch: Schema.Array(
+    Schema.Struct({
+      distinct_id: Schema.String,
+      event: Schema.String,
+      properties: Schema.Record(Schema.String, Schema.Unknown),
+    }),
+  ),
+});
+type Batch = typeof Batch.Type;
 
 const received: Array<Batch> = [];
-const fakePostHog = http.post(`${POSTHOG}/batch`, async ({ request }) => {
-  received.push((await request.json()) as Batch);
-  return HttpResponse.json({ status: 1 });
-});
+const batchOf = bodyOf(Batch);
+const fakePostHog = http.post(
+  `${POSTHOG}/batch`,
+  resolver(({ request }) =>
+    Effect.map(batchOf(request), (batch) => {
+      received.push(batch);
+      return HttpResponse.json({ status: 1 });
+    }),
+  ),
+);
+const eventsOf = (batch: Batch | undefined) => Arr.map(batch?.batch ?? [], (event) => event.event);
 
 const telemetryWith = (env: Record<string, string>) =>
   Telemetry.layer({ server_version: '0.0.0-test' }).pipe(
@@ -57,9 +68,13 @@ const telemetryWith = (env: Record<string, string>) =>
     ),
   );
 
+// One start of the server: a telemetry of its own, released at the end.
+const started = (env: Record<string, string>) =>
+  Effect.map(Layer.build(telemetryWith(env)), Context.get(Telemetry));
+
 const record = (env: Record<string, string> = {}) =>
   Effect.gen(function* () {
-    const telemetry = yield* Telemetry;
+    const telemetry = yield* started(env);
     yield* telemetry.capture('session_started');
     yield* telemetry.capture('tool_called', { outcome: 'ok', tool: 'teams_list' });
     yield* telemetry.exception(new RangeError('synthetic'), {
@@ -67,7 +82,7 @@ const record = (env: Record<string, string> = {}) =>
       properties: { tool: 'schedules_delete' },
     });
     yield* telemetry.flush;
-  }).pipe(Effect.provide(telemetryWith(env)), Effect.scoped);
+  }).pipe(Effect.scoped);
 
 describe('telemetry', () => {
   beforeEach(() => {
@@ -83,11 +98,7 @@ describe('telemetry', () => {
       expect(received).toHaveLength(1);
       const [batch] = received;
       expect(batch?.api_key).toBe(KEY);
-      expect(batch?.batch.map((event) => event.event)).toEqual([
-        'session_started',
-        'tool_called',
-        '$exception',
-      ]);
+      expect(eventsOf(batch)).toEqual(['session_started', 'tool_called', '$exception']);
       const [first, , exception] = batch?.batch ?? [];
       expect(first?.distinct_id).toMatch(/^[0-9a-f-]{36}$/u);
       expect(first?.properties).toMatchObject({
@@ -114,9 +125,10 @@ describe('telemetry', () => {
         value: 'synthetic',
       });
       expect(listed?.stacktrace.frames.length).toBeGreaterThan(0);
-      expect(listed?.stacktrace.frames.some((frame) => frame.in_app)).toBe(true);
-      expect(JSON.stringify(listed)).not.toContain(homedir());
-      const wire = JSON.stringify(received);
+      expect(Arr.some(listed?.stacktrace.frames ?? [], (frame) => frame.in_app)).toBe(true);
+      const listedWire = yield* toJson(listed);
+      expect(listedWire).not.toContain(homedir());
+      const wire = yield* toJson(received);
       expect(wire).not.toContain(API_KEY);
     }),
   );
@@ -124,27 +136,28 @@ describe('telemetry', () => {
   it.effect('reports a tipee failure by reason, status and paths, never by what tipee said', () =>
     Effect.gen(function* () {
       const failures = [
-        new UnexpectedStatus({ body: 'Alice Martin is on leave', status: 502 }),
-        new UnexpectedShape({ details: 'Expected string, got "Alice Martin"\n  at [0]["label"]' }),
-        new UnexpectedShape({ details: 'undeclared status code', status: 201 }),
-        new Rejected({ body: 'Alice Martin overlaps', code: 'OVERLAPPING', status: 409 }),
-        new Rejected({
+        UnexpectedStatus.make({ body: 'Alice Martin is on leave', status: 502 }),
+        UnexpectedShape.make({ details: 'Expected string, got "Alice Martin"\n  at [0]["label"]' }),
+        UnexpectedShape.make({ details: 'undeclared status code', status: 201 }),
+        Rejected.make({ body: 'Alice Martin overlaps', code: 'OVERLAPPING', status: 409 }),
+        Rejected.make({
           body: 'when: Alice Martin is locked',
           fields: ['when', 'options.allow_partial'],
           status: 422,
         }),
       ];
       yield* Effect.gen(function* () {
-        const telemetry = yield* Telemetry;
+        const telemetry = yield* started({});
         for (const reason of failures) {
-          yield* telemetry.exception(new TipeeError({ reason }), { handled: true });
+          yield* telemetry.exception(TipeeError.make({ reason }), { handled: true });
         }
         yield* telemetry.flush;
-      }).pipe(Effect.provide(telemetryWith({})), Effect.scoped);
+      }).pipe(Effect.scoped);
 
-      const values = received
-        .flatMap((batch) => batch.batch)
-        .map((event) => (event.properties.$exception_list as Array<{ value: string }>)[0]?.value);
+      const values = Arr.map(
+        Arr.flatMap(received, (batch) => batch.batch),
+        (event) => (event.properties.$exception_list as Array<{ value: string }>)[0]?.value,
+      );
       expect(values).toEqual([
         'UnexpectedStatus (HTTP 502)',
         'UnexpectedShape at [0]["label"]',
@@ -152,7 +165,8 @@ describe('telemetry', () => {
         'Rejected (HTTP 409, OVERLAPPING)',
         'Rejected (HTTP 422) at when, options.allow_partial',
       ]);
-      expect(JSON.stringify(received)).not.toContain('Alice');
+      const wire = yield* toJson(received);
+      expect(wire).not.toContain('Alice');
     }),
   );
 
@@ -162,7 +176,7 @@ describe('telemetry', () => {
       yield* record();
       yield* record();
 
-      const ids = received.map((batch) => batch.batch[0]?.distinct_id);
+      const ids = Arr.map(received, (batch) => batch.batch[0]?.distinct_id);
       expect(ids).toHaveLength(2);
       expect(ids[0]).toBe(ids[1]);
     }),
@@ -170,12 +184,15 @@ describe('telemetry', () => {
 
   it('cuts stack frames down to the bundle or source file', () => {
     const frames = framesOf(
-      [
-        'Error: boom',
-        '    at handle (/Users/someone/Library/Application Support/Claude/Claude Extensions/x/server/tipee-mcp.mjs:41437:16)',
-        '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
-        '    at /Users/someone/dev/tipee-tools/node_modules/effect/dist/internal/effect.js:12:3',
-      ].join('\n'),
+      Arr.join(
+        [
+          'Error: boom',
+          '    at handle (/Users/someone/Library/Application Support/Claude/Claude Extensions/x/server/tipee-mcp.mjs:41437:16)',
+          '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+          '    at /Users/someone/dev/tipee-tools/node_modules/effect/dist/internal/effect.js:12:3',
+        ],
+        '\n',
+      ),
     );
 
     expect(frames).toEqual([
@@ -211,10 +228,7 @@ describe('telemetry', () => {
       yield* reportCrash(Cause.fail({ _tag: 'ConfigurationMissing' }));
       yield* reportCrash(Cause.die(new TypeError('transport')));
 
-      expect(received.map((batch) => batch.batch.map((event) => event.event))).toEqual([
-        ['server_failed'],
-        ['$exception'],
-      ]);
+      expect(Arr.map(received, eventsOf)).toEqual([['server_failed'], ['$exception']]);
       expect(received[0]?.batch[0]?.properties.reason).toBe('ConfigurationMissing');
       const [listed] = (received[1]?.batch[0]?.properties.$exception_list ?? []) as Array<{
         type: string;
@@ -222,13 +236,9 @@ describe('telemetry', () => {
       }>;
       expect(listed).toMatchObject({ mechanism: { handled: false }, type: 'TypeError' });
     }).pipe(
-      Effect.provide(
-        ConfigProvider.layer(
-          ConfigProvider.fromUnknown({
-            TIPEE_POSTHOG_HOST: POSTHOG,
-            TIPEE_POSTHOG_KEY: KEY,
-          }),
-        ),
+      Effect.provideService(
+        ConfigProvider.ConfigProvider,
+        ConfigProvider.fromUnknown({ TIPEE_POSTHOG_HOST: POSTHOG, TIPEE_POSTHOG_KEY: KEY }),
       ),
     ),
   );

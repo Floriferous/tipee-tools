@@ -8,16 +8,29 @@
 // Events are batched to PostHog in the background and never delay a tool;
 // every failure of the telemetry itself is swallowed.
 
-import { randomUUID } from 'node:crypto';
-import path from 'node:path';
 import { arch, platform, version as nodeVersion } from 'node:process';
 
 import { TIPEE_API_VERSION, TipeeError, normalizeInstance } from '@tipee-tools/core';
 import type { TipeeErrorReason } from '@tipee-tools/core';
-import { Config, Context, DateTime, Effect, Layer, Option, Queue, Schedule, Schema } from 'effect';
+import {
+  Array as Arr,
+  Config,
+  Context,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Queue,
+  Schedule,
+  Schema,
+  String as Str,
+  pipe,
+} from 'effect';
+import { SecureRandom } from 'effect/crypto';
 import { HttpClient, HttpClientRequest } from 'effect/http';
 
-import { channel, installationId } from './Install.ts';
+import { channel, installation } from './Install.ts';
+import { NodePlatform } from './Platform.ts';
 
 /** The PostHog project events go to: a public, write-only token. */
 const POSTHOG_KEY = 'phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y';
@@ -93,20 +106,26 @@ const silent: Sink = {
 // to what is ours (the bundle or a source file), so no user path travels.
 const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
 const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
+// Everything up to the last separator, of either platform: a stack can name
+// a Windows path, and this runs outside Effect, where no Path service is.
+const DIRECTORIES = /^.*[/\\]/u;
 
 const scrubbed = (file: string): { readonly filename: string; readonly inApp: boolean } => {
   const ours = OURS.exec(file)?.groups?.tail;
   if (ours !== undefined) {
     return { filename: ours, inApp: true };
   }
-  return { filename: file.startsWith('node:') ? file : path.basename(file), inApp: false };
+  return {
+    filename: Str.startsWith('node:')(file) ? file : Str.replace(DIRECTORIES, '')(file),
+    inApp: false,
+  };
 };
 
 // The frames of an error's stack, scrubbed; empty when there is no stack.
 export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
-  (stack ?? '')
-    .split('\n')
-    .flatMap((line) => {
+  pipe(
+    Str.split(stack ?? '', '\n'),
+    Arr.flatMap((line): ReadonlyArray<Frame> => {
       const groups = FRAME.exec(line)?.groups;
       if (groups?.file === undefined) {
         return [];
@@ -122,8 +141,9 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
           platform: 'node:javascript' as const,
         },
       ];
-    })
-    .slice(0, FRAME_LIMIT);
+    }),
+    Arr.take(FRAME_LIMIT),
+  );
 
 // A tipee failure told without anything tipee answered or anyone wrote: its
 // reason, the HTTP status, and where a schema mismatch or a refusal is
@@ -131,17 +151,23 @@ export const framesOf = (stack: string | undefined): ReadonlyArray<Frame> =>
 // found there).
 const withheld = (reason: TipeeErrorReason): string => {
   if (reason._tag === 'UnexpectedShape' || reason._tag === 'InvalidRequest') {
-    const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
+    const paths = new Set(
+      pipe(
+        reason.details,
+        Str.match(/(?<=at )(?:\[[^\]\n]*\])+/gu),
+        Option.getOrElse((): ReadonlyArray<string> => []),
+      ),
+    );
     const status =
       reason._tag === 'UnexpectedShape' && reason.status !== undefined
         ? ` (HTTP ${reason.status})`
         : '';
     return paths.size === 0
       ? `${reason._tag}${status}`
-      : `${reason._tag}${status} at ${[...paths].join(', ')}`;
+      : `${reason._tag}${status} at ${Arr.join(paths, ', ')}`;
   }
   if (reason._tag === 'Rejected') {
-    const at = reason.fields === undefined ? '' : ` at ${reason.fields.join(', ')}`;
+    const at = reason.fields === undefined ? '' : ` at ${Arr.join(reason.fields, ', ')}`;
     const code = reason.code === undefined ? '' : `, ${reason.code}`;
     return `Rejected (HTTP ${reason.status}${code})${at}`;
   }
@@ -188,8 +214,8 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
             times: SEND_RETRIES,
           }),
         );
-        const distinctId = installationId();
-        const launchId = randomUUID();
+        const distinctId = yield* installation;
+        const launchId = yield* SecureRandom.SecureRandom.use((random) => random.uuidV4());
         const queue = yield* Queue.unbounded<Event>();
 
         const send = (batch: ReadonlyArray<Event>): Effect.Effect<void> =>
@@ -198,7 +224,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
             : HttpClientRequest.post(`${config.host}/batch`).pipe(
                 HttpClientRequest.bodyJson({
                   api_key: config.key,
-                  batch: batch.map((event) => ({ ...event, distinct_id: distinctId })),
+                  batch: Arr.map(batch, (event) => ({ ...event, distinct_id: distinctId })),
                 }),
                 Effect.flatMap((request) => http.execute(request)),
                 Effect.timeout(SEND_TIMEOUT),
@@ -259,5 +285,5 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
           flush: drain,
         });
       }),
-    );
+    ).pipe(Layer.provide(NodePlatform));
 }

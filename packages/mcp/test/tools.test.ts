@@ -4,7 +4,7 @@
 import { describe, expect, it, layer } from '@effect/vitest';
 import { operations } from '@tipee-tools/core';
 import { API_KEY, BASE, server } from '@tipee-tools/core/testing';
-import { Context, Effect } from 'effect';
+import { Array as Arr, Context, Effect, Record as Rec, String as Str } from 'effect';
 import { Tool } from 'effect/ai';
 import { HttpResponse, http } from 'msw/http';
 
@@ -17,13 +17,14 @@ const HTTP_NO_CONTENT = 204;
 
 describe('toolkit', () => {
   it('has one tool per operation, a batch tool per batched one, check_setup and update_plugin', () => {
-    const tools = Object.values(TipeeToolkit.tools);
+    const tools = Rec.values(TipeeToolkit.tools);
+    const names = Arr.map(tools, (tool) => tool.name);
 
     expect(tools).toHaveLength(operations.length + BATCHED.length + 2);
-    expect(tools.map((tool) => tool.name)).toContain('schedules_create');
-    expect(tools.map((tool) => tool.name)).toContain('day_tasks_submit_for_contributor');
-    expect(tools.map((tool) => tool.name)).toContain('check_setup');
-    expect(tools.map((tool) => tool.name)).toContain('update_plugin');
+    expect(names).toContain('schedules_create');
+    expect(names).toContain('day_tasks_submit_for_contributor');
+    expect(names).toContain('check_setup');
+    expect(names).toContain('update_plugin');
   });
 
   it('marks reads read-only and every write but a create destructive', () => {
@@ -42,21 +43,21 @@ describe('toolkit', () => {
 
   it('asks for a yes before every write, and says a deletion cannot be undone', () => {
     const descriptions = new Map(
-      Object.values(TipeeToolkit.tools).map((tool) => [tool.name, Tool.getDescription(tool)]),
+      Arr.map(Rec.values(TipeeToolkit.tools), (tool) => [tool.name, Tool.getDescription(tool)]),
     );
     const descriptionOf = (name: string): string => descriptions.get(name) ?? '';
 
     for (const target of operations) {
       const description = descriptionOf(target.name);
-      expect(description.includes('wait for their yes')).toBe(!target.readOnly);
-      expect(description.endsWith('It cannot be undone.')).toBe(/\.delete/u.test(target.path));
+      expect(Str.includes('wait for their yes')(description)).toBe(!target.readOnly);
+      expect(Str.endsWith('It cannot be undone.')(description)).toBe(/\.delete/u.test(target.path));
       expect(description).not.toMatch(/[^.!?] Changes tipee:/u);
     }
     expect(descriptionOf('resources_create')).toContain('. Changes tipee:');
   });
 
   it('makes every tool strict', () => {
-    for (const tool of Object.values(TipeeToolkit.tools)) {
+    for (const tool of Rec.values(TipeeToolkit.tools)) {
       expect(Tool.getStrictMode(tool)).toBe(true);
     }
   });
@@ -73,7 +74,7 @@ layer(clientFor(API_KEY))('tools', (it) => {
       }>;
 
       expect(shifts.length).toBeGreaterThan(0);
-      expect(shifts.every((shift) => shift.resource_id === CHLOE)).toBe(true);
+      expect(Arr.every(shifts, (shift) => shift.resource_id === CHLOE)).toBe(true);
     }),
   );
 
@@ -99,35 +100,44 @@ layer(clientFor(API_KEY))('tools', (it) => {
 });
 
 describe('failures', () => {
-  it.effect('refuse a misspelled key before anything reaches tipee', () =>
-    Effect.gen(function* () {
-      let sent = 0;
-      server.use(
-        http.post(`${BASE}/api/schedule/absences.update`, () => {
-          sent += 1;
-          return HttpResponse.json({ failed: [], failed_count: 0, updated: [], updated_count: 1 });
-        }),
-      );
-      const error = yield* Effect.flip(
-        call('absences_update', {
-          id: '1',
-          options: { alow_partial: true, group_action: 'single' },
-          percentage: 50,
-        }),
-      );
+  layer(clientFor(API_KEY))((it) => {
+    it.effect('refuse a misspelled key before anything reaches tipee', () =>
+      Effect.gen(function* () {
+        let sent = 0;
+        server.use(
+          http.post(`${BASE}/api/schedule/absences.update`, () => {
+            sent += 1;
+            return HttpResponse.json({
+              failed: [],
+              failed_count: 0,
+              updated: [],
+              updated_count: 1,
+            });
+          }),
+        );
+        const error = yield* Effect.flip(
+          call('absences_update', {
+            id: '1',
+            options: { alow_partial: true, group_action: 'single' },
+            percentage: 50,
+          }),
+        );
 
-      expect(sent).toBe(0);
-      expect(String(error)).toContain('["options"]["alow_partial"]');
-    }).pipe(Effect.provide(clientFor(API_KEY))),
-  );
+        expect(sent).toBe(0);
+        expect(String(error)).toContain('["options"]["alow_partial"]');
+      }),
+    );
+  });
 
-  it.effect('surface the tipee error so the model reads the explanation', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(call('teams_list', {}));
+  layer(clientFor('wrong'))((it) => {
+    it.effect('surface the tipee error so the model reads the explanation', () =>
+      Effect.gen(function* () {
+        const error = yield* Effect.flip(call('teams_list', {}));
 
-      expect(String(error)).toMatch(
-        /refused the API key \(HTTP 401\): Le jeton fourni est invalide\./u,
-      );
-    }).pipe(Effect.provide(clientFor('wrong'))),
-  );
+        expect(String(error)).toMatch(
+          /refused the API key \(HTTP 401\): Le jeton fourni est invalide\./u,
+        );
+      }),
+    );
+  });
 });

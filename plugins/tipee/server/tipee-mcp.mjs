@@ -1,12 +1,12 @@
-import * as Crypto from "node:crypto";
-import { createHash, randomUUID } from "node:crypto";
-import path, * as Path from "node:path";
 import { arch, argv, env, platform, version } from "node:process";
 import * as OS from "node:os";
 import { hostname, userInfo } from "node:os";
-import { spawn } from "node:child_process";
+import * as NodeCrypto from "node:crypto";
+import * as NodeChildProcess from "node:child_process";
+import { PassThrough, finished } from "node:stream";
 import * as NFS from "node:fs";
-import { finished } from "node:stream";
+import * as Path from "node:path";
+import * as NodeUrl from "node:url";
 import tls from "node:tls";
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Pipeable.js
 const pipeArguments = (self, args) => {
@@ -191,6 +191,9 @@ function isUndefined(input) {
 }
 function isNotUndefined(input) {
 	return input !== void 0;
+}
+function isNotNull(input) {
+	return input !== null;
 }
 function isNullish(input) {
 	return input === null || input === void 0;
@@ -1055,27 +1058,27 @@ const Prototype = (options) => makePrimitiveProto({
 	[evaluate]: options.evaluate
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Equivalence.js
-const make$52 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
+const make$58 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 const strictEqual = () => isStrictEquivalent;
 function Tuple$1(elements) {
-	return make$52((self, that) => {
+	return make$58((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!elements[i](self[i], that[i])) return false;
 		return true;
 	});
 }
 function Array_(item) {
-	return make$52((self, that) => {
+	return make$58((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!item(self[i], that[i])) return false;
 		return true;
 	});
 }
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/option.js
-const TypeId$52 = "~effect/Option";
+const TypeId$55 = "~effect/Option";
 const CommonProto$1 = {
-	[TypeId$52]: { _A: (_) => _ },
+	[TypeId$55]: { _A: (_) => _ },
 	...PipeInspectableProto,
 	[Symbol.iterator]() {
 		return new SingleShotGen(this);
@@ -1124,7 +1127,7 @@ const NoneProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Common
 		};
 	}
 });
-const isOption$1 = (input) => hasProperty(input, TypeId$52);
+const isOption$1 = (input) => hasProperty(input, TypeId$55);
 const isNone$1 = (fa) => fa._tag === "None";
 const isSome$1 = (fa) => fa._tag === "Some";
 const none$1 = /*#__PURE__*/ Object.create(NoneProto);
@@ -1134,9 +1137,9 @@ const SomeImpl = function(value) {
 SomeImpl.prototype = SomeProto;
 const some$1 = (value) => new SomeImpl(value);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/result.js
-const TypeId$51 = "~effect/Result";
+const TypeId$54 = "~effect/Result";
 const CommonProto = {
-	[TypeId$51]: {
+	[TypeId$54]: {
 		/* v8 ignore next 2 */
 		_A: (_) => _,
 		_E: (_) => _
@@ -1186,31 +1189,42 @@ const FailureProto = /*#__PURE__*/ Object.assign(/*#__PURE__*/ Object.create(Com
 		};
 	}
 });
-const isResult$1 = (input) => hasProperty(input, TypeId$51);
+const isResult$1 = (input) => hasProperty(input, TypeId$54);
 const isFailure$2 = (result) => result._tag === "Failure";
 const isSuccess$2 = (result) => result._tag === "Success";
 const FailureImpl = function(failure) {
 	this.failure = failure;
 };
 FailureImpl.prototype = FailureProto;
-const fail$8 = (failure) => new FailureImpl(failure);
+const fail$9 = (failure) => new FailureImpl(failure);
 const SuccessImpl = function(success) {
 	this.success = success;
 };
 SuccessImpl.prototype = SuccessProto;
 const succeed$9 = (success) => new SuccessImpl(success);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Order.js
-function make$51(compare) {
+function make$57(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
-const String$5 = /*#__PURE__*/ make$51((self, that) => self < that ? -1 : 1);
-const Number$4 = /*#__PURE__*/ make$51((self, that) => {
+const String$6 = /*#__PURE__*/ make$57((self, that) => self < that ? -1 : 1);
+const Number$4 = /*#__PURE__*/ make$57((self, that) => {
 	if (globalThis.Number.isNaN(self) && globalThis.Number.isNaN(that)) return 0;
 	if (globalThis.Number.isNaN(self)) return -1;
 	if (globalThis.Number.isNaN(that)) return 1;
 	return self < that ? -1 : 1;
 });
-const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$51((b1, b2) => self(f(b1), f(b2))));
+function combineAll(collection) {
+	const orders = Array.from(collection);
+	return make$57((a1, a2) => {
+		let out = 0;
+		for (const O of orders) {
+			out = O(a1, a2);
+			if (out !== 0) return out;
+		}
+		return out;
+	});
+}
+const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$57((b1, b2) => self(f(b1), f(b2))));
 const isLessThan$1 = (O) => dual(2, (self, that) => O(self, that) === -1);
 const isGreaterThan$1 = (O) => dual(2, (self, that) => O(self, that) === 1);
 const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1);
@@ -1222,11 +1236,12 @@ const some = some$1;
 const isOption = isOption$1;
 const isNone = isNone$1;
 const isSome = isSome$1;
-const match$3 = /*#__PURE__*/ dual(2, (self, { onNone, onSome }) => isNone(self) ? onNone() : onSome(self.value));
+const match$4 = /*#__PURE__*/ dual(2, (self, { onNone, onSome }) => isNone(self) ? onNone() : onSome(self.value));
 const getOrElse = /*#__PURE__*/ dual(2, (self, onNone) => isNone(self) ? onNone() : self.value);
 const orElse = /*#__PURE__*/ dual(2, (self, that) => isNone(self) ? that() : self);
 const fromNullishOr = (a) => a == null ? none() : some(a);
 const fromUndefinedOr = (a) => a === void 0 ? none() : some(a);
+const fromNullOr = (a) => a === null ? none() : some(a);
 const getOrUndefined$1 = /*#__PURE__*/ getOrElse(constUndefined);
 const liftThrowable = (f) => (...a) => {
 	try {
@@ -1240,7 +1255,7 @@ const getOrThrowWith$1 = /*#__PURE__*/ dual(2, (self, onNone) => {
 	throw onNone();
 });
 const map$10 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : some(f(self.value)));
-const flatMap$4 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
+const flatMap$5 = /*#__PURE__*/ dual(2, (self, f) => isNone(self) ? none() : f(self.value));
 const filter$3 = /*#__PURE__*/ dual(2, (self, predicate) => isNone(self) ? none() : predicate(self.value) ? some(self.value) : none());
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Context.js
 const ServiceTypeId = "~effect/Context/Service";
@@ -1278,7 +1293,7 @@ const ServiceProto = {
 		return self;
 	},
 	context(self) {
-		return make$50(this, self);
+		return make$56(this, self);
 	},
 	use(f) {
 		return withFiber$1((fiber) => f(get$2(fiber.context, this)));
@@ -1289,10 +1304,10 @@ const ServiceProto = {
 };
 const cacheKeys = /*#__PURE__*/ new Set();
 const ReferenceTypeId = "~effect/Context/Reference";
-const TypeId$50 = "~effect/Context";
+const TypeId$53 = "~effect/Context";
 const FlattenAfterBaseHits = 8;
 const makeImpl = (cacheRoot, base, overlay, depth, maxDepth) => {
-	const self = Object.create(Proto$18);
+	const self = Object.create(Proto$19);
 	self.cacheRoot = cacheRoot ?? self;
 	self.base = base;
 	self.overlay = overlay;
@@ -1336,12 +1351,12 @@ const makeUnsafe$8 = (mapUnsafe, options) => {
 	const maxDepth = options?.maxDepth;
 	return makeImpl(void 0, mapUnsafe, void 0, 0, Number.isInteger(maxDepth) && maxDepth >= 0 ? maxDepth : 8);
 };
-const Proto$18 = {
+const Proto$19 = {
 	get mapUnsafe() {
 		return flatten$2(this);
 	},
 	...PipeInspectableProto,
-	[TypeId$50]: { _Services: (_) => _ },
+	[TypeId$53]: { _Services: (_) => _ },
 	toJSON() {
 		return {
 			_id: "Context",
@@ -1364,11 +1379,11 @@ const Proto$18 = {
 	}
 };
 const hasSameCache = (self, that) => self.cacheRoot === that.cacheRoot;
-const isContext = (u) => hasProperty(u, TypeId$50);
+const isContext = (u) => hasProperty(u, TypeId$53);
 const isReference = (u) => !!u[ReferenceTypeId];
 const empty$11 = () => emptyContext;
 const emptyContext = /*#__PURE__*/ makeUnsafe$8(/*#__PURE__*/ new Map());
-const make$50 = (key, service) => makeUnsafe$8(/* @__PURE__ */ new Map([[key.key, service]]));
+const make$56 = (key, service) => makeUnsafe$8(/* @__PURE__ */ new Map([[key.key, service]]));
 const add$2 = /*#__PURE__*/ dual(3, (self, key, service) => addUnsafe(self, key.key, service));
 const addUnsafe = (self, key, service) => {
 	const impl = self;
@@ -1390,7 +1405,7 @@ const getOrUndefinedUnsafe = (self, key) => {
 	const value = lookup(self, key);
 	return value === notFound$1 ? void 0 : value;
 };
-const getUnsafe = /*#__PURE__*/ dual(2, (self, service) => {
+const getUnsafe$1 = /*#__PURE__*/ dual(2, (self, service) => {
 	const value = lookup(self, service.key);
 	if (value === notFound$1) {
 		if (isReference(service)) return getDefaultValue(service);
@@ -1398,7 +1413,7 @@ const getUnsafe = /*#__PURE__*/ dual(2, (self, service) => {
 	}
 	return value;
 });
-const get$2 = getUnsafe;
+const get$2 = getUnsafe$1;
 const defaultValueCacheKey = "~effect/Context/defaultValue";
 const getDefaultValue = (ref) => {
 	if (defaultValueCacheKey in ref) return ref[defaultValueCacheKey];
@@ -1418,7 +1433,7 @@ const getOption = /*#__PURE__*/ dual(2, (self, service) => {
 	if (value !== notFound$1) return some(value);
 	return isReference(service) ? some(getDefaultValue(service)) : none();
 });
-const merge$2 = /*#__PURE__*/ dual(2, (self, that) => {
+const merge$4 = /*#__PURE__*/ dual(2, (self, that) => {
 	if (self.mapUnsafe.size === 0) return that;
 	if (that.mapUnsafe.size === 0) return self;
 	return withFlat(self, (map) => that.mapUnsafe.forEach((value, key) => map.set(key, value)));
@@ -1437,25 +1452,29 @@ const isArrayNonEmpty$1 = (self) => self.length > 0;
 const normalize$3 = (n) => n > 0 ? Math.floor(n) : 0;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Result.js
 const succeed$8 = succeed$9;
-const fail$7 = fail$8;
+const fail$8 = fail$9;
 const try_$2 = (evaluate) => {
 	if (isFunction(evaluate)) try {
 		return succeed$8(evaluate());
 	} catch (e) {
-		return fail$7(e);
+		return fail$8(e);
 	}
 	else try {
 		return succeed$8(evaluate.try());
 	} catch (e) {
-		return fail$7(evaluate.catch(e));
+		return fail$8(evaluate.catch(e));
 	}
 };
 const isResult = isResult$1;
 const isFailure$1 = isFailure$2;
 const isSuccess$1 = isSuccess$2;
-const mapError$4 = /*#__PURE__*/ dual(2, (self, f) => isFailure$1(self) ? fail$7(f(self.failure)) : self);
+const mapError$4 = /*#__PURE__*/ dual(2, (self, f) => isFailure$1(self) ? fail$8(f(self.failure)) : self);
 const map$9 = /*#__PURE__*/ dual(2, (self, f) => isSuccess$1(self) ? succeed$8(f(self.success)) : self);
-const match$2 = /*#__PURE__*/ dual(2, (self, { onFailure, onSuccess }) => isFailure$1(self) ? onFailure(self.failure) : onSuccess(self.success));
+const match$3 = /*#__PURE__*/ dual(2, (self, { onFailure, onSuccess }) => isFailure$1(self) ? onFailure(self.failure) : onSuccess(self.success));
+const getOrThrow = /*#__PURE__*/ (/* @__PURE__ */ dual(2, (self, onFailure) => {
+	if (isSuccess$1(self)) return self.success;
+	throw onFailure(self.failure);
+}))(identity);
 const all$3 = (input) => {
 	if (Symbol.iterator in input) {
 		const out = [];
@@ -1475,7 +1494,23 @@ const all$3 = (input) => {
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Tuple.js
 const makeEquivalence$3 = Tuple$1;
-// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Record.js
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Iterable.js
+const findFirst$1 = /*#__PURE__*/ dual(2, (self, f) => {
+	let i = 0;
+	for (const a of self) {
+		const o = f(a, i);
+		if (isBoolean(o)) {
+			if (o) return some(a);
+		} else if (isSome(o)) return o;
+		i++;
+	}
+	return none();
+});
+const toEntries = /*#__PURE__*/ (/* @__PURE__ */ dual(2, (self, f) => {
+	const out = [];
+	for (const key of keys(self)) out.push(f(key, self[key]));
+	return out;
+}))((key, value) => [key, value]);
 const has = /*#__PURE__*/ dual(2, (self, key) => Object.hasOwn(self, key));
 const remove$3 = /*#__PURE__*/ dual(2, (self, key) => {
 	if (!has(self, key)) return { ...self };
@@ -1503,27 +1538,66 @@ const fromIterable$2 = (collection) => Array$1.isArray(collection) ? collection 
 const ensure = (self) => Array$1.isArray(self) ? self : [self];
 const append$1 = /*#__PURE__*/ dual(2, (self, last) => [...self, last]);
 const appendAll$2 = /*#__PURE__*/ dual(2, (self, that) => fromIterable$2(self).concat(fromIterable$2(that)));
-Array$1.isArray;
+const isArray = Array$1.isArray;
+const isArrayEmpty = (self) => self.length === 0;
+const isReadonlyArrayEmpty = isArrayEmpty;
 const isArrayNonEmpty = isArrayNonEmpty$1;
 const isReadonlyArrayNonEmpty = isArrayNonEmpty$1;
 function isCanonicalArrayIndex(key) {
 	const index = Number(key);
 	return String(index) === key && Number.isInteger(index) && index >= 0 && index < 2 ** 32 - 1;
 }
+function isOutOfBounds(i, as) {
+	return !Number.isFinite(i) || i < 0 || i >= as.length;
+}
+const headNonEmpty = /*#__PURE__*/ (/* @__PURE__ */ dual(2, (self, index) => {
+	const i = Math.floor(index);
+	if (isOutOfBounds(i, self)) throw new Error(`Index out of bounds: ${i}`);
+	return self[i];
+}))(0);
 const lastNonEmpty = (self) => self[self.length - 1];
 const clampCount = (n, length) => Math.min(normalize$3(n), length);
 const take$2 = /*#__PURE__*/ dual(2, (self, n) => {
 	const input = fromIterable$2(self);
 	return input.slice(0, clampCount(n, input.length));
 });
+const findFirst = findFirst$1;
 const sort = /*#__PURE__*/ dual(2, (self, O) => {
 	const out = Array$1.from(self);
 	out.sort(O);
 	return out;
 });
+const sortBy = (...orders) => {
+	const sortByAll = sort(combineAll(orders));
+	return (self) => {
+		const input = fromIterable$2(self);
+		if (isReadonlyArrayNonEmpty(input)) return sortByAll(input);
+		return [];
+	};
+};
+const hashBucketsAdd = (buckets, value) => {
+	const hash$5 = hash(value);
+	const bucket = buckets.get(hash$5);
+	if (bucket === void 0) {
+		buckets.set(hash$5, [value]);
+		return true;
+	}
+	for (const previous of bucket) if (equals$1(previous, value)) return false;
+	bucket.push(value);
+	return true;
+};
 const empty$10 = () => [];
 const of = (a) => [a];
 const map$7 = /*#__PURE__*/ dual(2, (self, f) => self.map(f));
+const flatMap$3 = /*#__PURE__*/ dual(2, (self, f) => {
+	if (isReadonlyArrayEmpty(self)) return [];
+	const out = [];
+	for (let i = 0; i < self.length; i++) {
+		const inner = f(self[i], i);
+		for (let j = 0; j < inner.length; j++) out.push(inner[j]);
+	}
+	return out;
+});
 const getSomes = (self) => {
 	const out = [];
 	for (const a of self) if (isSome(a)) out.push(a.value);
@@ -1535,9 +1609,31 @@ const filter$2 = /*#__PURE__*/ dual(2, (self, predicate) => {
 	for (let i = 0; i < as.length; i++) if (predicate(as[i], i)) out.push(as[i]);
 	return out;
 });
+const every = /*#__PURE__*/ dual(2, (self, refinement) => self.every(refinement));
 const makeEquivalence$1 = Array_;
+const dedupe = (self) => {
+	const input = fromIterable$2(self);
+	if (input.length < 2) return [...input];
+	const buckets = /* @__PURE__ */ new Map();
+	const out = [];
+	for (const value of input) if (hashBucketsAdd(buckets, value)) out.push(value);
+	return out;
+};
+const join$2 = /*#__PURE__*/ dual(2, (self, sep) => fromIterable$2(self).join(sep));
+const mapAccum = /*#__PURE__*/ dual(3, (self, s, f) => {
+	let i = 0;
+	let s1 = s;
+	const out = [];
+	for (const a of self) {
+		const r = f(s1, a, i);
+		s1 = r[0];
+		out.push(r[1]);
+		i++;
+	}
+	return [s1, out];
+});
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Duration.js
-const TypeId$49 = "~effect/Duration";
+const TypeId$52 = "~effect/Duration";
 const bigint0$3 = /*#__PURE__*/ BigInt(0);
 const bigint1$2 = /*#__PURE__*/ BigInt(1);
 const bigint2 = /*#__PURE__*/ BigInt(2);
@@ -1553,7 +1649,7 @@ const bigintNanosPerDay = /*#__PURE__*/ BigInt(864e11);
 const bigintNanosPerWeek = /*#__PURE__*/ BigInt(6048e11);
 const roundTiesAwayFromZero = (input) => BigInt(Math.sign(input) * Math.round(Math.abs(input)));
 const roundMillisToNanos = (millis) => Number.isInteger(millis) ? BigInt(millis) * bigint1e6 : roundTiesAwayFromZero(millis * 1e6);
-const fromNanosNumber = (nanos) => make$49(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
+const fromNanosNumber = (nanos) => make$55(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
 const nanosToUnit = (nanos, divisor) => {
 	const value = Number(nanos);
 	if (Number.isFinite(value)) return value / divisor;
@@ -1576,9 +1672,9 @@ const divideTiesAwayFromZero = (numerator, denominator) => {
 };
 const fromMillisString = (input, scale) => {
 	const millis = Number(input) * scale;
-	if (!Number.isFinite(millis)) return make$49(millis);
+	if (!Number.isFinite(millis)) return make$55(millis);
 	const nanos = parseNanos(input, BigInt(scale) * bigint1e6);
-	return make$49(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
+	return make$55(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
 };
 const DURATION_REGEXP = /^(-?\d+(?:\.\d+)?)\s+(nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?)$/;
 const fromInputUnsafe$1 = (input) => {
@@ -1611,14 +1707,14 @@ const fromInputUnsafe$1 = (input) => {
 		}
 		case "object": {
 			if (input === null) break;
-			if (TypeId$49 in input) return input;
+			if (TypeId$52 in input) return input;
 			if (Array.isArray(input)) {
 				if (input.length !== 2 || !input.every(isNumber)) return invalid$3(input);
 				if (Number.isNaN(input[0]) || Number.isNaN(input[1])) return zero$1;
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
 				const nanos = input[0] * 1e9 + input[1];
-				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$49(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
+				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$55(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
 			}
 			const obj = input;
 			let millis = 0;
@@ -1629,13 +1725,13 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
 			if (!obj.microseconds && !obj.nanoseconds) {
-				if (!Number.isFinite(millis)) return make$49(millis);
+				if (!Number.isFinite(millis)) return make$55(millis);
 				const exact = sumObjectNanos(obj);
-				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$49(millis) : make$49(exact);
+				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$55(millis) : make$55(exact);
 			}
 			const nanos = millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0);
 			const exact = Number.isFinite(nanos) ? sumObjectNanos(obj) : void 0;
-			return exact === void 0 ? fromNanosNumber(nanos) : make$49(exact);
+			return exact === void 0 ? fromNanosNumber(nanos) : make$55(exact);
 		}
 	}
 	return invalid$3(input);
@@ -1665,7 +1761,7 @@ const zeroDurationValue = {
 const infinityDurationValue = { _tag: "Infinity" };
 const negativeInfinityDurationValue = { _tag: "NegativeInfinity" };
 const DurationProto = {
-	[TypeId$49]: TypeId$49,
+	[TypeId$52]: TypeId$52,
 	[symbol$3]() {
 		switch (this.value._tag) {
 			case "Millis": return hash(roundMillisToNanos(this.value.millis));
@@ -1713,7 +1809,7 @@ const DurationProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const make$49 = (input) => {
+const make$55 = (input) => {
 	const duration = Object.create(DurationProto);
 	if (typeof input === "number") {
 		if (isNaN(input) || input === 0 || Object.is(input, -0)) duration.value = zeroDurationValue;
@@ -1733,7 +1829,7 @@ const make$49 = (input) => {
 	};
 	return duration;
 };
-const isDuration = (u) => hasProperty(u, TypeId$49);
+const isDuration = (u) => hasProperty(u, TypeId$52);
 const isFinite$2 = (self) => self.value._tag !== "Infinity" && self.value._tag !== "NegativeInfinity";
 const isZero$1 = (self) => {
 	switch (self.value._tag) {
@@ -1755,17 +1851,17 @@ const abs = (self) => {
 	switch (self.value._tag) {
 		case "Infinity":
 		case "NegativeInfinity": return infinity;
-		case "Millis": return self.value.millis < 0 ? make$49(-self.value.millis) : self;
-		case "Nanos": return self.value.nanos < bigint0$3 ? make$49(-self.value.nanos) : self;
+		case "Millis": return self.value.millis < 0 ? make$55(-self.value.millis) : self;
+		case "Nanos": return self.value.nanos < bigint0$3 ? make$55(-self.value.nanos) : self;
 	}
 };
-const zero$1 = /*#__PURE__*/ make$49(0);
-const infinity = /*#__PURE__*/ make$49(Infinity);
-const negativeInfinity = /*#__PURE__*/ make$49(-Infinity);
-const nanos = (nanos) => make$49(nanos);
-const millis = (millis) => make$49(millis);
-const seconds = (seconds) => make$49(seconds * 1e3);
-const toMillis = (self) => match$1(fromInputUnsafe$1(self), {
+const zero$1 = /*#__PURE__*/ make$55(0);
+const infinity = /*#__PURE__*/ make$55(Infinity);
+const negativeInfinity = /*#__PURE__*/ make$55(-Infinity);
+const nanos = (nanos) => make$55(nanos);
+const millis = (millis) => make$55(millis);
+const seconds = (seconds) => make$55(seconds * 1e3);
+const toMillis = (self) => match$2(fromInputUnsafe$1(self), {
 	onMillis: identity,
 	onNanos: (nanos) => nanosToUnit(nanos, 1e6),
 	onInfinity: () => Infinity,
@@ -1780,7 +1876,7 @@ const toNanosUnsafe = (input) => {
 		case "Millis": return roundMillisToNanos(self.value.millis);
 	}
 };
-const match$1 = /*#__PURE__*/ dual(2, (self, options) => {
+const match$2 = /*#__PURE__*/ dual(2, (self, options) => {
 	switch (self.value._tag) {
 		case "Millis": return options.onMillis(self.value.millis);
 		case "Nanos": return options.onNanos(self.value.nanos);
@@ -1793,7 +1889,7 @@ const matchPair = /*#__PURE__*/ dual(3, (self, that, options) => {
 	if (self.value._tag === "Millis") return that.value._tag === "Millis" ? options.onMillis(self.value.millis, that.value.millis) : options.onNanos(toNanosUnsafe(self), that.value.nanos);
 	else return options.onNanos(self.value.nanos, toNanosUnsafe(that));
 });
-const Order$2 = /*#__PURE__*/ make$51((self, that) => matchPair(self, that, {
+const Order$2 = /*#__PURE__*/ make$57((self, that) => matchPair(self, that, {
 	onMillis: (self, that) => self < that ? -1 : self > that ? 1 : 0,
 	onNanos: (self, that) => self < that ? -1 : self > that ? 1 : 0,
 	onInfinity: (self, that) => {
@@ -2041,7 +2137,7 @@ for (let i = 0; i < 16; i++) {
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Tracer.js
 const ParentSpanKey = "effect/Tracer/ParentSpan";
 var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiberCached: true })) {};
-const make$48 = (options) => options;
+const make$54 = (options) => options;
 const externalSpan = (options) => ({
 	_tag: "ExternalSpan",
 	spanId: options.spanId,
@@ -2053,7 +2149,7 @@ const DisablePropagation = /*#__PURE__*/ Reference("effect/Tracer/DisablePropaga
 const CurrentTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/CurrentTraceLevel", { defaultValue: () => "Info" });
 const MinimumTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/MinimumTraceLevel", { defaultValue: () => "All" });
 const TracerKey = "effect/Tracer";
-const nativeTracer = /*#__PURE__*/ make$48({ span: (options) => new NativeSpan(options) });
+const nativeTracer = /*#__PURE__*/ make$54({ span: (options) => new NativeSpan(options) });
 var NativeSpan = class {
 	_tag = "Span";
 	sampled;
@@ -2203,22 +2299,22 @@ const causeInterrupt = (fiberId) => new CauseImpl([new Interrupt(fiberId)]);
 const hasFails = (self) => self.reasons.some(isFailReason$1);
 const findFail$1 = (self) => {
 	const reason = self.reasons.find(isFailReason$1);
-	return reason ? succeed$8(reason) : fail$7(self);
+	return reason ? succeed$8(reason) : fail$8(self);
 };
 const findError$1 = (self) => {
 	for (let i = 0; i < self.reasons.length; i++) {
 		const reason = self.reasons[i];
 		if (reason._tag === "Fail") return succeed$8(reason.error);
 	}
-	return fail$7(self);
+	return fail$8(self);
 };
 const findErrorOption$1 = /*#__PURE__*/ toOption$1(findError$1);
 const hasDies$1 = (self) => self.reasons.some(isDieReason$1);
 const causeElectDefects = (self) => hasDies$1(self) && hasFails(self) ? causeFromReasons(self.reasons.map((reason) => reason._tag === "Fail" && !isDone$2(reason.error) ? new Die(reason.error, reason.annotations) : reason)) : self;
-const findRecoverableError = (self) => hasDies$1(self) ? fail$7(causeElectDefects(self)) : findError$1(self);
+const findRecoverableError = (self) => hasDies$1(self) ? fail$8(causeElectDefects(self)) : findError$1(self);
 const findDefect = (self) => {
 	const reason = self.reasons.find(isDieReason$1);
-	return reason ? succeed$8(reason.defect) : fail$7(self);
+	return reason ? succeed$8(reason.defect) : fail$8(self);
 };
 const hasInterrupts$2 = (self) => self.reasons.some(isInterruptReason);
 const causeFilterInterruptors = (self) => {
@@ -2229,7 +2325,7 @@ const causeFilterInterruptors = (self) => {
 		interruptors ??= /* @__PURE__ */ new Set();
 		if (f.fiberId !== void 0) interruptors.add(f.fiberId);
 	}
-	return interruptors ? succeed$8(interruptors) : fail$7(self);
+	return interruptors ? succeed$8(interruptors) : fail$8(self);
 };
 const causeInterruptors = (self) => {
 	const result = causeFilterInterruptors(self);
@@ -2431,7 +2527,7 @@ var FiberImpl = class {
 	interruptUnsafe(fiberId, annotations) {
 		if (this._exit) return;
 		let cause = causeInterrupt(fiberId);
-		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$50(StackTraceKey, this.cache.stackFrame));
+		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$56(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
 		this._interruptedCause = this._interruptedCause ? causeAddInterrupts(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
@@ -2669,7 +2765,7 @@ const fiberJoin = (self) => {
 const fiberInterrupt = (self) => withFiber$1((fiber) => fiberInterruptAs(self, fiber.id));
 const fiberInterruptAs = /*#__PURE__*/ dual((args) => hasProperty(args[0], FiberTypeId), (self, fiberId, annotations) => withFiber$1((parent) => {
 	let ann = fiberStackAnnotations(parent);
-	ann = ann && annotations ? merge$2(ann, annotations) : ann ?? annotations;
+	ann = ann && annotations ? merge$4(ann, annotations) : ann ?? annotations;
 	self.interruptUnsafe(fiberId, ann);
 	return asVoid$1(fiberAwait(self));
 }));
@@ -2684,7 +2780,7 @@ const fiberInterruptAll = (fibers) => withFiber$1((parent) => {
 });
 const succeed$7 = exitSucceed;
 const failCause$6 = exitFailCause;
-const fail$6 = exitFail;
+const fail$7 = exitFail;
 const sync$1 = /*#__PURE__*/ makePrimitive({
 	op: "Sync",
 	[evaluate](fiber) {
@@ -2701,9 +2797,9 @@ const suspend$4 = /*#__PURE__*/ makePrimitive({
 		return thunk();
 	}
 });
-const fromOption$1 = /*#__PURE__*/ dual((args) => args.length >= 2 || isOption(args[0]), (option, onNone) => isNone(option) ? onNone ? failSync$1(onNone) : fail$6(new NoSuchElementError("Effect.fromOption: Option.none")) : succeed$7(option.value));
-const fromResult$1 = /*#__PURE__*/ match$2({
-	onFailure: fail$6,
+const fromOption$1 = /*#__PURE__*/ dual((args) => args.length >= 2 || isOption(args[0]), (option, onNone) => isNone(option) ? onNone ? failSync$1(onNone) : fail$7(new NoSuchElementError("Effect.fromOption: Option.none")) : succeed$7(option.value));
+const fromResult$1 = /*#__PURE__*/ match$3({
+	onFailure: fail$7,
 	onSuccess: succeed$7
 });
 const yieldNow = /*#__PURE__*/ (/* @__PURE__ */ makePrimitive({
@@ -2716,7 +2812,7 @@ const succeedSome$1 = (a) => succeed$7(some(a));
 const succeedNone$1 = /*#__PURE__*/ succeed$7(/*#__PURE__*/ none());
 const failCauseSync$1 = (evaluate) => suspend$4(() => failCause$6(evaluate()));
 const die$5 = (defect) => exitDie(defect);
-const failSync$1 = (error) => suspend$4(() => fail$6(error()));
+const failSync$1 = (error) => suspend$4(() => fail$7(error()));
 const void_$3 = /*#__PURE__*/ succeed$7(void 0);
 const try_$1 = (options) => {
 	const evaluate = typeof options === "function" ? options : options.try;
@@ -2725,7 +2821,7 @@ const try_$1 = (options) => {
 		try {
 			return succeed$7(evaluate());
 		} catch (err) {
-			return fail$6(catcher(err));
+			return fail$7(catcher(err));
 		}
 	});
 };
@@ -2738,7 +2834,7 @@ const tryPromise$1 = (options) => {
 	return callbackOptions(function(resume, signal) {
 		const failWithCatch = (cause) => suspend$4(() => {
 			try {
-				return fail$6(internalCall(() => catcher(cause)));
+				return fail$7(internalCall(() => catcher(cause)));
 			} catch (err) {
 				return die$5(err);
 			}
@@ -2984,12 +3080,12 @@ const tapEffectCont = function(value) {
 const asSome = (self) => map$6(self, some);
 const flip$2 = (self) => matchEffect$2(self, {
 	onFailure: succeed$7,
-	onSuccess: fail$6
+	onSuccess: fail$7
 });
 const andThen$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? returnPayload : andThenCont, f));
 const tap$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? tapEffectCont : tapCont, f));
 const asVoid$1 = (self) => new ContImpl(self, returnPayload, exitVoid);
-const sandbox$1 = (self) => catchCause$3(self, fail$6);
+const sandbox$1 = (self) => catchCause$3(self, fail$7);
 const raceAllFirst = (all, options) => withFiber$1((parent) => {
 	const fibers = /* @__PURE__ */ new Set();
 	onExitUnsafe(parent, () => fibers.size === 0 ? void 0 : fiberInterruptAll(fibers));
@@ -3046,7 +3142,7 @@ const catchEager$1 = /*#__PURE__*/ dual(2, (self, f) => {
 const exitInterrupt$1 = (fiberId) => exitFailCause(causeInterrupt(fiberId));
 const exitIsSuccess = (self) => self._tag === "Success";
 const exitIsFailure = (self) => self._tag === "Failure";
-const exitFilterCause = (self) => self._tag === "Failure" ? succeed$8(self.cause) : fail$7(self);
+const exitFilterCause = (self) => self._tag === "Failure" ? succeed$8(self.cause) : fail$8(self);
 const exitHasInterrupts = (self) => self._tag === "Failure" && hasInterrupts$2(self.cause);
 const exitVoid = /*#__PURE__*/ exitSucceed(void 0);
 const exitMap = /*#__PURE__*/ dual(2, (self, f) => self._tag === "Success" ? exitSucceed(f(self.value)) : self);
@@ -3077,7 +3173,7 @@ const updateContext$1 = /*#__PURE__*/ dual(2, (self, f) => withFiber$1((fiber) =
 	return self;
 }));
 const updateService = /*#__PURE__*/ dual(3, (self, service, f) => updateContext$1(self, (s) => {
-	const prev = getUnsafe(s, service);
+	const prev = getUnsafe$1(s, service);
 	const next = f(prev);
 	if (prev === next) return s;
 	return add$2(s, service, next);
@@ -3087,7 +3183,7 @@ const getContext = /*#__PURE__*/ withFiber$1((fiber) => succeed$7(fiber.context)
 const contextWith$1 = (f) => withFiber$1((fiber) => f(fiber.context));
 const provideContext$3 = /*#__PURE__*/ dual(2, (self, context) => {
 	if (effectIsExit(self)) return self;
-	return updateContext$1(self, merge$2(context));
+	return updateContext$1(self, merge$4(context));
 });
 const provideService$1 = function() {
 	if (arguments.length === 1) return dual(2, (self, impl) => provideServiceImpl(self, arguments[0], impl));
@@ -3127,7 +3223,7 @@ const tapCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$3(s
 	if (isFailure$1(result)) return failCause$6(cause);
 	return andThen$1(f(result.success, cause), failCause$6(cause));
 }));
-const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
+const tapError$3 = /*#__PURE__*/ dual(2, (self, f) => tapCauseFilter(self, findError$1, (e) => f(e)));
 const catchIf$3 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, predicate, f, orElse) => catchCause$3(self, (cause) => {
 	const error = findRecoverableError(cause);
 	if (isFailure$1(error)) return failCause$6(error.failure);
@@ -3149,13 +3245,13 @@ const catchTags$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, cas
 	let keys;
 	return catchFilter(self, (e) => {
 		keys ??= Object.keys(cases);
-		return hasProperty(e, "_tag") && isString$1(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$7(e);
+		return hasProperty(e, "_tag") && isString$1(e["_tag"]) && keys.includes(e["_tag"]) ? succeed$8(e) : fail$8(e);
 	}, (e) => cases[e["_tag"]](e), orElse);
 });
 const catchReason$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, errorTag, reasonTag, f, orElse) => catchIf$3(self, (e) => isTagged(e, errorTag) && hasProperty(e, "reason") && (orElse !== void 0 || isTagged(e.reason, reasonTag)), (e) => {
 	const reason = e.reason;
 	if (isTagged(reason, reasonTag)) return f(reason, e);
-	return orElse ? orElse(reason, e) : fail$6(e);
+	return orElse ? orElse(reason, e) : fail$7(e);
 }));
 const mapError$3 = /*#__PURE__*/ dual(2, (self, f) => catchCause$3(self, (cause) => failCause$6(causeMap(cause, f))));
 const mapBoth$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$1(self, {
@@ -3193,12 +3289,12 @@ const ignoreCause$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, o
 		onSuccess: (_) => void_$3
 	});
 });
-const option$1 = (self) => match(self, {
+const option$1 = (self) => match$1(self, {
 	onFailure: none,
 	onSuccess: some
 });
 const result$2 = (self) => matchEager(self, {
-	onFailure: fail$7,
+	onFailure: fail$8,
 	onSuccess: succeed$8
 });
 const matchCauseEffect$1 = /*#__PURE__*/ dual(2, (self, options) => new OnSuccessAndFailureImpl(self, options.onSuccess.length !== 1 ? (a) => options.onSuccess(a) : options.onSuccess, options.onFailure.length !== 1 ? (cause) => options.onFailure(cause) : options.onFailure));
@@ -3243,7 +3339,7 @@ const matchEffect$2 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 	},
 	onSuccess: options.onSuccess
 }));
-const match = /*#__PURE__*/ dual(2, (self, options) => new MatchImpl(self, options));
+const match$1 = /*#__PURE__*/ dual(2, (self, options) => new MatchImpl(self, options));
 const matchEager = /*#__PURE__*/ dual(2, (self, options) => {
 	if (effectIsExit(self)) {
 		if (self._tag === "Success") return exitSucceed(options.onSuccess(self.value));
@@ -3251,7 +3347,7 @@ const matchEager = /*#__PURE__*/ dual(2, (self, options) => {
 		if (isFailure$1(error)) return exitFailCause(error.failure);
 		return exitSucceed(options.onFailure(error.success));
 	}
-	return match(self, options);
+	return match$1(self, options);
 });
 const exit$1 = (self) => effectIsExit(self) ? exitSucceed(self) : exitPrimitive(self);
 const exitPrimitive = /*#__PURE__*/ makePrimitive({
@@ -3273,11 +3369,11 @@ const timeout$1 = /*#__PURE__*/ dual(2, (self, duration) => {
 	const decoded = fromInputUnsafe$1(duration);
 	return timeoutOrElse$1(self, {
 		duration: decoded,
-		orElse: () => fail$6(timeoutErrorFromDuration(decoded))
+		orElse: () => fail$7(timeoutErrorFromDuration(decoded))
 	});
 });
 const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep(duration), none())));
-const timed$1 = (self) => clockWith((clock) => {
+const timed$1 = (self) => clockWith$1((clock) => {
 	const start = clock.monotonicTimeNanosUnsafe();
 	return map$6(self, (a) => [nanos(clock.monotonicTimeNanosUnsafe() - start), a]);
 });
@@ -3774,7 +3870,18 @@ const fiberRunIn = /*#__PURE__*/ dual(2, (self, scope) => {
 	return self;
 });
 const runFork$1 = /*#__PURE__*/ runForkWith$1(/*#__PURE__*/ empty$11());
-const runPromiseExitWith = (context) => {
+const runCallbackWith$1 = (context) => {
+	const runFork = runForkWith$1(context);
+	return (effect, options) => {
+		const fiber = runFork(effect, options);
+		if (options?.onExit) fiber.addObserver(options.onExit);
+		return (interruptor) => {
+			return fiber.interruptUnsafe(interruptor);
+		};
+	};
+};
+const runCallback$1 = /*#__PURE__*/ runCallbackWith$1(/*#__PURE__*/ empty$11());
+const runPromiseExitWith$1 = (context) => {
 	const runFork = runForkWith$1(context);
 	return (effect, options) => {
 		const fiber = runFork(effect, options);
@@ -3783,15 +3890,16 @@ const runPromiseExitWith = (context) => {
 		});
 	};
 };
-const runPromiseWith = (context) => {
-	const runPromiseExit = runPromiseExitWith(context);
+const runPromiseExit$1 = /*#__PURE__*/ runPromiseExitWith$1(/*#__PURE__*/ empty$11());
+const runPromiseWith$1 = (context) => {
+	const runPromiseExit = runPromiseExitWith$1(context);
 	return (effect, options) => runPromiseExit(effect, options).then((exit) => {
 		if (exit._tag === "Failure") throw causeSquash(exit.cause);
 		return exit.value;
 	});
 };
-const runPromise$1 = /*#__PURE__*/ runPromiseWith(/*#__PURE__*/ empty$11());
-const runSyncExitWith = (context) => {
+const runPromise$1 = /*#__PURE__*/ runPromiseWith$1(/*#__PURE__*/ empty$11());
+const runSyncExitWith$1 = (context) => {
 	const runFork = runForkWith$1(context);
 	return (effect) => {
 		if (effectIsExit(effect)) return effect;
@@ -3801,16 +3909,16 @@ const runSyncExitWith = (context) => {
 		return fiber._exit ?? exitDie(new AsyncFiberError(fiber));
 	};
 };
-const runSyncExit$1 = /*#__PURE__*/ runSyncExitWith(/*#__PURE__*/ empty$11());
-const runSyncWith = (context) => {
-	const runSyncExit = runSyncExitWith(context);
+const runSyncExit$1 = /*#__PURE__*/ runSyncExitWith$1(/*#__PURE__*/ empty$11());
+const runSyncWith$1 = (context) => {
+	const runSyncExit = runSyncExitWith$1(context);
 	return (effect) => {
 		const exit = runSyncExit(effect);
 		if (exit._tag === "Failure") throw causeSquash(exit.cause);
 		return exit.value;
 	};
 };
-const runSync$2 = /*#__PURE__*/ runSyncWith(/*#__PURE__*/ empty$11());
+const runSync$2 = /*#__PURE__*/ runSyncWith$1(/*#__PURE__*/ empty$11());
 const succeedTrue = /*#__PURE__*/ succeed$7(true);
 const succeedFalse = /*#__PURE__*/ succeed$7(false);
 var Latch = class {
@@ -3936,7 +4044,7 @@ const makeSpanUnsafe = (fiber, name, options) => {
 };
 const makeSpan$1 = (name, options) => withFiber$1((fiber) => succeed$7(makeSpanUnsafe(fiber, name, options)));
 const makeSpanScoped$1 = (name, options) => uninterruptible$1(withFiber$1((fiber) => {
-	const scope = getUnsafe(fiber.context, scopeTag);
+	const scope = getUnsafe$1(fiber.context, scopeTag);
 	const span = makeSpanUnsafe(fiber, name, options ?? {});
 	const clock = fiber.getRef(ClockRef);
 	const timingEnabled = fiber.getRef(TracerTimingEnabled$1);
@@ -4052,9 +4160,9 @@ const wallTimeNanos = /*#__PURE__*/ function() {
 		return origin + monotonic;
 	};
 }();
-const clockWith = (f) => withFiber$1((fiber) => f(fiber.getRef(ClockRef)));
-const sleep = (duration) => clockWith((clock) => clock.sleep(fromInputUnsafe$1(duration)));
-const currentTimeMillis$1 = /*#__PURE__*/ clockWith((clock) => clock.currentTimeMillis);
+const clockWith$1 = (f) => withFiber$1((fiber) => f(fiber.getRef(ClockRef)));
+const sleep = (duration) => clockWith$1((clock) => clock.sleep(fromInputUnsafe$1(duration)));
+const currentTimeMillis$1 = /*#__PURE__*/ clockWith$1((clock) => clock.currentTimeMillis);
 const TimeoutErrorTypeId = "~effect/Cause/TimeoutError";
 const isTimeoutError$1 = (u) => hasProperty(u, TimeoutErrorTypeId);
 var TimeoutError$1 = class extends (/*#__PURE__*/ TaggedError$2("TimeoutError")) {
@@ -4220,7 +4328,7 @@ const isReason = isCauseReason;
 const isFailReason = isFailReason$1;
 const isDieReason = isDieReason$1;
 const fromReasons = causeFromReasons;
-const fail$5 = causeFail;
+const fail$6 = causeFail;
 const die$4 = causeDie;
 const makeFailReason = (error) => new Fail(error);
 const makeDieReason = (defect) => new Die(defect);
@@ -4251,7 +4359,7 @@ var StackTrace = class extends (/*#__PURE__*/ Service$1()("effect/Cause/StackTra
 const isExit = isExit$1;
 const succeed$6 = exitSucceed;
 const failCause$5 = exitFailCause;
-const fail$4 = exitFail;
+const fail$5 = exitFail;
 const die$3 = exitDie;
 const interrupt$2 = exitInterrupt$1;
 const void_$2 = exitVoid;
@@ -4260,10 +4368,10 @@ const isFailure = exitIsFailure;
 const hasInterrupts = exitHasInterrupts;
 const asVoidAll = exitAsVoidAll;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Deferred.js
-const TypeId$48 = "~effect/Deferred";
-const isDeferred = (u) => hasProperty(u, TypeId$48);
+const TypeId$51 = "~effect/Deferred";
+const isDeferred = (u) => hasProperty(u, TypeId$51);
 const DeferredProto = {
-	[TypeId$48]: {
+	[TypeId$51]: {
 		_A: identity,
 		_E: identity
 	},
@@ -4277,7 +4385,7 @@ const DeferredImpl = function() {
 };
 DeferredImpl.prototype = DeferredProto;
 const makeUnsafe$7 = () => new DeferredImpl();
-const make$47 = () => sync$1(() => makeUnsafe$7());
+const make$53 = () => sync$1(() => makeUnsafe$7());
 const _await = (self) => callback$2((resume) => {
 	if (self.effect) return resume(self.effect);
 	self.resumes ??= [];
@@ -4290,6 +4398,7 @@ const _await = (self) => callback$2((resume) => {
 	});
 });
 const done = /* @__PURE__ */ dual(2, (self, effect) => sync$1(() => doneUnsafe(self, effect)));
+const fail$4 = /*#__PURE__*/ dual(2, (self, error) => done(self, exitFail(error)));
 const failCause$4 = /*#__PURE__*/ dual(2, (self, cause) => done(self, exitFailCause(cause)));
 const interruptWith = /*#__PURE__*/ dual(2, (self, fiberId) => failCause$4(self, causeInterrupt(fiberId)));
 const isDone = (self) => sync$1(() => isDoneUnsafe(self));
@@ -4312,16 +4421,16 @@ const CurrentLogLevel = CurrentLogLevel$1;
 const TracerTimingEnabled = TracerTimingEnabled$1;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Scope.js
 const Scope = scopeTag;
-const make$46 = scopeMake;
+const make$52 = scopeMake;
 const makeUnsafe$6 = scopeMakeUnsafe;
-const provide$3 = provideScope;
+const provide$4 = provideScope;
 const addFinalizerExit = scopeAddFinalizerExit;
 const addFinalizer$1 = scopeAddFinalizer;
 const forkUnsafe = scopeForkUnsafe;
 const close = scopeClose;
 const closeUnsafe = scopeCloseUnsafe;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Layer.js
-const TypeId$47 = "~effect/Layer";
+const TypeId$50 = "~effect/Layer";
 const MemoMapTypeId = "~effect/Layer/MemoMap";
 const makeMemoMapEntry = (memoMap, layer) => {
 	const entry = {
@@ -4343,7 +4452,7 @@ const memoMapObserve = (entry, scope) => {
 	return true;
 };
 const LayerProto = {
-	[TypeId$47]: {
+	[TypeId$50]: {
 		_ROut: identity,
 		_E: identity,
 		_RIn: identity
@@ -4408,11 +4517,11 @@ var CurrentMemoMap = class CurrentMemoMap extends (/*#__PURE__*/ Service$1()("ef
 	}
 };
 const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provideService$1(map$6(suspend$4(() => self.build(memoMap, scope)), add$2(CurrentMemoMap, memoMap)), CurrentMemoMap, memoMap));
-const build = (self) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), getUnsafe(fiber.context, Scope)));
+const build = (self) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), getUnsafe$1(fiber.context, Scope)));
 const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), scope)));
 const succeed$4 = function() {
-	if (arguments.length === 1) return (resource) => succeedContext(make$50(arguments[0], resource));
-	return succeedContext(make$50(arguments[0], arguments[1]));
+	if (arguments.length === 1) return (resource) => succeedContext(make$56(arguments[0], resource));
+	return succeedContext(make$56(arguments[0], arguments[1]));
 };
 const succeedContext = (context) => fromBuildUnsafe(constant(succeed$7(context)));
 const empty$9 = /*#__PURE__*/ succeedContext(/*#__PURE__*/ empty$11());
@@ -4420,19 +4529,20 @@ const effect = function() {
 	if (arguments.length === 1) return (effect) => effectImpl(arguments[0], effect);
 	return effectImpl(arguments[0], arguments[1]);
 };
-const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$50(service, value)));
-const effectContext = (effect) => fromBuildMemo((_, scope) => provide$3(effect, scope));
+const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$56(service, value)));
+const effectContext = (effect) => fromBuildMemo((_, scope) => provide$4(effect, scope));
 const effectDiscard = (effect) => effectContext(as$1(effect, empty$11()));
 const unwrapKey = /*#__PURE__*/ Service$1("effect/Layer/unwrap");
-const unwrap$4 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
+const unwrap$6 = (self) => flatMap$1(effect(unwrapKey)(self), get$2(unwrapKey));
 const mergeAllEffect = (layers, memoMap, scope) => {
 	const parentScope = forkUnsafe(scope, "parallel");
 	return forEach$2(layers, (layer) => layer.build(memoMap, forkUnsafe(parentScope, "sequential")), { concurrency: layers.length }).pipe(map$6((context) => mergeAll$1(...context)));
 };
 const mergeAll = (...layers) => fromBuildMemo((memoMap, scope) => mergeAllEffect(layers, memoMap, scope));
+const merge$3 = /*#__PURE__*/ dual(2, (self, that) => mergeAll(self, ...Array.isArray(that) ? that : [that]));
 const provideWith = (self, that, f) => fromBuildMemo((memoMap, scope) => flatMap$2(Array.isArray(that) ? mergeAllEffect(that, memoMap, scope) : that.build(memoMap, scope), (context) => self.build(memoMap, scope).pipe(provideContext$3(context), map$6((merged) => f(merged, context)))));
-const provide$2 = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, identity));
-const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, (self, that) => merge$2(that, self)));
+const provide$3 = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, identity));
+const provideMerge = /*#__PURE__*/ dual(2, (self, that) => provideWith(self, that, (self, that) => merge$4(that, self)));
 const flatMap$1 = /*#__PURE__*/ dual(2, (self, f) => fromBuild((memoMap, scope) => flatMap$2(self.build(memoMap, scope), (context) => f(context).build(memoMap, scope))));
 const catchTag$1 = /*#__PURE__*/ dual(3, (self, k, f) => fromBuildUnsafe((memoMap, scope) => catchTag$2(self.build(memoMap, scope), k, (error) => f(error).build(memoMap, scope))));
 const launch = (self) => scoped$1(andThen$1(build(self), never$2));
@@ -4440,10 +4550,10 @@ const launch = (self) => scoped$1(andThen$1(build(self), never$2));
 const Clock = ClockRef;
 const currentTimeMillis = currentTimeMillis$1;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/dateTime.js
-const TypeId$46 = "~effect/DateTime";
+const TypeId$49 = "~effect/DateTime";
 const TimeZoneTypeId = "~effect/DateTime/TimeZone";
-const Proto$17 = {
-	[TypeId$46]: TypeId$46,
+const Proto$18 = {
+	[TypeId$49]: TypeId$49,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -4455,7 +4565,7 @@ const Proto$17 = {
 	}
 };
 const ProtoUtc = {
-	...Proto$17,
+	...Proto$18,
 	_tag: "Utc",
 	[symbol$3]() {
 		return number$1(this.epochMilliseconds);
@@ -4468,7 +4578,7 @@ const ProtoUtc = {
 	}
 };
 const ProtoZoned = {
-	...Proto$17,
+	...Proto$18,
 	_tag: "Zoned",
 	[symbol$3]() {
 		return combine$1(number$1(this.epochMilliseconds))(hash(this.zone));
@@ -4530,7 +4640,7 @@ const makeZonedProto = (epochMillis, zone, partsUtc) => {
 	if (partsUtc !== void 0) self.partsUtc = partsUtc;
 	return self;
 };
-const isDateTime$1 = (u) => hasProperty(u, TypeId$46);
+const isDateTime$1 = (u) => hasProperty(u, TypeId$49);
 const isDateTimeArgs = (args) => isDateTime$1(args[0]);
 const isUtc$1 = (self) => self._tag === "Utc";
 const makeUtc = (epochMillis) => {
@@ -4555,7 +4665,7 @@ const makeUnsafe$5 = (input) => {
 	return fromDateUnsafe(new Date(input));
 };
 const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input) || /z$|gmt$/i.test(input);
-const make$45 = /*#__PURE__*/ liftThrowable(makeUnsafe$5);
+const make$51 = /*#__PURE__*/ liftThrowable(makeUnsafe$5);
 const now$1 = /*#__PURE__*/ map$6(currentTimeMillis, makeUtc);
 const toUtc$1 = (self) => makeUtc(self.epochMilliseconds);
 const toDateUtc$1 = (self) => new Date(self.epochMilliseconds);
@@ -4701,6 +4811,27 @@ const formatIsoOffset = (self) => {
 	return self._tag === "Utc" ? date.toISOString() : `${date.toISOString().slice(0, -1)}${zonedOffsetIso(self)}`;
 };
 const formatIsoZoned = (self) => self.zone._tag === "Offset" ? formatIsoOffset(self) : `${formatIsoOffset(self)}[${self.zone.id}]`;
+globalThis.String;
+const toUpperCase = (self) => self.toUpperCase();
+const toLowerCase = (self) => self.toLowerCase();
+const capitalize = (self) => {
+	const [first = ""] = self;
+	return toUpperCase(first) + self.slice(first.length);
+};
+const replace = (searchValue, replaceValue) => (self) => self.replace(searchValue, replaceValue);
+const trim = (self) => self.trim();
+const trimEnd = (self) => self.trimEnd();
+const slice = (start, end) => (self) => self.slice(start, end);
+const isNonEmpty$1 = (self) => self.length > 0;
+const split = /*#__PURE__*/ dual(2, (self, separator) => {
+	const out = self.split(separator);
+	return isArrayNonEmpty$1(out) ? out : [self];
+});
+const includes = (searchString, position) => (self) => self.includes(searchString, position);
+const startsWith = (searchString, position) => (self) => self.startsWith(searchString, position);
+const match = (regExp) => (self) => fromNullOr(self.match(regExp));
+const matchAll = (regExp) => (self) => self.matchAll(regExp);
+const replaceAll = (searchValue, replaceValue) => (self) => self.replaceAll(searchValue, replaceValue);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Pull.js
 const catchDone = /*#__PURE__*/ dual(2, (effect, f) => catchCauseFilter$1(effect, filterDoneLeftover, (l) => f(l)));
 const isDoneCause = (cause) => cause.reasons.some(isDoneFailure);
@@ -4710,8 +4841,8 @@ const filterDone = (cause) => {
 	let hasFailure = false;
 	for (const reason of cause.reasons) if (isDoneFailure(reason)) done ??= reason.error;
 	else if (reason._tag !== "Interrupt") hasFailure = true;
-	if (done === void 0) return fail$7(cause);
-	return hasFailure ? fail$7(fromReasons(cause.reasons.filter((reason) => !isDoneFailure(reason)))) : succeed$8(done);
+	if (done === void 0) return fail$8(cause);
+	return hasFailure ? fail$8(fromReasons(cause.reasons.filter((reason) => !isDoneFailure(reason)))) : succeed$8(done);
 };
 const filterDoneLeftover = (cause) => {
 	const done = filterDone(cause);
@@ -4729,7 +4860,7 @@ const matchEffect$1 = /*#__PURE__*/ dual(2, (self, options) => matchCauseEffect$
 	}
 }));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Schedule.js
-const TypeId$45 = "~effect/Schedule";
+const TypeId$48 = "~effect/Schedule";
 const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata", { defaultValue: /*#__PURE__*/ constant({
 	input: void 0,
 	output: void 0,
@@ -4741,7 +4872,7 @@ const CurrentMetadata = /*#__PURE__*/ Reference("effect/Schedule/CurrentMetadata
 	elapsedSincePrevious: 0
 }) });
 const ScheduleProto = {
-	[TypeId$45]: {
+	[TypeId$48]: {
 		_Out: identity,
 		_In: identity,
 		_Env: identity
@@ -4750,7 +4881,7 @@ const ScheduleProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const isSchedule = (u) => hasProperty(u, TypeId$45);
+const isSchedule = (u) => hasProperty(u, TypeId$48);
 const fromStep = (step) => {
 	const self = Object.create(ScheduleProto);
 	self.step = step;
@@ -4780,7 +4911,7 @@ const fromStepWithMetadata = (step) => fromStep(map$6(step, (f) => {
 	return (now, input) => f(meta(now, input));
 }));
 const toStep = (schedule) => catchCause$3(schedule.step, (cause) => succeed$7(() => failCause$6(cause)));
-const toStepWithMetadata = (schedule) => clockWith((clock) => map$6(toStep(schedule), (step) => {
+const toStepWithMetadata = (schedule) => clockWith$1((clock) => map$6(toStep(schedule), (step) => {
 	const metaFn = metadataFn();
 	return (input) => suspend$4(() => {
 		const now = clock.currentTimeMillisUnsafe();
@@ -4831,7 +4962,7 @@ const while_ = /*#__PURE__*/ dual(2, (self, predicate) => fromStep(map$6(toStep(
 const forever$1 = /*#__PURE__*/ spaced(zero$1);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/layer.js
 const provideLayer = (self, layer, options) => scopedWith$1((scope) => flatMap$2(options?.local ? buildWithMemoMap(layer, makeMemoMapUnsafe(), scope) : buildWithScope(layer, scope), (context) => provideContext$3(self, context)));
-const provide$1 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, source, options) => isContext(source) ? provideContext$3(self, source) : provideLayer(self, Array.isArray(source) ? mergeAll(...source) : source, options));
+const provide$2 = /*#__PURE__*/ dual((args) => isEffect$1(args[0]), (self, source, options) => isContext(source) ? provideContext$3(self, source) : provideLayer(self, Array.isArray(source) ? mergeAll(...source) : source, options));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schedule.js
 const repeatOrElse = /*#__PURE__*/ dual(3, (self, schedule, orElse) => flatMap$2(toStepWithMetadata(schedule), (step) => {
 	let meta = CurrentMetadata.defaultValue();
@@ -4859,11 +4990,11 @@ const retryOrElse = /*#__PURE__*/ dual(3, (self, policy, orElse) => flatMap$2(to
 }));
 const repeat$1 = /*#__PURE__*/ dual(2, (self, options) => {
 	const schedule = typeof options === "function" ? options(identity) : isSchedule(options) ? options : buildFromOptions(options);
-	return repeatOrElse(self, schedule, fail$6);
+	return repeatOrElse(self, schedule, fail$7);
 });
 const retry$1 = /*#__PURE__*/ dual(2, (self, options) => {
 	const schedule = typeof options === "function" ? options(identity) : isSchedule(options) ? options : buildFromOptions(options);
-	return retryOrElse(self, schedule, fail$6);
+	return retryOrElse(self, schedule, fail$7);
 });
 const passthroughForever = /*#__PURE__*/ passthrough$2(forever$1);
 const buildFromOptions = (options) => {
@@ -4880,9 +5011,9 @@ const buildFromOptions = (options) => {
 	return schedule;
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableHashMap.js
-const TypeId$44 = "~effect/MutableHashMap";
+const TypeId$47 = "~effect/MutableHashMap";
 const MutableHashMapProto = {
-	[TypeId$44]: TypeId$44,
+	[TypeId$47]: TypeId$47,
 	[Symbol.iterator]() {
 		return this.backing[Symbol.iterator]();
 	},
@@ -4988,7 +5119,7 @@ const void_$1 = void_$3;
 const callback$1 = callback$2;
 const never$1 = never$2;
 const gen = gen$1;
-const fail$3 = fail$6;
+const fail$3 = fail$7;
 const failSync = failSync$1;
 const failCause$3 = failCause$6;
 const failCauseSync = failCauseSync$1;
@@ -5020,7 +5151,7 @@ const catchCauseIf = catchCauseIf$1;
 const mapError$2 = mapError$3;
 const mapBoth = mapBoth$1;
 const orDie = orDie$1;
-const tapError = tapError$1;
+const tapError$2 = tapError$3;
 const tapCause = tapCause$1;
 const retry = retry$1;
 const sandbox = sandbox$1;
@@ -5037,7 +5168,7 @@ const matchCauseEffect = matchCauseEffect$1;
 const matchEffect = matchEffect$2;
 const context = context$1;
 const contextWith = contextWith$1;
-const provide = provide$1;
+const provide$1 = provide$2;
 const provideContext$2 = provideContext$3;
 const service = service$1;
 const serviceOption = serviceOption$1;
@@ -5072,11 +5203,19 @@ const forkScoped = forkScoped$1;
 const forkDetach = forkDetach$1;
 const runFork = runFork$1;
 const runForkWith = runForkWith$1;
+const runCallbackWith = runCallbackWith$1;
+const runCallback = runCallback$1;
 const runPromise = runPromise$1;
+const runPromiseWith = runPromiseWith$1;
+const runPromiseExit = runPromiseExit$1;
+const runPromiseExitWith = runPromiseExitWith$1;
 const runSync$1 = runSync$2;
+const runSyncWith = runSyncWith$1;
 const runSyncExit = runSyncExit$1;
+const runSyncExitWith = runSyncExitWith$1;
 const fnUntraced = fnUntraced$1;
 const fn = fn$1;
+const clockWith = clockWith$1;
 const logFatal = /*#__PURE__*/ logWithLevel("Fatal");
 const logError = /*#__PURE__*/ logWithLevel("Error");
 const logDebug = /*#__PURE__*/ logWithLevel("Debug");
@@ -5119,7 +5258,7 @@ const getCurrent = getCurrentFiber;
 const runIn = fiberRunIn;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableList.js
 const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
-const make$44 = () => ({
+const make$50 = () => ({
 	head: void 0,
 	tail: void 0,
 	length: 0
@@ -5244,7 +5383,7 @@ const take$1 = (self) => {
 	return message;
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Queue.js
-const TypeId$43 = "~effect/Queue";
+const TypeId$46 = "~effect/Queue";
 const EnqueueTypeId = "~effect/Queue/Enqueue";
 const DequeueTypeId = "~effect/Queue/Dequeue";
 const variance = {
@@ -5252,7 +5391,7 @@ const variance = {
 	_E: identity
 };
 const QueueProto = {
-	[TypeId$43]: variance,
+	[TypeId$46]: variance,
 	[EnqueueTypeId]: variance,
 	[DequeueTypeId]: variance,
 	...PipeInspectableProto,
@@ -5264,12 +5403,12 @@ const QueueProto = {
 		};
 	}
 };
-const make$43 = (options) => withFiber$1((fiber) => {
+const make$49 = (options) => withFiber$1((fiber) => {
 	const self = Object.create(QueueProto);
 	self.dispatcher = fiber.currentDispatcher;
 	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
 	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$44();
+	self.messages = make$50();
 	self.scheduleRunning = false;
 	self.state = {
 		_tag: "Open",
@@ -5279,8 +5418,8 @@ const make$43 = (options) => withFiber$1((fiber) => {
 	};
 	return succeed$7(self);
 });
-const bounded = (capacity) => make$43({ capacity });
-const unbounded$1 = () => make$43();
+const bounded = (capacity) => make$49({ capacity });
+const unbounded$1 = () => make$49();
 const offer = /*#__PURE__*/ dual(2, (self, message) => suspend$4(() => offerUnsafe(self, message) ? exitTrue : self.state._tag === "Open" && self.strategy === "suspend" ? offerOrWait(self, message) : exitFalse));
 const offerUnsafe = (self, message) => {
 	if (self.state._tag !== "Open") return false;
@@ -5523,6 +5662,52 @@ const finalize = (self, exit) => {
 	for (const awaiter of openState.awaiters) awaiter(exit);
 	openState.awaiters.clear();
 };
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/ulid.js
+const maxTimestamp = 2 ** 48 - 1;
+const base32Chars = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+const ulidString = (timestampMillis, bytes) => {
+	if (bytes.length !== 10) throw new Error(`ULID randomness must be exactly 10 bytes, received ${bytes.length}`);
+	const timestamp = Math.min(Math.max(0, Math.trunc(timestampMillis)), maxTimestamp);
+	let out = "";
+	for (let shift = 45; shift >= 0; shift -= 5) out += base32Chars[Math.floor(timestamp / 2 ** shift) & 31];
+	let accumulator = 0;
+	let bits = 0;
+	for (const byte of bytes) {
+		accumulator = accumulator << 8 | byte;
+		bits += 8;
+		while (bits >= 5) {
+			bits -= 5;
+			out += base32Chars[accumulator >>> bits & 31];
+		}
+		accumulator &= (1 << bits) - 1;
+	}
+	return out;
+};
+const makeMonotonic = () => {
+	let lastTimestamp = -1;
+	const random = /* @__PURE__ */ new Uint8Array(10);
+	return (timestampMillis, randomBytes) => {
+		const timestamp = timestampMillis >= 0 ? Math.min(Math.trunc(timestampMillis), maxTimestamp) : 0;
+		if (timestamp > lastTimestamp) {
+			lastTimestamp = timestamp;
+			random.set(randomBytes());
+		} else if (!increment(random)) {
+			lastTimestamp = Math.min(lastTimestamp + 1, maxTimestamp);
+			random.set(randomBytes());
+		}
+		return ulidString(lastTimestamp, random);
+	};
+};
+const increment = (bytes) => {
+	for (let i = bytes.length - 1; i >= 0; i--) {
+		if (bytes[i] !== 255) {
+			bytes[i]++;
+			return true;
+		}
+		bytes[i] = 0;
+	}
+	return false;
+};
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/uuid.js
 const hex = /*#__PURE__*/ Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"));
 const stringify = (bytes) => {
@@ -5540,19 +5725,118 @@ const v4Bytes = (bytes) => {
 	bytes[8] = bytes[8] & 63 | 128;
 	return bytes;
 };
+const maxV7Timestamp = 2 ** 48 - 1;
+const v7Bytes = (timestampMillis, bytes) => {
+	const timestamp = Math.min(Math.max(0, Math.trunc(timestampMillis)), maxV7Timestamp);
+	bytes[0] = Math.floor(timestamp / 2 ** 40);
+	bytes[1] = Math.floor(timestamp / 2 ** 32) & 255;
+	bytes[2] = Math.floor(timestamp / 2 ** 24) & 255;
+	bytes[3] = Math.floor(timestamp / 2 ** 16) & 255;
+	bytes[4] = Math.floor(timestamp / 256) & 255;
+	bytes[5] = timestamp & 255;
+	bytes[6] = bytes[6] & 15 | 112;
+	bytes[8] = bytes[8] & 63 | 128;
+	return bytes;
+};
+const clampV7Timestamp = (timestampMillis) => timestampMillis >= 0 ? Math.min(Math.trunc(timestampMillis), maxV7Timestamp) : 0;
+const maxV7Counter = 2 ** 42 - 1;
+const makeV7Monotonic = () => {
+	let lastTimestamp = -1;
+	let counter = 0;
+	return (timestampMillis, bytes) => {
+		const timestamp = clampV7Timestamp(timestampMillis);
+		if (timestamp > lastTimestamp) {
+			lastTimestamp = timestamp;
+			counter = seedV7Counter(bytes);
+		} else if (counter < maxV7Counter) counter++;
+		else {
+			lastTimestamp = Math.min(lastTimestamp + 1, maxV7Timestamp);
+			counter = seedV7Counter(bytes);
+		}
+		v7Bytes(lastTimestamp, bytes);
+		const high = Math.floor(counter / 2 ** 30);
+		const low = counter - high * 2 ** 30;
+		bytes[6] = 112 | high >>> 8;
+		bytes[7] = high & 255;
+		bytes[8] = 128 | low >>> 24;
+		bytes[9] = low >>> 16 & 255;
+		bytes[10] = low >>> 8 & 255;
+		bytes[11] = low & 255;
+		return bytes;
+	};
+};
+const seedV7Counter = (bytes) => ((bytes[6] & 7) << 8 | bytes[7]) * 2 ** 30 + ((bytes[8] & 63) << 24 | bytes[9] << 16 | bytes[10] << 8 | bytes[11]);
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/crypto/WebCrypto.js
+const WebCrypto = /*#__PURE__*/ Reference("effect/crypto/WebCrypto", { defaultValue: () => globalThis.crypto });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/crypto/SecureRandom.js
+var SecureRandom = class extends (/*#__PURE__*/ Service$1()("effect/crypto/SecureRandom")) {};
 const checkSize = (size) => {
 	if (!Number.isSafeInteger(size) || size < 0) throw new RangeError("size must be a non-negative safe integer");
+};
+const readUint53 = (bytes) => (bytes[0] & 31) * 2 ** 48 + bytes[1] * 2 ** 40 + bytes[2] * 2 ** 32 + bytes[3] * 2 ** 24 + bytes[4] * 2 ** 16 + bytes[5] * 256 + bytes[6];
+const intBetweenUnsafe = (min, max, halfOpen, draw) => {
+	const minInt = Math.ceil(min);
+	const maxInt = Math.floor(max);
+	if (!Number.isSafeInteger(minInt) || !Number.isSafeInteger(maxInt)) throw new RangeError("bounds must round to safe integers");
+	if (maxInt - minInt < Number.MAX_SAFE_INTEGER) {
+		const count = maxInt - minInt + (halfOpen ? 0 : 1);
+		if (count <= 0) throw new RangeError("range must contain at least one integer");
+		if (count === 1) return minInt + 0;
+		const bucketSize = (2 ** 53 - 2 ** 53 % count) / count;
+		const limit = bucketSize * count;
+		while (true) {
+			const value = readUint53(draw());
+			if (value < limit) return minInt + (value - value % bucketSize) / bucketSize;
+		}
+	}
+	const lower = BigInt(minInt);
+	const count = BigInt(maxInt) - lower + (halfOpen ? BigInt(0) : BigInt(1));
+	const wide = count > BigInt(1) << BigInt(53);
+	const bucketSize = (wide ? BigInt(1) << BigInt(54) : BigInt(1) << BigInt(53)) / count;
+	const limit = bucketSize * count;
+	while (true) {
+		const bytes = draw();
+		const value = BigInt(readUint53(bytes)) + (wide && (bytes[0] & 32) !== 0 ? BigInt(1) << BigInt(53) : BigInt(0));
+		if (value < limit) return Number(lower + value / bucketSize);
+	}
 };
 const makeUuid = (bytes, randomBytes, format) => {
 	const uuid = bytes(randomBytes(16));
 	return format === "bytes" ? uuid : stringify(uuid);
+};
+const make$48 = (randomBytes) => {
+	const randomBytesChecked = (size) => {
+		checkSize(size);
+		return randomBytes(size);
+	};
+	const draw = () => randomBytes(7);
+	const uuidV7 = makeV7Monotonic();
+	const ulid = makeMonotonic();
+	const ulidRandomBytes = () => randomBytes(10);
+	return {
+		randomBytes: (size) => sync(() => randomBytesChecked(size)),
+		intBetween: (min, max, options) => sync(() => intBetweenUnsafe(min, max, options?.halfOpen ?? false, draw)),
+		shuffle: (elements) => sync(() => {
+			const buffer = Array.from(elements);
+			for (let i = buffer.length - 1; i >= 1; i--) {
+				const index = intBetweenUnsafe(0, i, false, draw);
+				const value = buffer[i];
+				buffer[i] = buffer[index];
+				buffer[index] = value;
+			}
+			return buffer;
+		}),
+		uuidV4: (options) => sync(() => makeUuid(v4Bytes, randomBytes, options?.format)),
+		uuidV7: (options) => clockWith((clock) => sync(() => makeUuid((bytes) => uuidV7(clock.currentTimeMillisUnsafe(), bytes), randomBytes, options?.format))),
+		ulid: clockWith((clock) => sync(() => ulid(clock.currentTimeMillisUnsafe(), ulidRandomBytes)))
+	};
 };
 const fillRandom = (crypto, size) => {
 	const bytes = new Uint8Array(size);
 	for (let offset = 0; offset < size; offset += 65536) crypto.getRandomValues(bytes.subarray(offset, offset + 65536));
 	return bytes;
 };
+const layerWebCrypto = /*#__PURE__*/ effect(SecureRandom, /*#__PURE__*/ WebCrypto.use((crypto) => succeed$3(make$48((size) => fillRandom(crypto, size)))));
 const randomBytesUnsafe = (size) => {
 	checkSize(size);
 	return fillRandom(globalThis.crypto, size);
@@ -5656,11 +5940,11 @@ var SemaphoreImpl = class {
 		});
 	}
 };
-const make$42 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+const make$47 = (permits) => sync$1(() => new SemaphoreImpl(permits));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/BigDecimal.js
-const TypeId$42 = "~effect/BigDecimal";
+const TypeId$45 = "~effect/BigDecimal";
 const BigDecimalProto = {
-	[TypeId$42]: TypeId$42,
+	[TypeId$45]: TypeId$45,
 	[symbol$3]() {
 		const normalized = normalize$2(this);
 		return combine$1(string$1(String(normalized.value)), number$1(normalized.scale));
@@ -5685,8 +5969,8 @@ const BigDecimalProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const isBigDecimal = (u) => hasProperty(u, TypeId$42);
-const make$41 = (value, scale) => {
+const isBigDecimal = (u) => hasProperty(u, TypeId$45);
+const make$46 = (value, scale) => {
 	if (!Number.isSafeInteger(scale)) throw new RangeError(`Scale must be a safe integer, got ${scale}`);
 	const o = Object.create(BigDecimalProto);
 	o.value = value;
@@ -5694,7 +5978,7 @@ const make$41 = (value, scale) => {
 	return o;
 };
 const makeNormalized = (value, scale) => {
-	const o = make$41(value, scale);
+	const o = make$46(value, scale);
 	o.normalized = o;
 	return o;
 };
@@ -5727,7 +6011,7 @@ const compareMagnitude = (self, that) => {
 	const exponentDifference = BigInt(selfDigits.length - thatDigits.length) - BigInt(self.scale) + BigInt(that.scale);
 	if (exponentDifference !== bigint0$1) return exponentDifference < bigint0$1 ? -1 : 1;
 	const length = Math.max(selfDigits.length, thatDigits.length);
-	return String$5(selfDigits.padEnd(length, "0"), thatDigits.padEnd(length, "0"));
+	return String$6(selfDigits.padEnd(length, "0"), thatDigits.padEnd(length, "0"));
 };
 const compare = (self, that) => {
 	if (self.scale === that.scale) return compareBigInt(self.value, that.value);
@@ -5952,13 +6236,13 @@ const binaryUnits = [
 ];
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
-const make$40 = (value) => value;
+const make$45 = (value) => value;
 const invalid$2 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
 	if (!Number.isSafeInteger(input) || input < 0) return invalid$2(`expected a non-negative safe integer, received ${input}`);
-	return make$40(BigInt(input));
+	return make$45(BigInt(input));
 };
 const scaleDecimal = (quantity, factor) => {
 	const match = /^(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(quantity);
@@ -5977,13 +6261,13 @@ const fromStringUnsafe = (input) => {
 	if (unit === void 0) return invalid$2(`unsupported unit ${JSON.stringify(match[2])}`);
 	const value = scaleDecimal(match[1], unit.factor);
 	if (value === void 0) return invalid$2(`${JSON.stringify(input)} does not represent an integral number of bytes`);
-	return make$40(value);
+	return make$45(value);
 };
 const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
 			if (input < bigint0) return invalid$2(`expected a non-negative bigint, received ${input}`);
-			return make$40(input);
+			return make$45(input);
 		case "number": return fromNumber(input);
 		case "string": return fromStringUnsafe(input);
 	}
@@ -6010,14 +6294,14 @@ const encode$1 = (input) => encodeBytes(typeof input === "string" ? encoder$3.en
 const decode$4 = (str) => {
 	const stripped = stripCrlf(str);
 	const length = stripped.length;
-	if (length % 4 !== 0) return fail$7(new EncodingError({
+	if (length % 4 !== 0) return fail$8(new EncodingError({
 		kind: "Decode",
 		module: "Base64",
 		input: stripped,
 		message: `Length must be a multiple of 4, but is ${length}`
 	}));
 	const index = stripped.indexOf("=");
-	if (index !== -1 && (index < length - 2 || index === length - 2 && stripped[length - 1] !== "=")) return fail$7(new EncodingError({
+	if (index !== -1 && (index < length - 2 || index === length - 2 && stripped[length - 1] !== "=")) return fail$8(new EncodingError({
 		kind: "Decode",
 		module: "Base64",
 		input: stripped,
@@ -6029,7 +6313,7 @@ const decode$4 = (str) => {
 	if (native) return succeed$8(native);
 	if (native === null) {
 		const invalid = invalidCharacter.exec(stripped);
-		if (invalid !== null) return fail$7(new EncodingError({
+		if (invalid !== null) return fail$8(new EncodingError({
 			kind: "Decode",
 			module: "Base64",
 			input: stripped,
@@ -6046,7 +6330,7 @@ const decode$4 = (str) => {
 		}
 		return succeed$8(result);
 	} catch (cause) {
-		return fail$7(new EncodingError({
+		return fail$8(new EncodingError({
 			kind: "Decode",
 			module: "Base64",
 			input: stripped,
@@ -6121,11 +6405,17 @@ const getCode = (charCode) => {
 	if (charCode >= codes.length || codes[charCode] === 255) throw new TypeError(`Invalid character ${String.fromCharCode(charCode)}`);
 	return codes[charCode];
 };
+const sha256 = {
+	name: "SHA-256",
+	outputLength: 32,
+	implementation: void 0
+};
+var Digest = class extends (/*#__PURE__*/ Service$1()("effect/crypto/Digest")) {};
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/DateTime.js
 const isDateTime = isDateTime$1;
 const isUtc = isUtc$1;
 const makeUnsafe$3 = makeUnsafe$5;
-const make$39 = make$45;
+const make$44 = make$51;
 const now = now$1;
 const toUtc = toUtc$1;
 const toEpochMillis = toEpochMillis$1;
@@ -6133,10 +6423,10 @@ const add = add$1;
 const formatIso = formatIso$1;
 const formatIsoDate = formatIsoDate$1;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Cookies.js
-const TypeId$41 = "~effect/http/Cookies";
+const TypeId$44 = "~effect/http/Cookies";
 const CookieTypeId = "~effect/http/Cookies/Cookie";
-const Proto$16 = {
-	[TypeId$41]: TypeId$41,
+const Proto$17 = {
+	[TypeId$44]: TypeId$44,
 	...BaseProto,
 	toJSON() {
 		return {
@@ -6149,7 +6439,7 @@ const Proto$16 = {
 	}
 };
 const fromReadonlyRecord = (cookies) => {
-	const self = Object.create(Proto$16);
+	const self = Object.create(Proto$17);
 	self.cookies = cookies;
 	return self;
 };
@@ -6280,16 +6570,16 @@ const value$3 = (self) => {
 };
 const stringOrRedacted = (val) => typeof val === "string" ? val : value$3(val);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Redacted.js
-const TypeId$40 = "~effect/Redacted";
-const isRedacted = (u) => hasProperty(u, TypeId$40);
-const make$38 = (value, options) => {
-	const self = Object.create(Proto$15);
+const TypeId$43 = "~effect/Redacted";
+const isRedacted = (u) => hasProperty(u, TypeId$43);
+const make$43 = (value, options) => {
+	const self = Object.create(Proto$16);
 	if (options?.label) self.label = options.label;
 	redactedRegistry.set(self, value);
 	return self;
 };
-const Proto$15 = {
-	[TypeId$40]: { _A: (_) => _ },
+const Proto$16 = {
+	[TypeId$43]: { _A: (_) => _ },
 	label: void 0,
 	...PipeInspectableProto,
 	toJSON() {
@@ -6306,11 +6596,11 @@ const Proto$15 = {
 	}
 };
 const value$2 = value$3;
-const makeEquivalence = (isEquivalent) => make$52((x, y) => isEquivalent(value$2(x), value$2(y)));
+const makeEquivalence = (isEquivalent) => make$58((x, y) => isEquivalent(value$2(x), value$2(y)));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Headers.js
-const TypeId$39 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
-const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.create(null), {
-	[TypeId$39]: { value: TypeId$39 },
+const TypeId$42 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
+const Proto$15 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.create(null), {
+	[TypeId$42]: { value: TypeId$42 },
 	[symbolRedactable]: { value(context) {
 		return redact$1(this, get$2(context, CurrentRedactedNames$1));
 	} },
@@ -6326,41 +6616,41 @@ const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.crea
 	toString: { value: BaseProto.toString },
 	[NodeInspectSymbol]: { value: BaseProto[NodeInspectSymbol] }
 });
-const make$37 = (input) => Object.assign(Object.create(Proto$14), input);
+const make$42 = (input) => Object.assign(Object.create(Proto$15), input);
 const Equivalence$2 = /*#__PURE__*/ makeEquivalence$2(/*#__PURE__*/ strictEqual());
-const empty$6 = /*#__PURE__*/ Object.create(Proto$14);
+const empty$6 = /*#__PURE__*/ Object.create(Proto$15);
 const fromInput$1 = (input) => {
 	if (input === void 0) return empty$6;
 	else if (Symbol.iterator in input) {
-		const out = Object.create(Proto$14);
+		const out = Object.create(Proto$15);
 		for (const [k, v] of input) {
 			const key = k.toLowerCase();
 			out[key] = key in out ? `${out[key]}, ${v}` : v;
 		}
 		return out;
 	}
-	const out = Object.create(Proto$14);
+	const out = Object.create(Proto$15);
 	for (const [k, v] of Object.entries(input)) if (Array.isArray(v)) out[k.toLowerCase()] = v.join(", ");
 	else if (v !== void 0) out[k.toLowerCase()] = v;
 	return out;
 };
-const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$14);
+const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$15);
 const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
-	const out = make$37(self);
+	const out = make$42(self);
 	out[key.toLowerCase()] = value;
 	return out;
 });
-const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$37({
+const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$42({
 	...self,
 	...fromInput$1(headers)
 }));
-const merge$1 = /*#__PURE__*/ dual(2, (self, headers) => {
-	const out = make$37(self);
+const merge$2 = /*#__PURE__*/ dual(2, (self, headers) => {
+	const out = make$42(self);
 	Object.assign(out, headers);
 	return out;
 });
 const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
-	const out = make$37(self);
+	const out = make$42(self);
 	delete out[key.toLowerCase()];
 	return out;
 });
@@ -6369,8 +6659,8 @@ const redact$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	const modify = (key) => {
 		if (typeof key === "string") {
 			const k = key.toLowerCase();
-			if (k in self) out[k] = make$38(self[k]);
-		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$38(self[name]);
+			if (k in self) out[k] = make$43(self[k]);
+		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$43(self[name]);
 	};
 	if (Array.isArray(key)) for (let i = 0; i < key.length; i++) modify(key[i]);
 	else modify(key);
@@ -6460,19 +6750,19 @@ const parseRetryAfter$1 = (input) => {
 		});
 	}
 	const millis = httpDateToMillis(trimmed);
-	return millis === void 0 ? fail$7(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$3(millis)));
+	return millis === void 0 ? fail$8(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$3(millis)));
 };
 const retryAfterDelay = (self, now) => self._tag === "Duration" ? self.duration : millis(Math.max(0, toEpochMillis(self.dateTime) - now));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/urlParams.js
-const unwrap$3 = (value) => typeof value === "string" ? value : value$2(value);
+const unwrap$5 = (value) => typeof value === "string" ? value : value$2(value);
 const bodyDecoder = /*#__PURE__*/ new TextDecoder("utf-8", { ignoreBOM: true });
 const fromBody = (bytes) => new URLSearchParams(bodyDecoder.decode(bytes).replace(/^\?/, "%3F"));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/UrlParams.js
-const TypeId$38 = "~effect/http/UrlParams";
-const isUrlParams = (u) => hasProperty(u, TypeId$38);
-const Proto$13 = {
+const TypeId$41 = "~effect/http/UrlParams";
+const isUrlParams = (u) => hasProperty(u, TypeId$41);
+const Proto$14 = {
 	...PipeInspectableProto,
-	[TypeId$38]: TypeId$38,
+	[TypeId$41]: TypeId$41,
 	[Symbol.iterator]() {
 		return this.params[Symbol.iterator]();
 	},
@@ -6492,8 +6782,8 @@ const Proto$13 = {
 		return array(this.params.flat());
 	}
 };
-const make$36 = (params) => {
-	const self = Object.create(Proto$13);
+const make$41 = (params) => {
+	const self = Object.create(Proto$14);
 	self.params = params;
 	return self;
 };
@@ -6505,7 +6795,7 @@ const fromInput = (input) => {
 		const [keys, value] = parsed[i];
 		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
 	} else out.push(parsed[i]);
-	return make$36(out);
+	return make$41(out);
 };
 const fromInputNested = (input) => {
 	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
@@ -6519,10 +6809,10 @@ const fromInputNested = (input) => {
 	return out;
 };
 const coerce = (value) => isRedacted(value) ? value : String(value);
-const Equivalence$1 = /*#__PURE__*/ make$52((a, b) => arrayEquivalence(a.params, b.params));
+const Equivalence$1 = /*#__PURE__*/ make$58((a, b) => arrayEquivalence(a.params, b.params));
 const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ asEquivalence()]));
-const empty$5 = /*#__PURE__*/ make$36([]);
-const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$36(f(self.params)));
+const empty$5 = /*#__PURE__*/ make$41([]);
+const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$41(f(self.params)));
 const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 	const params = fromInput(input).params.slice();
 	const keys = /* @__PURE__ */ new Set();
@@ -6531,14 +6821,14 @@ const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 		if (keys.has(self.params[i][0])) continue;
 		params.push(self.params[i]);
 	}
-	return make$36(params);
+	return make$41(params);
 });
 const appendAll = /*#__PURE__*/ dual(2, (self, input) => transform$2(self, appendAll$2(fromInput(input).params)));
-const toString = (input) => new URLSearchParams(fromInput(input).params.map(([key, value]) => [key, unwrap$3(value)])).toString();
+const toString = (input) => new URLSearchParams(fromInput(input).params.map(([key, value]) => [key, unwrap$5(value)])).toString();
 const toRecord = (self) => {
 	const out = {};
 	for (const [k, v] of self.params) {
-		const value = unwrap$3(v);
+		const value = unwrap$5(v);
 		if (!Object.hasOwn(out, k)) assignProperty(out, k, value);
 		else {
 			const current = out[k];
@@ -6551,7 +6841,7 @@ const toRecord = (self) => {
 const toReadonlyRecord = toRecord;
 const redact = /*#__PURE__*/ dual(2, (self, key) => {
 	const patterns = Array.isArray(key) ? key : [key];
-	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$38(value) : value]);
+	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$43(value) : value]);
 });
 const isRedactedName = isRedactedName$1;
 const redactUrl = (url, redactedNames = currentRedactedNames()) => {
@@ -6661,15 +6951,15 @@ const isSameExit = (result) => result[missing] === true;
 const toOption = (value) => value === missing ? none() : some(value);
 const fromOptionExit = (option) => option._tag === "None" ? missingExit : succeed$2(option.value);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/SchemaIssue.js
-const TypeId$37 = "~effect/SchemaIssue/Issue";
+const TypeId$40 = "~effect/SchemaIssue/Issue";
 function isIssue(u) {
-	return hasProperty(u, TypeId$37) && u[TypeId$37] === TypeId$37;
+	return hasProperty(u, TypeId$40) && u[TypeId$40] === TypeId$40;
 }
 function hasInput(issue) {
 	return Object.hasOwn(issue, "input");
 }
 var IssueNodeImpl = class {
-	[TypeId$37] = TypeId$37;
+	[TypeId$40] = TypeId$40;
 	constructor(input, options) {
 		if (options?.reportInput === true && input !== missing) this.input = input;
 	}
@@ -6992,9 +7282,9 @@ const Middleware = class extends Class$3 {
 		return new Middleware(this.encode, this.decode);
 	}
 };
-const TypeId$36 = "~effect/SchemaTransformation/Transformation";
+const TypeId$39 = "~effect/SchemaTransformation/Transformation";
 const Transformation = class extends Class$3 {
-	[TypeId$36] = TypeId$36;
+	[TypeId$39] = TypeId$39;
 	_tag = "Transformation";
 	decode;
 	encode;
@@ -7008,7 +7298,7 @@ const Transformation = class extends Class$3 {
 	}
 };
 function isTransformation(u) {
-	return hasProperty(u, TypeId$36) && u[TypeId$36] === TypeId$36;
+	return hasProperty(u, TypeId$39) && u[TypeId$39] === TypeId$39;
 }
 const makeTransformation = (options) => {
 	if (isTransformation(options)) return options;
@@ -7111,9 +7401,9 @@ const Context = class {
 		this.annotations = annotations;
 	}
 };
-const TypeId$35 = "~effect/Schema";
+const TypeId$38 = "~effect/Schema";
 var ASTNodeImpl = class {
-	[TypeId$35] = TypeId$35;
+	[TypeId$38] = TypeId$38;
 	annotations;
 	checks;
 	encoding;
@@ -7539,7 +7829,7 @@ function stepArray(s, item, exit, i) {
 		if (s.options.errors === "all") {
 			if (s.issues) s.issues.push(issue);
 			else s.issues = [issue];
-		} else return fail$4(new Composite(s.ast, [issue], s.input, s.options));
+		} else return fail$5(new Composite(s.ast, [issue], s.input, s.options));
 	}
 }
 const parseArrayOptions = {
@@ -7559,7 +7849,7 @@ const wrapPropertyKeyIssue = (s, ast, key, exit) => {
 	if (s.options.errors === "all") {
 		if (s.issues) s.issues.push(pointer);
 		else s.issues = [pointer];
-	} else return fail$4(new Composite(ast, [pointer], s.input, s.options));
+	} else return fail$5(new Composite(ast, [pointer], s.input, s.options));
 };
 const FINITE_PATTERN = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[Ee][+-]?\\d+)?";
 function getIndexSignatureKeys(input, parameter, options = defaultParseOptions) {
@@ -7836,7 +8126,7 @@ function stepProperty(s, p, exit) {
 			if (s.issues) s.issues.push(issue);
 			else s.issues = [issue];
 			return;
-		} else return fail$4(new Composite(s.ast, [issue], s.input, s.options));
+		} else return fail$5(new Composite(s.ast, [issue], s.input, s.options));
 	}
 }
 const parsePropertiesOptions = {
@@ -8156,7 +8446,7 @@ const Union$1 = class extends ASTNodeImpl {
 function failSingleUnionCandidate(ast, cause, input, options) {
 	const issue = getSchemaIssue(cause);
 	if (!issue) return failCause$5(cause);
-	return fail$4(new AnyOf(ast, [issue], input, options));
+	return fail$5(new AnyOf(ast, [issue], input, options));
 }
 function catchSingleUnionCandidate(ast, result, input, options) {
 	return catchCause$2(result, (cause) => failSingleUnionCandidate(ast, cause, input, options));
@@ -8203,7 +8493,7 @@ const parseUnion = /*#__PURE__*/ iterateEager()({
 		} else {
 			if (s.out && s.successes) {
 				s.successes.push(s.ast.types[i]);
-				return fail$4(new OneOf(s.ast, s.successes, s.input, s.options));
+				return fail$5(new OneOf(s.ast, s.successes, s.input, s.options));
 			}
 			s.out = exit;
 			if (s.successes) s.successes.push(s.ast.types[i]);
@@ -8938,7 +9228,7 @@ function makeOption(schema) {
 		return none();
 	};
 }
-function make$35(schema) {
+function make$40(schema) {
 	return makeConstructorSync(toType$1(schema.ast));
 }
 function is$3(schema) {
@@ -9022,7 +9312,7 @@ function asResult(parser) {
 	return (input, options) => {
 		const exit = parserExit(input, options);
 		if (isSuccess(exit)) return succeed$8(exit.value);
-		return fail$7(getSchemaIssueOrThrow(exit.cause, "Result adapter can only return schema issues"));
+		return fail$8(getSchemaIssueOrThrow(exit.cause, "Result adapter can only return schema issues"));
 	};
 }
 function runSync(effect, message) {
@@ -9071,12 +9361,12 @@ function makeClassSync(ast, input, options, construct) {
 const normalCompiler = (ast) => resolve(ast).parser;
 const constructorCompiler = (ast) => resolve(ast).makeEffect;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/make.js
-const TypeId$34 = "~effect/Schema/Schema";
+const TypeId$37 = "~effect/Schema/Schema";
 const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
-	[TypeId$34]: TypeId$34,
+	[TypeId$37]: TypeId$37,
 	get make() {
-		const value = make$35(this);
+		const value = make$40(this);
 		Object.defineProperty(this, "make", {
 			value,
 			enumerable: true
@@ -9112,10 +9402,10 @@ const SchemaProto = {
 		return this.rebuild(appendChecks(this.ast, checks));
 	},
 	rebuild(ast) {
-		return make$34(ast, this[RebuildOptions]);
+		return make$39(ast, this[RebuildOptions]);
 	}
 };
-function make$34(ast, options) {
+function make$39(ast, options) {
 	function Schema() {}
 	const self = Object.setPrototypeOf(Schema, SchemaProto);
 	if (options && (Object.hasOwn(options, "name") || Object.hasOwn(options, "length") || Object.hasOwn(options, "__proto__"))) Object.defineProperties(self, Object.getOwnPropertyDescriptors({ ...options }));
@@ -9240,7 +9530,7 @@ const PRE_2020_TO_2020_COLLISIONS = [
 [...PRE_2020_TO_2020_COLLISIONS];
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/toCodec.js
 function toCodecJson$1(schema) {
-	return make$34(toCodecJsonAST(schema.ast), { schema });
+	return make$39(toCodecJsonAST(schema.ast), { schema });
 }
 const toCodecJsonAST = /*#__PURE__*/ makeCodecDerivation(toCodecJsonASTStep);
 function makeCodecDerivation(step, options) {
@@ -9283,7 +9573,7 @@ function toCodecJsonASTStep(ast, recur) {
 		case "Declaration": {
 			const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec;
 			if (!isFunction(getLink)) return replaceEncoding(ast, [unknownToJson]);
-			const link = getLink(ast.typeParameters.map((tp) => make$34(toEncoded$1(tp))));
+			const link = getLink(ast.typeParameters.map((tp) => make$39(toEncoded$1(tp))));
 			return link === void 0 ? ast : replaceEncoding(ast, [mapLink(link, recur)]);
 		}
 		case "Unknown": return replaceEncoding(ast, [unknownToJson]);
@@ -9309,7 +9599,7 @@ function toCodecJsonASTStep(ast, recur) {
 	return ast;
 }
 function toCodecStringTree$1(schema) {
-	return make$34(toCodecStringTreeAST(schema.ast), { schema });
+	return make$39(toCodecStringTreeAST(schema.ast), { schema });
 }
 const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 	switch (ast._tag) {
@@ -9325,7 +9615,7 @@ const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 function toCodecStringTreeASTStep(ast, recur, onMissingAnnotation) {
 	switch (ast._tag) {
 		case "Declaration": {
-			const typeParameters = ast.typeParameters.map((tp) => make$34(recur(toEncoded$1(tp))));
+			const typeParameters = ast.typeParameters.map((tp) => make$39(recur(toEncoded$1(tp))));
 			const getStringTreeLink = ast.annotations?.toCodecStringTree;
 			if (isFunction(getStringTreeLink)) {
 				const link = getStringTreeLink(typeParameters);
@@ -10264,10 +10554,10 @@ function isSchemaError$1(u) {
 ({ ...BaseProto });
 ({ ...BaseProto });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Schema.js
-const TypeId$31 = TypeId$34;
+const TypeId$34 = TypeId$37;
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
-		return make$33(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$33(ast))), annotations));
+		return make$38(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$38(ast))), annotations));
 	};
 }
 function declare(is, annotations) {
@@ -10360,19 +10650,19 @@ function encodeUnknownSync(schema, options) {
 	};
 }
 const encodeSync = encodeUnknownSync;
-const make$33 = make$34;
+const make$38 = make$39;
 function isSchema(u) {
-	return hasProperty(u, TypeId$31) && u[TypeId$31] === TypeId$31;
+	return hasProperty(u, TypeId$34) && u[TypeId$34] === TypeId$34;
 }
-const optionalKey = /*#__PURE__*/ lambda((schema) => make$33(optionalKey$1(schema.ast), { schema }));
+const optionalKey = /*#__PURE__*/ lambda((schema) => make$38(optionalKey$1(schema.ast), { schema }));
 const optional$6 = /*#__PURE__*/ lambda((self) => {
 	const schema = UndefinedOr(self);
-	return make$33(optional$7(self.ast), { schema });
+	return make$38(optional$7(self.ast), { schema });
 });
-const toType = /*#__PURE__*/ lambda((schema) => make$33(toType$1(schema.ast), { schema }));
-const toEncoded = /*#__PURE__*/ lambda((schema) => make$33(toEncoded$1(schema.ast), { schema }));
+const toType = /*#__PURE__*/ lambda((schema) => make$38(toType$1(schema.ast), { schema }));
+const toEncoded = /*#__PURE__*/ lambda((schema) => make$38(toEncoded$1(schema.ast), { schema }));
 function Literal(literal) {
-	const out = make$33(new Literal$1(literal), {
+	const out = make$38(new Literal$1(literal), {
 		literal,
 		transform(to) {
 			return out.pipe(decodeTo(Literal(to), {
@@ -10387,20 +10677,20 @@ function templateLiteralParts(parts) {
 	return parts.map((part) => isSchema(part) ? part.ast : new Literal$1(part));
 }
 function TemplateLiteral(parts) {
-	return make$33(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
+	return make$38(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
 }
-const Never = /*#__PURE__*/ make$33(never);
-const Any = /*#__PURE__*/ make$33(any);
-const Unknown = /*#__PURE__*/ make$33(unknown);
-const Null = /*#__PURE__*/ make$33(null_);
-const Undefined = /*#__PURE__*/ make$33(undefined_);
-const String$2 = /*#__PURE__*/ make$33(string);
-const Number$1 = /*#__PURE__*/ make$33(number);
-const Boolean$1 = /*#__PURE__*/ make$33(boolean);
-const BigInt$1 = /*#__PURE__*/ make$33(bigInt);
-const Void = /*#__PURE__*/ make$33(void_);
+const Never = /*#__PURE__*/ make$38(never);
+const Any = /*#__PURE__*/ make$38(any);
+const Unknown = /*#__PURE__*/ make$38(unknown);
+const Null = /*#__PURE__*/ make$38(null_);
+const Undefined = /*#__PURE__*/ make$38(undefined_);
+const String$2 = /*#__PURE__*/ make$38(string);
+const Number$1 = /*#__PURE__*/ make$38(number);
+const Boolean$1 = /*#__PURE__*/ make$38(boolean);
+const BigInt$1 = /*#__PURE__*/ make$38(bigInt);
+const Void = /*#__PURE__*/ make$38(void_);
 function makeStruct(ast, fields) {
-	return make$33(ast, {
+	return make$38(ast, {
 		fields,
 		mapFields(f, options) {
 			const fields = f(this.fields);
@@ -10412,19 +10702,19 @@ function Struct(fields) {
 	return makeStruct(struct(fields, void 0), fields);
 }
 function Record(key, value) {
-	return make$33(record(key.ast, value.ast), {
+	return make$38(record(key.ast, value.ast), {
 		key,
 		value
 	});
 }
 function StructWithRest(schema, records) {
-	return make$33(structWithRest(schema.ast, records.map(getAST)), {
+	return make$38(structWithRest(schema.ast, records.map(getAST)), {
 		schema,
 		records
 	});
 }
 function makeTuple(ast, elements) {
-	return make$33(ast, {
+	return make$38(ast, {
 		elements,
 		mapElements(f, options) {
 			const elements = f(this.elements);
@@ -10435,10 +10725,10 @@ function makeTuple(ast, elements) {
 function Tuple(elements) {
 	return makeTuple(tuple(elements), elements);
 }
-const ArraySchema = /*#__PURE__*/ lambda((schema) => make$33(new Arrays(false, [], [schema.ast]), { value: schema }));
-const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$33(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
+const ArraySchema = /*#__PURE__*/ lambda((schema) => make$38(new Arrays(false, [], [schema.ast]), { value: schema }));
+const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$38(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
 function makeUnion(ast, members) {
-	return make$33(ast, {
+	return make$38(ast, {
 		members,
 		mapMembers(f, options) {
 			const members = f(this.members);
@@ -10451,7 +10741,7 @@ function Union(members, options) {
 }
 function Literals(literals) {
 	const members = literals.map(Literal);
-	return make$33(union$1(members, void 0, void 0), {
+	return make$38(union$1(members, void 0, void 0), {
 		literals,
 		members,
 		mapMembers(f) {
@@ -10468,11 +10758,11 @@ function Literals(literals) {
 const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
 function suspend$2(f) {
-	return make$33(new Suspend(() => f().ast));
+	return make$38(new Suspend(() => f().ast));
 }
 function decodeTo(to, transformation) {
 	return (from) => {
-		return make$33(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
+		return make$38(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
 			from,
 			to
 		});
@@ -10490,7 +10780,7 @@ function decode$3(transformation) {
 	};
 }
 function withConstructorDefault(defaultValue) {
-	return (schema) => make$33(withConstructorDefault$1(schema.ast, defaultValue), { schema });
+	return (schema) => make$38(withConstructorDefault$1(schema.ast, defaultValue), { schema });
 }
 function toIssueEffect(self) {
 	if (effectIsExit(self) && self._tag === "Success") return self;
@@ -10537,7 +10827,7 @@ function isPattern(regExp, annotations) {
 		...annotations
 	});
 }
-const Finite = /*#__PURE__*/ make$33(finite);
+const Finite = /*#__PURE__*/ make$38(finite);
 const isFinite = isFinite$1;
 function makeIsGreaterThanOrEqualTo(options) {
 	const gte = isGreaterThanOrEqualTo$2(options.order);
@@ -10809,7 +11099,7 @@ function CauseReason(error, defect) {
 			}
 		}))
 	});
-	return make$33(schema.ast, {
+	return make$38(schema.ast, {
 		error,
 		defect
 	});
@@ -10840,14 +11130,14 @@ function Cause(error, defect) {
 			encode: ({ reasons: failures }) => failures
 		}))
 	});
-	return make$33(schema.ast, {
+	return make$38(schema.ast, {
 		error,
 		defect
 	});
 }
 const dateTimeUtcFromString = /*#__PURE__*/ transformEffect({
 	decode: (s, options) => {
-		return match$3(make$39(s), {
+		return match$4(make$44(s), {
 			onNone: () => fail$3(new InvalidValue({ expected: "a valid UTC DateTime string" }, s, options)),
 			onSome: (result) => succeed$3(toUtc(result))
 		});
@@ -10980,7 +11270,7 @@ function Exit(value, error, defect) {
 			}
 		}))
 	});
-	return make$33(schema.ast, {
+	return make$38(schema.ast, {
 		value,
 		error,
 		defect
@@ -10999,8 +11289,8 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 	expected: "UrlParams",
 	toEquivalence: () => Equivalence$1,
 	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform({
-		decode: make$36,
-		encode: (self) => self.params.map(([key, value]) => [key, unwrap$3(value)])
+		decode: make$41,
+		encode: (self) => self.params.map(([key, value]) => [key, unwrap$5(value)])
 	}))
 })).pipe(/*#__PURE__*/ decodeTo(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([String$2, /*#__PURE__*/ NonEmptyArray(String$2)])), /*#__PURE__*/ transform({
 	decode: toReadonlyRecord,
@@ -11018,7 +11308,7 @@ function Redacted$2(value, options) {
 		if (isRedacted(input)) {
 			const label = decodeLabel !== void 0 ? mapErrorEager(decodeLabel(input.label, poptions), (issue) => new Pointer(["label"], issue)) : void_$1;
 			return flatMapEager(label, () => mapBothEager(decodeUnknownEffect$1(value)(value$2(input), poptions), {
-				onSuccess: (value) => make$38(value, { label: input.label }),
+				onSuccess: (value) => make$43(value, { label: input.label }),
 				onFailure: () => {
 					return new Composite(ast, [new Pointer(["value"], new InvalidValue(void 0, input, poptions))], input, poptions);
 				}
@@ -11037,12 +11327,12 @@ function Redacted$2(value, options) {
 		}),
 		expected: "Redacted",
 		toCodecJson: ([value]) => link$1()(value, {
-			decode: transform$1((e) => make$38(e, { label })),
+			decode: transform$1((e) => make$43(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$1(value$2)
 		}),
 		toEquivalence: ([value]) => makeEquivalence(value)
 	});
-	return make$33(schema.ast, { value });
+	return make$38(schema.ast, { value });
 }
 const immerable = /*#__PURE__*/ globalThis.Symbol.for("immer-draftable");
 const payloadToken = {};
@@ -11062,7 +11352,7 @@ function makeClass(Inherited, identifier, struct$1, annotations, proto) {
 				}
 			});
 		}
-		static [TypeId$31] = TypeId$31;
+		static [TypeId$34] = TypeId$34;
 		get [ClassTypeId]() {
 			return ClassTypeId;
 		}
@@ -11133,7 +11423,7 @@ function getClassSchemaFactory(from, identifier, annotations) {
 		const ClassTypeId = getClassTypeId(identifier);
 		const isClassValue = (input) => input instanceof self || hasProperty(input, ClassTypeId);
 		const transformation = getClassTransformation(self);
-		return memo = decodeTo(make$33(new Declaration([from.ast], () => (input, ast, options) => {
+		return memo = decodeTo(make$38(new Declaration([from.ast], () => (input, ast, options) => {
 			return isClassValue(input) ? succeed$3(input) : fail$3(new InvalidType(ast, input, options));
 		}, {
 			identifier,
@@ -11176,20 +11466,28 @@ function toJsonSchemaDocument(schema, options) {
 }
 const toCodecJson = toCodecJson$1;
 const toCodecStringTree = toCodecStringTree$1;
-const Json = /*#__PURE__*/ make$33(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
+const Json = /*#__PURE__*/ make$38(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
 	runtime: "Schema.Json",
 	Type: "Schema.Json"
 }) }));
-const MutableJson = /*#__PURE__*/ make$33(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
+const MutableJson = /*#__PURE__*/ make$38(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Brand.js
+function nominal() {
+	return Object.assign((input) => input, {
+		option: (input) => some(input),
+		result: (input) => succeed$8(input),
+		is: (_) => true
+	});
+}
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Latch.js
 const makeUnsafe$2 = makeLatchUnsafe;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableRef.js
-const TypeId$30 = "~effect/MutableRef";
+const TypeId$33 = "~effect/MutableRef";
 const MutableRefProto = {
-	[TypeId$30]: TypeId$30,
+	[TypeId$33]: TypeId$33,
 	...PipeInspectableProto,
 	toJSON() {
 		return {
@@ -11198,7 +11496,7 @@ const MutableRefProto = {
 		};
 	}
 };
-const make$32 = (value) => {
+const make$37 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
@@ -11208,10 +11506,10 @@ const set$1 = /*#__PURE__*/ dual(2, (self, value) => {
 	return self;
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/PubSub.js
-const TypeId$29 = "~effect/PubSub";
+const TypeId$32 = "~effect/PubSub";
 const SubscriptionTypeId = "~effect/PubSub/Subscription";
-const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$6(), makeUnsafe$2(false), make$32(false), options.strategy(), make$32(none())));
-const unbounded = (options) => make$31({
+const make$36 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$6(), makeUnsafe$2(false), make$37(false), options.strategy(), make$37(none())));
+const unbounded = (options) => make$36({
 	atomicPubSub: () => makeAtomicUnbounded(options),
 	strategy: () => new DroppingStrategy()
 });
@@ -11256,7 +11554,7 @@ const removeSubscribers = (subscribers, subscription, pollers) => {
 	set.delete(pollers);
 	if (set.size === 0) subscribers.delete(subscription);
 };
-const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$44(), makeUnsafe$2(false), make$32(false), strategy, pubsub.replayWindow(), ended);
+const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$50(), makeUnsafe$2(false), make$37(false), strategy, pubsub.replayWindow(), ended);
 var UnboundedPubSub = class {
 	publisherHead = {
 		value: AbsentValue,
@@ -11430,7 +11728,7 @@ var SubscriptionImpl = class {
 	}
 };
 var PubSubImpl = class {
-	[TypeId$29] = { _A: identity };
+	[TypeId$32] = { _A: identity };
 	pubsub;
 	subscribers;
 	scope;
@@ -11599,10 +11897,10 @@ const emptyReplayWindow = {
 	close: () => void 0
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Channel.js
-const TypeId$28 = "~effect/Channel";
-const isChannel = (u) => hasProperty(u, TypeId$28);
+const TypeId$31 = "~effect/Channel";
+const isChannel = (u) => hasProperty(u, TypeId$31);
 const ChannelProto = {
-	[TypeId$28]: {
+	[TypeId$31]: {
 		_Env: identity,
 		_InErr: identity,
 		_InElem: identity,
@@ -11627,13 +11925,14 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 	return onError(pull, onCause);
 }));
 const toTransform = (channel) => channel.transform;
-const asyncQueue = (scope, f, options) => make$43({
+const asyncQueue = (scope, f, options) => make$49({
 	capacity: options?.bufferSize,
 	strategy: options?.strategy
-}).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => provide$3(f(queue), scope).pipe(catchCause$2((cause) => failCause$2(queue, cause)), forkIn(scope, { startImmediately: true }))));
+}).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => provide$4(f(queue), scope).pipe(catchCause$2((cause) => failCause$2(queue, cause)), forkIn(scope, { startImmediately: true }))));
 const callbackArray = (f, options) => fromTransform$1((_, scope) => map$4(asyncQueue(scope, f, options), takeAll));
 const suspend$1 = (evaluate) => fromTransform$1((upstream, scope) => suspend$3(() => toTransform(evaluate())(upstream, scope)));
 const succeed$1 = (value) => fromEffect$1(succeed$3(value));
+const empty$4 = /*#__PURE__*/ fromPull$1(/*#__PURE__*/ succeed$3(/*#__PURE__*/ done$1()));
 const fail$1 = (error) => fromPull$1(succeed$3(fail$3(error)));
 const failCause$1 = (cause) => fromPull$1(failCause$3(cause));
 const die$1 = (defect) => failCause$1(die$4(defect));
@@ -11645,6 +11944,7 @@ const fromEffect$1 = (effect) => fromPull$1(sync(() => {
 		return effect;
 	});
 }));
+const fromEffectDrain = (effect) => fromPull$1(flatMap(effect, () => done$1()));
 const fromQueueArray = (queue) => fromPull$1(succeed$3(takeAll(queue)));
 const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readableStreamToPullUnsafe({
 	scope,
@@ -11654,7 +11954,7 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$32(void 0);
+	const exit = options.exit ?? make$37(void 0);
 	const pull = suspend$3(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
@@ -11765,11 +12065,12 @@ const catchCauseFilter = /*#__PURE__*/ dual(3, (self, filter, f) => catchCause$1
 	return isFailure$1(result) ? failCause$1(result.failure) : f(result.success, cause);
 }));
 const catch_$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter(self, findRecoverableError, (e) => f(e)));
+const tapError$1 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(tapError$2(pull, (err) => isDone$1(err) ? void_$1 : asVoid(f(err))))));
 const catchIf$1 = /*#__PURE__*/ dual((args) => isChannel(args[0]), (self, predicate, f, orElse) => catch_$1(self, (err) => {
 	return predicate(err) ? f(err) : orElse ? orElse(err) : fail$1(err);
 }));
 const mapError$1 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(mapError$2(pull, (err) => isDone$1(err) ? err : f(err)))));
-const merge = /*#__PURE__*/ dual((args) => isChannel(args[0]) && isChannel(args[1]), (left, right, options) => fromTransformBracket(fnUntraced(function* (upstream, _scope, forkedScope) {
+const merge$1 = /*#__PURE__*/ dual((args) => isChannel(args[0]) && isChannel(args[1]), (left, right, options) => fromTransformBracket(fnUntraced(function* (upstream, _scope, forkedScope) {
 	const strategy = options?.haltStrategy ?? "both";
 	const queue = yield* bounded(0);
 	yield* addFinalizer$1(forkedScope, shutdown(queue));
@@ -11792,6 +12093,77 @@ const merge = /*#__PURE__*/ dual((args) => isChannel(args[0]) && isChannel(args[
 	yield* runSide("right", right, forkUnsafe(forkedScope));
 	return take(queue);
 })));
+const mergeEffect$1 = /*#__PURE__*/ dual(2, (self, effect) => merge$1(self, fromEffectDrain(effect), { haltStrategy: "left" }));
+const splitLines$1 = () => fromTransform$1((upstream, _scope) => sync(() => {
+	let stringBuilder = "";
+	let midCRLF = false;
+	let done = none();
+	function splitLinesArray(chunk) {
+		const chunkBuilder = [];
+		function pushLine(segment) {
+			if (stringBuilder.length === 0) chunkBuilder.push(segment);
+			else {
+				chunkBuilder.push(stringBuilder + segment);
+				stringBuilder = "";
+			}
+		}
+		for (let i = 0; i < chunk.length; i++) {
+			const str = chunk[i];
+			if (str.length !== 0) {
+				let from = 0;
+				let indexOfCR = str.indexOf("\r");
+				let indexOfLF = str.indexOf("\n");
+				if (midCRLF) {
+					if (indexOfLF === 0) {
+						from = 1;
+						indexOfLF = str.indexOf("\n", from);
+					}
+					midCRLF = false;
+				}
+				while (indexOfCR !== -1 || indexOfLF !== -1) if (indexOfCR === -1 || indexOfLF !== -1 && indexOfLF < indexOfCR) {
+					pushLine(str.substring(from, indexOfLF));
+					from = indexOfLF + 1;
+					indexOfLF = str.indexOf("\n", from);
+				} else {
+					pushLine(str.substring(from, indexOfCR));
+					if (str.length === indexOfCR + 1) {
+						midCRLF = true;
+						from = str.length;
+						indexOfCR = -1;
+					} else {
+						from = indexOfCR + (indexOfLF === indexOfCR + 1 ? 2 : 1);
+						indexOfCR = str.indexOf("\r", from);
+						indexOfLF = str.indexOf("\n", from);
+					}
+				}
+				stringBuilder = stringBuilder + str.substring(from);
+			}
+		}
+		return isReadonlyArrayNonEmpty(chunkBuilder) ? chunkBuilder : null;
+	}
+	const pullOrFlush = suspend$3(() => {
+		if (done._tag === "Some") return done$1(done.value);
+		return matchEffect$1(upstream, {
+			onSuccess: loop,
+			onFailure: failCause$3,
+			onDone: (leftover) => {
+				done = some(leftover);
+				if (stringBuilder.length > 0) {
+					const last = stringBuilder;
+					stringBuilder = "";
+					midCRLF = false;
+					return succeed$3([last]);
+				}
+				return done$1(leftover);
+			}
+		});
+	});
+	function loop(chunk) {
+		const lines = splitLinesArray(chunk);
+		return lines !== null ? succeed$3(lines) : pullOrFlush;
+	}
+	return pullOrFlush;
+}));
 const decodeText$2 = (encoding, options) => fromTransform$1((upstream, _scope) => sync(() => {
 	const decoder = new TextDecoder(encoding, options);
 	const streamOptions = { stream: true };
@@ -11808,14 +12180,14 @@ const hasUpstreamFailure = (cause) => cause.reasons.some(isUpstreamFailure);
 const upstreamFailureToDefect = (pull) => catchCause$2(pull, (cause) => isDoneCause(cause) ? failCause$3(cause) : die$2(Done$1(cause)));
 const unwrapUpstreamFailure = (cause) => hasUpstreamFailure(cause) ? fromReasons(cause.reasons.flatMap((reason) => isUpstreamFailure(reason) ? reason.defect.value.reasons : [reason])) : cause;
 const restoreUpstreamFailure = (effect) => catchCause$2(effect, (cause) => failCause$3(unwrapUpstreamFailure(cause)));
-const unwrap$2 = (channel) => fromTransform$1((upstream, scope) => {
+const unwrap$4 = (channel) => fromTransform$1((upstream, scope) => {
 	let pull;
 	return succeed$3(suspend$3(() => {
 		if (pull) return pull;
-		return channel.pipe(provide$3(scope), flatMap((channel) => toTransform(channel)(upstream, scope)), flatMap((pull_) => pull = pull_));
+		return channel.pipe(provide$4(scope), flatMap((channel) => toTransform(channel)(upstream, scope)), flatMap((pull_) => pull = pull_));
 	}));
 });
-const interruptWhen$1 = /*#__PURE__*/ dual(2, (self, effect) => merge(self, fromPull$1(succeed$3(flatMap(effect, done$1))), { haltStrategy: "either" }));
+const interruptWhen$1 = /*#__PURE__*/ dual(2, (self, effect) => merge$1(self, fromPull$1(succeed$3(flatMap(effect, done$1))), { haltStrategy: "either" }));
 const onExit = /*#__PURE__*/ dual(2, (self, finalizer) => fromTransformBracket((upstream, scope, forkedScope) => addFinalizerExit(forkedScope, finalizer).pipe(andThen(toTransform(self)(upstream, scope)))));
 const ensuring$1 = /*#__PURE__*/ dual(2, (self, finalizer) => onExit(self, (_) => finalizer));
 const runWith = (self, f, onHalt) => suspend$3(() => {
@@ -11824,6 +12196,7 @@ const runWith = (self, f, onHalt) => suspend$3(() => {
 	return catchDone(flatMap(makePull, f), onHalt ? onHalt : succeed$3).pipe(onExit$1((exit) => close(scope, exit)));
 });
 const provideContext$1 = /*#__PURE__*/ dual(2, (self, context) => fromTransform$1((upstream, scope) => map$4(provideContext$2(toTransform(self)(upstream, scope), context), provideContext$2(context))));
+const runDrain$1 = (self) => runWith(self, (pull) => forever(pull, { disableYield: true }));
 const runForEach$1 = /*#__PURE__*/ dual(2, (self, f) => runWith(self, (pull) => forever(flatMap(pull, f), { disableYield: true })));
 const mkUint8Array$1 = (self) => map$4(runFold(self, () => ({
 	bytes: 0,
@@ -12313,8 +12686,8 @@ const isMissing = (error) => error.reason._tag === "NotFound" || error.reason._t
 const isIgnorable = (error) => isMissing(error) || error.reason._tag === "PermissionDenied";
 const isNotLink = (error) => isIgnorable(error) || error.reason._tag === "Unknown";
 const DIRECTORY_CONCURRENCY = 16;
-const byName = /*#__PURE__*/ mapInput(String$5, (entry) => entry.name);
-const make$30 = (fs) => (pattern, options) => walk(fs, compile([pattern], options?.dot ?? false), options);
+const byName = /*#__PURE__*/ mapInput(String$6, (entry) => entry.name);
+const make$35 = (fs) => (pattern, options) => walk(fs, compile([pattern], options?.dot ?? false), options);
 const walk = /*#__PURE__*/ fnUntraced(function* (fs, compiled, options) {
 	if (compiled.initial.size === 0) return [];
 	const root = options?.root ?? "";
@@ -12416,7 +12789,7 @@ const walk = /*#__PURE__*/ fnUntraced(function* (fs, compiled, options) {
 	})), _await(failed));
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/PlatformError.js
-const TypeId$27 = "~effect/PlatformError";
+const TypeId$30 = "~effect/PlatformError";
 var BadArgument = class extends (/*#__PURE__*/ TaggedError$1("BadArgument")) {
 	get message() {
 		return `${this.module}.${this.method}${this.description ? `: ${this.description}` : ""}`;
@@ -12435,7 +12808,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 		});
 		else super({ reason });
 	}
-	[TypeId$27] = TypeId$27;
+	[TypeId$30] = TypeId$30;
 	get message() {
 		return this.reason.message;
 	}
@@ -12443,7 +12816,7 @@ var PlatformError = class extends (/*#__PURE__*/ TaggedError$1("PlatformError"))
 const systemError = (options) => new PlatformError(new SystemError(options));
 const badArgument = (options) => new PlatformError(new BadArgument(options));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/stream.js
-const TypeId$26 = "~effect/Stream";
+const TypeId$29 = "~effect/Stream";
 const streamVariance = {
 	_R: identity,
 	_E: identity,
@@ -12453,14 +12826,14 @@ const Stream$2 = function(channel) {
 	this.channel = channel;
 };
 Stream$2.prototype = {
-	[TypeId$26]: streamVariance,
+	[TypeId$29]: streamVariance,
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
 };
 const fromChannel$2 = (channel) => new Stream$2(channel);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Sink.js
-const TypeId$25 = "~effect/Sink";
+const TypeId$28 = "~effect/Sink";
 const endVoid = /*#__PURE__*/ succeed$3([void 0]);
 const sinkVariance = {
 	_A: identity,
@@ -12470,11 +12843,12 @@ const sinkVariance = {
 	_R: identity
 };
 const SinkProto = {
-	[TypeId$25]: sinkVariance,
+	[TypeId$28]: sinkVariance,
 	pipe() {
 		return pipeArguments(this, arguments);
 	}
 };
+const isSink = (u) => hasProperty(u, TypeId$28);
 const fromChannel$1 = (channel) => fromTransform((upstream, scope) => toTransform(channel)(upstream, scope).pipe(flatMap(forever({ disableYield: true })), catchDone(succeed$3)));
 const fromTransform = (transform) => {
 	const self = Object.create(SinkProto);
@@ -12482,13 +12856,14 @@ const fromTransform = (transform) => {
 	return self;
 };
 const toChannel$1 = (self) => fromTransform$1((upstream, scope) => succeed$3(flatMap(self.transform(upstream, scope), done$1)));
+const drain = /*#__PURE__*/ fromTransform((upstream) => catchDone(forever(upstream, { disableYield: true }), () => endVoid));
 const forEach = (f) => forEachArray(forEach$1((_) => f(_), { discard: true }));
 const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f), forever({ disableYield: true }), catchDone(() => endVoid)));
-const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$4(effect, toChannel$1)));
+const unwrap$3 = (effect) => fromChannel$1(unwrap$4(map$4(effect, toChannel$1)));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/RcMap.js
-const TypeId$24 = "~effect/RcMap";
+const TypeId$27 = "~effect/RcMap";
 const makeUnsafe$1 = (options) => ({
-	[TypeId$24]: TypeId$24,
+	[TypeId$27]: TypeId$27,
 	lookup: options.lookup,
 	context: options.context,
 	scope: options.scope,
@@ -12502,7 +12877,7 @@ const makeUnsafe$1 = (options) => ({
 		return pipeArguments(this, arguments);
 	}
 });
-const make$29 = (options) => withFiber((fiber) => {
+const make$34 = (options) => withFiber((fiber) => {
 	const context = fiber.context;
 	const scope = get$2(context, Scope);
 	const self = makeUnsafe$1({
@@ -12554,7 +12929,7 @@ const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) =
 			doneUnsafe(entry.deferred, exit);
 		});
 	}
-	const scope = getUnsafe(parent.context, Scope);
+	const scope = getUnsafe$1(parent.context, Scope);
 	return addFinalizer$1(scope, entry.finalizer).pipe(andThen(restore(_await(entry.deferred))));
 }));
 const removeInterrupted = (self, key, entry, context) => {
@@ -12605,14 +12980,15 @@ const release = (self, key, entry) => suspend$3(() => {
 	return void_$1;
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Stream.js
-const TypeId$23 = "~effect/Stream";
-const isStream = (u) => hasProperty(u, TypeId$23);
+const TypeId$26 = "~effect/Stream";
+const isStream = (u) => hasProperty(u, TypeId$26);
 const fromChannel = fromChannel$2;
 const fromEffect = (effect) => fromChannel(fromEffect$1(map$4(effect, of)));
 const fromPull = (pull) => fromChannel(fromPull$1(pull));
 const transformPull = (self, f) => fromChannel(fromTransform$1((_, scope) => flatMap(toPullScoped(self.channel, scope), (pull) => f(pull, scope))));
 const toChannel = (stream) => stream.channel;
 const callback = (f, options) => fromChannel(callbackArray(f, options));
+const empty$3 = /*#__PURE__*/ fromChannel(empty$4);
 const succeed = (value) => fromChannel(succeed$1(of(value)));
 const suspend = (stream) => {
 	const suspended = fromChannel(suspend$1(() => stream().channel));
@@ -12625,24 +13001,53 @@ const failCause = (cause) => fromChannel(failCause$1(cause));
 const die = (defect) => fromChannel(die$1(defect));
 const fromQueue = (queue) => fromChannel(fromQueueArray(queue));
 const fromReadableStream = (options) => fromChannel(fromReadableStream$1(options));
-const unwrap = (effect) => fromChannel(unwrap$2(map$4(effect, toChannel)));
+const unwrap$2 = (effect) => fromChannel(unwrap$4(map$4(effect, toChannel)));
 const map$2 = /*#__PURE__*/ dual(2, (self, f) => suspend(() => {
 	let i = 0;
 	return fromChannel(map$3(self.channel, map$7((o) => f(o, i++))));
 }));
 const mapEffect$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, f, options) => self.channel.pipe(flattenArray, mapEffect$2(f, options), map$3(of), fromChannel));
 const mapArrayEffect = /*#__PURE__*/ dual(2, (self, f) => fromChannel(mapEffect$2(self.channel, f)));
+const drainFork = /*#__PURE__*/ dual(2, (self, that) => mergeEffect(self, runDrain(that)));
+const merge = /*#__PURE__*/ dual((args) => isStream(args[0]) && isStream(args[1]), (self, that, options) => fromChannel(merge$1(toChannel(self), toChannel(that), options)));
+const mergeEffect = /*#__PURE__*/ dual(2, (self, effect) => self.channel.pipe(mergeEffect$1(effect), fromChannel));
 const catchCause = /*#__PURE__*/ dual(2, (self, f) => self.channel.pipe(catchCause$1((cause) => f(cause).channel), fromChannel));
 const catch_ = /*#__PURE__*/ dual(2, (self, f) => fromChannel(catch_$1(self.channel, (error) => f(error).channel)));
+const tapError = /*#__PURE__*/ dual(2, (self, f) => self.channel.pipe(tapError$1(f), fromChannel));
 const catchIf = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, predicate, f, orElse) => fromChannel(catchIf$1(toChannel(self), predicate, (e) => f(e).channel, orElse && ((e) => orElse(e).channel))));
 const mapError = /*#__PURE__*/ dual(2, (self, f) => fromChannel(mapError$1(self.channel, f)));
+const transduce = /*#__PURE__*/ dual(2, (self, sink) => transformPull(self, (upstream, scope) => sync(() => {
+	let done;
+	let leftover;
+	const upstreamWithLeftover = suspend$3(() => {
+		if (leftover !== void 0) {
+			const chunk = leftover;
+			leftover = void 0;
+			return succeed$3(chunk);
+		}
+		return upstream;
+	}).pipe(catch_$2((error) => {
+		done = fail$5(error);
+		return done$1();
+	}));
+	const pull = map$4(suspend$3(() => sink.transform(upstreamWithLeftover, scope)), ([value, leftover_]) => {
+		leftover = leftover_;
+		return of(value);
+	});
+	return suspend$3(() => done ? done : pull);
+})));
 const pipeThroughChannel = /*#__PURE__*/ dual(2, (self, channel) => fromChannel(pipeTo(self.channel, channel)));
 const decodeText$1 = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => self.channel.pipe(pipeTo(decodeText$2(options?.encoding)), fromChannel));
+const splitLines = (self) => self.channel.pipe(pipeTo(splitLines$1()), fromChannel);
 const interruptWhen = /*#__PURE__*/ dual(2, (self, effect) => fromChannel(interruptWhen$1(self.channel, effect)));
 const ensuring = /*#__PURE__*/ dual(2, (self, finalizer) => fromChannel(ensuring$1(self.channel, finalizer)));
 const provideContext = /*#__PURE__*/ dual(2, (self, context) => fromChannel(provideContext$1(self.channel, context)));
 const run = /*#__PURE__*/ dual(2, (self, sink) => scopedWith((scope) => toPullScoped(self.channel, scope).pipe(flatMap((upstream) => runSink(sink, upstream, scope)), map$4(([a]) => a))));
 const runSink = (sink, upstream, scope) => restoreUpstreamFailure(sink.transform(upstreamFailureToDefect(upstream), scope));
+const runCollect = (self) => runFold(self.channel, () => [], (acc, chunk) => {
+	for (let i = 0; i < chunk.length; i++) acc.push(chunk[i]);
+	return acc;
+});
 const runLast = (self) => map$4(runLast$1(self.channel), map$10(lastNonEmpty));
 const runForEach = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.channel, (arr) => {
 	let i = 0;
@@ -12653,6 +13058,8 @@ const runForEach = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.channel,
 	});
 }));
 const runForEachArray = /*#__PURE__*/ dual(2, (self, f) => runForEach$1(self.channel, f));
+const runDrain = (self) => runDrain$1(self.channel);
+const mkString = (self) => runFold(self.channel, () => "", (acc, chunk) => acc + chunk.join(""));
 const mkArrayBuffer = (self) => map$4(mkUint8Array$1(self.channel), (bytes) => bytes.buffer);
 const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, context, options) => {
 	let currentResolve = void 0;
@@ -12695,12 +13102,12 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 });
 const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (self, options) => map$4(context(), (context) => toReadableStreamWith(self, context, options)));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/FileSystem.js
-const TypeId$22 = "~effect/FileSystem";
+const TypeId$25 = "~effect/FileSystem";
 const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
-const make$28 = (impl) => FileSystem.of({
+const make$33 = (impl) => FileSystem.of({
 	...impl,
-	[TypeId$22]: TypeId$22,
-	glob: make$30(impl),
+	[TypeId$25]: TypeId$25,
+	glob: make$35(impl),
 	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
 	readFileString: (path, encoding) => flatMap(impl.readFile(path), (_) => try_({
 		try: () => new TextDecoder(encoding).decode(_),
@@ -12722,18 +13129,18 @@ const make$28 = (impl) => FileSystem.of({
 		return fromPull(succeed$3(flatMap(suspend$3(() => {
 			if (bytesToRead !== void 0 && bytesToRead <= totalBytesRead) return done$1();
 			return bytesToRead !== void 0 && bytesToRead - totalBytesRead < chunkSize ? file.readAlloc(Number(bytesToRead - totalBytesRead)) : readChunk;
-		}), match$3({
+		}), match$4({
 			onNone: () => done$1(),
 			onSome: (buf) => {
 				totalBytesRead += BigInt(buf.length);
 				return succeed$3(of(buf));
 			}
 		}))));
-	}, unwrap),
+	}, unwrap$2),
 	sink: (path, options) => pipe(impl.open(path, {
 		...options,
 		flag: options?.flag ?? "w"
-	}), map$4((file) => forEach((_) => file.writeAll(_))), unwrap$1),
+	}), map$4((file) => forEach((_) => file.writeAll(_))), unwrap$3),
 	writeFileString: (path, data, options) => flatMap(try_({
 		try: () => new TextEncoder().encode(data),
 		catch: (cause) => badArgument({
@@ -12746,6 +13153,20 @@ const make$28 = (impl) => FileSystem.of({
 });
 const FileTypeId = "~effect/FileSystem/File";
 var WatchBackend = class extends (/*#__PURE__*/ Service$1()("effect/FileSystem/WatchBackend")) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Path.js
+const TypeId$24 = "~effect/Path";
+const Path$1 = /*#__PURE__*/ Service$1("effect/Path");
+const make$32 = (impl) => Path$1.of({
+	...impl,
+	[TypeId$24]: TypeId$24,
+	resolveWithin(root, input) {
+		if (impl.parse(input).root !== "") return none();
+		const base = impl.resolve(root);
+		const candidate = impl.resolve(base, input);
+		const relative = impl.relative(base, candidate);
+		return relative === ".." || relative.startsWith(`..${impl.sep}`) || impl.isAbsolute(relative) ? none() : some(candidate);
+	}
+});
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ConfigProvider.js
 function makeValue(value) {
 	return {
@@ -12769,7 +13190,7 @@ function makeArray(length, value) {
 }
 var SourceError = class extends (/*#__PURE__*/ TaggedError$1("SourceError")) {};
 const ConfigProvider = /*#__PURE__*/ Reference("effect/ConfigProvider", { defaultValue: () => fromEnv() });
-const Proto$12 = {
+const Proto$13 = {
 	...PipeInspectableProto,
 	toJSON() {
 		return { _id: "ConfigProvider" };
@@ -12777,7 +13198,7 @@ const Proto$12 = {
 };
 const identityPath = (path) => path;
 function makeProvider(load, mapInput) {
-	const self = Object.create(Proto$12);
+	const self = Object.create(Proto$13);
 	self.load = load;
 	self.mapInput = mapInput;
 	return self;
@@ -12785,7 +13206,7 @@ function makeProvider(load, mapInput) {
 function makeSource(get, transform) {
 	return makeProvider((path) => get(transform(path)), (f) => makeSource(get, (path) => f(transform(path))));
 }
-function make$27(get) {
+function make$31(get) {
 	return makeSource(get, identityPath);
 }
 function emptyStringAsMissing(value, preserveEmptyStrings) {
@@ -12794,7 +13215,7 @@ function emptyStringAsMissing(value, preserveEmptyStrings) {
 function fromEnvRecord(env, options) {
 	const preserveEmptyStrings = options?.preserveEmptyStrings === true;
 	const trie = buildEnvTrie(env);
-	return make$27((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
+	return make$31((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
 }
 function fromEnv(options) {
 	return fromEnvRecord(options?.env ?? {
@@ -12835,7 +13256,7 @@ function trieNodeAt(root, path) {
 }
 const isGreaterThanOrEqualTo = /*#__PURE__*/ isGreaterThanOrEqualTo$2(LogLevelOrder);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Config.js
-const TypeId$21 = "~effect/Config";
+const TypeId$23 = "~effect/Config";
 var ConfigError = class {
 	_tag = "ConfigError";
 	name = "ConfigError";
@@ -12850,37 +13271,37 @@ var ConfigError = class {
 		return `ConfigError(${this.message})`;
 	}
 };
-const Proto$11 = {
+const Proto$12 = {
 	.../*#__PURE__*/ Prototype({
 		label: "Config",
 		evaluate(fiber) {
 			return this.parse(fiber.getRef(ConfigProvider));
 		}
 	}),
-	[TypeId$21]: TypeId$21,
+	[TypeId$23]: TypeId$23,
 	toJSON() {
 		return { _id: "Config" };
 	}
 };
-function make$26(evaluator) {
-	const self = Object.create(Proto$11);
+function make$30(evaluator) {
+	const self = Object.create(Proto$12);
 	self.evaluator = evaluator;
 	self.parse = (provider) => flatMapEager(evaluator(provider, []), fromResult);
 	return self;
 }
 const evaluateAt = (self, provider, pathPrefix) => self.evaluator(provider, pathPrefix);
 const map$1 = /*#__PURE__*/ dual(2, (self, f) => {
-	return make$26((provider, pathPrefix) => map$4(evaluateAt(self, provider, pathPrefix), map$9(f)));
+	return make$30((provider, pathPrefix) => map$4(evaluateAt(self, provider, pathPrefix), map$9(f)));
 });
 const mapEffect = /*#__PURE__*/ dual(2, (self, f) => {
-	return make$26((provider, pathPrefix) => flatMap(evaluateAt(self, provider, pathPrefix), (resolution) => isSuccess$1(resolution) ? mapEager(f(resolution.success), succeed$8) : succeed$3(fail$7(resolution.failure))));
+	return make$30((provider, pathPrefix) => flatMap(evaluateAt(self, provider, pathPrefix), (resolution) => isSuccess$1(resolution) ? mapEager(f(resolution.success), succeed$8) : succeed$3(fail$8(resolution.failure))));
 });
 function all(arg) {
 	const configs = globalThis.Array.isArray(arg) ? arg : Symbol.iterator in arg ? [...arg] : arg;
-	return make$26((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$8(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
+	return make$30((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$8(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
 }
 const withDefault = /*#__PURE__*/ dual(2, (self, defaultValue) => {
-	return make$26((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
+	return make$30((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
 });
 const isSourceError = (u) => isTagged(u, "SourceError");
 const cursorToString = () => "<configuration>";
@@ -12964,13 +13385,13 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 function schema$1(codec, path) {
 	const codecStringTree = toCodecStringTree(codec);
 	const encodedAst = toEncoded$1(codecStringTree.ast);
-	const decodeCursor = decodeUnknownEffect$1(make$33(toConfigCursorAST(codecStringTree.ast)));
+	const decodeCursor = decodeUnknownEffect$1(make$38(toConfigCursorAST(codecStringTree.ast)));
 	const localPath = typeof path === "string" ? [path] : path ?? [];
-	return make$26((provider, pathPrefix) => {
+	return make$30((provider, pathPrefix) => {
 		const fullPath = [...pathPrefix, ...localPath];
 		return loadCursor(provider, fullPath).pipe(flatMapEager((cursor) => decodeCursor(cursor).pipe(mapEager(succeed$8), catchEager((issue) => {
 			const error = new ConfigError(new SchemaError(fullPath.length > 0 ? new Pointer(fullPath, issue) : issue));
-			return hasProviderInput(encodedAst, cursor.node) ? fail$3(error) : succeed$3(fail$7(error));
+			return hasProviderInput(encodedAst, cursor.node) ? fail$3(error) : succeed$3(fail$8(error));
 		}))), mapReasons((reason) => isDieReason(reason) && isSourceError(reason.defect) ? makeFailReason(new ConfigError(reason.defect)).annotate(reasonAnnotations(reason)) : reason));
 	});
 }
@@ -12990,6 +13411,97 @@ const ignore = "~effect/ErrorReporter/ignore";
 const symbol$1 = "~effect/PrimaryKey";
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Logger.js
 const LogToStderr = LogToStderr$1;
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/ManagedRuntime.js
+const TypeId$22 = "~effect/ManagedRuntime";
+const DisposingRuntimes = /*#__PURE__*/ Reference("effect/ManagedRuntime/DisposingRuntimes", { defaultValue: () => /* @__PURE__ */ new Set() });
+const make$29 = (layer, options) => {
+	const memoMap = options?.memoMap ?? makeMemoMapUnsafe();
+	const scope = makeUnsafe$6("sequential");
+	const layerScope = forkUnsafe(scope, "sequential");
+	const fiberScope = forkUnsafe(scope, "parallel");
+	const managedFibers = /* @__PURE__ */ new WeakSet();
+	const disposingFibers = /* @__PURE__ */ new WeakSet();
+	const defaultRunOptions = { onFiberStart(fiber) {
+		managedFibers.add(fiber);
+		if (disposingFibers.has(fiber)) return;
+		runIn(fiber, fiberScope);
+	} };
+	const mergeRunOptions = (options) => options ? {
+		...options,
+		onFiberStart: options.onFiberStart ? (fiber) => {
+			defaultRunOptions.onFiberStart(fiber);
+			options.onFiberStart(fiber);
+		} : defaultRunOptions.onFiberStart
+	} : defaultRunOptions;
+	let buildFiber;
+	let disposed;
+	const contextEffect = withFiber((fiber) => {
+		if (!buildFiber) buildFiber = runFork(tap(buildWithMemoMap(layer, memoMap, layerScope), (context) => sync(() => {
+			self.cachedContext = context;
+		})), {
+			scheduler: fiber.cache.scheduler,
+			onFiberStart(fiber) {
+				managedFibers.add(fiber);
+				runIn(fiber, fiberScope);
+			}
+		});
+		return flatten(await_(buildFiber));
+	});
+	const self = {
+		[TypeId$22]: TypeId$22,
+		memoMap,
+		scope,
+		contextEffect,
+		cachedContext: void 0,
+		context() {
+			return self.cachedContext === void 0 ? runPromise(self.contextEffect) : Promise.resolve(self.cachedContext);
+		},
+		dispose() {
+			return runPromise(self.disposeEffect);
+		},
+		[Symbol.asyncDispose]() {
+			return self.dispose();
+		},
+		disposeEffect: withFiber((fiber) => {
+			if (disposed !== void 0) {
+				if (fiber.getRef(DisposingRuntimes).has(self)) return void_$1;
+				for (let current = fiber; current; current = current._parent) if (managedFibers.has(current)) return void_$1;
+				return _await(disposed);
+			}
+			fiberEnterUninterruptibleUnsafe(fiber);
+			const done$3 = disposed = makeUnsafe$7();
+			for (let current = fiber; current; current = current._parent) {
+				disposingFibers.add(current);
+				scopeRemoveFinalizerUnsafe(fiberScope, current);
+			}
+			self.contextEffect = die$2("ManagedRuntime disposed");
+			self.cachedContext = void 0;
+			return close(self.scope, void_$2).pipe(provideService(DisposingRuntimes, new Set(fiber.getRef(DisposingRuntimes)).add(self)), ensuring$2(done(done$3, void_$2)));
+		}),
+		runFork(effect, options) {
+			return self.cachedContext === void 0 ? runFork(provide(self, effect), mergeRunOptions(options)) : runForkWith(self.cachedContext)(effect, mergeRunOptions(options));
+		},
+		runCallback(effect, options) {
+			return self.cachedContext === void 0 ? runCallback(provide(self, effect), mergeRunOptions(options)) : runCallbackWith(self.cachedContext)(effect, mergeRunOptions(options));
+		},
+		runSyncExit(effect) {
+			return self.cachedContext === void 0 ? runSyncExit(provide(self, effect)) : runSyncExitWith(self.cachedContext)(effect);
+		},
+		runSync(effect) {
+			return self.cachedContext === void 0 ? runSync$1(provide(self, effect)) : runSyncWith(self.cachedContext)(effect);
+		},
+		runPromiseExit(effect, options) {
+			return self.cachedContext === void 0 ? runPromiseExit(provide(self, effect), mergeRunOptions(options)) : runPromiseExitWith(self.cachedContext)(effect, mergeRunOptions(options));
+		},
+		runPromise(effect, options) {
+			return self.cachedContext === void 0 ? runPromise(provide(self, effect), mergeRunOptions(options)) : runPromiseWith(self.cachedContext)(effect, mergeRunOptions(options));
+		}
+	};
+	return self;
+};
+function provide(managed, effect) {
+	return flatMap(managed.contextEffect, (context) => provideContext$2(effect, context));
+}
 const ValueMatcherProto = {
 	["~effect/Match/Matcher"]: {
 		_input: identity,
@@ -13044,7 +13556,7 @@ const makePredicate = (pattern) => {
 	}
 	return (u) => u === pattern;
 };
-const value$1 = (i) => makeValueMatcher(i, fail$7(i));
+const value$1 = (i) => makeValueMatcher(i, fail$8(i));
 const when$1 = (pattern, f) => (self) => self.add(makeWhen(makePredicate(pattern), f));
 const discriminator = (field) => (...pattern) => {
 	const f = pattern[pattern.length - 1];
@@ -13074,7 +13586,7 @@ const result = (self) => {
 			const input = self.select(...args);
 			if (_case._tag === "When" && _case.guard(input) === true) return succeed$8(_case.evaluate(input, ...args));
 			else if (_case._tag === "Not" && _case.guard(input) === false) return succeed$8(_case.evaluate(input, ...args));
-			return fail$7(input);
+			return fail$8(input);
 		};
 	}
 	return (...args) => {
@@ -13084,7 +13596,7 @@ const result = (self) => {
 			if (_case._tag === "When" && _case.guard(input) === true) return succeed$8(_case.evaluate(input, ...args));
 			else if (_case._tag === "Not" && _case.guard(input) === false) return succeed$8(_case.evaluate(input, ...args));
 		}
-		return fail$7(input);
+		return fail$8(input);
 	};
 };
 const getExhaustiveAbsurdErrorMessage = "effect/match/Match/exhaustive: absurd";
@@ -13120,10 +13632,10 @@ const RefProto = {
 };
 const makeUnsafe = (value) => {
 	const self = Object.create(RefProto);
-	self.ref = make$32(value);
+	self.ref = make$37(value);
 	return self;
 };
-const make$25 = (value) => sync(() => makeUnsafe(value));
+const make$28 = (value) => sync(() => makeUnsafe(value));
 const set = /*#__PURE__*/ dual(2, (self, value) => sync(() => set$1(self.ref, value)));
 const getAndSet = /*#__PURE__*/ dual(2, (self, value) => sync(() => {
 	const current = self.ref.current;
@@ -13184,26 +13696,26 @@ const getErrorReported = (u) => {
 	return true;
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Stdio.js
-const TypeId$19 = "~effect/Stdio";
-const Stdio = /*#__PURE__*/ Service$1(TypeId$19);
-const make$24 = (options) => ({
-	[TypeId$19]: TypeId$19,
+const TypeId$20 = "~effect/Stdio";
+const Stdio = /*#__PURE__*/ Service$1(TypeId$20);
+const make$27 = (options) => ({
+	[TypeId$20]: TypeId$20,
 	stdinIsTerminal: succeed$3(false),
 	stdoutIsTerminal: succeed$3(false),
 	stderrIsTerminal: succeed$3(false),
 	...options
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpBody.js
-const TypeId$18 = "~effect/http/HttpBody";
-const isHttpBody = (u) => hasProperty(u, TypeId$18);
+const TypeId$19 = "~effect/http/HttpBody";
+const isHttpBody = (u) => hasProperty(u, TypeId$19);
 const HttpBodyErrorTypeId = "~effect/http/HttpBody/HttpBodyError";
 var HttpBodyError = class extends (/*#__PURE__*/ TaggedError$1("HttpBodyError")) {
 	[HttpBodyErrorTypeId] = HttpBodyErrorTypeId;
 };
-var Proto$10 = class {
-	[TypeId$18];
+var Proto$11 = class {
+	[TypeId$19];
 	constructor() {
-		this[TypeId$18] = TypeId$18;
+		this[TypeId$19] = TypeId$19;
 	}
 	[NodeInspectSymbol]() {
 		return this.toJSON();
@@ -13212,7 +13724,7 @@ var Proto$10 = class {
 		return format$2(this, { ignoreToString: true });
 	}
 };
-var Empty$2 = class extends Proto$10 {
+var Empty$2 = class extends Proto$11 {
 	_tag = "Empty";
 	toJSON() {
 		return {
@@ -13222,7 +13734,7 @@ var Empty$2 = class extends Proto$10 {
 	}
 };
 const empty$2 = /*#__PURE__*/ new Empty$2();
-var Uint8Array$1 = class extends Proto$10 {
+var Uint8Array$1 = class extends Proto$11 {
 	_tag = "Uint8Array";
 	contentType;
 	contentLength;
@@ -13267,7 +13779,7 @@ const json$1 = (body, contentType) => try_({
 	})
 });
 const urlParams = (urlParams, contentType) => text(toString(fromInput(urlParams)), contentType ?? "application/x-www-form-urlencoded");
-var FormData$1 = class extends Proto$10 {
+var FormData$1 = class extends Proto$11 {
 	_tag = "FormData";
 	contentType = void 0;
 	contentLength = void 0;
@@ -13285,7 +13797,7 @@ var FormData$1 = class extends Proto$10 {
 	}
 };
 const formData = (body) => new FormData$1(body);
-var Stream$1 = class extends Proto$10 {
+var Stream$1 = class extends Proto$11 {
 	_tag = "Stream";
 	stream;
 	contentType;
@@ -13307,8 +13819,8 @@ var Stream$1 = class extends Proto$10 {
 };
 const stream = (body, contentType, contentLength) => new Stream$1(body, contentType ?? "application/octet-stream", contentLength);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClientError.js
-const TypeId$17 = "~effect/http/HttpClientError";
-const isHttpClientError = (u) => hasProperty(u, TypeId$17);
+const TypeId$18 = "~effect/http/HttpClientError";
+const isHttpClientError = (u) => hasProperty(u, TypeId$18);
 var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientError")) {
 	constructor(props) {
 		if ("cause" in props.reason) super({
@@ -13317,7 +13829,7 @@ var HttpClientError = class extends (/*#__PURE__*/ TaggedError$1("HttpClientErro
 		});
 		else super(props);
 	}
-	[TypeId$17] = TypeId$17;
+	[TypeId$18] = TypeId$18;
 	get request() {
 		return this.reason.request;
 	}
@@ -13463,12 +13975,12 @@ const updateContentLength = (headers, body) => {
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Url.js
 var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
-const make$23 = (url, params, hash) => try_$2({
+const make$26 = (url, params, hash) => try_$2({
 	try: () => {
 		const urlInstance = new URL(url, baseUrl());
 		for (let i = 0; i < params.params.length; i++) {
 			const [key, value] = params.params[i];
-			if (value !== void 0) urlInstance.searchParams.append(key, unwrap$3(value));
+			if (value !== void 0) urlInstance.searchParams.append(key, unwrap$5(value));
 		}
 		if (hash !== void 0) urlInstance.hash = hash;
 		return urlInstance;
@@ -13486,9 +13998,9 @@ const baseUrl = () => {
 	}
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClientRequest.js
-const TypeId$16 = "~effect/http/HttpClientRequest";
-const Proto$9 = {
-	[TypeId$16]: TypeId$16,
+const TypeId$17 = "~effect/http/HttpClientRequest";
+const Proto$10 = {
+	[TypeId$17]: TypeId$17,
 	...BaseProto,
 	toJSON() {
 		return {
@@ -13506,7 +14018,7 @@ const Proto$9 = {
 	}
 };
 function makeWith$2(method, url, urlParams, hash, headers, body) {
-	const self = Object.create(Proto$9);
+	const self = Object.create(Proto$10);
 	self.method = method;
 	self.url = url;
 	self.urlParams = urlParams;
@@ -13516,12 +14028,12 @@ function makeWith$2(method, url, urlParams, hash, headers, body) {
 	return self;
 }
 const empty$1 = /*#__PURE__*/ makeWith$2("GET", "", empty$5, /*#__PURE__*/ none(), empty$6, empty$2);
-const make$22 = (method) => (url, options) => modify(empty$1, {
+const make$25 = (method) => (url, options) => modify(empty$1, {
 	method,
 	url,
 	...options ?? void 0
 });
-const post$1 = /*#__PURE__*/ make$22("POST");
+const post$1 = /*#__PURE__*/ make$25("POST");
 const modify = /*#__PURE__*/ dual(2, (self, options) => {
 	let result = self;
 	if (options.method) result = setMethod(result, options.method);
@@ -13568,12 +14080,12 @@ const setBody = /*#__PURE__*/ dual(2, (self, body) => {
 const bodyJson = /*#__PURE__*/ dual(2, (self, body) => map$4(json$1(body), (body) => setBody(self, body)));
 const bodyFormData = /*#__PURE__*/ dual(2, (self, body) => setBody(self, formData(body)));
 function toUrl(self) {
-	const r = make$23(self.url, self.urlParams, getOrUndefined$1(self.hash));
+	const r = make$26(self.url, self.urlParams, getOrUndefined$1(self.hash));
 	if (isSuccess$1(r)) return some(r.success);
 	return none();
 }
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpIncomingMessage.js
-const TypeId$15 = "~effect/http/HttpIncomingMessage";
+const TypeId$16 = "~effect/http/HttpIncomingMessage";
 const schemaBodyJson = (schema, options) => {
 	const decode = decodeEffect(toCodecJson(schema));
 	const decodeJson = options?.reviver === void 0 ? void 0 : decodeEffect(fromJsonString(toCodecJson(schema), options));
@@ -13590,7 +14102,7 @@ const inspect = (self, that) => {
 const WebSourceSymbol = "~effect/http/HttpClientResponse/WebSource";
 const getWebSource = (self) => self[WebSourceSymbol]?.();
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClientResponse.js
-const TypeId$14 = "~effect/http/HttpClientResponse";
+const TypeId$15 = "~effect/http/HttpClientResponse";
 const fromWeb = (request, source) => new WebHttpClientResponse(request, source);
 const schemaJson = (schema, options) => {
 	const decode = decodeEffect(toCodecJson(schema), options);
@@ -13607,16 +14119,16 @@ const filterStatusOk$1 = (self) => self.status >= 200 && self.status < 300 ? suc
 	description: "non 2xx status code"
 }) }));
 var WebHttpClientResponse = class extends Class$2 {
+	[TypeId$16];
 	[TypeId$15];
-	[TypeId$14];
 	request;
 	source;
 	constructor(request, source) {
 		super();
 		this.request = request;
 		this.source = source;
+		this[TypeId$16] = TypeId$16;
 		this[TypeId$15] = TypeId$15;
-		this[TypeId$14] = TypeId$14;
 	}
 	toJSON() {
 		return inspect(this, {
@@ -13724,7 +14236,7 @@ var WebHttpClientResponse = class extends Class$2 {
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpTraceContext.js
 const toHeaders = (span) => fromRecordUnsafe({
-	b3: `${span.traceId}-${span.spanId}-${span.sampled ? "1" : "0"}${match$3(span.parent, {
+	b3: `${span.traceId}-${span.spanId}-${span.sampled ? "1" : "0"}${match$4(span.parent, {
 		onNone: () => "",
 		onSome: (parent) => `-${parent.spanId}`
 	})}`,
@@ -13779,12 +14291,12 @@ const addHeaderAttributes = (span, phase, headers, filter, redactedNames) => {
 	}
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpClient.js
-const TypeId$13 = "~effect/http/HttpClient";
+const TypeId$14 = "~effect/http/HttpClient";
 const HttpClient = /*#__PURE__*/ Service$1("effect/HttpClient");
 const transformResponse$1 = /*#__PURE__*/ dual(2, (self, f) => makeWith$1((request) => f(self.postprocess(request)), self.preprocess));
 const filterStatusOk = /*#__PURE__*/ transformResponse$1(/*#__PURE__*/ flatMap(filterStatusOk$1));
 const makeWith$1 = (postprocess, preprocess) => {
-	const self = Object.create(Proto$8);
+	const self = Object.create(Proto$9);
 	self.preprocess = preprocess;
 	self.postprocess = postprocess;
 	self.execute = function(request) {
@@ -13792,8 +14304,8 @@ const makeWith$1 = (postprocess, preprocess) => {
 	};
 	return self;
 };
-const Proto$8 = {
-	[TypeId$13]: TypeId$13,
+const Proto$9 = {
+	[TypeId$14]: TypeId$14,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -13802,14 +14314,14 @@ const Proto$8 = {
 		return { _id: "effect/HttpClient" };
 	},
 	.../*#__PURE__*/ Object.fromEntries(/*#__PURE__*/ allShort.map(([fullMethod, method]) => [method, function(url, options) {
-		return this.execute(make$22(fullMethod)(url, options));
+		return this.execute(make$25(fullMethod)(url, options));
 	}]))
 };
-const make$21 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
+const make$24 = (f) => makeWith$1((effect) => flatMap(effect, (request) => withFiber((fiber) => {
 	const scope = fiber.getRef(RequestScope);
 	const controller = new AbortController();
 	const urlParamsRedactedNames = fiber.getRef(CurrentRedactedNames);
-	const urlResult = make$23(request.url, request.urlParams, getOrUndefined$1(request.hash));
+	const urlResult = make$26(request.url, request.urlParams, getOrUndefined$1(request.hash));
 	if (isFailure$1(urlResult)) return fail$3(new HttpClientError({ reason: new InvalidUrlError({
 		request,
 		cause: urlResult.failure
@@ -13851,7 +14363,7 @@ const endSpanWithStatusError = (fiber, span, request, response) => {
 	setStackTraceLimit(0);
 	let exit;
 	try {
-		exit = fail$4(new HttpClientError({ reason: new StatusCodeError({
+		exit = fail$5(new HttpClientError({ reason: new StatusCodeError({
 			request,
 			response
 		}) }));
@@ -13885,7 +14397,7 @@ const TracerDisabledWhen = /*#__PURE__*/ Reference("effect/http/HttpClient/Trace
 const TracerHeaderFilter = /*#__PURE__*/ Reference("effect/http/HttpClient/TracerHeaderFilter", { defaultValue: () => constFalse });
 const TracerPropagationEnabled = /*#__PURE__*/ Reference("effect/http/HttpClient/TracerPropagationEnabled", { defaultValue: constTrue });
 const SpanNameGenerator = /*#__PURE__*/ Reference("effect/http/HttpClient/SpanNameGenerator", { defaultValue: () => (request) => request.method });
-const layerMergedContext = (effect$1) => effect(HttpClient)(contextWith((context) => map$4(effect$1, (client) => transformResponse$1(client, updateContext((input) => merge$2(context, input))))));
+const layerMergedContext = (effect$1) => effect(HttpClient)(contextWith((context) => map$4(effect$1, (client) => transformResponse$1(client, updateContext((input) => merge$4(context, input))))));
 const responseRegistry = /*#__PURE__*/ (() => {
 	if ("FinalizationRegistry" in globalThis && globalThis.FinalizationRegistry) {
 		const registry = /*#__PURE__*/ new FinalizationRegistry((controller) => {
@@ -13934,8 +14446,8 @@ var InterruptibleResponse = class {
 		this.original = original;
 		this.controller = controller;
 	}
-	[TypeId$14] = TypeId$14;
 	[TypeId$15] = TypeId$15;
+	[TypeId$16] = TypeId$16;
 	applyInterrupt(effect) {
 		return suspend$3(() => {
 			responseRegistry.unregister(this.original);
@@ -14037,14 +14549,14 @@ const detectStreamBodySupport = () => {
 		return false;
 	}
 };
-const layer$5 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$21((request, url, signal, fiber) => {
+const layer$8 = /*#__PURE__*/ layerMergedContext(/*#__PURE__*/ succeed$3(/* @__PURE__ */ make$24((request, url, signal, fiber) => {
 	if (request.headers.upgrade !== void 0) return fail$3(new HttpClientError({ reason: new TransportError({
 		request,
 		description: "fetch cannot send an HTTP upgrade request"
 	}) }));
 	const fetch = fiber.getRef(Fetch);
 	const options = getOrUndefined(fiber.context, RequestInit) ?? {};
-	let headers = options.headers ? merge$1(fromInput$1(options.headers), request.headers) : request.headers;
+	let headers = options.headers ? merge$2(fromInput$1(options.headers), request.headers) : request.headers;
 	if (headers["content-length"]) headers = remove$1(headers, "content-length");
 	let uploadController;
 	const stopUpload = sync(() => uploadController?.abort());
@@ -14174,7 +14686,7 @@ const OPTIONAL_PARAM_REGEXP = /(\/:[^/()]*?)\?(\/?)/;
 const emptyParamsArray = [];
 const CLEAN_SINGLE_PARAM_REGEXP = /^[^:*(]*\/:[^/:*(.-]+$/;
 const isCleanSingleTrailingParam = (path) => CLEAN_SINGLE_PARAM_REGEXP.test(path);
-const make$20 = (options = {}) => new RouterImpl(options);
+const make$23 = (options = {}) => new RouterImpl(options);
 var RouterImpl = class {
 	constructor(options = {}) {
 		this.options = {
@@ -14783,12 +15295,12 @@ const httpMethods = [
 	"UNSUBSCRIBE"
 ];
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/FindMyWay.js
-const make$19 = make$20;
+const make$22 = make$23;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/headers.js
-const Proto$7 = /*#__PURE__*/ Object.getPrototypeOf(empty$6);
-const emptyMutableUnsafe = () => Object.create(Proto$7);
+const Proto$8 = /*#__PURE__*/ Object.getPrototypeOf(empty$6);
+const emptyMutableUnsafe = () => Object.create(Proto$8);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/HttpServerResponse.js
-const TypeId$12 = "~effect/http/HttpServerResponse";
+const TypeId$13 = "~effect/http/HttpServerResponse";
 const empty = (options) => makeResponse({
 	status: options?.status ?? 204,
 	statusText: options?.statusText,
@@ -14811,9 +15323,9 @@ const jsonUnsafe = (body, options) => {
 };
 const setHeader = /*#__PURE__*/ dual(3, (self, key, value) => makeResponse(self, set$2(self.headers, key, value)));
 const setHeaders = /*#__PURE__*/ dual(2, (self, input) => makeResponse(self, setAll$1(self.headers, input)));
-const Proto$6 = {
+const Proto$7 = {
 	...PipeInspectableProto,
-	[TypeId$12]: TypeId$12,
+	[TypeId$13]: TypeId$13,
 	[ignore]: true,
 	toJSON() {
 		return {
@@ -14827,7 +15339,7 @@ const Proto$6 = {
 	}
 };
 const makeResponse = (options, ownedHeaders) => {
-	const self = Object.create(Proto$6);
+	const self = Object.create(Proto$7);
 	self.status = options.status;
 	self.statusText = options.statusText;
 	self.cookies = options.cookies ?? empty$7;
@@ -14842,8 +15354,8 @@ const makeResponse = (options, ownedHeaders) => {
 	return self;
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/socket/Socket.js
-const TypeId$10 = "~effect/socket/Socket";
-const isSocket = (u) => hasProperty(u, TypeId$10);
+const TypeId$11 = "~effect/socket/Socket";
+const isSocket = (u) => hasProperty(u, TypeId$11);
 const constNameChars = /*#__PURE__*/ new Uint8Array(256);
 for (const char of "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") constNameChars[/*#__PURE__*/ char.charCodeAt(0)] = 1;
 const constValueChars = /*#__PURE__*/ new Uint8Array(256);
@@ -14908,7 +15420,7 @@ var MiddlewareImpl = class MiddlewareImpl {
 				stack.push(...getMiddleware$1(depsContext));
 			}
 			return makeUnsafe$8(/* @__PURE__ */ new Map([[contextKey, stack]]));
-		})).pipe(provide$2(this.layerFn));
+		})).pipe(provide$3(this.layerFn));
 	}
 	layer;
 	combine(other) {
@@ -15137,60 +15649,62 @@ const SPECIAL_RIGHTS = [
 const rightFor = (target) => {
 	const rights = RIGHTS[target.group];
 	if (rights === void 0) return "the right this operation needs";
-	const right = (target.readOnly ? void 0 : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1]) ?? (target.readOnly ? rights.read : rights.write);
+	const special = target.readOnly ? none() : findFirst(SPECIAL_RIGHTS, ([pattern]) => pattern.test(target.name));
+	const right = match$4(special, {
+		onNone: () => target.readOnly ? rights.read : rights.write,
+		onSome: ([, named]) => named
+	});
 	return right === void 0 ? `the ${rights.module} right this operation needs` : `«${rights.module} → ${right}»`;
 };
 // ../../packages/core/src/Errors.ts
 const JsonObject = fromJsonString(Record(String$2, Unknown));
 const JsonText = fromJsonString(Unknown);
 const RESTATED = /* @__PURE__ */ new Set(["status", "title"]);
-const quoted = (body) => decodeOption(JsonObject)(body).pipe(flatMap$4((json) => {
-	const key = ["detail", "message"].find((candidate) => typeof json[candidate] === "string");
-	if (key === void 0) return none();
+const quoted = (body) => decodeOption(JsonObject)(body).pipe(flatMap$5((json) => map$10(findFirst(["detail", "message"], (candidate) => isString$1(json[candidate])), (key) => {
 	const line = String(json[key]);
-	const complete = Object.keys(json).every((other) => other === key || RESTATED.has(other));
-	return some(complete ? line : `${line}\n${body}`);
-}), getOrElse(() => body));
+	return every(keys(json), (other) => other === key || RESTATED.has(other)) ? line : `${line}\n${body}`;
+})), getOrElse(() => body));
 const MAX_CAUSES = 5;
 const chain = (error) => {
 	const parts = [];
 	let current = error;
 	while (current instanceof Error && parts.length < MAX_CAUSES) {
 		const { code } = current;
-		const part = typeof code === "string" && !current.message.includes(code) ? `${current.message} (${code})` : current.message;
+		const part = isString$1(code) && !includes(code)(current.message) ? `${current.message} (${code})` : current.message;
 		if (part !== "" && parts.at(-1) !== part) parts.push(part);
 		current = current.cause;
 	}
-	return parts.join(": ");
+	return join$2(parts, ": ");
 };
 const ErrorCode = Struct({
 	error: optionalKey(String$2),
 	warning_type: optionalKey(String$2)
 });
-const codeOf = (found) => getOrUndefined$1(flatMap$4(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
+const codeOf = (found) => getOrUndefined$1(flatMap$5(found, (code) => fromNullishOr(code.error ?? code.warning_type)));
 const MAX_FIELDS = 10;
 const PROPERTY_PATH = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*|\[\d*\])*$/u;
 const PATH_LINE = /^\s*(?<path>[A-Za-z_][\w.[\]]*):\s/gmu;
 const keyPaths = (value, prefix) => {
-	if (typeof value !== "object" || value === null) return [prefix];
-	if (Array.isArray(value)) return value.flatMap((item) => keyPaths(item, `${prefix}[]`));
-	const entries = Object.entries(value);
-	return entries.length === 0 ? [prefix] : entries.flatMap(([key, item]) => keyPaths(item, prefix === "" ? key : `${prefix}.${key}`));
+	if (isArray(value)) return flatMap$3(value, (item) => keyPaths(item, `${prefix}[]`));
+	if (!isObject$2(value)) return [prefix];
+	const entries = toEntries(value);
+	return isArrayNonEmpty(entries) ? flatMap$3(entries, ([key, item]) => keyPaths(item, prefix === "" ? key : `${prefix}.${key}`)) : [prefix];
 };
 const fieldsOf = (rawBody) => {
 	const json = getOrUndefined$1(decodeOption(JsonObject)(rawBody));
 	if (json === void 0) return [];
 	const found = [];
 	const { details, errors, violations } = json;
-	if (Array.isArray(violations)) for (const violation of violations) {
-		const { propertyPath } = violation ?? {};
-		if (typeof propertyPath === "string") found.push(propertyPath);
+	if (isArray(violations)) {
+		for (const violation of violations) if (hasProperty(violation, "propertyPath") && isString$1(violation.propertyPath)) found.push(violation.propertyPath);
 	}
-	for (const map of [details, errors]) if (typeof map === "object" && map !== null && !Array.isArray(map)) found.push(...keyPaths(map, ""));
+	for (const map of [details, errors]) if (isObject$2(map)) found.push(...keyPaths(map, ""));
 	const { detail } = json;
-	if (typeof detail === "string") found.push(...[...detail.matchAll(PATH_LINE)].map((match) => match.groups?.path ?? ""));
-	const paths = found.filter((candidate) => PROPERTY_PATH.test(candidate)).map((candidate) => candidate.replaceAll(/\[\d*\]/gu, "[]"));
-	return [...new Set(paths)].slice(0, MAX_FIELDS);
+	if (isString$1(detail)) {
+		const matches = fromIterable$2(matchAll(PATH_LINE)(detail));
+		found.push(...map$7(matches, (match) => match.groups?.path ?? ""));
+	}
+	return pipe(found, filter$2((candidate) => PROPERTY_PATH.test(candidate)), map$7((candidate) => replaceAll(/\[\d*\]/gu, "[]")(candidate)), dedupe, take$2(MAX_FIELDS));
 };
 const RIGHTS_MISSING_MARKER = "token_rights_missing";
 const INSTANCE_NOT_FOUND_MARKER = "instance_not_found";
@@ -15206,25 +15720,25 @@ const HTTP_UNPROCESSABLE = 422;
 const HTTP_TOO_MANY_REQUESTS = 429;
 const statusReason = (status, rawBody, retryAfter) => {
 	const body = quoted(rawBody);
-	if (status === HTTP_UNAUTHORIZED) return rawBody.includes(RIGHTS_MISSING_MARKER) ? new RightsMissing({ body }) : new ApiKeyRejected({ body });
-	if (status === HTTP_FORBIDDEN) return new Forbidden({ body });
-	if (status === HTTP_NOT_FOUND) return new NotFound({ body });
-	if (status === HTTP_GONE && rawBody.includes(INSTANCE_NOT_FOUND_MARKER)) return new InstanceNotFound({ body });
+	if (status === HTTP_UNAUTHORIZED) return includes(RIGHTS_MISSING_MARKER)(rawBody) ? RightsMissing.make({ body }) : ApiKeyRejected.make({ body });
+	if (status === HTTP_FORBIDDEN) return Forbidden.make({ body });
+	if (status === HTTP_NOT_FOUND) return NotFound.make({ body });
+	if (status === HTTP_GONE && includes(INSTANCE_NOT_FOUND_MARKER)(rawBody)) return InstanceNotFound.make({ body });
 	if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
 		const code = codeOf(decodeOption(fromJsonString(ErrorCode))(rawBody));
 		const fields = fieldsOf(rawBody);
-		return new Rejected({
+		return Rejected.make({
 			body,
 			status,
 			...code === void 0 ? {} : { code },
 			...fields.length === 0 ? {} : { fields }
 		});
 	}
-	if (status === HTTP_TOO_MANY_REQUESTS) return new RateLimited({
+	if (status === HTTP_TOO_MANY_REQUESTS) return RateLimited.make({
 		body,
 		...retryAfter === void 0 ? {} : { retryAfter }
 	});
-	return new UnexpectedStatus({
+	return UnexpectedStatus.make({
 		body,
 		status
 	});
@@ -15244,34 +15758,34 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 				const { status } = reason.response;
 				if (status >= HTTP_OK_MIN$1 && status <= HTTP_OK_MAX$1) {
 					const details = isSchemaError(reason.cause) ? reason.cause.message : reason.description ?? cause.message;
-					return new TipeeError({ reason: new UnexpectedShape({
+					return TipeeError.make({ reason: UnexpectedShape.make({
 						details,
 						status
 					}) });
 				}
 				const body = yield* reason.response.text.pipe(orElseSucceed(() => ""));
 				const retryAfter = reason.response.headers["retry-after"];
-				return new TipeeError({ reason: statusReason(status, body, retryAfter) });
+				return TipeeError.make({ reason: statusReason(status, body, retryAfter) });
 			}
-			const description = [cause.message, chain(reason.cause)].filter((part) => part !== "").join(": ");
-			return new TipeeError({ reason: new Unreachable({ description }) });
+			const description = join$2(filter$2([cause.message, chain(reason.cause)], isNonEmpty$1), ": ");
+			return TipeeError.make({ reason: Unreachable.make({ description }) });
 		}
 		if (isTimeoutError(cause)) {
 			const description = cause.message === "" ? "tipee did not answer in time" : cause.message;
-			return new TipeeError({ reason: new Unreachable({ description }) });
+			return TipeeError.make({ reason: Unreachable.make({ description }) });
 		}
-		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
+		if (isSchemaError(cause)) return TipeeError.make({ reason: UnexpectedShape.make({ details: cause.message }) });
 		if (isObject$2(cause) && !(cause instanceof Error)) {
 			const code = codeOf(decodeOption(ErrorCode)(cause));
 			const body = yield* encodeUnknownEffect(JsonText)(cause).pipe(orElseSucceed(() => "(an answer that cannot be written as JSON)"));
-			return new TipeeError({ reason: new Rejected({
+			return TipeeError.make({ reason: Rejected.make({
 				body,
 				status: HTTP_CONFLICT,
 				...code === void 0 ? {} : { code }
 			}) });
 		}
 		const description = cause instanceof Error ? chain(cause) : String(cause);
-		return new TipeeError({ reason: new Internal({ description }) });
+		return TipeeError.make({ reason: Internal.make({ description }) });
 	});
 };
 var ConfigurationMissing = class extends TaggedError()("ConfigurationMissing", { cause: Defect() }) {
@@ -15452,7 +15966,7 @@ var Retry = class Retry extends (/*#__PURE__*/ TaggedClass("Retry")) {
 		return hasProperty(u, RetryTypeId);
 	}
 	static filter(u) {
-		return Retry.is(u) ? succeed$8(u) : fail$7(u);
+		return Retry.is(u) ? succeed$8(u) : fail$8(u);
 	}
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/internal/mediaType.js
@@ -15475,7 +15989,7 @@ const isStreamUint8Array = (u) => isStreamSchema$1(u) && u._tag === "StreamUint8
 const isStreamNdjson = (u) => isStreamSchema$1(u) && u._tag === "StreamNdjson";
 const UpgradeTypeId = "~effect/http-api/HttpApiSchema/Upgrade";
 const upgradeSchema = /*#__PURE__*/ declare(isSocket).pipe(/*#__PURE__*/ status(101));
-const rebuildUpgrade = (protocol, headers) => make$33(upgradeSchema.ast, {
+const rebuildUpgrade = (protocol, headers) => make$38(upgradeSchema.ast, {
 	[UpgradeTypeId]: UpgradeTypeId,
 	protocol,
 	headers
@@ -15490,7 +16004,7 @@ const withHeaders = (options) => ({
 });
 const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/http-api/HttpApiSchema/WithHeaders");
 function rebuildWithHeaders(self, schema, headers) {
-	return make$33(self.ast, {
+	return make$38(self.ast, {
 		[WithHeadersTypeId]: WithHeadersTypeId,
 		schema,
 		headers
@@ -15611,7 +16125,7 @@ const normalizeProperties = /*#__PURE__*/ applyToSelfOrLastLinkEncodingIdempoten
 	return properties === ast.propertySignatures ? ast : new Objects(properties, ast.indexSignatures, ast.annotations, ast.checks, void 0, ast.context, ast.encodingChecks);
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApiEndpoint.js
-const TypeId$7 = "~effect/http-api/HttpApiEndpoint";
+const TypeId$8 = "~effect/http-api/HttpApiEndpoint";
 function getPayloadSchemas(endpoint) {
 	const result = [];
 	for (const { schemas } of endpoint.payload.values()) result.push(...schemas);
@@ -15630,8 +16144,8 @@ function getErrorSchemas(endpoint) {
 	}
 	return Array.from(schemas);
 }
-const Proto$5 = {
-	[TypeId$7]: TypeId$7,
+const Proto$6 = {
+	[TypeId$8]: TypeId$8,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -15656,7 +16170,7 @@ const Proto$5 = {
 	annotateMerge(annotations) {
 		return makeProto$5({
 			...optionsFromEndpoint(this),
-			annotations: merge$2(this.annotations, annotations)
+			annotations: merge$4(this.annotations, annotations)
 		});
 	}
 };
@@ -15676,10 +16190,10 @@ const optionsFromEndpoint = (endpoint) => ({
 });
 function makeProto$5(options) {
 	function HttpApiEndpoint() {}
-	Object.setPrototypeOf(HttpApiEndpoint, Proto$5);
+	Object.setPrototypeOf(HttpApiEndpoint, Proto$6);
 	return Object.assign(HttpApiEndpoint, options);
 }
-const make$14 = (method) => (identifier, path, options) => {
+const make$17 = (method) => (identifier, path, options) => {
 	const disableCodecs = options?.disableCodecs ?? false;
 	const transformProperties = disableCodecs ? identity : toCodecHttpProperties;
 	const payload = getPayload(options?.payload, method, disableCodecs);
@@ -15900,11 +16414,11 @@ function transformPayload(schema, method) {
 		case "Multipart": return schema;
 	}
 }
-const post = /*#__PURE__*/ make$14("POST");
+const post = /*#__PURE__*/ make$17("POST");
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApi.js
-const TypeId$6 = "~effect/http-api/HttpApi";
-const Proto$4 = {
-	[TypeId$6]: TypeId$6,
+const TypeId$7 = "~effect/http-api/HttpApi";
+const Proto$5 = {
+	[TypeId$7]: TypeId$7,
 	pipe() {
 		return pipeArguments(this, arguments);
 	},
@@ -15920,7 +16434,7 @@ const Proto$4 = {
 		const newGroups = { ...this.groups };
 		for (const key of Object.keys(api.groups)) {
 			const group = api.groups[key];
-			assignProperty(newGroups, key, group.annotateMerge(merge$2(api.annotations, group.annotations)));
+			assignProperty(newGroups, key, group.annotateMerge(merge$4(api.annotations, group.annotations)));
 		}
 		return makeProto$4({
 			...optionsFromApi(this),
@@ -15948,7 +16462,7 @@ const Proto$4 = {
 	annotateMerge(annotations) {
 		return makeProto$4({
 			...optionsFromApi(this),
-			annotations: merge$2(this.annotations, annotations)
+			annotations: merge$4(this.annotations, annotations)
 		});
 	}
 };
@@ -15959,10 +16473,10 @@ const optionsFromApi = (api) => ({
 });
 const makeProto$4 = (options) => {
 	function HttpApi() {}
-	Object.setPrototypeOf(HttpApi, Proto$4);
+	Object.setPrototypeOf(HttpApi, Proto$5);
 	return Object.assign(HttpApi, options);
 };
-const make$13 = (identifier) => makeProto$4({
+const make$16 = (identifier) => makeProto$4({
 	identifier,
 	groups: {},
 	annotations: empty$11()
@@ -15970,7 +16484,7 @@ const make$13 = (identifier) => makeProto$4({
 const reflect = (self, options) => {
 	const groups = Object.values(self.groups);
 	for (const group of groups) {
-		const groupAnnotations = merge$2(self.annotations, group.annotations);
+		const groupAnnotations = merge$4(self.annotations, group.annotations);
 		options.onGroup({
 			group,
 			mergedAnnotations: groupAnnotations
@@ -15985,7 +16499,7 @@ const reflect = (self, options) => {
 				group,
 				endpoint,
 				middleware: endpoint.middlewares,
-				mergedAnnotations: merge$2(groupAnnotations, endpoint.annotations),
+				mergedAnnotations: merge$4(groupAnnotations, endpoint.annotations),
 				successes: extractResponseContent(getSuccessSchemas(endpoint), getStatusSuccessSchema),
 				errors: extractResponseContent(getErrorSchemas(endpoint), getStatusErrorSchema)
 			});
@@ -16239,7 +16753,7 @@ const makeClient = (api, options) => gen(function* () {
 			const encodeQuery = map(endpoint.query, (schema) => encodeUnknownEffect(schema, parseOptions.query));
 			const middlewareKeys = Array.from(onEndpointOptions.middleware, (tag) => `${tag.key}/Client`);
 			const endpointFn = fnUntraced(function* (request) {
-				let httpRequest = make$22(endpoint.method)(endpoint.path);
+				let httpRequest = make$25(endpoint.method)(endpoint.path);
 				if (request !== void 0) {
 					if (encodeParams !== void 0) {
 						const params = yield* encodeParams(request.params);
@@ -16355,7 +16869,7 @@ const makeEndpointDecoder = (options) => {
 	}
 	for (const [status, alternatives] of errorAlternatives.entries()) {
 		const decode = makeResponseDecoder(alternatives);
-		decodeMap[status] = (response) => flatMap(catchCause$2(decode(response), (cause) => failCause$3(combine(fail$5(new HttpClientError({ reason: new StatusCodeError({
+		decodeMap[status] = (response) => flatMap(catchCause$2(decode(response), (cause) => failCause$3(combine(fail$6(new HttpClientError({ reason: new StatusCodeError({
 			request: response.request,
 			response
 		}) })), cause))), fail$3);
@@ -16592,9 +17106,9 @@ function getEncodePayloadSchemaFromBody(schema, method) {
 	return out;
 }
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http-api/HttpApiGroup.js
-const TypeId$5 = "~effect/http-api/HttpApiGroup";
-const Proto$3 = {
-	[TypeId$5]: TypeId$5,
+const TypeId$6 = "~effect/http-api/HttpApiGroup";
+const Proto$4 = {
+	[TypeId$6]: TypeId$6,
 	add(...toAdd) {
 		const endpoints = { ...this.endpoints };
 		for (const endpoint of toAdd) assignProperty(endpoints, endpoint.identifier, endpoint);
@@ -16618,7 +17132,7 @@ const Proto$3 = {
 	annotateMerge(annotations) {
 		return makeProto$3({
 			...optionsFromGroup(this),
-			annotations: merge$2(this.annotations, annotations)
+			annotations: merge$4(this.annotations, annotations)
 		});
 	},
 	annotate(annotation, value) {
@@ -16651,11 +17165,11 @@ const optionsFromGroup = (group) => ({
 });
 const makeProto$3 = (options) => {
 	function HttpApiGroup() {}
-	Object.setPrototypeOf(HttpApiGroup, Proto$3);
+	Object.setPrototypeOf(HttpApiGroup, Proto$4);
 	HttpApiGroup.key = `effect/http-api/HttpApiGroup/${options.identifier}`;
 	return Object.assign(HttpApiGroup, options);
 };
-const make$12 = (identifier, options) => makeProto$3({
+const make$15 = (identifier, options) => makeProto$3({
 	identifier,
 	topLevel: options?.topLevel ?? false,
 	endpoints: {},
@@ -18603,7 +19117,7 @@ const PostAppUiApiTimeclockTimeclockcommandValidatetimecheck201 = StructWithRest
 const PostAppUiApiTimeclockTimeclockcommandDeletetimecheckRequestJson = DeleteTimecheckCommand;
 const PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson = ListTimechecksQuery;
 const PostAppUiApiTimeclockTimeclockqueryListtimechecks200 = ArraySchema(TimecheckView);
-var ActivityGroup = class extends make$12("Activity").add(post("postAppUiApiActivityConfigurationProjectcommandCreateproject", "/api/activity/projects.create", {
+var ActivityGroup = class extends make$15("Activity").add(post("postAppUiApiActivityConfigurationProjectcommandCreateproject", "/api/activity/projects.create", {
 	payload: PostAppUiApiActivityConfigurationProjectcommandCreateprojectRequestJson,
 	success: PostAppUiApiActivityConfigurationProjectcommandCreateproject201.pipe(status(201))
 }).annotate(Identifier, "post_app_ui_api_activity_configuration_projectcommand_createproject").annotate(Summary, "Create").annotate(Description, "Creates a new project. The project status is set to `draft` by default."), post("postAppUiApiActivityConfigurationProjectcommandDeleteproject", "/api/activity/projects.delete", {
@@ -18697,11 +19211,11 @@ var ActivityGroup = class extends make$12("Activity").add(post("postAppUiApiActi
 	payload: PostAppUiApiActivityWorkflowWorkflowqueryDaytasklistRequestJson,
 	success: PostAppUiApiActivityWorkflowWorkflowqueryDaytasklist200
 }).annotate(Identifier, "post_app_ui_api_activity_workflow_workflowquery_daytasklist").annotate(Summary, "List").annotate(Description, "Returns day tasks matching the given filters (tasks, date range, resources).")).annotate(Description, "Activity") {};
-var BalancesGroup = class extends make$12("Balances").add(post("postAppUiApiBalancesWorkregimesWorkregimesqueryList", "/api/balances/work-regimes.list", {
+var BalancesGroup = class extends make$15("Balances").add(post("postAppUiApiBalancesWorkregimesWorkregimesqueryList", "/api/balances/work-regimes.list", {
 	payload: PostAppUiApiBalancesWorkregimesWorkregimesqueryListRequestJson,
 	success: PostAppUiApiBalancesWorkregimesWorkregimesqueryList200
 }).annotate(Identifier, "post_app_ui_api_balances_workregimes_workregimesquery_list").annotate(Summary, "List").annotate(Description, "Retrieves all work regimes.")).annotate(Description, "Balances") {};
-var DirectoryGroup = class extends make$12("Directory").add(post("postAppUiApiDirectoryDirectorycommandCreateresource", "/api/directory/resources.create", {
+var DirectoryGroup = class extends make$15("Directory").add(post("postAppUiApiDirectoryDirectorycommandCreateresource", "/api/directory/resources.create", {
 	payload: PostAppUiApiDirectoryDirectorycommandCreateresourceRequestJson,
 	success: PostAppUiApiDirectoryDirectorycommandCreateresource201.pipe(status(201))
 }).annotate(Identifier, "post_app_ui_api_directory_directorycommand_createresource").annotate(Summary, "Create").annotate(Description, "Creates a new resource. If a team_id is not provided, the resource will not be considered as active"), post("postAppUiApiDirectoryDirectorycommandUpdateresource", "/api/directory/resources.update", {
@@ -18761,7 +19275,7 @@ var DirectoryGroup = class extends make$12("Directory").add(post("postAppUiApiDi
 	payload: PostAppUiApiDirectoryDirectoryqueryListtagsRequestJson,
 	success: PostAppUiApiDirectoryDirectoryqueryListtags200
 }).annotate(Identifier, "post_app_ui_api_directory_directoryquery_listtags").annotate(Summary, "List").annotate(Description, "Retrieves all tags that can describe actions in tipee (e.g. timechecks, activities, etc.). Several filters can be used to narrow down the search.")).annotate(Description, "Directory") {};
-var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiScheduleSchedulecommandCreateschedule", "/api/schedule/schedules.create", {
+var ScheduleGroup = class extends make$15("Schedule").add(post("postAppUiApiScheduleSchedulecommandCreateschedule", "/api/schedule/schedules.create", {
 	payload: PostAppUiApiScheduleSchedulecommandCreatescheduleRequestJson,
 	success: Empty(201),
 	error: PostAppUiApiScheduleSchedulecommandCreateschedule409.pipe(status(409))
@@ -18807,7 +19321,7 @@ var ScheduleGroup = class extends make$12("Schedule").add(post("postAppUiApiSche
 	payload: PostAppUiApiScheduleScheduletemplatetypequeryListscheduletemplatetypesRequestJson,
 	success: PostAppUiApiScheduleScheduletemplatetypequeryListscheduletemplatetypes200
 }).annotate(Identifier, "post_app_ui_api_schedule_scheduletemplatetypequery_listscheduletemplatetypes").annotate(Summary, "List").annotate(Description, "Retrieves all schedule template type details, or the ones corresponding to the provided ids or teams.")).annotate(Description, "Schedule") {};
-var TimeclockGroup = class extends make$12("Timeclock").add(post("postAppUiApiTimeclockTimeclockcommandProposetimecheck", "/api/timeclock/timechecks.propose", {
+var TimeclockGroup = class extends make$15("Timeclock").add(post("postAppUiApiTimeclockTimeclockcommandProposetimecheck", "/api/timeclock/timechecks.propose", {
 	payload: PostAppUiApiTimeclockTimeclockcommandProposetimecheckRequestJson,
 	success: [PostAppUiApiTimeclockTimeclockcommandProposetimecheck201.pipe(status(201)), Empty(204)]
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockcommand_proposetimecheck").annotate(Summary, "Propose").annotate(Description, "Creates one timecheck in the \"proposal\" state, or modifies this state for an existing timecheck."), post("postAppUiApiTimeclockTimeclockcommandValidatetimecheck", "/api/timeclock/timechecks.validate", {
@@ -18820,7 +19334,7 @@ var TimeclockGroup = class extends make$12("Timeclock").add(post("postAppUiApiTi
 	payload: PostAppUiApiTimeclockTimeclockqueryListtimechecksRequestJson,
 	success: PostAppUiApiTimeclockTimeclockqueryListtimechecks200
 }).annotate(Identifier, "post_app_ui_api_timeclock_timeclockquery_listtimechecks").annotate(Summary, "List timechecks").annotate(Description, "Retrieves all timecheck details (or the ones corresponding to the provided ids). Several filters can be used to narrow down the search. Always pass a timecheck.date_range filter of a few weeks at most: without one tipee runs out of memory (HTTP 507).")).annotate(Description, "Timeclock") {};
-var Tipee = class extends make$13("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
+var Tipee = class extends make$16("Tipee").annotate(Title$1, "tipee").annotate(Version, "26.06.25").add(ActivityGroup, BalancesGroup, DirectoryGroup, ScheduleGroup, TimeclockGroup) {};
 // ../../packages/core/src/TipeeClient.ts
 const TIPEE_API_VERSION = "26.06.25";
 const RETRY_ATTEMPTS = 3;
@@ -18847,15 +19361,15 @@ const within = (seconds, message) => timeoutOrElse({
 	duration: `${seconds} seconds`,
 	orElse: () => fail$3(new TimeoutError(message))
 });
-const readsOnly = (path) => /^(?:list|show)/u.test(path.slice(path.lastIndexOf(".") + 1));
+const readsOnly = (path) => /^(?:list|show)/u.test(lastNonEmpty(split(path, ".")));
 const resendable = (request, status) => status !== void 0 && REPLAYABLE_STATUSES.has(status) || readsOnly(new URL(request.url).pathname) && (status === void 0 || TRANSIENT_STATUSES.has(status));
-const retryAfterSeconds = (header, now) => {
+const retryAfterSeconds = dual(2, (header, now) => {
 	if (header === void 0) return;
-	const trimmed = header.trim();
+	const trimmed = trim(header);
 	if (/^\d+$/u.test(trimmed)) return Number(trimmed);
 	const date = Date.parse(trimmed);
 	return Number.isNaN(date) ? void 0 : Math.max(0, (date - now) / MILLIS_PER_SECOND$1);
-};
+});
 const ANSWER_SCHEDULE = RETRY_SCHEDULE.pipe(modifyDelay(({ duration, input, now }) => {
 	const seconds$1 = retryAfterSeconds(input.headers["retry-after"], now);
 	return succeed$3(seconds$1 === void 0 ? duration : max(duration, seconds(seconds$1)));
@@ -18875,16 +19389,16 @@ const retried = (response) => response.pipe(within(ATTEMPT_TIMEOUT_SECONDS, `tip
 }), within(CALL_TIMEOUT_SECONDS, `tipee gave no usable answer within ${CALL_TIMEOUT_SECONDS} s, retries included`));
 const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 const normalizeInstance = (raw) => {
-	const [host = ""] = raw.trim().toLowerCase().replace(/^[a-z][a-z0-9+.-]*:\/\//u, "").split("/");
-	const subdomain = host.replace(/\.tipee\.net$/u, "");
+	const host = pipe(raw, trim, toLowerCase, replace(/^[a-z][a-z0-9+.-]*:\/\//u, ""), split("/"), headNonEmpty);
+	const subdomain = replace(/\.tipee\.net$/u, "")(host);
 	return DNS_LABEL.test(subdomain) ? some(subdomain) : none();
 };
 const invalid = (message) => new ConfigError(new SourceError({ message }));
-const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
+const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(trim(raw));
 const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a tipee instance: enter the part before .tipee.net, such as acme.`))));
-const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$38("")), mapEffect((key) => {
-	const trimmed = value$2(key).trim();
-	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$38(trimmed));
+const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$43("")), mapEffect((key) => {
+	const trimmed = trim(value$2(key));
+	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$43(trimmed));
 }));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
 	static layer = (credentials) => effect(TipeeClient, gen(function* () {
@@ -18898,29 +19412,29 @@ var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/Tipee
 			instance: credentials.instance
 		});
 	}));
-	static layerConfig = unwrap$4(all({
+	static layerConfig = unwrap$6(all({
 		apiKey: apiKeyConfig,
 		instance: instanceConfig
 	}).pipe(mapBoth({
-		onFailure: (cause) => new ConfigurationMissing({ cause }),
+		onFailure: (cause) => ConfigurationMissing.make({ cause }),
 		onSuccess: (credentials) => TipeeClient.layer(credentials)
 	})));
 };
 // ../../packages/core/src/Operations.ts
-const nameOf = (path) => path.replace(/^\/api\/[^/]+\//u, "").replaceAll(/[.-]/gu, "_");
-const verbOf = (path) => path.slice(path.lastIndexOf(".") + 1);
+const nameOf = (path) => pipe(path, replace(/^\/api\/[^/]+\//u, ""), replaceAll(/[.-]/gu, "_"));
+const verbOf = (path) => lastNonEmpty(split(path, "."));
 const isBody = (schema) => !isNoContent(schema.ast);
 const bodySchema = (endpoint) => {
 	for (const { schemas } of endpoint.payload.values()) {
-		const body = schemas.find((schema) => isBody(schema));
-		if (body !== void 0) return body.annotate({ identifier: void 0 });
+		const body = findFirst(schemas, isBody);
+		if (isSome(body)) return body.value.annotate({ identifier: void 0 });
 	}
 	return Struct({});
 };
 const successSchema = (successes) => {
 	for (const schemas of successes.values()) {
-		const body = schemas.find((schema) => isBody(schema));
-		if (body !== void 0) return body;
+		const body = findFirst(schemas, isBody);
+		if (isSome(body)) return body.value;
 	}
 };
 const describe$3 = (annotations, path) => getOrUndefined(annotations, Description) ?? getOrUndefined(annotations, Summary) ?? path;
@@ -18943,14 +19457,13 @@ const collect = () => {
 		},
 		onGroup: constVoid
 	});
-	if (new Set(found.map((operation) => operation.name)).size !== found.length) throw new Error("two tipee operations map to the same name");
+	if (new Set(map$7(found, (operation) => operation.name)).size !== found.length) throw new Error("two tipee operations map to the same name");
 	return found;
 };
 const operations = collect();
 const operation = (name) => {
-	const found = operations.find((candidate) => candidate.name === name);
-	if (found === void 0) throw new Error(`tipee has no operation named ${name}`);
-	return found;
+	const found = findFirst(operations, (candidate) => candidate.name === name);
+	return getOrThrowWith$1(found, () => /* @__PURE__ */ new Error(`tipee has no operation named ${name}`));
 };
 // ../../packages/core/src/Invoke.ts
 var AcceptedOffSpec = class extends TaggedClass("AcceptedOffSpec") {};
@@ -18966,7 +19479,7 @@ const undeclaredSuccess = (error) => {
 };
 const call = fnUntraced(function* (target, params) {
 	const { api } = yield* TipeeClient;
-	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => new TipeeError({ reason: new InvalidRequest$1({ details: cause.message }) })));
+	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => TipeeError.make({ reason: InvalidRequest$1.make({ details: cause.message }) })));
 	const method = api[target.group]?.[target.endpoint];
 	if (method === void 0) return yield* die$2(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
 	return yield* method({ payload: params }).pipe(catch_$2((error) => {
@@ -18981,10 +19494,11 @@ const HTTP_LOOP_DETECTED = 508;
 const GATEWAY_STATUSES = /* @__PURE__ */ new Set([502, 504]);
 const outcomeUnknown = ({ reason }) => reason._tag === "Unreachable" || reason._tag === "UnexpectedStatus" && GATEWAY_STATUSES.has(reason.status);
 const integrations = gen(function* () {
-	const kind = (yield* call(operation("kinds_list"), {})).find((candidate) => candidate.machine_name === "integration");
-	if (kind === void 0) return [];
+	const kinds = yield* call(operation("kinds_list"), {});
+	const kind = findFirst(kinds, (candidate) => candidate.machine_name === "integration");
+	if (isNone(kind)) return [];
 	return (yield* call(operation("resources_list"), {
-		kind_id: kind.id,
+		kind_id: kind.value.id,
 		orders: [{
 			attribute: "last_name",
 			direction: "asc",
@@ -19025,7 +19539,7 @@ const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
 const explain = fnUntraced(function* (failure, target, lookup) {
 	const { instance } = yield* TipeeClient;
 	const { reason } = failure;
-	const fixed = (fix) => new TipeeError({
+	const fixed = (fix) => TipeeError.make({
 		fix,
 		reason
 	});
@@ -19076,9 +19590,9 @@ const SUFFIXES = {
 const ordinals = new Intl.PluralRules("en", { type: "ordinal" });
 const nth = (index) => `items[${index}] (the ${index + 1}${SUFFIXES[ordinals.select(index + 1)] ?? "th"})`;
 const appliedPart = (count) => count === 1 ? "1 item applied (items[0])" : `${count} items applied (items[0] to items[${count - 1}])`;
-const cutShort = () => new TipeeError({
+const cutShort = () => TipeeError.make({
 	fix: "This write may have been applied: read it back before sending it again.",
-	reason: new Unreachable({ description: `no answer before the batch's ${BUDGET_SECONDS} s ran out` })
+	reason: Unreachable.make({ description: `no answer before the batch's ${BUDGET_SECONDS} s ran out` })
 });
 const failureOf = (cause) => {
 	const found = findError(cause);
@@ -19096,8 +19610,8 @@ const failureOf = (cause) => {
 		outcome: "unknown"
 	};
 };
-const stoppedAtFirst = (error, count) => count === 1 ? error : new TipeeError({
-	fix: [error.fix, `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`].filter((part) => part !== void 0).join(" "),
+const stoppedAtFirst = (error, count) => count === 1 ? error : TipeeError.make({
+	fix: join$2(filter$2([error.fix, `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`], (part) => part !== void 0), " "),
 	reason: error.reason
 });
 const runBatch = fn("runBatch")(function* (items, send, withResults) {
@@ -19149,6 +19663,20 @@ const runBatch = fn("runBatch")(function* (items, send, withResults) {
 		not_sent: 0
 	});
 });
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeCrypto.js
+const layerSecureRandom = layerWebCrypto;
+const nodeHashNames = {
+	"MD5": "md5",
+	"SHA-1": "sha1",
+	"SHA-256": "sha256",
+	"SHA-384": "sha384",
+	"SHA-512": "sha512"
+};
+const nodeDigest = (algorithm, data) => new Uint8Array(NodeCrypto.createHash(nodeHashNames[algorithm.name]).update(data).digest());
+const layerDigest = /*#__PURE__*/ succeed$4(Digest, {
+	digest: (algorithm, data) => sync(() => nodeDigest(algorithm, data)),
+	digestHex: (algorithm, data) => sync(() => NodeCrypto.createHash(nodeHashNames[algorithm.name]).update(data).digest("hex"))
+});
 // ../../packages/mcp/src/Install.ts
 const UUID_PARTS = [
 	8,
@@ -19158,19 +19686,12 @@ const UUID_PARTS = [
 	12
 ];
 const channelOf = (entry) => {
-	const unixy = entry.replaceAll("\\", "/");
-	if (unixy.includes("Claude Extensions")) return "desktop";
-	return unixy.includes(".claude/plugins/") ? "plugin" : "dev";
+	const unixy = replaceAll("\\", "/")(entry);
+	if (includes("Claude Extensions")(unixy)) return "desktop";
+	return includes(".claude/plugins/")(unixy) ? "plugin" : "dev";
 };
 const channel = channelOf(argv[1] ?? "");
-const shaped = (hex) => {
-	let at = 0;
-	return UUID_PARTS.map((length) => {
-		const part = hex.slice(at, at + length);
-		at += length;
-		return part;
-	}).join("-");
-};
+const shaped = (hex) => pipe(UUID_PARTS, mapAccum(0, (at, length) => [at + length, slice(at, at + length)(hex)]), ([, parts]) => join$2(parts, "-"));
 const username = () => {
 	try {
 		return userInfo().username;
@@ -19178,149 +19699,292 @@ const username = () => {
 		return env.USER ?? env.USERNAME ?? "";
 	}
 };
-const installationId = () => shaped(createHash("sha256").update(`tipee-tools:${hostname()}:${username()}`).digest("hex"));
-// ../../packages/mcp/src/Telemetry.ts
-const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
-const POSTHOG_HOST = "https://eu.i.posthog.com";
-const INTERVAL = "2 seconds";
-const SEND_TIMEOUT = "5 seconds";
-const DRAIN_TIMEOUT = "2 seconds";
-const SEND_RETRIES = 2;
-const FRAME_LIMIT = 30;
-const settings$1 = all({
-	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
-	instance: String$1("TIPEE_INSTANCE").pipe(map$1((raw) => getOrElse(normalizeInstance(raw), () => "")), withDefault("")),
-	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY))
+const installation = gen(function* () {
+	const digest = yield* Digest;
+	const names = new TextEncoder().encode(`tipee-tools:${hostname()}:${username()}`);
+	const hex = yield* digest.digestHex(sha256, names);
+	return shaped(hex);
 });
-const silent = {
-	capture: () => void_$1,
-	exception: () => void_$1,
-	flush: void_$1
-};
-const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
-const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
-const scrubbed = (file) => {
-	const ours = OURS.exec(file)?.groups?.tail;
-	if (ours !== void 0) return {
-		filename: ours,
-		inApp: true
-	};
-	return {
-		filename: file.startsWith("node:") ? file : path.basename(file),
-		inApp: false
-	};
-};
-const framesOf = (stack) => (stack ?? "").split("\n").flatMap((line) => {
-	const groups = FRAME.exec(line)?.groups;
-	if (groups?.file === void 0) return [];
-	const { filename, inApp } = scrubbed(groups.file);
-	return [{
-		...groups.col === void 0 ? {} : { colno: Number(groups.col) },
-		filename,
-		function: groups.fn ?? "<anonymous>",
-		in_app: inApp,
-		...groups.line === void 0 ? {} : { lineno: Number(groups.line) },
-		platform: "node:javascript"
-	}];
-}).slice(0, FRAME_LIMIT);
-const withheld = (reason) => {
-	if (reason._tag === "UnexpectedShape" || reason._tag === "InvalidRequest") {
-		const paths = new Set(reason.details.match(/(?<=at )(?:\[[^\]\n]*\])+/gu));
-		const status = reason._tag === "UnexpectedShape" && reason.status !== void 0 ? ` (HTTP ${reason.status})` : "";
-		return paths.size === 0 ? `${reason._tag}${status}` : `${reason._tag}${status} at ${[...paths].join(", ")}`;
-	}
-	if (reason._tag === "Rejected") {
-		const at = reason.fields === void 0 ? "" : ` at ${reason.fields.join(", ")}`;
-		const code = reason.code === void 0 ? "" : `, ${reason.code}`;
-		return `Rejected (HTTP ${reason.status}${code})${at}`;
-	}
-	if (reason._tag === "Internal") return reason.message;
-	return "status" in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
-};
-const describe$2 = (error) => {
-	if (is$2(TipeeError)(error)) return {
-		frames: [],
-		type: `Tipee${error.reason._tag}`,
-		value: withheld(error.reason)
-	};
-	if (error instanceof Error) return {
-		frames: framesOf(error.stack),
-		type: error.name,
-		value: error.message
-	};
-	return {
-		frames: [],
-		type: "Unknown",
-		value: String(error)
-	};
-};
-var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
-	static layerOff = succeed$4(Telemetry, Telemetry.of(silent));
-	static layer = (base) => effect(Telemetry, gen(function* () {
-		const config = yield* orDie(settings$1);
-		const http = (yield* HttpClient).pipe(retryTransient({
-			schedule: exponential("500 millis"),
-			times: SEND_RETRIES
-		}));
-		const distinctId = installationId();
-		const launchId = randomUUID();
-		const queue = yield* unbounded$1();
-		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
-			api_key: config.key,
-			batch: batch.map((event) => ({
-				...event,
-				distinct_id: distinctId
-			}))
-		}), flatMap((request) => http.execute(request)), timeout(SEND_TIMEOUT), ignore$1);
-		const drain = flatMap(clear(queue), (batch) => send(batch));
-		yield* forkScoped(repeat(drain, spaced(INTERVAL)));
-		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
-		const profile = {
-			arch,
-			channel,
-			instance: config.instance,
-			node_version: version,
-			os: platform,
-			tipee_api_version: TIPEE_API_VERSION,
-			...base
+make$29(layerDigest);
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/process/ChildProcessSpawner.js
+const ExitCode = /*#__PURE__*/ nominal();
+const ProcessId = /*#__PURE__*/ nominal();
+const HandleTypeId = "~effect/process/ChildProcessSpawner/ChildProcessHandle";
+const HandleProto = {
+	[HandleTypeId]: HandleTypeId,
+	...BaseProto,
+	toJSON() {
+		return {
+			_id: "ChildProcessHandle",
+			pid: this.pid
 		};
-		const properties = (own) => ({
-			$groups: { instance: config.instance },
-			$lib: "tipee-mcp",
-			$set: profile,
-			launch_id: launchId,
-			...profile,
-			...own
-		});
-		const enqueue = (event, own) => flatMap(now, (now) => asVoid(offer(queue, {
-			event,
-			properties: properties(own),
-			timestamp: formatIso(now)
-		})));
-		return Telemetry.of({
-			capture: enqueue,
-			exception: (error, { handled, properties: own }) => {
-				const { frames, type, value } = describe$2(error);
-				return enqueue("$exception", {
-					...own,
-					$exception_level: "error",
-					$exception_list: [{
-						mechanism: {
-							handled,
-							type: "generic"
-						},
-						...frames.length === 0 ? {} : { stacktrace: {
-							frames,
-							type: "raw"
-						} },
-						type,
-						value
-					}]
-				});
-			},
-			flush: drain
-		});
+	}
+};
+const makeHandle = (params) => Object.setPrototypeOf({ ...params }, HandleProto);
+const make$14 = (spawn) => {
+	const streamString = (command, options) => spawn(command).pipe(map$4((handle) => decodeText$1(options?.includeStderr === true ? handle.all : drainFork(handle.stdout, handle.stderr))), unwrap$2);
+	const streamLines = (command, options) => splitLines(streamString(command, options));
+	return ChildProcessSpawner.of({
+		spawn,
+		exitCode: (command) => scoped(flatMap(spawn(command), (handle) => raceFirst(handle.exitCode, andThen(runDrain(handle.all), never$1)))),
+		streamString,
+		streamLines,
+		lines: (command, options) => runCollect(streamLines(command, options)),
+		string: (command, options) => mkString(streamString(command, options))
+	});
+};
+var ChildProcessSpawner = class extends (/*#__PURE__*/ Service$1()("effect/process/ChildProcessSpawner")) {};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/process/CommandLine.js
+var CommandLineError = class extends (/*#__PURE__*/ TaggedError$1("CommandLineError")) {};
+const display = (words, options) => {
+	if (words.length === 0) return "";
+	const format = options?.format ?? "posix";
+	return joinWords(format, words.map((word, i) => isRedacted(word) ? "<redacted>" : escapeControlCharacters(quoteWord(format, word, i === 0))));
+};
+const template = (strings, ...expressions) => {
+	const index = strings.findIndex((text) => text === void 0);
+	if (index !== -1) return fail$8(new CommandLineError({
+		reason: "InvalidEscape",
+		message: `Template part ${index} contains an invalid escape sequence`
 	}));
+	return parseTemplate$1(strings, expressions);
+};
+const unwrap$1 = (item) => isRedacted(item) ? value$2(item) : String(item);
+const toWord = (item) => isRedacted(item) ? item : String(item);
+const reservedWords = /*#__PURE__*/ new Set([
+	"!",
+	"{",
+	"}",
+	"and",
+	"begin",
+	"case",
+	"coproc",
+	"do",
+	"done",
+	"elif",
+	"else",
+	"end",
+	"esac",
+	"fi",
+	"for",
+	"foreach",
+	"function",
+	"if",
+	"in",
+	"nocorrect",
+	"not",
+	"or",
+	"repeat",
+	"select",
+	"switch",
+	"then",
+	"time",
+	"until",
+	"while"
+]);
+const quoteWord = (format, value, program) => {
+	switch (format) {
+		case "posix": return program && reservedWords.has(value) ? `'${value}'` : quotePosix(value);
+		case "powershell": return quotePowerShell(value);
+		case "windows": return program && !value.includes("\"") ? quoteWindowsProgram(value) : quoteWindowsArgument(value);
+	}
+};
+const joinWords = (format, quoted) => format === "powershell" ? `& ${quoted.join(" ")}` : quoted.join(" ");
+const posixSafe = /^[A-Za-z0-9_@+:,./-]+$/;
+const quotePosix = (value) => posixSafe.test(value) ? value : `'${value.replace(/['\\]/g, (char) => `'\\${char}'`)}'`;
+const quotePowerShell = (value) => `'${value.replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'`;
+const windowsNeedsQuotes = /[ \t\n\v"]/;
+const quoteWindowsArgument = (value) => {
+	if (value.length > 0 && !windowsNeedsQuotes.test(value)) return value;
+	let out = "\"";
+	let backslashes = 0;
+	for (const char of value) if (char === "\\") backslashes++;
+	else if (char === "\"") {
+		out += "\\".repeat(backslashes * 2 + 1) + "\"";
+		backslashes = 0;
+	} else {
+		out += "\\".repeat(backslashes) + char;
+		backslashes = 0;
+	}
+	return out + "\\".repeat(backslashes * 2) + "\"";
+};
+const quoteWindowsProgram = (value) => value.length > 0 && !/[ \t]/.test(value) ? value : `"${value}"`;
+const controlCharacters = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+const controlEscapes = {
+	"\n": "\\n",
+	"\r": "\\r",
+	"	": "\\t"
+};
+const escapeControlCharacters = (value) => value.replace(controlCharacters, (char) => controlEscapes[char] ?? `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
+const operators = "|&;<>()";
+const globs = "*?[";
+const expansionStart = /[A-Za-z_0-9{(@*#?$!'"-]/;
+const quotedExpansionStart = /[A-Za-z_0-9{(@*#?$!-]/;
+const assignmentName = /^[A-Za-z_][A-Za-z0-9_]*\+?$/;
+const isBlank = (char) => char === " " || char === "	" || char === "\n";
+const unsupportedSyntax = (char, next, wordStart) => {
+	if (operators.includes(char)) return `The operator "${char}" needs a shell`;
+	if (char === "`") return "Command substitution needs a shell";
+	if (char === "$" && next !== void 0 && expansionStart.test(next)) return `The expansion "$${next}" needs a shell`;
+	if (globs.includes(char)) return `The glob character "${char}" needs a shell`;
+	if (!wordStart) return void 0;
+	if (char === "#") return "A comment needs a shell";
+	if (char === "~") return "Tilde expansion needs a shell";
+	if (char === "=" && next !== void 0 && !isBlank(next)) return "A leading \"=\" is expanded by zsh";
+};
+const parseTemplate$1 = (texts, values) => {
+	const words = [];
+	let word = [];
+	let plain = true;
+	let braceDepth = 0;
+	let quote = void 0;
+	let quotePart = 0;
+	let part = 0;
+	const error = (reason, message, at = part) => fail$8(new CommandLineError({
+		reason,
+		message: `${message} in template part ${at}`
+	}));
+	const endWord = () => {
+		if (word.length === 0) return;
+		const value = word.map(unwrap$1).join("");
+		words.push(word.length === 1 && isRedacted(word[0]) ? word[0] : word.some(isRedacted) ? make$43(value) : value);
+		word = [];
+		plain = true;
+		braceDepth = 0;
+	};
+	const scan = (text) => {
+		for (let i = 0; i < text.length; i++) {
+			const char = text[i];
+			const next = text[i + 1];
+			if (quote === "'") {
+				if (char === "'") quote = void 0;
+				else word.push(char);
+			} else if (quote === "\"") {
+				if (char === "\"") quote = void 0;
+				else if (char === "\\" && next !== void 0 && "$`\"\\\n".includes(next)) {
+					if (next !== "\n") word.push(next);
+					i++;
+				} else if (char === "`") return error("UnsupportedSyntax", "Command substitution needs a shell");
+				else if (char === "$" && next !== void 0 && quotedExpansionStart.test(next)) return error("UnsupportedSyntax", `The expansion "$${next}" needs a shell`);
+				else word.push(char);
+			} else if (isBlank(char)) endWord();
+			else if (char === "\\") {
+				if (next === void 0) return error("InvalidEscape", "A trailing backslash escapes nothing");
+				if (next !== "\n") {
+					word.push(next);
+					plain = false;
+				}
+				i++;
+			} else if (char === "'" || char === "\"") {
+				quote = char;
+				quotePart = part;
+				word.push("");
+				plain = false;
+			} else {
+				const unsupported = unsupportedSyntax(char, next, word.length === 0);
+				if (unsupported !== void 0) return error("UnsupportedSyntax", unsupported);
+				if (char === "{") braceDepth++;
+				else if (char === "}") {
+					if (braceDepth > 0) braceDepth--;
+				} else if (braceDepth > 0 && (char === "," || char === "." && next === ".")) return error("UnsupportedSyntax", "Brace expansion needs a shell");
+				else if (char === "=" && words.length === 0 && plain && assignmentName.test(word.join(""))) return error("UnsupportedSyntax", "A variable assignment needs a shell");
+				word.push(char);
+			}
+		}
+	};
+	for (; part < texts.length; part++) {
+		const failure = scan(texts[part]);
+		if (failure !== void 0) return failure;
+		if (part === values.length) break;
+		const expression = values[part];
+		if (Array.isArray(expression)) {
+			const after = texts[part + 1][0];
+			if (word.length > 0 || (after === void 0 ? part + 1 < values.length : !isBlank(after))) return error("UnsupportedSyntax", "An interpolated array must be a separate argument");
+			for (const item of expression) words.push(toWord(item));
+		} else {
+			word.push(toWord(expression));
+			plain = false;
+		}
+	}
+	if (quote !== void 0) return error("UnterminatedQuote", "The quote is not closed", quotePart);
+	endWord();
+	return succeed$8(words);
+};
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/process/ChildProcess.js
+const TypeId$5 = "~effect/process/ChildProcess";
+const Proto$3 = {
+	.../*#__PURE__*/ Prototype({
+		label: "Command",
+		evaluate(fiber) {
+			return getUnsafe$1(fiber.context, ChildProcessSpawner).spawn(this);
+		}
+	}),
+	[TypeId$5]: TypeId$5
+};
+const makeStandardCommand = (command, args, options) => Object.assign(Object.create(Proto$3), {
+	_tag: "StandardCommand",
+	command,
+	args,
+	options
+});
+const make$13 = function make(...args) {
+	if (isTemplateString(args[0])) {
+		const [templates, ...expressions] = args;
+		const [command, cmdArgs] = parseTemplate(templates, expressions);
+		return makeStandardCommand(command, cmdArgs, {});
+	}
+	if (typeof args[0] === "object" && !Array.isArray(args[0]) && !isTemplateString(args[0])) {
+		const options = args[0];
+		return function(templates, ...expressions) {
+			if (options.shell !== void 0 && options.shell !== false) return makeStandardCommand(shellScript(templates, expressions), [], options);
+			const [command, cmdArgs] = parseTemplate(templates, expressions);
+			return makeStandardCommand(command, cmdArgs, options);
+		};
+	}
+	if (typeof args[0] === "string" && !Array.isArray(args[1])) {
+		const [command, options = {}] = args;
+		return makeStandardCommand(command, [], options);
+	}
+	const [command, cmdArgs = [], options = {}] = args;
+	return makeStandardCommand(command, cmdArgs, options);
+};
+const isTemplateString = (u) => Array.isArray(u) && "raw" in u && Array.isArray(u.raw);
+const parseFdName = (name) => {
+	const match = /^fd(\d+)$/.exec(name);
+	if (match === null) return void 0;
+	const fd = parseInt(match[1], 10);
+	return fd >= 3 ? fd : void 0;
+};
+const fdName = (fd) => `fd${fd}`;
+const parseTemplate = (templates, expressions) => {
+	const [program = "", ...args] = getOrThrow(template(templates, ...expressions));
+	if (typeof program !== "string") throw new CommandLineError({
+		reason: "InvalidArgument",
+		message: "The program name of a command cannot be Redacted"
+	});
+	return [program, args];
+};
+const shellScript = (templates, expressions) => {
+	if (expressions.length > 0) throw new CommandLineError({
+		reason: "UnsupportedSyntax",
+		message: "A shell template cannot interpolate values; build the script with CommandLine.quote"
+	});
+	const script = templates[0];
+	if (script === void 0) throw new CommandLineError({
+		reason: "InvalidEscape",
+		message: "Template part 0 contains an invalid escape sequence"
+	});
+	return script;
+};
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/nodeChildProcessSpawner.js
+const buildSpawnOptions = (options, base, platform) => {
+	const detached = options.detached ?? platform !== "win32";
+	return {
+		...base,
+		detached,
+		shell: options.shell,
+		windowsHide: options.windowsHide ?? !detached
+	};
 };
 // ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/utils.js
 const handleErrnoException = (module, method) => (err, [path]) => {
@@ -19356,6 +20020,657 @@ const handleErrnoException = (module, method) => (err, [path]) => {
 		cause: err
 	});
 };
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/stream.js
+const destroyStream = (stream, cleanup, onDestroyed) => {
+	if (!("closed" in stream)) {
+		cleanup();
+		onDestroyed?.();
+		return;
+	}
+	const onDone = () => {
+		clearImmediate(immediate);
+		stream.off("error", onDone);
+		stream.off("close", onDone);
+		onDestroyed?.();
+	};
+	const onClosed = () => {
+		if (stream.closed) onDone();
+		else {
+			immediate = setImmediate(onClosed);
+			if (!onDestroyed) immediate.unref();
+		}
+	};
+	let immediate = setImmediate(onClosed);
+	if (!onDestroyed) immediate.unref();
+	stream.once("error", onDone);
+	stream.once("close", onDone);
+	cleanup();
+	if (!stream.closed) stream.destroy();
+};
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeSink.js
+const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
+const fromWritableChannel = (options) => fromTransform$1((pull) => {
+	const writable = options.evaluate();
+	const write = pullIntoWritable({
+		...options,
+		writable,
+		pull
+	});
+	return succeed$3(options.endOnDone === false ? write : onError(write, (cause) => isDoneCause(cause) ? void_$1 : releaseWritable(writable)));
+});
+const releaseWritable = (writable) => callback$1((resume) => {
+	const onDestroyed = () => resume(void_$1);
+	if (writable.closed) {
+		const cleanup = finished(writable, { readable: false }, () => {
+			cleanup();
+			onDestroyed();
+		});
+	} else destroyStream(writable, constVoid, onDestroyed);
+});
+const pullIntoWritable = (options) => withFiber((fiber) => {
+	const dispatcher = fiber.currentDispatcher;
+	const completion = makeUnsafe$7();
+	const failure = makeUnsafe$7();
+	const onError = (error) => doneUnsafe(failure, failSync(() => options.onError(error)));
+	let errorEmitted = false;
+	const onStreamError = (error) => {
+		errorEmitted = true;
+		onError(error);
+	};
+	options.writable.on("error", onStreamError);
+	const cleanup = finished(options.writable, { readable: false }, (error) => {
+		if (error) onError(error);
+		else doneUnsafe(completion, void_$1);
+	});
+	return options.pull.pipe(flatMap((chunk) => {
+		let i = 0;
+		return callback$1((resume) => {
+			let cancelled = false;
+			const onFinish = () => dispatcher.scheduleTask(loop, 0);
+			const loop = () => {
+				options.writable.off("drain", loop);
+				options.writable.off("finish", onFinish);
+				for (; i < chunk.length;) {
+					if (cancelled) return;
+					if (!options.writable.write(chunk[i++], options.encoding, (error) => {
+						if (!error) return;
+						if (options.writable.closed) onError(error);
+						else dispatcher.scheduleTask(() => onError(error), 0);
+					})) {
+						if (!cancelled) {
+							options.writable.once("drain", loop);
+							options.writable.once("finish", onFinish);
+						}
+						return;
+					}
+				}
+				if (!cancelled) resume(void_$1);
+			};
+			loop();
+			return sync(() => {
+				cancelled = true;
+				options.writable.off("drain", loop);
+				options.writable.off("finish", onFinish);
+			});
+		});
+	}), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
+		options.writable.end();
+		return andThen(_await(completion), done$1(_));
+	}) : identity, raceFirst(_await(failure)), ensuring$2(sync(() => {
+		cleanup();
+		const removeErrorListener = () => {
+			options.writable.off("error", onStreamError);
+			options.writable.off("error", removeErrorListener);
+			options.writable.off("close", removeErrorListener);
+		};
+		if (options.writable.errored && !options.writable.closed && !errorEmitted) {
+			options.writable.once("error", removeErrorListener);
+			options.writable.once("close", removeErrorListener);
+		} else removeErrorListener();
+	})));
+});
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeStream.js
+const fromReadable = (options) => fromChannel(fromReadableChannel(options));
+const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
+	scope,
+	readable: options.evaluate(),
+	onError: options.onError ?? defaultOnError,
+	chunkSize: options.chunkSize,
+	readSize: options.readSize,
+	closeOnDone: options.closeOnDone
+}));
+const readableToPullUnsafe = (options) => {
+	const readable = options.readable;
+	const chunkSize = options.chunkSize ?? 4096;
+	const closeOnDone = options.closeOnDone ?? true;
+	const exit = options.exit ?? make$37(void 0);
+	const latch = options.latch ?? makeUnsafe$2(false);
+	function onReadable() {
+		latch.openUnsafe();
+	}
+	readable.on("readable", onReadable);
+	const cleanup = finished(readable, {
+		readable: true,
+		writable: false
+	}, (error) => {
+		exit.current ??= fail$5(error ? options.onError(error) : Done$1());
+		latch.openUnsafe();
+	});
+	const pull = suspend$3(function loop() {
+		let item = options.readable.read(options.readSize);
+		if (item === null) {
+			if (exit.current) return exit.current;
+			if (readable.readableEnded) return fail$3(Done$1());
+			latch.closeUnsafe();
+			return flatMap(latch.await, loop);
+		}
+		const chunk = of(item);
+		while (chunk.length < chunkSize) {
+			item = options.readable.read(options.readSize);
+			if (item === null) break;
+			chunk.push(item);
+		}
+		return succeed$3(chunk);
+	});
+	return as(addFinalizer$1(options.scope, sync(() => {
+		readable.off("readable", onReadable);
+		if (closeOnDone) destroyStream(readable, cleanup);
+		else cleanup();
+	})), pull);
+};
+const defaultOnError = (error) => new UnknownError$1(error);
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeChildProcessSpawner.js
+const toError = (error) => error instanceof globalThis.Error ? error : new globalThis.Error(String(error));
+const toPlatformError = (method, error, command) => {
+	const { commands } = flattenCommand(command);
+	const format = globalThis.process.platform === "win32" ? "windows" : "posix";
+	const commandStr = commands.map((cmd) => display([cmd.command, ...cmd.args], { format })).join(" | ");
+	return handleErrnoException("ChildProcess", method)(error, [commandStr]);
+};
+const unwrap = (value) => isRedacted(value) ? value$2(value) : value;
+const findNulCharacter = (command) => {
+	if (command.command.includes("\0")) return "The command contains a NUL character";
+	const index = command.args.findIndex((arg) => unwrap(arg).includes("\0"));
+	if (index !== -1) return `Argument ${index + 1} contains a NUL character`;
+	for (const [name, value] of Object.entries(command.options.env ?? {})) if (value !== void 0 && unwrap(value).includes("\0")) return `The environment variable ${name} contains a NUL character`;
+};
+const processGroupGraceMillis = 1e3;
+const processGroupPollIntervalMillis = 10;
+const handleInputErrors = (writable) => {
+	const onError = () => {};
+	writable.on("error", onError);
+	writable.once("close", () => writable.off("error", onError));
+};
+const hasExited = (childProcess) => childProcess.exitCode !== null || childProcess.signalCode !== null;
+const ownsProcessGroup = (command, childProcess) => command.options.detached !== false || !hasExited(childProcess);
+const isUnsignallableProcessGroup = (error) => error?.code === "EPERM";
+const isProcessAlive = (command, childProcess) => {
+	if (!hasExited(childProcess)) return true;
+	if (globalThis.process.platform === "win32" || !ownsProcessGroup(command, childProcess)) return false;
+	try {
+		globalThis.process.kill(-childProcess.pid, 0);
+		return true;
+	} catch (error) {
+		return isUnsignallableProcessGroup(error);
+	}
+};
+const taskkill = (childProcess, onExit = () => {}) => {
+	if (hasExited(childProcess)) {
+		onExit(null);
+		return;
+	}
+	NodeChildProcess.execFile("taskkill", [
+		"/pid",
+		String(childProcess.pid),
+		"/T",
+		"/F"
+	], { windowsHide: true }, onExit);
+};
+const layer$7 = /*#__PURE__*/ effect(ChildProcessSpawner, /* @__PURE__ */ gen(function* () {
+	const fs = yield* FileSystem;
+	const path = yield* Path$1;
+	const resolveWorkingDirectory = fnUntraced(function* (options) {
+		if (isUndefined(options.cwd)) return void 0;
+		yield* fs.access(options.cwd);
+		return path.resolve(options.cwd);
+	});
+	const resolveEnvironment = (options) => {
+		if (options.env === void 0) return void 0;
+		const env = options.extendEnv === true ? { ...globalThis.process.env } : {};
+		for (const [key, value] of Object.entries(options.env)) if (value === void 0) delete env[key];
+		else env[key] = unwrap(value);
+		return env;
+	};
+	const inputToStdioOption = (input) => isStream(input) ? "pipe" : input;
+	const outputToStdioOption = (input) => isSink(input) ? "pipe" : input;
+	const resolveStdinOption = (options) => {
+		const defaultConfig = {
+			stream: "pipe",
+			encoding: "utf-8",
+			endOnDone: true
+		};
+		if (isUndefined(options.stdin)) return defaultConfig;
+		if (typeof options.stdin === "string") return {
+			...defaultConfig,
+			stream: options.stdin
+		};
+		if (isStream(options.stdin)) return {
+			...defaultConfig,
+			stream: options.stdin
+		};
+		return {
+			stream: options.stdin.stream,
+			encoding: options.stdin.encoding ?? defaultConfig.encoding,
+			endOnDone: options.stdin.endOnDone ?? defaultConfig.endOnDone
+		};
+	};
+	const resolveOutputOption = (options, streamName) => {
+		const option = options[streamName];
+		if (isUndefined(option)) return { stream: "pipe" };
+		if (typeof option === "string") return { stream: option };
+		if (isSink(option)) return { stream: option };
+		return { stream: option.stream };
+	};
+	const resolveAdditionalFds = (options) => {
+		if (isUndefined(options.additionalFds)) return [];
+		const result = [];
+		for (const [name, config] of Object.entries(options.additionalFds)) {
+			const fd = parseFdName(name);
+			if (isNotUndefined(fd)) result.push({
+				fd,
+				config
+			});
+		}
+		return result.sort((a, b) => a.fd - b.fd);
+	};
+	const buildStdioArray = (stdinConfig, stdoutConfig, stderrConfig, additionalFds) => {
+		const stdio = [
+			inputToStdioOption(stdinConfig.stream),
+			outputToStdioOption(stdoutConfig.stream),
+			outputToStdioOption(stderrConfig.stream)
+		];
+		if (additionalFds.length === 0) return stdio;
+		const maxFd = additionalFds.reduce((max, { fd }) => Math.max(max, fd), 2);
+		for (let i = 3; i <= maxFd; i++) stdio[i] = "ignore";
+		for (const { fd } of additionalFds) stdio[fd] = "pipe";
+		return stdio;
+	};
+	const runInputStream = (stream, sink, inputFailure) => forkScoped(run(tapError(stream, (error) => fail$4(inputFailure, error)), sink));
+	const setupAdditionalFds = fnUntraced(function* (command, childProcess, additionalFds, inputFailure) {
+		if (additionalFds.length === 0) return {
+			getInputFd: () => drain,
+			getOutputFd: () => empty$3
+		};
+		const inputSinks = /* @__PURE__ */ new Map();
+		const outputStreams = /* @__PURE__ */ new Map();
+		const setupInput = (fd, nodeStream, stream) => suspend$3(() => {
+			let sink = drain;
+			if (nodeStream && "write" in nodeStream) {
+				handleInputErrors(nodeStream);
+				sink = fromWritable({
+					evaluate: () => nodeStream,
+					onError: (error) => toPlatformError(`fromWritable(fd${fd})`, toError(error), command)
+				});
+			}
+			if (stream) return map$4(runInputStream(stream, sink, inputFailure), () => {
+				inputSinks.set(fd, sink);
+			});
+			inputSinks.set(fd, sink);
+			return void_$1;
+		});
+		const setupOutput = (fd, nodeStream, sink) => {
+			let stream = empty$3;
+			if (nodeStream && "read" in nodeStream) {
+				const passThrough = new PassThrough();
+				let error = void 0;
+				passThrough.on("error", (cause) => {
+					error ??= cause;
+				});
+				nodeStream.on("error", (cause) => passThrough.destroy(cause));
+				nodeStream.pipe(passThrough);
+				const onError = (cause) => toPlatformError(`fromReadable(fd${fd})`, toError(cause), command);
+				stream = suspend(() => error === void 0 ? fromReadable({
+					evaluate: () => passThrough,
+					onError
+				}) : fail(onError(error)));
+			}
+			if (sink) stream = transduce(stream, sink);
+			outputStreams.set(fd, stream);
+		};
+		for (const { config, fd } of additionalFds) {
+			const nodeStream = childProcess.stdio[fd];
+			switch (config.type) {
+				case "input":
+					yield* setupInput(fd, nodeStream, config.stream);
+					break;
+				case "output":
+					setupOutput(fd, nodeStream, config.sink);
+					break;
+				case "duplex":
+					if (nodeStream && "allowHalfOpen" in nodeStream) nodeStream.allowHalfOpen = true;
+					setupOutput(fd, nodeStream, config.sink);
+					yield* setupInput(fd, nodeStream, config.stream);
+			}
+		}
+		return {
+			getInputFd: (fd) => inputSinks.get(fd) ?? drain,
+			getOutputFd: (fd) => outputStreams.get(fd) ?? empty$3
+		};
+	});
+	const setupChildStdin = (command, childProcess, config, inputFailure) => suspend$3(() => {
+		let sink = drain;
+		if (isNotNull(childProcess.stdin)) {
+			handleInputErrors(childProcess.stdin);
+			sink = fromWritable({
+				evaluate: () => childProcess.stdin,
+				onError: (error) => toPlatformError("fromWritable(stdin)", toError(error), command),
+				endOnDone: config.endOnDone,
+				encoding: config.encoding
+			});
+		}
+		if (isStream(config.stream)) return as(runInputStream(config.stream, sink, inputFailure), sink);
+		return succeed$3(sink);
+	});
+	const setupChildOutputStreams = (command, childProcess, stdoutConfig, stderrConfig) => {
+		let stdout = childProcess.stdout ? (() => {
+			const passThrough = new PassThrough();
+			childProcess.stdout.on("error", (error) => passThrough.destroy(error));
+			childProcess.stdout.pipe(passThrough);
+			return fromReadable({
+				evaluate: () => passThrough,
+				onError: (error) => toPlatformError("fromReadable(stdout)", toError(error), command)
+			});
+		})() : empty$3;
+		let stderr = childProcess.stderr ? (() => {
+			const passThrough = new PassThrough();
+			childProcess.stderr.on("error", (error) => passThrough.destroy(error));
+			childProcess.stderr.pipe(passThrough);
+			return fromReadable({
+				evaluate: () => passThrough,
+				onError: (error) => toPlatformError("fromReadable(stderr)", toError(error), command)
+			});
+		})() : empty$3;
+		if (isSink(stdoutConfig.stream)) stdout = transduce(stdout, stdoutConfig.stream);
+		if (isSink(stderrConfig.stream)) stderr = transduce(stderr, stderrConfig.stream);
+		const all = merge(stdout, stderr);
+		return {
+			stdout,
+			stderr,
+			all
+		};
+	};
+	const spawn = (command, spawnOptions) => callback$1((resume) => {
+		const deferred = makeUnsafe$7();
+		const handle = NodeChildProcess.spawn(command.command, command.args.map(unwrap), spawnOptions);
+		handle.on("error", (error) => {
+			if (command.args.some(isRedacted)) Object.assign(error, { spawnargs: [command.command, ...command.args.map((arg) => isRedacted(arg) ? "<redacted>" : arg)] });
+			resume(fail$3(toPlatformError("spawn", error, command)));
+		});
+		handle.on("exit", (...args) => {
+			doneUnsafe(deferred, succeed$6(args));
+		});
+		handle.on("spawn", () => {
+			resume(succeed$3([handle, deferred]));
+		});
+		return sync(() => {
+			handle.kill("SIGTERM");
+		});
+	});
+	const killProcessGroup = (command, childProcess, signal) => {
+		if (globalThis.process.platform === "win32") return callback$1((resume) => {
+			taskkill(childProcess, (error) => {
+				if (error) resume(fail$3(toPlatformError("kill", toError(error), command)));
+				else resume(void_$1);
+			});
+		});
+		return try_({
+			try: () => {
+				globalThis.process.kill(-childProcess.pid, signal);
+			},
+			catch: (error) => toPlatformError("kill", toError(error), command)
+		});
+	};
+	const killProcessGroupOnExit = (childProcess, signal) => {
+		if (globalThis.process.platform === "win32") {
+			taskkill(childProcess);
+			return;
+		}
+		try {
+			globalThis.process.kill(-childProcess.pid, signal);
+		} catch {}
+	};
+	const killProcess = (command, childProcess, signal) => suspend$3(() => {
+		if (!childProcess.kill(signal)) {
+			const error = new globalThis.Error("Failed to kill child process");
+			return fail$3(toPlatformError("kill", error, command));
+		}
+		return void_$1;
+	});
+	const awaitProcessExit = (command, childProcess, timeoutMillis) => callback$1((resume) => {
+		const deadline = Date.now() + timeoutMillis;
+		let timer;
+		const stop = () => {
+			clearTimeout(timer);
+			childProcess.removeListener("exit", poll);
+		};
+		const poll = () => {
+			clearTimeout(timer);
+			if (Date.now() >= deadline || !isProcessAlive(command, childProcess)) {
+				stop();
+				resume(void_$1);
+				return;
+			}
+			timer = setTimeout(poll, processGroupPollIntervalMillis);
+		};
+		childProcess.on("exit", poll);
+		poll();
+		return sync(stop);
+	});
+	const terminateProcessGroup = fnUntraced(function* (command, childProcess, exitSignal, options) {
+		const signalGroup = (signal) => ownsProcessGroup(command, childProcess) ? killProcessGroup(command, childProcess, signal).pipe(catch_$2((error) => hasExited(childProcess) && isUnsignallableProcessGroup(error.cause) ? void_$1 : killProcess(command, childProcess, signal))) : killProcess(command, childProcess, signal);
+		yield* signalGroup(options?.killSignal ?? "SIGTERM");
+		if (isUndefined(options?.forceKillAfter)) {
+			yield* _await(exitSignal);
+			yield* awaitProcessExit(command, childProcess, processGroupGraceMillis);
+		} else {
+			yield* awaitProcessExit(command, childProcess, toMillis(options.forceKillAfter));
+			if (isProcessAlive(command, childProcess)) {
+				yield* signalGroup("SIGKILL");
+				yield* awaitProcessExit(command, childProcess, processGroupGraceMillis);
+			}
+		}
+		yield* _await(exitSignal);
+	});
+	const getSourceStream = (handle, from) => {
+		const fromOption = from ?? "stdout";
+		switch (fromOption) {
+			case "stdout": return handle.stdout;
+			case "stderr": return handle.stderr;
+			case "all": return handle.all;
+			default: {
+				const fd = parseFdName(fromOption);
+				if (isNotUndefined(fd)) return handle.getOutputFd(fd);
+				return handle.stdout;
+			}
+		}
+	};
+	const spawnCommand = fnUntraced(function* (cmd) {
+		switch (cmd._tag) {
+			case "StandardCommand": {
+				if (cmd.options.shell !== void 0 && cmd.options.shell !== false && cmd.args.length > 0) return yield* fail$3(badArgument({
+					module: "ChildProcess",
+					method: "spawn",
+					description: "The shell option cannot be combined with arguments; pass the whole script as the command"
+				}));
+				const nulCharacter = findNulCharacter(cmd);
+				if (nulCharacter !== void 0) return yield* fail$3(badArgument({
+					module: "ChildProcess",
+					method: "spawn",
+					description: nulCharacter
+				}));
+				const stdinConfig = resolveStdinOption(cmd.options);
+				const stdoutConfig = resolveOutputOption(cmd.options, "stdout");
+				const stderrConfig = resolveOutputOption(cmd.options, "stderr");
+				const resolvedAdditionalFds = resolveAdditionalFds(cmd.options);
+				let isReferenced = true;
+				const cwd = yield* resolveWorkingDirectory(cmd.options);
+				const env = resolveEnvironment(cmd.options);
+				const stdio = buildStdioArray(stdinConfig, stdoutConfig, stderrConfig, resolvedAdditionalFds);
+				const releaseProcess = fnUntraced(function* (childProcess, exitSignal) {
+					if (yield* isDone(exitSignal)) {
+						const [code] = yield* _await(exitSignal);
+						if (code !== 0 && isNotNull(code)) yield* ignore$1(terminateProcessGroup(cmd, childProcess, exitSignal, cmd.options));
+						else if (isReferenced && process.platform !== "win32" && cmd.options.detached !== false) yield* ignore$1(terminateProcessGroup(cmd, childProcess, exitSignal, cmd.options));
+						return;
+					}
+					if (!isReferenced) return;
+					yield* ignore$1(terminateProcessGroup(cmd, childProcess, exitSignal, cmd.options));
+				});
+				const inputScope = makeUnsafe$6();
+				const [childProcess, exitSignal] = yield* acquireRelease(spawn(cmd, buildSpawnOptions(cmd.options, {
+					cwd,
+					env,
+					stdio
+				}, process.platform)), ([childProcess, exitSignal], exit) => all$1([close(inputScope, exit), releaseProcess(childProcess, exitSignal)], {
+					concurrency: "unbounded",
+					discard: true
+				}));
+				const pid = ProcessId(childProcess.pid);
+				if (cmd.options.detached !== false) childProcess.on("exit", (code) => {
+					if (code !== 0 && isNotNull(code)) killProcessGroupOnExit(childProcess, cmd.options.killSignal ?? "SIGTERM");
+				});
+				const reref = sync(() => {
+					if (!isReferenced) {
+						childProcess.ref();
+						isReferenced = true;
+					}
+				});
+				const unref = sync(() => {
+					if (isReferenced) {
+						childProcess.unref();
+						isReferenced = false;
+					}
+					return reref;
+				});
+				const inputFailure = makeUnsafe$7();
+				const stdin = yield* provide$4(inputScope)(setupChildStdin(cmd, childProcess, stdinConfig, inputFailure));
+				const { all, stderr, stdout } = setupChildOutputStreams(cmd, childProcess, stdoutConfig, stderrConfig);
+				const { getInputFd, getOutputFd } = yield* provide$4(inputScope)(setupAdditionalFds(cmd, childProcess, resolvedAdditionalFds, inputFailure));
+				const isRunning = map$4(isDone(exitSignal), (done) => !done);
+				const exitCode = flatMap(raceFirst(_await(exitSignal), _await(inputFailure)), ([code, signal]) => {
+					if (isDoneUnsafe(inputFailure)) return _await(inputFailure);
+					if (isNotNull(code)) return succeed$3(ExitCode(code));
+					const error = new globalThis.Error(`Process interrupted due to receipt of signal: '${signal}'`);
+					return fail$3(toPlatformError("exitCode", error, cmd));
+				});
+				const kill = (options) => terminateProcessGroup(cmd, childProcess, exitSignal, options);
+				return makeHandle({
+					pid,
+					exitCode,
+					isRunning,
+					kill,
+					stdin,
+					stdout,
+					stderr,
+					all,
+					getInputFd,
+					getOutputFd,
+					unref
+				});
+			}
+			case "PipedCommand": {
+				const { commands, pipeOptions } = flattenCommand(cmd);
+				const [root, ...pipeline] = commands;
+				const handles = [yield* spawnCommand(root)];
+				for (let i = 0; i < pipeline.length; i++) {
+					const command = pipeline[i];
+					const options = pipeOptions[i] ?? {};
+					const stdinConfig = resolveStdinOption(command.options);
+					const sourceStream = unwrap$2(succeed$3(getSourceStream(handles[handles.length - 1], options.from)));
+					const toOption = options.to ?? "stdin";
+					if (toOption === "stdin") handles.push(yield* spawnCommand(make$13(command.command, command.args, {
+						...command.options,
+						stdin: {
+							...stdinConfig,
+							stream: sourceStream
+						}
+					})));
+					else {
+						const fd = parseFdName(toOption);
+						if (isNotUndefined(fd)) {
+							const fdName$1 = fdName(fd);
+							const existingFds = command.options.additionalFds ?? {};
+							const existingFd = existingFds[fdName$1];
+							const fdConfig = existingFd?.type === "duplex" ? {
+								...existingFd,
+								stream: sourceStream
+							} : {
+								type: "input",
+								stream: sourceStream
+							};
+							handles.push(yield* spawnCommand(make$13(command.command, command.args, {
+								...command.options,
+								additionalFds: {
+									...existingFds,
+									[fdName$1]: fdConfig
+								}
+							})));
+						} else handles.push(yield* spawnCommand(make$13(command.command, command.args, {
+							...command.options,
+							stdin: {
+								...stdinConfig,
+								stream: sourceStream
+							}
+						})));
+					}
+				}
+				const handle = handles[handles.length - 1];
+				const kill = (options) => forEach$1([...handles].reverse(), (handle) => ignore$1(handle.kill(options)), { discard: true });
+				const unref = gen(function* () {
+					const rerefs = [];
+					for (const handle of handles) rerefs.push(yield* handle.unref);
+					return forEach$1([...rerefs].reverse(), (reref) => reref, { discard: true });
+				});
+				return makeHandle({
+					pid: handle.pid,
+					exitCode: handle.exitCode,
+					isRunning: handle.isRunning,
+					kill,
+					stdin: handles[0].stdin,
+					stdout: handle.stdout,
+					stderr: handle.stderr,
+					all: handle.all,
+					getInputFd: handle.getInputFd,
+					getOutputFd: handle.getOutputFd,
+					unref
+				});
+			}
+		}
+	});
+	return make$14(spawnCommand);
+}));
+const flattenCommand = (command) => {
+	const commands = [];
+	const pipeOptions = [];
+	const flatten = (cmd) => {
+		switch (cmd._tag) {
+			case "StandardCommand":
+				commands.push(cmd);
+				break;
+			case "PipedCommand":
+				flatten(cmd.left);
+				pipeOptions.push(cmd.options);
+				flatten(cmd.right);
+		}
+	};
+	flatten(command);
+	if (commands.length === 0) throw new Error("flattenCommand produced empty commands array");
+	const [first, ...rest] = commands;
+	return {
+		commands: [first, ...rest],
+		pipeOptions
+	};
+};
 // ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeFileSystem.js
 const handleBadArgument = (method) => (err) => badArgument({
 	module: "FileSystem",
@@ -19367,7 +20682,7 @@ const bigintToNumber = (value, field) => {
 	if (!Number.isSafeInteger(number)) throw new RangeError(`${field} exceeds the safe integer range: ${value}`);
 	return number;
 };
-const bigintToNumberOption = (value) => flatMap$4(fromNullishOr(value), toNumber$1);
+const bigintToNumberOption = (value) => flatMap$5(fromNullishOr(value), toNumber$1);
 const toUint64 = (value) => BigInt.asUintN(64, value);
 const toUint64Option = (value) => map$10(fromNullishOr(value), toUint64);
 const positionToNumber = (position, method) => try_({
@@ -19599,7 +20914,7 @@ const makeTempFileFactory = (method) => {
 	const makeDirectory = makeTempDirectoryFactory(method);
 	return fnUntraced(function* (options) {
 		const directory = yield* makeDirectory(options);
-		const random = Crypto.randomBytes(6).toString("hex");
+		const random = NodeCrypto.randomBytes(6).toString("hex");
 		const name = Path.join(directory, options?.suffix ? `${random}${options.suffix}` : random);
 		yield* writeFile(name, /* @__PURE__ */ new Uint8Array(0));
 		return name;
@@ -19711,7 +21026,7 @@ const watchNode = (path, info, options) => callback((queue) => acquireRelease(sy
 		}
 	});
 	watcher.on("error", (error) => {
-		failCauseUnsafe(queue, fail$5(systemError({
+		failCauseUnsafe(queue, fail$6(systemError({
 			module: "FileSystem",
 			_tag: "Unknown",
 			method: "watch",
@@ -19724,7 +21039,7 @@ const watchNode = (path, info, options) => callback((queue) => acquireRelease(sy
 	});
 	return watcher;
 }), (watcher) => sync(() => watcher.close())).pipe(tap(() => sync(() => options?.onReady?.()))));
-const watch = (backend, path, options) => all$1([stat(path), serviceOption(WatchBackend)]).pipe(map$4(([stat, callerBackend]) => orElse(callerBackend, () => backend).pipe(flatMap$4((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap);
+const watch = (backend, path, options) => all$1([stat(path), serviceOption(WatchBackend)]).pipe(map$4(([stat, callerBackend]) => orElse(callerBackend, () => backend).pipe(flatMap$5((_) => _.register(path, stat, options)), getOrElse(() => watchNode(path, stat, options)))), unwrap$2);
 const writeFile = (path, data, options) => callback$1((resume, signal) => {
 	try {
 		NFS.writeFile(path, data, {
@@ -19739,7 +21054,7 @@ const writeFile = (path, data, options) => callback$1((resume, signal) => {
 		resume(fail$3(handleBadArgument("writeFile")(err)));
 	}
 });
-const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$28({
+const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$33({
 	access,
 	chmod,
 	chown,
@@ -19770,7 +21085,185 @@ const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBack
 	writeFile
 }));
 // ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeFileSystem.js
-const layer$3 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
+const layer$5 = /* @__PURE__ */ effect(FileSystem)(makeFileSystem);
+// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodePath.js
+const fileUrlOps = (windows) => ({
+	fromFileUrl: (url) => try_({
+		try: () => NodeUrl.fileURLToPath(url, { windows }),
+		catch: (cause) => new BadArgument({
+			module: "Path",
+			method: "fromFileUrl",
+			cause
+		})
+	}),
+	toFileUrl: (path) => try_({
+		try: () => NodeUrl.pathToFileURL(path, { windows }),
+		catch: (cause) => new BadArgument({
+			module: "Path",
+			method: "toFileUrl",
+			cause
+		})
+	})
+});
+({
+	...Path.posix,
+	.../*#__PURE__*/ fileUrlOps(false)
+});
+({
+	...Path.win32,
+	.../*#__PURE__*/ fileUrlOps(true)
+});
+// ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodePath.js
+const layer$3 = /* @__PURE__ */ succeed$4(Path$1)(/*#__PURE__*/ make$32({
+	...Path,
+	.../*#__PURE__*/ fileUrlOps(void 0)
+}));
+// ../../packages/mcp/src/Platform.ts
+const NodePlatform = mergeAll(layer$7.pipe(provideMerge(merge$3(layer$5, layer$3))), layerDigest, layerSecureRandom);
+// ../../packages/mcp/src/Telemetry.ts
+const POSTHOG_KEY = "phc_wpMKkaVwaZL7P39vsKPBhJXdxvMa3rifp5HodMRfEi8Y";
+const POSTHOG_HOST = "https://eu.i.posthog.com";
+const INTERVAL = "2 seconds";
+const SEND_TIMEOUT = "5 seconds";
+const DRAIN_TIMEOUT = "2 seconds";
+const SEND_RETRIES = 2;
+const FRAME_LIMIT = 30;
+const settings$1 = all({
+	host: String$1("TIPEE_POSTHOG_HOST").pipe(withDefault(POSTHOG_HOST)),
+	instance: String$1("TIPEE_INSTANCE").pipe(map$1((raw) => getOrElse(normalizeInstance(raw), () => "")), withDefault("")),
+	key: String$1("TIPEE_POSTHOG_KEY").pipe(withDefault(POSTHOG_KEY))
+});
+const silent = {
+	capture: () => void_$1,
+	exception: () => void_$1,
+	flush: void_$1
+};
+const FRAME = /^\s*at (?:(?<fn>.+?) \()?(?<file>.+?)(?::(?<line>\d+))?(?::(?<col>\d+))?\)?$/u;
+const OURS = /(?:^|\/)(?<tail>(?:server|src|test)\/[^/]+\.(?:m?js|ts))$/u;
+const DIRECTORIES = /^.*[/\\]/u;
+const scrubbed = (file) => {
+	const ours = OURS.exec(file)?.groups?.tail;
+	if (ours !== void 0) return {
+		filename: ours,
+		inApp: true
+	};
+	return {
+		filename: startsWith("node:")(file) ? file : replace(DIRECTORIES, "")(file),
+		inApp: false
+	};
+};
+const framesOf = (stack) => pipe(split(stack ?? "", "\n"), flatMap$3((line) => {
+	const groups = FRAME.exec(line)?.groups;
+	if (groups?.file === void 0) return [];
+	const { filename, inApp } = scrubbed(groups.file);
+	return [{
+		...groups.col === void 0 ? {} : { colno: Number(groups.col) },
+		filename,
+		function: groups.fn ?? "<anonymous>",
+		in_app: inApp,
+		...groups.line === void 0 ? {} : { lineno: Number(groups.line) },
+		platform: "node:javascript"
+	}];
+}), take$2(FRAME_LIMIT));
+const withheld = (reason) => {
+	if (reason._tag === "UnexpectedShape" || reason._tag === "InvalidRequest") {
+		const paths = new Set(pipe(reason.details, match(/(?<=at )(?:\[[^\]\n]*\])+/gu), getOrElse(() => [])));
+		const status = reason._tag === "UnexpectedShape" && reason.status !== void 0 ? ` (HTTP ${reason.status})` : "";
+		return paths.size === 0 ? `${reason._tag}${status}` : `${reason._tag}${status} at ${join$2(paths, ", ")}`;
+	}
+	if (reason._tag === "Rejected") {
+		const at = reason.fields === void 0 ? "" : ` at ${join$2(reason.fields, ", ")}`;
+		const code = reason.code === void 0 ? "" : `, ${reason.code}`;
+		return `Rejected (HTTP ${reason.status}${code})${at}`;
+	}
+	if (reason._tag === "Internal") return reason.message;
+	return "status" in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
+};
+const describe$2 = (error) => {
+	if (is$2(TipeeError)(error)) return {
+		frames: [],
+		type: `Tipee${error.reason._tag}`,
+		value: withheld(error.reason)
+	};
+	if (error instanceof Error) return {
+		frames: framesOf(error.stack),
+		type: error.name,
+		value: error.message
+	};
+	return {
+		frames: [],
+		type: "Unknown",
+		value: String(error)
+	};
+};
+var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
+	static layerOff = succeed$4(Telemetry, Telemetry.of(silent));
+	static layer = (base) => effect(Telemetry, gen(function* () {
+		const config = yield* orDie(settings$1);
+		const http = (yield* HttpClient).pipe(retryTransient({
+			schedule: exponential("500 millis"),
+			times: SEND_RETRIES
+		}));
+		const distinctId = yield* installation;
+		const launchId = yield* SecureRandom.use((random) => random.uuidV4());
+		const queue = yield* unbounded$1();
+		const send = (batch) => batch.length === 0 ? void_$1 : post$1(`${config.host}/batch`).pipe(bodyJson({
+			api_key: config.key,
+			batch: map$7(batch, (event) => ({
+				...event,
+				distinct_id: distinctId
+			}))
+		}), flatMap((request) => http.execute(request)), timeout(SEND_TIMEOUT), ignore$1);
+		const drain = flatMap(clear(queue), (batch) => send(batch));
+		yield* forkScoped(repeat(drain, spaced(INTERVAL)));
+		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
+		const profile = {
+			arch,
+			channel,
+			instance: config.instance,
+			node_version: version,
+			os: platform,
+			tipee_api_version: TIPEE_API_VERSION,
+			...base
+		};
+		const properties = (own) => ({
+			$groups: { instance: config.instance },
+			$lib: "tipee-mcp",
+			$set: profile,
+			launch_id: launchId,
+			...profile,
+			...own
+		});
+		const enqueue = (event, own) => flatMap(now, (now) => asVoid(offer(queue, {
+			event,
+			properties: properties(own),
+			timestamp: formatIso(now)
+		})));
+		return Telemetry.of({
+			capture: enqueue,
+			exception: (error, { handled, properties: own }) => {
+				const { frames, type, value } = describe$2(error);
+				return enqueue("$exception", {
+					...own,
+					$exception_level: "error",
+					$exception_list: [{
+						mechanism: {
+							handled,
+							type: "generic"
+						},
+						...frames.length === 0 ? {} : { stacktrace: {
+							frames,
+							type: "raw"
+						} },
+						type,
+						value
+					}]
+				});
+			},
+			flush: drain
+		});
+	})).pipe(provide$3(NodePlatform));
+};
 // ../../packages/mcp/src/Updates.ts
 const RELEASES_URL = "https://api.github.com/repos/Floriferous/tipee-tools/releases/latest";
 const DOWNLOAD_BASE = "https://github.com/Floriferous/tipee-tools/releases/download";
@@ -19815,22 +21308,22 @@ const settings = all({
 	releasesUrl: String$1("TIPEE_RELEASES_URL").pipe(withDefault(RELEASES_URL))
 });
 const PART = /^\d+$/u;
-const isNewer = (candidate, current) => {
-	const parse = (version) => {
-		const parts = version.replace(/^v/u, "").split(".");
-		return parts.every((part) => PART.test(part)) ? parts.map(Number) : void 0;
-	};
-	const left = parse(candidate);
-	const right = parse(current);
+const partsOf = (version) => {
+	const parts = pipe(version, replace(/^v/u, ""), split("."));
+	return every(parts, (part) => PART.test(part)) ? map$7(parts, Number) : void 0;
+};
+const isNewer = dual(2, (candidate, current) => {
+	const left = partsOf(candidate);
+	const right = partsOf(current);
 	if (left === void 0 || right === void 0) return false;
 	for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
 		const difference = (left[index] ?? 0) - (right[index] ?? 0);
 		if (difference !== 0) return difference > 0;
 	}
 	return false;
-};
-const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().split(/\s+/u)).find(([, name]) => name === asset || name === `*${asset}`)?.[0];
-const failed = (detail) => new UpdateFailed({ detail });
+});
+const checksumOf = dual(2, (sums, asset) => pipe(split(sums, "\n"), map$7((line) => pipe(line, trim, split(/\s+/u))), findFirst(([, name]) => name === asset || name === `*${asset}`), map$10(([hash]) => hash), getOrUndefined$1));
+const failed = (detail) => UpdateFailed.make({ detail });
 const describe$1 = (error) => error instanceof Error ? error.message : String(error);
 var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 	static layerNone = (current) => succeed$4(Updates, Updates.of({
@@ -19840,11 +21333,14 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 	}));
 	static layer = (current) => effect(Updates, gen(function* () {
 		const fs = yield* FileSystem;
+		const path = yield* Path$1;
+		const digest = yield* Digest;
+		const spawner = yield* ChildProcessSpawner;
 		const http = (yield* HttpClient).pipe(filterStatusOk);
 		const { channel, downloadBase, opener, releasesUrl } = yield* orDie(settings);
 		const latest = http.get(releasesUrl).pipe(flatMap(schemaJson(Release)), timeout(FETCH_TIMEOUT), map$4(({ body }) => {
-			const version = body.tag_name.replace(/^v/u, "");
-			return isNewer(version, current) ? some(new Update({
+			const version = replace(/^v/u, "")(body.tag_name);
+			return isNewer(version, current) ? some(Update.make({
 				url: body.html_url,
 				version
 			})) : none();
@@ -19858,30 +21354,23 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			if (expected === void 0) return yield* failed(`no checksum published for ${asset}`);
 			const bytes = yield* http.get(`${base}/${asset}`).pipe(flatMap((response) => response.arrayBuffer));
 			const content = new Uint8Array(bytes);
-			if (createHash("sha256").update(content).digest("hex") !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
+			if ((yield* digest.digestHex(sha256, content)) !== expected) return yield* failed(`the checksum of ${asset} does not match the published one`);
 			const directory = yield* fs.makeTempDirectory({ prefix: "tipee-update-" });
 			const target = path.join(directory, asset);
 			yield* fs.writeFile(target, content);
 			return target;
-		}, timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => isTagged(cause, "UpdateFailed") ? cause : new UpdateFailed({ detail: describe$1(cause) })));
+		}, timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => isTagged(cause, "UpdateFailed") ? cause : UpdateFailed.make({ detail: describe$1(cause) })));
 		const open = fnUntraced(function* (target) {
+			const child = yield* spawner.spawn(make$13(opener, [target], {
+				detached: true,
+				stderr: "ignore",
+				stdin: "ignore",
+				stdout: "ignore"
+			}));
+			yield* asVoid(child.unref);
+		}, scoped, (effect, target) => {
 			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
-			const child = yield* try_({
-				catch: cannotOpen,
-				try: () => spawn(opener, [target], {
-					detached: true,
-					stdio: "ignore"
-				})
-			});
-			yield* callback$1((resume) => {
-				child.once("spawn", () => {
-					child.unref();
-					resume(void_$1);
-				});
-				child.once("error", (cause) => {
-					resume(fail$3(cannotOpen(cause)));
-				});
-			});
+			return effect.pipe(mapError$2((failure) => cannotOpen(failure.cause ?? failure)), catchDefect((defect) => fail$3(cannotOpen(defect))));
 		});
 		const install = gen(function* () {
 			const found = yield* latest.pipe(mapError$2((cause) => failed(`could not look up the latest release on GitHub (${describe$1(cause)})`)));
@@ -19910,7 +21399,7 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			current,
 			install
 		});
-	})).pipe(provide$2(layer$3));
+	})).pipe(provide$3(NodePlatform));
 };
 // ../../packages/mcp/src/Check.ts
 const PAGE_SIZE = 100;
@@ -19920,7 +21409,7 @@ const defaultRange = map$4(now, (now) => ({
 	to: formatIsoDate(add(now, { days: 6 }))
 }));
 const countOf = (result) => {
-	if (Array.isArray(result)) return result.length;
+	if (isArray(result)) return result.length;
 	if (typeof result === "object" && result !== null && "data" in result) return countOf(result.data);
 	return 1;
 };
@@ -19983,7 +21472,7 @@ const probes = fn("check_setup.probes")(function* ({ from, to }) {
 	const { probe, probeWith } = prober(lookup);
 	const chain = gen(function* () {
 		const kinds = yield* probe("kinds_list", {});
-		const employee = kinds.result?.find((kind) => kind.machine_name === "employee");
+		const employee = pipe(kinds.result ?? [], findFirst((kind) => kind.machine_name === "employee"), getOrUndefined$1);
 		const people = yield* probeWith("resources_list", kinds, employee && {
 			kind_id: employee.id,
 			orders: ORDER,
@@ -20013,7 +21502,7 @@ const probes = fn("check_setup.probes")(function* ({ from, to }) {
 		}] }),
 		lookup
 	], { concurrency: CONCURRENCY });
-	const reports = [
+	const reports = map$7([
 		kinds,
 		people,
 		teams,
@@ -20023,17 +21512,17 @@ const probes = fn("check_setup.probes")(function* ({ from, to }) {
 		onCalls,
 		rates,
 		timechecks
-	].map((one) => one.report);
+	], (one) => one.report);
 	const integration = yield* lookup;
 	return {
 		date_range: dateRange,
 		endpoints: reports,
 		...integration === void 0 ? {} : { integration },
-		ok: reports.every((report) => report.status !== "failed")
+		ok: every(reports, (report) => report.status !== "failed")
 	};
 });
-const offering = (error, update) => new TipeeError({
-	fix: [error.fix, `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`].filter((part) => part !== void 0).join(" "),
+const offering = (error, update) => TipeeError.make({
+	fix: join$2(filter$2([error.fix, `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`], (part) => part !== void 0), " "),
 	reason: error.reason
 });
 const check = (report) => gen(function* () {
@@ -20481,7 +21970,7 @@ const Proto$2 = {
 		return clone(this, { annotations: add$2(this.annotations, tag, value) });
 	},
 	annotateMerge(context) {
-		return clone(this, { annotations: merge$2(this.annotations, context) });
+		return clone(this, { annotations: merge$4(this.annotations, context) });
 	}
 };
 ({ ...Proto$2 });
@@ -20591,7 +22080,7 @@ const stringifyToolArguments = (params) => {
 		return String(params);
 	}
 };
-const failureCause = (error, origin) => annotate$1(fail$5(error), make$50(FailureOrigin, origin));
+const failureCause = (error, origin) => annotate$1(fail$6(error), make$56(FailureOrigin, origin));
 const failureOrigin = (error) => isSchemaError(error) ? "result" : "handler";
 const Proto$1 = {
 	.../*#__PURE__*/ Prototype({
@@ -20666,7 +22155,7 @@ const Proto$1 = {
 					const decodedParams = decodedParamsResult.success;
 					const capacity = yield* PreliminaryBuffer;
 					if (capacity !== "unbounded" && !(Number.isInteger(capacity) && capacity > 0)) return yield* die$2(`Tool "${name}": PreliminaryBuffer must be a positive integer, got ${capacity}`);
-					const queue = yield* make$43(capacity === "unbounded" ? void 0 : { capacity });
+					const queue = yield* make$49(capacity === "unbounded" ? void 0 : { capacity });
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -20679,7 +22168,7 @@ const Proto$1 = {
 						result,
 						isFailure: false,
 						preliminary: false
-					})), updateContext((input) => merge$2(schemas.context, input)), matchCauseEffect({
+					})), updateContext((input) => merge$4(schemas.context, input)), matchCauseEffect({
 						onFailure: (cause) => failCause$2(queue, cause),
 						onSuccess: () => end(queue)
 					}), forkChild);
@@ -20697,7 +22186,7 @@ const Proto$1 = {
 							reason: error
 						}) : error;
 					};
-					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$50(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
+					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$56(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
 						result: normalizeError(error),
 						isFailure: true,
 						failureOrigin: failureOrigin(error),
@@ -20798,7 +22287,7 @@ function getStreamSchemas(schema) {
 }
 const schema = /*#__PURE__*/ declare(isStream);
 function Stream(success, error) {
-	return make$33(schema.ast, {
+	return make$38(schema.ast, {
 		[StreamSchemaTypeId]: StreamSchemaTypeId,
 		success,
 		error
@@ -20904,7 +22393,7 @@ const Proto = {
 			errorSchema: this.errorSchema,
 			defectSchema: this.defectSchema,
 			middlewares: this.middlewares,
-			annotations: merge$2(this.annotations, context)
+			annotations: merge$4(this.annotations, context)
 		});
 	}
 };
@@ -21311,7 +22800,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 			}
 			const queue = onStreamRequest(rpc, middleware, rpc.payloadSchema.make(payload), headers, opts?.streamBufferSize ?? 16, context);
 			if (opts?.asQueue) return queue;
-			return unwrap(map$4(queue, fromQueue));
+			return unwrap$2(map$4(queue, fromQueue));
 		};
 	};
 	const onEffectRequest = (rpc, middleware, span, payload, headers, context, discard) => withFiber((parentFiber) => {
@@ -21330,7 +22819,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				spanId: span.spanId,
 				sampled: span.sampled
 			} : {},
-			headers: merge$1(parentFiber.getRef(CurrentHeaders), headers),
+			headers: merge$2(parentFiber.getRef(CurrentHeaders), headers),
 			...discard ? { discard: true } : {}
 		});
 		let fiber;
@@ -21373,7 +22862,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 		});
 		const fiber = getCurrent();
 		const id = generateRequestId();
-		const scope = getUnsafe(fiber.context, Scope);
+		const scope = getUnsafe$1(fiber.context, Scope);
 		const queue = yield* bounded(streamBufferSize);
 		yield* addFinalizerExit(scope, (exit) => {
 			shutdownUnsafe(queue);
@@ -21401,7 +22890,7 @@ const makeNoSerialization$1 = /*#__PURE__*/ fnUntraced(function* (group, options
 				spanId: span.spanId,
 				sampled: span.sampled
 			} : {},
-			headers: merge$1(fiber.getRef(CurrentHeaders), headers)
+			headers: merge$2(fiber.getRef(CurrentHeaders), headers)
 		}).pipe(span ? withParentSpan(span, { captureStackTrace: false }) : identity, onError((cause) => {
 			if (!hasInterruptsOnly(cause)) entries.delete(id);
 			return failCause$2(queue, cause);
@@ -21600,7 +23089,7 @@ const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 					defect: decodeDefect(message.defect)
 				});
 			case "ClientProtocolError": {
-				const exit = fail$4(message.error);
+				const exit = fail$5(message.error);
 				const requestIds = message.requestIds === void 0 ? Array.from(entries.keys()) : message.requestIds.map(RequestId$3).filter((requestId) => entries.has(requestId));
 				for (const requestId of requestIds) entries.delete(requestId);
 				return forEach$1(requestIds, (requestId) => write({
@@ -21730,7 +23219,7 @@ const RpcGroupProto = {
 				options.rpc = rpc;
 				const result = handler(payload, options);
 				const effectOrStream = isWrapper(result) ? result.value : result;
-				return isEffect(effectOrStream) ? provide(effectOrStream, context) : provideContext(effectOrStream, context);
+				return isEffect(effectOrStream) ? provide$1(effectOrStream, context) : provideContext(effectOrStream, context);
 			});
 		});
 	},
@@ -21741,17 +23230,17 @@ const RpcGroupProto = {
 		});
 	},
 	annotateRpcs(service, value) {
-		return this.annotateRpcsMerge(make$50(service, value));
+		return this.annotateRpcsMerge(make$56(service, value));
 	},
 	annotateMerge(context) {
 		return makeProto({
 			requests: this.requests,
-			annotations: merge$2(this.annotations, context)
+			annotations: merge$4(this.annotations, context)
 		});
 	},
 	annotateRpcsMerge(context) {
 		const requests = /* @__PURE__ */ new Map();
-		for (const [tag, rpc] of this.requests) requests.set(tag, rpc.annotateMerge(merge$2(context, rpc.annotations)));
+		for (const [tag, rpc] of this.requests) requests.set(tag, rpc.annotateMerge(merge$4(context, rpc.annotations)));
 		return makeProto({
 			requests,
 			annotations: this.annotations
@@ -21798,7 +23287,7 @@ const optionalWithDefault = (schema, defaultValue) => {
 };
 const optional$5 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$6(schema)), {
 	decode: passthrough$1(),
-	encode: transformOptional(flatMap$4(fromUndefinedOr))
+	encode: transformOptional(flatMap$5(fromUndefinedOr))
 }));
 const UnknownObject$5 = /*#__PURE__*/ Record(String$2, Unknown);
 const RequestId$2 = /*#__PURE__*/ Union([String$2, Finite]);
@@ -22716,7 +24205,7 @@ const make$4 = (options) => {
 const protocolVersion$3 = "2024-11-05";
 const optional$4 = (schema) => optionalKey(schema).pipe(decodeTo(toType(optional$6(schema)), {
 	decode: passthrough$1(),
-	encode: transformOptional(flatMap$4(fromUndefinedOr))
+	encode: transformOptional(flatMap$5(fromUndefinedOr))
 }));
 const UnknownObject$4 = /*#__PURE__*/ Record(String$2, Unknown);
 const RequestId$1 = /*#__PURE__*/ Union([String$2, Finite]);
@@ -25392,7 +26881,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$42(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$47(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
 	const shutdownLatch = makeUnsafe$2(false);
@@ -25656,20 +27145,20 @@ const handlerContext = (entry, fiberContext) => {
 	}
 	let merged = cache.get(fiberContext);
 	if (merged === void 0) {
-		merged = merge$2(entry.context, fiberContext);
+		merged = merge$4(entry.context, fiberContext);
 		cache.set(fiberContext, merged);
 	}
 	return merged;
 };
 const applyMiddleware = (context, handler, options) => {
-	for (const service of options.rpc.middlewares) handler = getUnsafe(context, service)(handler, options);
+	for (const service of options.rpc.middlewares) handler = getUnsafe$1(context, service)(handler, options);
 	return handler;
 };
 const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
 	const { encodeDefectUnsafe, encodeUnknownRequestExit } = defectCodecs(codecFor);
 	const services = yield* context();
-	const scope = yield* make$46();
+	const scope = yield* make$52();
 	const writeOptions = options?.onRequest ? { onRequest: options.onRequest } : void 0;
 	const server = yield* makeNoSerialization(group, {
 		...options,
@@ -25696,7 +27185,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 					return end(response.clientId);
 			}
 		}
-	}).pipe(provide$3(scope));
+	}).pipe(provide$4(scope));
 	const onDisconnect = options?.onDisconnect;
 	const handleDisconnect = onDisconnect ? (clientId) => andThen(server.disconnect(clientId), ignoreCause(suspend$3(() => onDisconnect(clientId)), {
 		log: "Unhandled",
@@ -25863,13 +27352,13 @@ const makeProtocolStdio = /*#__PURE__*/ gen(function* () {
 				body: () => writeRequest(0, decoded[i++]),
 				step: constVoid
 			});
-		}), sandbox, tapError(logError), retry(spaced(500)), andThen(() => writeRequest(0, constEof)), forkScoped);
+		}), sandbox, tapError$2(logError), retry(spaced(500)), andThen(() => writeRequest(0, constEof)), forkScoped);
 		yield* fromQueue(queue).pipe(run(stdio.stdout()), retry(spaced(500)), onExit$1((exit) => {
 			if (isFailure(exit) && hasInterruptsOnly(exit.cause)) return void_$1;
-			return forkDetach(isSuccess(exit) ? interruptAs(fiber, void 0, make$50(InterruptExitCode, 0)) : interrupt(fiber), { startImmediately: true });
+			return forkDetach(isSuccess(exit) ? interruptAs(fiber, void 0, make$56(InterruptExitCode, 0)) : interrupt(fiber), { startImmediately: true });
 		}), forkScoped);
 		return {
-			disconnects: yield* make$43(),
+			disconnects: yield* make$49(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -25986,7 +27475,7 @@ const getMiddleware = (context) => {
 };
 const isMcpError = (error) => hasProperty(error, "code") && typeof error.code === "number" && hasProperty(error, "message") && typeof error.message === "string";
 const HandlerFailure = /*#__PURE__*/ Reference("effect/ai/McpServer/HandlerFailure", { defaultValue: () => false });
-const handlerFailure = /*#__PURE__*/ make$50(HandlerFailure, true);
+const handlerFailure = /*#__PURE__*/ make$56(HandlerFailure, true);
 const internalError = /*#__PURE__*/ new InternalError({ message: "Internal error" });
 const rejectWith = (error) => fail$3(new RequestRejected({
 	code: error.code,
@@ -26041,7 +27530,7 @@ const runMiddleware = (handler, middleware, invocation, request) => {
 const makeInvoke = (context, globalMiddleware) => {
 	const services = context === void 0 ? empty$11() : omitRequestServices(context);
 	const localMiddleware = context === void 0 ? [] : getMiddleware(context);
-	const invoke = (handler, invocation, request) => runMiddleware(services.mapUnsafe.size === 0 ? handler : updateContext(handler, (context) => merge$2(services, context)), middlewareStack(localMiddleware, globalMiddleware), invocation, request).pipe(catchHidden(() => fail$3(notFound(request.method, request.target))));
+	const invoke = (handler, invocation, request) => runMiddleware(services.mapUnsafe.size === 0 ? handler : updateContext(handler, (context) => merge$4(services, context)), middlewareStack(localMiddleware, globalMiddleware), invocation, request).pipe(catchHidden(() => fail$3(notFound(request.method, request.target))));
 	const visible = (method, target) => (invocation) => {
 		const middleware = middlewareStack(localMiddleware, globalMiddleware);
 		const innermost = middleware.findIndex((fn) => gates.has(fn));
@@ -26073,7 +27562,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$43();
+		const notificationsQueue = yield* make$49();
 		const globalMiddleware = [];
 		const notificationDelivery = {
 			consumers: 0,
@@ -26085,7 +27574,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const dispatcher = (yield* Scheduler).makeDispatcher();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
-			onFromClient: (options) => make$47().pipe(flatMap((delivered) => withFiber((fiber) => {
+			onFromClient: (options) => make$53().pipe(flatMap((delivered) => withFiber((fiber) => {
 				const message = options.message;
 				if (message._tag !== "Request") return void_$1;
 				const notification = toInternalServerNotification(message);
@@ -26150,7 +27639,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		});
 		const service = McpServer.of({
 			notifications: notifications.client,
-			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$47().pipe(flatMap((delivered) => offer(notificationsQueue, {
+			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$53().pipe(flatMap((delivered) => offer(notificationsQueue, {
 				notification: ServerNotification.ElicitationComplete({ elicitationId }),
 				targetClientId: clientId,
 				delivered
@@ -26406,7 +27895,7 @@ const normalizeCacheHints = (cacheHints) => {
 	const normalized = {};
 	for (const [name, hint] of Object.entries(cacheHints)) {
 		if (hint === void 0) continue;
-		const ttlMs = match$3(fromInput$2(hint.ttl), {
+		const ttlMs = match$4(fromInput$2(hint.ttl), {
 			onNone: () => NaN,
 			onSome: (ttl) => Math.floor(toMillis(ttl))
 		});
@@ -26529,7 +28018,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		defaultLogLevel,
 		serverInfo: options
 	}));
-	const clients = yield* make$29({
+	const clients = yield* make$34({
 		lookup: fnUntraced(function* (key) {
 			const selectedProtocol = runtime.selectProtocol(key.profile.protocolVersion);
 			let write;
@@ -26652,13 +28141,13 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 							httpPost.expected++;
 							httpPostResponses.set(httpRequest, httpPost);
 						}
-						const headers = isHttp ? getUnsafe(getCurrent().context, HttpServerRequest).headers : fromInput$1(request.headers);
+						const headers = isHttp ? getUnsafe$1(getCurrent().context, HttpServerRequest).headers : fromInput$1(request.headers);
 						const cancellationRequest = request.tag === "notifications/cancelled" && typeof request.payload === "object" && request.payload !== null && "requestId" in request.payload && (typeof request.payload.requestId === "string" || typeof request.payload.requestId === "number") ? activeRequests.get(clientId)?.get(requestKey(request.payload.requestId)) : void 0;
 						const prepare = cancellationRequest === void 0 ? runtime.prepareRequest(clientId, headers, request) : succeed$3(cancellationRequest.prepared);
 						return gen(function* () {
 							const prepared = yield* prepare;
 							const clientState = clientStates.get(clientId);
-							if (isHttp && clientState === void 0) yield* addFinalizer$1(getUnsafe(fiber.context, Scope), sync(() => disconnectClient(clientId)));
+							if (isHttp && clientState === void 0) yield* addFinalizer$1(getUnsafe$1(fiber.context, Scope), sync(() => disconnectClient(clientId)));
 							const session = prepared.binding;
 							const selectedProtocol = prepared.protocol;
 							clientStates.set(clientId, {
@@ -26742,7 +28231,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 					case "ClientProtocolError":
 					case "Defect": {
 						const requestId = request._tag === "Exit" ? requestKey(request.requestId) : void 0;
-						const session = isHttp ? runtime.resolveRequest(clientId, getUnsafe(getCurrent().context, HttpServerRequest).headers) : void 0;
+						const session = isHttp ? runtime.resolveRequest(clientId, getUnsafe$1(getCurrent().context, HttpServerRequest).headers) : void 0;
 						const reverseKey = (requestId === void 0 ? void 0 : reverseRequestClients.get(requestId))?.find((key) => isHttp ? key.profile === session?.negotiatedProfile : key.clientId === clientId);
 						if (request._tag === "Exit" && reverseKey === void 0) return void_$1;
 						if (reverseKey !== void 0 && requestId !== void 0) removeReverseRequestClient(requestId, reverseKey);
@@ -26852,7 +28341,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		disableFatalDefects: true,
 		onDisconnect: (clientId) => sync(() => disconnectClient(clientId)),
 		onRequest: (effect, request) => traceRequest(effect, request)
-	}).pipe(provideService(Protocol, patchedProtocol), provideService(McpServerClientMiddleware, clientMiddleware), provide(handlers));
+	}).pipe(provideService(Protocol, patchedProtocol), provideService(McpServerClientMiddleware, clientMiddleware), provide$1(handlers));
 }, scoped);
 const layerWithRuntime = (options, transport) => effectDiscard(gen(function* () {
 	const cacheHints = yield* normalizeCacheHints(options.cacheHints);
@@ -26861,8 +28350,8 @@ const layerWithRuntime = (options, transport) => effectDiscard(gen(function* () 
 		...options,
 		cacheHints
 	}, runtime, transport));
-})).pipe(provide$2(options.registrations ?? empty$9), provideMerge(McpServer.layer));
-const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$2(layer$2(options.protocols)), provide$2(effect(Protocol, makeProtocolStdio)), provide$2(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
+})).pipe(provide$3(options.registrations ?? empty$9), provideMerge(McpServer.layer));
+const layerStdio = (options) => layerWithRuntime(options, "stdio").pipe(provide$3(layer$2(options.protocols)), provide$3(effect(Protocol, makeProtocolStdio)), provide$3(succeed$4(RpcSerialization, mcpStdioSerialization(options.protocols))));
 const mcpStdioSerialization = (protocols) => {
 	const serialization = mcpJsonRpcSerialization({ contentType: "application/json-rpc" });
 	return RpcSerialization.of({
@@ -27059,12 +28548,12 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 			tool: mcpTool,
 			annotations,
 			handle(payload) {
-				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap, runLast, flatMap(fromOption), flatMap((result) => {
+				return built.handle(tool.name, payload ?? {}, void 0, decodeOptions).pipe(unwrap$2, runLast, flatMap(fromOption), flatMap((result) => {
 					if (!result.isFailure) return succeed$3(result.result === void 0 ? new CallToolResult$5({
 						isError: false,
 						content: []
 					}) : successResult(result.encodedResult));
-					return result.failureOrigin === "handler" ? succeed$3(failureResult(result.encodedResult)) : failCause$3(annotate$1(fail$5(result.result), make$50(FailureOrigin, result.failureOrigin ?? "result")));
+					return result.failureOrigin === "handler" ? succeed$3(failureResult(result.encodedResult)) : failCause$3(annotate$1(fail$6(result.result), make$56(FailureOrigin, result.failureOrigin ?? "result")));
 				}), catchCause$2(handleCause));
 			},
 			services
@@ -27131,7 +28620,7 @@ const registerPrompt = (options) => {
 };
 const prompt = (options) => effectDiscard(registerPrompt(options));
 const makeUriMatcher = () => {
-	const router = make$19({
+	const router = make$22({
 		ignoreTrailingSlash: true,
 		ignoreDuplicateSlashes: true,
 		caseSensitive: true
@@ -27153,11 +28642,11 @@ const isProtocolVersion = (version) => version === "2024-11-05" || version === "
 // ../../packages/mcp/src/Observed.ts
 const reasonOf = (failure) => failure._tag === "TipeeError" ? failure.reason._tag : failure._tag;
 const MAX_PARAMS = 30;
-const paramsOf = (params, prefix = "") => typeof params === "object" && params !== null && !Array.isArray(params) ? Object.entries(params).flatMap(([key, value]) => {
+const paramsOf = (params, prefix = "") => isObject$2(params) ? pipe(toEntries(params), flatMap$3(([key, value]) => {
 	const name = prefix === "" ? key : `${prefix}.${key}`;
 	const nested = paramsOf(value, name);
-	return nested.length === 0 ? [name] : nested;
-}).toSorted().slice(0, MAX_PARAMS) : [];
+	return isReadonlyArrayNonEmpty(nested) ? nested : [name];
+}), sortBy(String$6), take$2(MAX_PARAMS)) : [];
 const detailOf = (failure) => {
 	if (failure._tag !== "TipeeError") return {};
 	const { reason } = failure;
@@ -27178,7 +28667,7 @@ const REPORTED = /* @__PURE__ */ new Set([
 ]);
 const INVALID_STATUSES = /* @__PURE__ */ new Set([400, 422]);
 const reported = (failure) => failure._tag === "TipeeError" && (REPORTED.has(failure.reason._tag) || failure.reason._tag === "Rejected" && INVALID_STATUSES.has(failure.reason.status));
-const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
+const caller = map$4(serviceOption(McpServerClient), (client) => match$4(client, {
 	onNone: () => ({}),
 	onSome: ({ clientInfo, protocolVersion }) => ({
 		mcp_client: clientInfo.name,
@@ -27196,7 +28685,7 @@ const countsOf = (report) => ({
 	not_sent: report.not_sent,
 	stopped_by: stoppedBy(report)
 });
-const observed = ({ announce, telemetry }, called, run) => fn("observed")(function* (params) {
+const observed = dual(3, ({ announce, telemetry }, called, run) => fn("observed")(function* (params) {
 	const { tool } = called;
 	const batch = "batch" in called;
 	const who = yield* caller;
@@ -27257,7 +28746,7 @@ const observed = ({ announce, telemetry }, called, run) => fn("observed")(functi
 		});
 	}
 	return yield* failCause$3(exit$2.cause);
-});
+}));
 // ../../packages/mcp/src/Tools.ts
 const Done = Struct({ done: Literal(true) });
 const LocalDate = String$2.check(isPattern(/^\d{4}-\d{2}-\d{2}$/u));
@@ -27306,16 +28795,15 @@ const InstallUpdate = make$10("update_plugin", {
 const CONFIRM = "Changes tipee: first tell the user exactly what will change and for whom, and wait for their yes, unless they asked for this precise change.";
 const describe = (operation) => {
 	if (operation.readOnly) return operation.description;
-	const text = operation.description.trimEnd();
+	const text = trimEnd(operation.description);
 	const base = /[.!?]$/u.test(text) ? text : `${text}.`;
 	const final = /\.delete/u.test(operation.path) ? " It cannot be undone." : "";
 	return `${base} ${CONFIRM}${final}`;
 };
-const words = (part) => part.replaceAll("-", " ");
+const words = (part) => replaceAll("-", " ")(part);
 const titleOf = (path) => {
-	const [resource = "", verb = ""] = path.replace(/^\/api\/[^/]+\//u, "").split(".");
-	const subject = words(resource);
-	return `${subject.charAt(0).toUpperCase()}${subject.slice(1)}: ${words(verb)}`;
+	const [resource, verb = ""] = pipe(path, replace(/^\/api\/[^/]+\//u, ""), split("."));
+	return `${capitalize(words(resource))}: ${words(verb)}`;
 };
 const toolFor = (operation) => dynamic(operation.name, {
 	description: describe(operation),
@@ -27334,8 +28822,8 @@ const batchToolFor = (operation) => dynamic(batchName(operation), {
 		results: ArraySchema(operation.success).annotate({ description: RESULTS_DESCRIPTION })
 	})
 }).annotate(Title, `${titleOf(operation.path)} many`).annotate(Strict, true).annotate(Readonly, false).annotate(Destructive, operation.destructive).annotate(Idempotent, false);
-const batched = BATCHED.map((name) => operation(name));
-const TipeeToolkit = make$9(Check, InstallUpdate, ...operations.map((operation) => toolFor(operation)), ...batched.map((operation) => batchToolFor(operation)));
+const batched = map$7(BATCHED, (name) => operation(name));
+const TipeeToolkit = make$9(Check, InstallUpdate, ...map$7(operations, (operation) => toolFor(operation)), ...map$7(batched, (operation) => batchToolFor(operation)));
 // ../../packages/mcp/src/Handlers.ts
 const said = (outcome) => {
 	if (outcome.status === "opened") return `Version ${outcome.version} is downloaded and Claude Desktop is asking you to confirm the update: click Update in its dialog. Your instance and key are kept.`;
@@ -27355,14 +28843,14 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 		yield* logError(connection.failure.message);
 		yield* telemetry.capture("server_failed", { reason: connection.failure._tag });
 	}
-	const announced = yield* make$25(false);
+	const announced = yield* make$28(false);
 	const announce = (who) => flatMap(getAndSet(announced, true), (already) => already ? void_$1 : telemetry.capture("session_started", who));
 	const watcher = {
 		announce,
 		telemetry
 	};
 	const provided = (effect) => effect.pipe(provideService(Telemetry, telemetry), provideService(Updates, updates));
-	const connected = (effect) => isSuccess$1(connection) ? provideService(effect, TipeeClient, connection.success) : fail$3(new TipeeError({ reason: new NotConfigured({ description: connection.failure.message }) }));
+	const connected = (effect) => isSuccess$1(connection) ? provideService(effect, TipeeClient, connection.success) : fail$3(TipeeError.make({ reason: NotConfigured.make({ description: connection.failure.message }) }));
 	const handlers = {
 		check_setup: observed(watcher, { tool: "check_setup" }, (params) => probes(params).pipe(connected, check, provided)),
 		update_plugin: observed(watcher, { tool: "update_plugin" }, () => provided(update))
@@ -27385,18 +28873,18 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	}
 	return TipeeToolkit.of(handlers);
 }));
-const TipeeToolkitLayerConfig = unwrap$4(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$2(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$7(missing))));
+const TipeeToolkitLayerConfig = unwrap$6(map$4(service(TipeeClient), (client) => handlersFor(succeed$8(client)))).pipe(provide$3(TipeeClient.layerConfig), catchTag$1("ConfigurationMissing", (missing) => handlersFor(fail$8(missing))));
 // ../../packages/mcp/src/Notice.ts
 const SPEAKING_OF_UPDATES = /* @__PURE__ */ new Set(["check_setup", "update_plugin"]);
-const updateNote = (update, current) => `tipee for Claude ${update.version} is available (this is ${current}). When the current task allows, tell the user in one sentence and offer to install it with update_plugin; say it once.`;
+const updateNote = dual(2, (update, current) => `tipee for Claude ${update.version} is available (this is ${current}). When the current task allows, tell the user in one sentence and offer to install it with update_plugin; say it once.`);
 const NotifiedToolkit = effectDiscard(gen(function* () {
 	const server = yield* McpServer;
 	const updates = yield* Updates;
 	const telemetry = yield* Telemetry;
 	const scope$2 = yield* scope;
-	const found = yield* make$47();
+	const found = yield* make$53();
 	const start = yield* cached(asVoid(forkIn(into(updates.available, found), scope$2)));
-	const told = yield* make$25(false);
+	const told = yield* make$28(false);
 	const noted = (tool, result) => gen(function* () {
 		if (!is$2(CallToolResult$5)(result)) return result;
 		if (SPEAKING_OF_UPDATES.has(tool)) {
@@ -27410,7 +28898,7 @@ const NotifiedToolkit = effectDiscard(gen(function* () {
 			tool,
 			version: update.value.version
 		});
-		return new CallToolResult$5({
+		return CallToolResult$5.make({
 			_meta: result._meta,
 			content: [...result.content, {
 				text: updateNote(update.value, updates.current),
@@ -27428,7 +28916,7 @@ const NotifiedToolkit = effectDiscard(gen(function* () {
 		})
 	});
 	yield* registerToolkit(TipeeToolkit).pipe(provideService(McpServer, wrapping));
-})).pipe(provide$2(McpServer.layer));
+})).pipe(provide$3(McpServer.layer));
 // ../../packages/mcp/src/Prompts.ts
 const SETUP_PROMPT = {
 	description: "Check that the tipee connection works and explain any missing authorization.",
@@ -27442,167 +28930,8 @@ const SetupPrompt = prompt({
 	name: SETUP_PROMPT.name,
 	title: SETUP_PROMPT.title
 });
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/stream.js
-const destroyStream = (stream, cleanup, onDestroyed) => {
-	if (!("closed" in stream)) {
-		cleanup();
-		onDestroyed?.();
-		return;
-	}
-	const onDone = () => {
-		clearImmediate(immediate);
-		stream.off("error", onDone);
-		stream.off("close", onDone);
-		onDestroyed?.();
-	};
-	const onClosed = () => {
-		if (stream.closed) onDone();
-		else {
-			immediate = setImmediate(onClosed);
-			if (!onDestroyed) immediate.unref();
-		}
-	};
-	let immediate = setImmediate(onClosed);
-	if (!onDestroyed) immediate.unref();
-	stream.once("error", onDone);
-	stream.once("close", onDone);
-	cleanup();
-	if (!stream.closed) stream.destroy();
-};
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeSink.js
-const fromWritable = (options) => fromChannel$1(mapDone(fromWritableChannel(options), (_) => [_]));
-const fromWritableChannel = (options) => fromTransform$1((pull) => {
-	const writable = options.evaluate();
-	const write = pullIntoWritable({
-		...options,
-		writable,
-		pull
-	});
-	return succeed$3(options.endOnDone === false ? write : onError(write, (cause) => isDoneCause(cause) ? void_$1 : releaseWritable(writable)));
-});
-const releaseWritable = (writable) => callback$1((resume) => {
-	const onDestroyed = () => resume(void_$1);
-	if (writable.closed) {
-		const cleanup = finished(writable, { readable: false }, () => {
-			cleanup();
-			onDestroyed();
-		});
-	} else destroyStream(writable, constVoid, onDestroyed);
-});
-const pullIntoWritable = (options) => withFiber((fiber) => {
-	const dispatcher = fiber.currentDispatcher;
-	const completion = makeUnsafe$7();
-	const failure = makeUnsafe$7();
-	const onError = (error) => doneUnsafe(failure, failSync(() => options.onError(error)));
-	let errorEmitted = false;
-	const onStreamError = (error) => {
-		errorEmitted = true;
-		onError(error);
-	};
-	options.writable.on("error", onStreamError);
-	const cleanup = finished(options.writable, { readable: false }, (error) => {
-		if (error) onError(error);
-		else doneUnsafe(completion, void_$1);
-	});
-	return options.pull.pipe(flatMap((chunk) => {
-		let i = 0;
-		return callback$1((resume) => {
-			let cancelled = false;
-			const onFinish = () => dispatcher.scheduleTask(loop, 0);
-			const loop = () => {
-				options.writable.off("drain", loop);
-				options.writable.off("finish", onFinish);
-				for (; i < chunk.length;) {
-					if (cancelled) return;
-					if (!options.writable.write(chunk[i++], options.encoding, (error) => {
-						if (!error) return;
-						if (options.writable.closed) onError(error);
-						else dispatcher.scheduleTask(() => onError(error), 0);
-					})) {
-						if (!cancelled) {
-							options.writable.once("drain", loop);
-							options.writable.once("finish", onFinish);
-						}
-						return;
-					}
-				}
-				if (!cancelled) resume(void_$1);
-			};
-			loop();
-			return sync(() => {
-				cancelled = true;
-				options.writable.off("drain", loop);
-				options.writable.off("finish", onFinish);
-			});
-		});
-	}), forever({ disableYield: true }), options.endOnDone !== false ? catchDone((_) => {
-		options.writable.end();
-		return andThen(_await(completion), done$1(_));
-	}) : identity, raceFirst(_await(failure)), ensuring$2(sync(() => {
-		cleanup();
-		const removeErrorListener = () => {
-			options.writable.off("error", onStreamError);
-			options.writable.off("error", removeErrorListener);
-			options.writable.off("close", removeErrorListener);
-		};
-		if (options.writable.errored && !options.writable.closed && !errorEmitted) {
-			options.writable.once("error", removeErrorListener);
-			options.writable.once("close", removeErrorListener);
-		} else removeErrorListener();
-	})));
-});
-// ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/NodeStream.js
-const fromReadable = (options) => fromChannel(fromReadableChannel(options));
-const fromReadableChannel = (options) => fromTransform$1((_, scope) => readableToPullUnsafe({
-	scope,
-	readable: options.evaluate(),
-	onError: options.onError ?? defaultOnError,
-	chunkSize: options.chunkSize,
-	readSize: options.readSize,
-	closeOnDone: options.closeOnDone
-}));
-const readableToPullUnsafe = (options) => {
-	const readable = options.readable;
-	const chunkSize = options.chunkSize ?? 4096;
-	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$32(void 0);
-	const latch = options.latch ?? makeUnsafe$2(false);
-	function onReadable() {
-		latch.openUnsafe();
-	}
-	readable.on("readable", onReadable);
-	const cleanup = finished(readable, {
-		readable: true,
-		writable: false
-	}, (error) => {
-		exit.current ??= fail$4(error ? options.onError(error) : Done$1());
-		latch.openUnsafe();
-	});
-	const pull = suspend$3(function loop() {
-		let item = options.readable.read(options.readSize);
-		if (item === null) {
-			if (exit.current) return exit.current;
-			if (readable.readableEnded) return fail$3(Done$1());
-			latch.closeUnsafe();
-			return flatMap(latch.await, loop);
-		}
-		const chunk = of(item);
-		while (chunk.length < chunkSize) {
-			item = options.readable.read(options.readSize);
-			if (item === null) break;
-			chunk.push(item);
-		}
-		return succeed$3(chunk);
-	});
-	return as(addFinalizer$1(options.scope, sync(() => {
-		readable.off("readable", onReadable);
-		if (closeOnDone) destroyStream(readable, cleanup);
-		else cleanup();
-	})), pull);
-};
-const defaultOnError = (error) => new UnknownError$1(error);
 // ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeStdio.js
-const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
+const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$27({
 	args: /*#__PURE__*/ sync(() => process.argv.slice(2)),
 	stdinIsTerminal: /*#__PURE__*/ sync(() => process.stdin.isTTY === true),
 	stdoutIsTerminal: /*#__PURE__*/ sync(() => process.stdout.isTTY === true),
@@ -27639,7 +28968,7 @@ const layer = /* @__PURE__ */ succeed$4(Stdio, /*#__PURE__*/ make$24({
 	})
 }));
 // ../../packages/mcp/src/Icon.ts
-const SERVER_ICON = new Icon$1({
+const SERVER_ICON = Icon$1.make({
 	mimeType: "image/png",
 	sizes: ["128x128"],
 	src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAimVYSWZNTQAqAAAACAAFARIAAwAAAAEAAQAAARoABQAAAAEAAABKARsABQAAAAEAAABSATEAAgAAAAYAAABah2kABAAAAAEAAABgAAAAAAAAAJAAAAABAAAAkAAAAAFGaWdtYQAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAgKADAAQAAAABAAAAgAAAAABTCBggAAAACXBIWXMAABYlAAAWJQFJUiTwAAAC/WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNi4wLjAiPgogICA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogICAgICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgICAgICAgICB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iCiAgICAgICAgICAgIHhtbG5zOmV4aWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vZXhpZi8xLjAvIgogICAgICAgICAgICB4bWxuczp0aWZmPSJodHRwOi8vbnMuYWRvYmUuY29tL3RpZmYvMS4wLyI+CiAgICAgICAgIDx4bXA6Q3JlYXRvclRvb2w+RmlnbWE8L3htcDpDcmVhdG9yVG9vbD4KICAgICAgICAgPGV4aWY6UGl4ZWxYRGltZW5zaW9uPjUxMjwvZXhpZjpQaXhlbFhEaW1lbnNpb24+CiAgICAgICAgIDxleGlmOkNvbG9yU3BhY2U+MTwvZXhpZjpDb2xvclNwYWNlPgogICAgICAgICA8ZXhpZjpQaXhlbFlEaW1lbnNpb24+NTEyPC9leGlmOlBpeGVsWURpbWVuc2lvbj4KICAgICAgICAgPHRpZmY6WFJlc29sdXRpb24+MTQ0PC90aWZmOlhSZXNvbHV0aW9uPgogICAgICAgICA8dGlmZjpZUmVzb2x1dGlvbj4xNDQ8L3RpZmY6WVJlc29sdXRpb24+CiAgICAgICAgIDx0aWZmOk9yaWVudGF0aW9uPjE8L3RpZmY6T3JpZW50YXRpb24+CiAgICAgIDwvcmRmOkRlc2NyaXB0aW9uPgogICA8L3JkZjpSREY+CjwveDp4bXBtZXRhPgoj4uZQAAALjElEQVR4Ae1da2wU1xX+ZvZlG7wGwiMBwqPIuK5bpwGSNkmBkKhEDUWqKlyFEORGQqj9QasGKWpQXk0qoUJdmlRRqJtUJXhLK/gRhaahDzUgWh7CpjLBhIRgbOoAIWBsY3aN9zE9Z9Zr1njXeHa967lz7xWLd2fv3L3n+7459zH3ntEwjLTWMDwlp1ChAYtiEVQZMSzQNBQYxjBOVllyjgBxwalHc6EBOnbS+32dpWiq1bSw+c0Q/8VPTZNh3VFjUmExVhlRrIKBSt0NbywK8Is+q2QzBHQXQBwhFkYvCeEYCSLgimD7xnLtcrqqphXA0yeNVcTxSy4PvkBXPaL0UqSng9Fmx4lVFwmBxRAN4zR5iJ9tKtO2p6rlIAGsrTeKSvz4JX3xQ3L1YPJVEhcBFoGm07Ubw9bObqyvXaAFk60ZIAAm31+Ibe5CrAiHKJty88lYifueWPYUApEQdnWFUJ0sAtJGXzIMraQINSb5rBFFfgIZ8f8Sl2HilLlljpMN6vcA3OZTx6GO2gxFfjJCTnpPbFOfjq/txzfP1XawaaYAftJkTHBpqKe2YrZq853E+GBbzFFCDC1w4Z6aMu2S2QToGqrdPkX+YLicd4QvcI8Ps/QoVrN12otNhrdbxwFdx3zT/TvPZmXRTQhwM0BzOQ1jDdyvdxkoRwyV5jj/pozqozMR6OO6krnX6cpf4vLCo3r9ziQ7pVXUCyQv4KHJoge5D1BlTu2mzKkOOhUB5pzu5VS56cqfpwTgVJrT28Wc0xBwvk7eoEC5//RAOfYbIp651xX5jqX41oaRAm5MBd86u8rhQASUABxIqhWTlACsoOXAvEoADiTViklKAFbQcmBeJQAHkmrFJCUAK2g5MK8SgANJtWKSEoAVtByYl9aMip94Y4TL17e8aQhzaOLLXALF6x7U/Y84UMILgJc8h0NBNO4KoP3MR0OrgBTgKy7Bl779BCbMms1r5qVPYguArvxYtBd/e34tTr4bGDaZJ96pw4rav2L8zDnS73sQug/AS5vON9bj5Ht/Gjb5nLGj9WMcf/stc/eMpRMdmFloAXDbf63984wa9FBHOy+IkD4JLQBmT2MVZJAyPS+Dn7L1KcILwNboClA5JQABSMplFZUAcomuAGUrAQhAUi6rqASQS3QFKFsJQACScllFJYBcoitA2UoAApCUyyoqAeQSXQHKVgIQgKRcVlEJIJfoClC2EoAAJOWyig4QQGY3g+guUi5xFaZsYRaE8L1/DnCUnCiu0dArgJIz3/Q+FgnDXUCnZ3EJ8O1kCssq9PKymyC9CSU7fKQLlWPgnqOFHxea6m/cw+fjRN7Jdzk2svXUvHc3/vNaKdy+Iiozk4UBBjwFRZj59YdRMm26sMvLtPXHM7LeOuIZnsFX/uE3t+Dfrz6LaM+AKKcZljiypxVPnYnlNTswfd59QoogCwc4skCmKo1dfntLMw6+/rItyec6Xz3XSp7kZVpbyCHUxUu2FgD304LtFxG+br8rP5nqzrZmWpncI2S/0tYCYJB56ZaWTU8tmakcvde4MyJoErfmggJut2orAdiNkTzXRwkgz4Db7eeUAOzGSJ7rY38BmNMUmUzU5A9JI0bP1rF3FdOCYXsBuAvG2B5c31g/XF6asRIw2VoAHNV6Ymk5yh6psi20Gk1VznviR/AUeW9MU9u2toMrZvup4Pj272407nwTl0+foKdfkbvlRPMDBimk9cA/0P1ZW/yYhf9dvkLMvH8pvHT1ZsKcQT7fW1iEOQ8uR+nDy4XdZWx7AZhck5+ikPbxpiDR1tIsIR87GngLezZUW6A+nrVs2eP4zisBEpHlU/tPSMxPRa73HxLujf3vBhKk/PzCSE9qbAtKJqT+4hZHi8ZPMnPIHiTC1n2AW3Boft3fJAwnc1IekXvuSWZk/VZ4AWSNgOQFKAEoAUiOgOTmKw+gBCA5ApKbrzyAEoDkCEhuvvIASgCSIyC5+coDKAFIjoDk5isPoAQgOQKSm688gBKA5AhIbr7yAEoAkiMgufnyegDeeqySvI+PDwev2X6/QT70Ka0H6Dp3BtEsVgTng5x8/Ia0Auhsa0FPx5WsgkTlg6Bc/4bwAsg0OMPV8y1oPfQvChKVa4jtXb7QAuB9owX+8fEwYhZx5mXhR/5Qg56uIDSKQiZrElsA1IYXT5kKH4sgg3Sh8SD21WygXWbGoBiEGRQn5ClCC4C3CY6dMo3i9M3KGPz/1r2CPc/+AMHLF2mDZ18wyuGMECkPbw0TfTQptAB4T753jBczvrYkYwHwiR/sqkXdyoU49NstuNJ62twsylFEPYV9L36f9Jn7DayR3u6rFMGsx+xHiNqMCLE5dCh2eYPo/44cxJ+rF9MO3eyfBu3zT8DEuV/GpLK74J86A76x48yIoFEqu7e7A72ha+j6tAU8iuDwcC6vz9whfO+TT6Fo4mThdgkLLwDzUkQEO9d8C2cP/nMoreT0u6nzF2LF1t3kkUrMzaw5/bERLFzsJoCBoGbA7XVjwffXU5s8et35cw370VD3mnDDSvEFQBrg/flzFi1F2aOPjeC1Yb2oo3Wv4nJzi1AjCkcIwKSKuuSLn9oI/7TZ1pkboTNClz/D4Td+YUY3H6Eic16MYwQQo3hC4+68E9984XUazhXnHLh0P3Dine1oO1ofj2iSLpONjjtGAIwpNwWlDz2CJT/9VfxhAqMAdIRGCYe2/hwGRw/nsaLNk6MEwFiHKZTM3SvX4KFnfk1XIQ3eRyE17/sLTu3dQ53TUfhxiz/pOAGw/ZFe4N4n12HZ5gAKx0+2CEn22Y1YFId/txHXr9J9Bpt7AUcKgIeG7AnKl30X3/v93zFt3sLsWbVYwoXjR3DpkybbjwicKYA+sjiy2JSKu1D1xnt4YN1L8BVndtPIIvdmdn7Gge6x/71mRwuAmYhSc8DhZr/x4+ewMrAfX1mxJi+jhPJHV2ISRTnlaKd2TuJPBVtAlx9AxW3yhRMfoOntbfjk/d3oaP3YQglDZ+Xb0nd89T6ULV1Bzc9jNCtYaPtpYakEkKDPFALNGgcvdeLTxgM4s38PzjceRgfd3Om58nki25B/NZcbBeNuQ/EdMzB5biWm37MI0+9+AONnziHXT56HhqT2fh5b3DwpBZBglu/nsxh4vB4ORnCVYg53nG1G98U2dJ47S734jgFjeZ0eY+anx8RxdFI/EV98+3SMmXg7vEXsWugBkuTu+SVSkloAA4giAvnZT+b9JPpLHwcnPkgjDPpnunaOM8xhbEW40gcbEz8iRKzgdJUf0ePEKg3fhX4MbCZ4OH4UkAkoMp2jBCAT2ylsVQJIAYpMh5QAZGI7ha1KAClAkemQEoBMbKewVQkgBSgyHVICkIntFLYqAaQARaZDeuo5T5kgkNhWnv6mV48SgYQiIOKZe1q2goZR3FAjIfL2MNnkXMNRnRZI7FQCsAcp+axFH+c7dVqytJeenhlWzUA+4R/l3yLfT0vlwhRf4X3dr+FDqs4xWuCikiQImFzrOMbc6y9WaL0kiAAtdlFJEgSYa1rEEmDuzXmAmAvbw9fRokTgfAUwx7SF7kzMwDa21hRATZl2ib7YwGvkVF/AwSIgV88c09K357ZUaO39AuA3m+dqO6hDuJXj4qjkTASYW4M43lSGPyYsND1A4gNtZVsfCWEXR8tSniCBigP+0pXPnDK3ncSxGRevz6wBAqhdoAW7QqimIcJWXi6t+gTik88cMpfMKXPLHCdbRdpInZ7+yFhNPcUX6OQ5vNbd3OLE66FVsj8CxCoP9Zh8muNppo/Pb/qiFkhV8bQC4MzPfGjcFnVjNa1/X4UYKmnHi9fc/EDLp1WyGQLEJM/u8Ys46qUm/BgdCoSCCPxmnpZ2u9OQAkiYuNYwPCWnUEEiWExOoApRzKfvCkTeEJGwzQl/eb8jcdFDPfx6eu2isd2+zlI01WraLQMn/h8ZUfKKVAkRoQAAAABJRU5ErkJggg=="
@@ -27647,7 +28976,7 @@ const SERVER_ICON = new Icon$1({
 // ../../packages/mcp/src/Server.ts
 const SERVER_NAME = "tipee";
 const SERVER_VERSION = "1.2.0";
-const INSTRUCTIONS = [
+const INSTRUCTIONS = join$2([
 	"These tools read and change the user's company tipee, a Swiss HR software, one tool per API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, and the time clock is timechecks and day tasks.",
 	"Run check_setup on a new install, or after a tool reports a refused key or a missing right: it names what to tick and where.",
 	"Every id in a call comes from an earlier result: kinds_list (the employee kind), then resources_list for people; teams_list for teams; schedule_templates_list for templates.",
@@ -27656,12 +28985,12 @@ const INSTRUCTIONS = [
 	"Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds (2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).",
 	"{\"redacted\": …} in place of a value means tipee withheld it from this integration: say so, never guess it.",
 	"A failing tool's message names the cause and the fix: follow it, and give the user any link as is."
-].join("\n\n");
+], "\n\n");
 const TelemetryLive = Telemetry.layer({
 	$lib_version: SERVER_VERSION,
 	server_version: SERVER_VERSION
 });
-const ServerLayer = mergeAll(NotifiedToolkit, SetupPrompt).pipe(provide$2(TipeeToolkitLayerConfig), provide$2(layerStdio({
+const ServerLayer = mergeAll(NotifiedToolkit, SetupPrompt).pipe(provide$3(TipeeToolkitLayerConfig), provide$3(layerStdio({
 	description: "tipee for Claude: people, teams, shifts, absences, on-calls, activities and time clock.",
 	icons: [SERVER_ICON],
 	instructions: INSTRUCTIONS,
@@ -27674,9 +29003,11 @@ const ServerLayer = mergeAll(NotifiedToolkit, SetupPrompt).pipe(provide$2(TipeeT
 	],
 	version: SERVER_VERSION,
 	websiteUrl: "https://github.com/Floriferous/tipee-tools#readme"
-})), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer));
+})), provide$3(TelemetryLive), provide$3(Updates.layer(SERVER_VERSION)), provide$3(layer$8), provide$3(layer));
+const CrashTelemetry = TelemetryLive.pipe(provide$3(layer$8));
 const reportCrash = fn("reportCrash")(function* (cause) {
-	const telemetry = yield* Telemetry;
+	const services = yield* build(CrashTelemetry);
+	const telemetry = get$2(services, Telemetry);
 	const failure = findError(cause);
 	if (isSuccess$1(failure)) {
 		const error = failure.success;
@@ -27684,7 +29015,7 @@ const reportCrash = fn("reportCrash")(function* (cause) {
 		yield* telemetry.capture("server_failed", { reason });
 	} else if (hasDies(cause)) yield* telemetry.exception(squash(cause), { handled: false });
 	yield* telemetry.flush;
-}, provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, (effect) => ignore$1(effect));
+}, scoped, (effect) => ignore$1(effect));
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
 // ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeRuntime.js
 const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {

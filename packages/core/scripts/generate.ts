@@ -3,17 +3,22 @@
 // operations and shapes comes from that file; run `pnpm generate` after
 // dropping a new spec version into spec/ (`pnpm spec:refresh` does both).
 
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
+import { runMain } from '@effect/platform-node/NodeRuntime';
+import { layer as nodeServices } from '@effect/platform-node/NodeServices';
+import {
+  Array as Arr,
+  Effect,
+  FileSystem,
+  Path,
+  Predicate,
+  Record as Rec,
+  String as Str,
+} from 'effect';
 
-import { EXCLUDED, pointer, referenced, root, toolRoutes, vendored } from './spec.ts';
-import type { Schema } from './spec.ts';
-
-const { document, file } = vendored();
-const spec = path.basename(file);
-const output = path.join(root, 'src', 'generated', 'TipeeApi.ts');
-const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
+import { compact } from './compact.ts';
+import { openapigen } from './openapigen.ts';
+import { EXCLUDED, SpecError, pointer, referenced, root, toolRoutes, vendored } from './spec.ts';
+import type { Document, Patch } from './spec.ts';
 
 // The document is patched before generation wherever it disagrees with what
 // tipee does or what the tools need, each patch commented where it is made:
@@ -21,278 +26,228 @@ const generator = path.join(root, 'node_modules', '.bin', 'openapigen');
 // only Claude can learn from, required pagination and orders, empty maps as
 // [], the 900-odd `examples` dropped, recursive filters cut to one level,
 // request objects closed, answer-only enums opened, and the operations the
-// tools leave out removed.
-interface Patch {
-  readonly op: 'add' | 'remove' | 'replace';
-  readonly path: string;
-  readonly value?: unknown;
-}
+// tools leave out removed. The examples, filters and closed objects, which
+// only make the tools' JSON Schemas smaller, are in compact.ts.
+type Rewrite = (current: string) => string | Effect.Effect<string, SpecError>;
 
-const patch: Array<Patch> = [];
-const routes = toolRoutes(document);
-
-for (const route of routes) {
-  for (const [method, operation] of Object.entries(document.paths[route] ?? {})) {
-    if (operation.requestBody !== undefined) {
-      patch.push({
-        op: 'add',
-        path: `/paths/${pointer(route)}/${method}/requestBody/required`,
-        value: true,
-      });
+const requireBodies = (document: Document, patch: Array<Patch>): void => {
+  for (const route of toolRoutes(document)) {
+    for (const [method, operation] of Rec.toEntries(document.paths[route] ?? {})) {
+      if (operation.requestBody !== undefined) {
+        patch.push({
+          op: 'add',
+          path: `/paths/${pointer(route)}/${method}/requestBody/required`,
+          value: true,
+        });
+      }
     }
   }
-}
-
-// Rewrites one text of the document. A rewrite that changes nothing means
-// tipee reworded the text it was written for: fail rather than ship the
-// patch as a silent no-op.
-const reword = (at: ReadonlyArray<string>, rewrite: (current: string) => string): void => {
-  let current: unknown = document;
-  for (const key of at) {
-    current = (current as Record<string, unknown> | undefined)?.[key];
-  }
-  const where = `/${at.map((segment) => pointer(segment)).join('/')}`;
-  if (typeof current !== 'string') {
-    throw new TypeError(`no text at ${where} in the document`);
-  }
-  const next = rewrite(current);
-  if (next === current) {
-    throw new Error(`the rewrite of ${where} no longer changes it: update it in generate.ts`);
-  }
-  patch.push({ op: 'replace', path: where, value: next });
-};
-// Replaces a passage that must still be there.
-const swap = (text: string, passage: string, replacement: string): string => {
-  if (!text.includes(passage)) {
-    throw new Error(`"${passage}" is no longer in "${text}": update generate.ts`);
-  }
-  return text.replace(passage, replacement);
 };
 
-// What tipee's document does not say and Claude cannot learn otherwise: the
-// description is the only place a Claude Desktop user's Claude reads. Routes
-// mentioned in a description become the tool names Claude knows.
-const describe = (route: string, rewrite: (current: string) => string): void => {
-  reword(['paths', route, 'post', 'description'], rewrite);
-};
-describe('/api/directory/resources.list', (current) =>
-  `${current} Pagination: send pagination with a limit and next_token ` +
-  '(null on the first page), explicit orders, and identical filters and orders on every ' +
-  'page; a non-null next_token can come back on the last full page, whose next page is empty.');
-// Tipee answers 422 without them, and the description alone did not stop
-// Claude from leaving them out: the schema says so instead.
-patch.push({
-  op: 'replace',
-  path: '/components/schemas/ListResourcesQuery/required',
-  value: [
-    ...new Set([
+const rewordAll = Effect.fnUntraced(function* (document: Document, patch: Array<Patch>) {
+  // Rewrites one text of the document. A rewrite that changes nothing means
+  // tipee reworded the text it was written for: fail rather than ship the
+  // patch as a silent no-op.
+  const reword = Effect.fnUntraced(function* (at: ReadonlyArray<string>, rewrite: Rewrite) {
+    const current = Arr.reduce(at, document as unknown, (node, key) =>
+      Predicate.hasProperty(node, key) ? node[key] : undefined,
+    );
+    const where = `/${Arr.join(Arr.map(at, pointer), '/')}`;
+    if (!Predicate.isString(current)) {
+      return yield* SpecError.make({ message: `no text at ${where} in the document` });
+    }
+    const rewritten = rewrite(current);
+    const next = Predicate.isString(rewritten) ? rewritten : yield* rewritten;
+    if (next === current) {
+      return yield* SpecError.make({
+        message: `the rewrite of ${where} no longer changes it: update it in generate.ts`,
+      });
+    }
+    patch.push({ op: 'replace', path: where, value: next });
+    return next;
+  });
+  // Replaces a passage that must still be there.
+  const swap = (text: string, passage: string, replacement: string) =>
+    Str.includes(passage)(text)
+      ? Effect.succeed(Str.replace(passage, replacement)(text))
+      : SpecError.make({ message: `"${passage}" is no longer in "${text}": update generate.ts` });
+
+  // What tipee's document does not say and Claude cannot learn otherwise: the
+  // description is the only place a Claude Desktop user's Claude reads. Routes
+  // mentioned in a description become the tool names Claude knows.
+  const describe = (route: string, rewrite: Rewrite) =>
+    reword(['paths', route, 'post', 'description'], rewrite);
+  yield* describe('/api/directory/resources.list', (current) =>
+    `${current} Pagination: send pagination with a limit and next_token ` +
+    '(null on the first page), explicit orders, and identical filters and orders on every ' +
+    'page; a non-null next_token can come back on the last full page, whose next page is empty.');
+  // Tipee answers 422 without them, and the description alone did not stop
+  // Claude from leaving them out: the schema says so instead.
+  patch.push({
+    op: 'replace',
+    path: '/components/schemas/ListResourcesQuery/required',
+    value: Arr.dedupe([
       ...(document.components.schemas.ListResourcesQuery?.required ?? []),
       'orders',
       'pagination',
     ]),
-  ],
-});
-reword(
-  ['components', 'schemas', 'ListResourcesQuery', 'properties', 'kind_id', 'description'],
-  (current) =>
+  });
+  yield* reword(
+    ['components', 'schemas', 'ListResourcesQuery', 'properties', 'kind_id', 'description'],
+    (current) =>
+      swap(
+        current,
+        'Only the "employee" kind is available at the moment.',
+        "The id of a kind from kinds_list: the 'employee' kind lists people, the 'integration' kind the API integrations.",
+      ),
+  );
+  yield* reword(
+    ['components', 'schemas', 'ListResourcesQuery', 'properties', 'attributes', 'description'],
+    (current) => swap(current, "The 'api/directory/kinds.show' endpoint", 'The kinds_show tool'),
+  );
+  yield* describe('/api/directory/kinds.list', (current) =>
     swap(
       current,
-      'Only the "employee" kind is available at the moment.',
-      "The id of a kind from kinds_list: the 'employee' kind lists people, the 'integration' kind the API integrations.",
-    ),
-);
-reword(
-  ['components', 'schemas', 'ListResourcesQuery', 'properties', 'attributes', 'description'],
-  (current) => swap(current, "The 'api/directory/kinds.show' endpoint", 'The kinds_show tool'),
-);
-describe('/api/directory/kinds.list', (current) =>
-  swap(
-    current,
-    "Only 'employee' is available at the moment.",
-    "The 'integration' kind lists the API integrations, including the one this key belongs to.",
-  ));
-describe('/api/directory/kinds.show', (current) =>
-  swap(current, "'api/directory/resources.list'", 'resources_list'));
-describe('/api/timeclock/timechecks.list', (current) =>
-  `${swap(current, '<br />', ' ')} Always pass a timecheck.date_range filter of a few weeks ` +
-  'at most: without one tipee runs out of memory (HTTP 507).');
-reword(
-  ['components', 'schemas', 'ListDayTasksQuery', 'properties', 'task_ids', 'title'],
-  (current) => swap(current, '<br />', ' '),
-);
-// Claude made one call per day for a month of shifts: hundreds of calls where
-// one per person would do, and the pattern that makes tipee answer 508.
-const ONE_CALL =
-  'To do the same on several days, send one call per person with a date interval ' +
-  '(2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;' +
-  'DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day.';
-describe('/api/schedule/schedules.create', (current) =>
-  `${current} ${ONE_CALL} tipee answers with no body: read the days back with ` +
-  'schedules_list to get the ids of what was created.');
-describe('/api/schedule/absences.create', (current) =>
-  `${current} Pass percentage (100 for a whole day) or time_ranges (for part of a day); ` +
-  `tipee refuses an absence with neither. ${ONE_CALL}`);
-describe('/api/schedule/schedules.delete', (current) =>
-  `${current} Pass every id to delete in one call.`);
-describe('/api/schedule/absences.delete', (current) =>
-  `${current} Pass every id to delete in one call.`);
+      "Only 'employee' is available at the moment.",
+      "The 'integration' kind lists the API integrations, including the one this key belongs to.",
+    ));
+  yield* describe('/api/directory/kinds.show', (current) =>
+    swap(current, "'api/directory/resources.list'", 'resources_list'));
+  yield* describe('/api/timeclock/timechecks.list', (current) =>
+    Effect.map(
+      swap(current, '<br />', ' '),
+      (text) =>
+        `${text} Always pass a timecheck.date_range filter of a few weeks ` +
+        'at most: without one tipee runs out of memory (HTTP 507).',
+    ));
+  yield* reword(
+    ['components', 'schemas', 'ListDayTasksQuery', 'properties', 'task_ids', 'title'],
+    (current) => swap(current, '<br />', ' '),
+  );
+  // Claude made one call per day for a month of shifts: hundreds of calls where
+  // one per person would do, and the pattern that makes tipee answer 508.
+  const ONE_CALL =
+    'To do the same on several days, send one call per person with a date interval ' +
+    '(2026-11-02/2026-11-06) or an RRULE (RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;' +
+    'DTSTART=20261102T000000;UNTIL=20261127T000000) in when, not one call per day.';
+  yield* describe('/api/schedule/schedules.create', (current) =>
+    `${current} ${ONE_CALL} tipee answers with no body: read the days back with ` +
+    'schedules_list to get the ids of what was created.');
+  yield* describe('/api/schedule/absences.create', (current) =>
+    `${current} Pass percentage (100 for a whole day) or time_ranges (for part of a day); ` +
+    `tipee refuses an absence with neither. ${ONE_CALL}`);
+  yield* describe('/api/schedule/schedules.delete', (current) =>
+    `${current} Pass every id to delete in one call.`);
+  yield* describe('/api/schedule/absences.delete', (current) =>
+    `${current} Pass every id to delete in one call.`);
+});
 
 // PHP serialises an empty map as [], so every map-typed property in a response
 // (deleted, failed, choices…) must also accept an empty array, or a delete
 // that succeeded would be reported as a response that does not match.
 const EMPTY_ARRAY = { maxItems: 0, type: 'array' };
-for (const [name, schema] of Object.entries(document.components.schemas)) {
-  const properties = name.endsWith('Command') ? {} : (schema.properties ?? {});
-  for (const [key, property] of Object.entries(properties)) {
-    if (
-      property.type === 'object' &&
-      property.additionalProperties !== undefined &&
-      property.properties === undefined
-    ) {
-      patch.push({
-        op: 'replace',
-        path: `/components/schemas/${pointer(name)}/properties/${pointer(key)}`,
-        value: { oneOf: [property, EMPTY_ARRAY] },
-      });
-    }
-  }
-}
-
-const removeExamples = (node: unknown, at: string): void => {
-  if (Array.isArray(node)) {
-    for (const [index, item] of node.entries()) {
-      removeExamples(item, `${at}/${index}`);
-    }
-  } else if (typeof node === 'object' && node !== null) {
-    for (const [key, value] of Object.entries(node)) {
-      if (key === 'examples' || key === 'example') {
-        patch.push({ op: 'remove', path: `${at}/${key}` });
-      } else {
-        removeExamples(value, `${at}/${pointer(key)}`);
+const acceptEmptyMaps = (document: Document, patch: Array<Patch>): void => {
+  for (const [name, schema] of Rec.toEntries(document.components.schemas)) {
+    const properties = Str.endsWith('Command')(name) ? {} : (schema.properties ?? {});
+    for (const [key, property] of Rec.toEntries(properties)) {
+      if (
+        property.type === 'object' &&
+        property.additionalProperties !== undefined &&
+        property.properties === undefined
+      ) {
+        patch.push({
+          op: 'replace',
+          path: `/components/schemas/${pointer(name)}/properties/${pointer(key)}`,
+          value: { oneOf: [property, EMPTY_ARRAY] },
+        });
       }
     }
   }
 };
-removeExamples(document.components.schemas, '/components/schemas');
-removeExamples(document.paths, '/paths');
 
-// Composite filters: `and` / `or` take a list of filters of the same shape.
-// In JSON Schema that recursion expands several levels deep in every list
-// tool; nested filters become a plain object instead, which tipee validates.
-for (const [name, schema] of Object.entries(document.components.schemas)) {
-  const self = `#/components/schemas/${name}`;
-  for (const [index, alternative] of (schema.oneOf ?? []).entries()) {
-    if (alternative.properties?.value?.items?.$ref === self) {
-      patch.push({
-        op: 'replace',
-        path: `/components/schemas/${name}/oneOf/${index}/properties/value/items`,
-        value: { description: 'A filter of the same shape as the top-level ones.', type: 'object' },
-      });
+// The component schemas the tools' requests and answers refer to.
+const usage = (document: Document) => {
+  const requests = new Set<string>();
+  const answers = new Set<string>();
+  for (const route of toolRoutes(document)) {
+    for (const operation of Rec.values(document.paths[route] ?? {})) {
+      for (const name of referenced(document, operation.requestBody)) {
+        requests.add(name);
+      }
+      for (const name of referenced(document, operation.responses)) {
+        answers.add(name);
+      }
     }
   }
-}
-
-// Closed request objects make the generated request schemas plain structs,
-// whose JSON Schema is a third shorter. They do not refuse unknown keys on
-// their own (decoding drops them): the MCP tools are strict, which does.
-const visited = new Set<string>();
-const closeObjects = (node: Schema | undefined, at: string): void => {
-  if (node === undefined) {
-    return;
-  }
-  if (node.$ref !== undefined) {
-    const target = node.$ref.replace('#/components/schemas/', '');
-    if (!visited.has(target)) {
-      visited.add(target);
-      closeObjects(document.components.schemas[target], `/components/schemas/${pointer(target)}`);
-    }
-    return;
-  }
-  if (node.properties !== undefined) {
-    if (node.additionalProperties === undefined) {
-      patch.push({ op: 'add', path: `${at}/additionalProperties`, value: false });
-    }
-    for (const [key, property] of Object.entries(node.properties)) {
-      closeObjects(property, `${at}/properties/${pointer(key)}`);
-    }
-  }
-  closeObjects(node.items, `${at}/items`);
-  for (const group of ['oneOf', 'anyOf', 'allOf'] as const) {
-    for (const [index, member] of (
-      (node[group] as ReadonlyArray<Schema> | undefined) ?? []
-    ).entries()) {
-      closeObjects(member, `${at}/${group}/${index}`);
-    }
-  }
+  return { answers, requests };
 };
-for (const route of routes) {
-  for (const [method, operation] of Object.entries(document.paths[route] ?? {})) {
-    const body = (
-      operation.requestBody as { content?: Record<string, { schema?: Schema }> } | undefined
-    )?.content?.['application/json']?.schema;
-    closeObjects(
-      body,
-      `/paths/${pointer(route)}/${method}/requestBody/content/application~1json/schema`,
-    );
-  }
-}
-
-const requests = new Set<string>();
-const answers = new Set<string>();
-for (const route of routes) {
-  for (const operation of Object.values(document.paths[route] ?? {})) {
-    referenced(document, operation.requestBody, requests);
-    referenced(document, operation.responses, answers);
-  }
-}
 
 // Tipee adds enum values within a version, and one value the schema does not
 // know fails the whole answer. An enum only answers carry becomes a string
 // that lists the known values; enums a request can carry stay closed.
-for (const [name, schema] of Object.entries(document.components.schemas)) {
-  if (schema.enum !== undefined && answers.has(name) && !requests.has(name)) {
-    patch.push({
-      op: 'replace',
-      path: `/components/schemas/${pointer(name)}`,
-      value: {
-        description: [schema.description, `Known values: ${schema.enum.join(', ')}.`]
-          .filter((part) => part !== undefined)
-          .join(' '),
-        type: 'string',
-      },
-    });
+const openAnswerEnums = (document: Document, patch: Array<Patch>): void => {
+  const { answers, requests } = usage(document);
+  for (const [name, schema] of Rec.toEntries(document.components.schemas)) {
+    if (schema.enum !== undefined && answers.has(name) && !requests.has(name)) {
+      const known = `Known values: ${Arr.join(schema.enum, ', ')}.`;
+      patch.push({
+        op: 'replace',
+        path: `/components/schemas/${pointer(name)}`,
+        value: {
+          description: Arr.join(
+            Arr.filter([schema.description, known], Predicate.isNotUndefined),
+            ' ',
+          ),
+          type: 'string',
+        },
+      });
+    }
   }
-}
+};
 
 // The excluded operations go last, after the patches above touched them,
 // along with the schemas no tool refers to any more.
-const kept = new Set([...requests, ...answers]);
-const orphans = new Set<string>();
-for (const route of EXCLUDED) {
-  const methods = document.paths[route];
-  if (methods !== undefined) {
-    patch.push({ op: 'remove', path: `/paths/${pointer(route)}` });
-    for (const name of referenced(document, methods)) {
-      if (!kept.has(name)) {
-        orphans.add(name);
+const removeExcluded = (document: Document, patch: Array<Patch>): void => {
+  const { answers, requests } = usage(document);
+  const kept = new Set([...requests, ...answers]);
+  const orphans = new Set<string>();
+  for (const route of EXCLUDED) {
+    const methods = document.paths[route];
+    if (methods !== undefined) {
+      patch.push({ op: 'remove', path: `/paths/${pointer(route)}` });
+      for (const name of referenced(document, methods)) {
+        if (!kept.has(name)) {
+          orphans.add(name);
+        }
       }
     }
   }
-}
-for (const name of orphans) {
-  patch.push({ op: 'remove', path: `/components/schemas/${pointer(name)}` });
-}
+  for (const name of orphans) {
+    patch.push({ op: 'remove', path: `/components/schemas/${pointer(name)}` });
+  }
+};
 
-const result = spawnSync(
-  generator,
-  ['--spec', file, '--format', 'httpapi', '--name', 'Tipee', '--patch', JSON.stringify(patch)],
-  { encoding: 'utf8' },
-);
-if (result.status !== 0) {
-  throw new Error(`openapigen failed:\n${result.stderr}`);
-}
-mkdirSync(path.dirname(output), { recursive: true });
-writeFileSync(
-  output,
-  `// Generated from spec/${spec} by @effect/openapi-generator. Do not edit:\n// Run \`pnpm generate\` instead.\n\n${result.stdout}`,
-);
+const generate = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const { document, file } = yield* vendored();
+  const directory = yield* root;
+  const output = path.join(directory, 'src', 'generated', 'TipeeApi.ts');
+
+  const patch: Array<Patch> = [];
+  requireBodies(document, patch);
+  yield* rewordAll(document, patch);
+  acceptEmptyMaps(document, patch);
+  patch.push(...compact(document));
+  openAnswerEnums(document, patch);
+  removeExcluded(document, patch);
+
+  const generated = yield* openapigen(file, patch);
+  yield* fs.makeDirectory(path.dirname(output), { recursive: true });
+  yield* fs.writeFileString(
+    output,
+    `// Generated from spec/${path.basename(file)} by @effect/openapi-generator. Do not edit:\n// Run \`pnpm generate\` instead.\n\n${generated}`,
+  );
+});
+
+runMain(Effect.provide(generate, nodeServices));

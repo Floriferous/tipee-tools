@@ -3,13 +3,13 @@
 // instructions, and list its tools, and with a setting it cannot use still
 // start and say what to fix through its tools.
 
-import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
+import { layer as nodeServices } from '@effect/platform-node/NodeServices';
+import { expect, layer } from '@effect/vitest';
+import { Array as Arr, Effect, Fiber, Option, Path, Queue, Ref, Schema, Stream } from 'effect';
+import { ChildProcess } from 'effect/process';
 
-import { describe, expect, it } from 'vitest';
+import { fromJson, toJson } from './wire.ts';
 
-const ENTRY = fileURLToPath(new URL('../src/main.ts', import.meta.url));
 const TIMEOUT_MS = 15_000;
 // Some clients cut the server's instructions past this length.
 const INSTRUCTIONS_LIMIT = 2048;
@@ -19,78 +19,88 @@ const OFFLINE = {
   TIPEE_RELEASES_URL: 'http://127.0.0.1:1/releases',
 };
 
-interface JsonRpcResponse {
-  readonly id?: number;
-  readonly result?: Record<string, unknown>;
-  readonly error?: { readonly message: string };
-}
+const JsonRpcResponse = Schema.Struct({
+  error: Schema.optionalKey(Schema.Struct({ message: Schema.String })),
+  id: Schema.optionalKey(Schema.Int),
+  result: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+});
+type JsonRpcResponse = typeof JsonRpcResponse.Type;
 
-interface Server {
-  readonly request: (method: string, params: object) => Promise<JsonRpcResponse>;
-  readonly stderr: Array<string>;
-  readonly stop: () => void;
-}
+// The server stopped before it answered, with what it wrote on stderr.
+class ServerStopped extends Schema.TaggedError<ServerStopped, { readonly brand: unique symbol }>()(
+  'ServerStopped',
+  {
+    message: Schema.String,
+  },
+) {}
 
-// Starts the server with these settings and nothing else from Claude.
-const serve = (settings: Record<string, string>): Server => {
+// Starts the server with these settings and nothing else from Claude; it is
+// killed when the test's scope closes.
+const serve = Effect.fn('serve')(function* (settings: Record<string, string>) {
+  const path = yield* Path.Path;
+  const entry = yield* path.fromFileUrl(new URL('../src/main.ts', import.meta.url));
   const { TIPEE_API_KEY: _key, TIPEE_INSTANCE: _instance, ...env } = process.env;
-  const child = spawn(process.execPath, [ENTRY], {
+  const input = yield* Queue.unbounded<string>();
+  const handle = yield* ChildProcess.make(process.execPath, [entry], {
     env: { ...env, ...OFFLINE, ...settings },
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdin: Stream.fromQueue(input).pipe(Stream.encodeText),
   });
-  const stderr: Array<string> = [];
-  child.stderr.on('data', (chunk: Buffer) => {
-    stderr.push(chunk.toString());
-  });
-  const lines = createInterface({ input: child.stdout });
-  const responses = new Map<
-    number,
-    { resolve: (response: JsonRpcResponse) => void; reject: (error: Error) => void }
-  >();
-  lines.on('line', (line) => {
-    const message = JSON.parse(line) as JsonRpcResponse;
-    if (message.id !== undefined) {
-      responses.get(message.id)?.resolve(message);
-      responses.delete(message.id);
-    }
-  });
-  // A server that stops fails what it left unanswered at once, saying why.
-  const state: { ended?: Error; next: number } = { next: 1 };
-  const end = (cause: string): void => {
-    state.ended ??= new Error(`${cause}; stderr:\n${stderr.join('')}`);
-    for (const { reject } of responses.values()) {
-      reject(state.ended);
-    }
-    responses.clear();
-  };
-  child.once('error', (error) => {
-    end(`the server could not start: ${error.message}`);
-  });
-  // 'close' rather than 'exit': by then stderr has been read to the end.
-  child.once('close', (code, signal) => {
-    end(`the server exited (${signal ?? `code ${code}`})`);
-  });
-  const send = (message: object): void => {
-    child.stdin.write(`${JSON.stringify(message)}\n`);
-  };
-  const request = async (method: string, params: object): Promise<JsonRpcResponse> =>
-    new Promise((resolve, reject) => {
-      if (state.ended !== undefined) {
-        reject(state.ended);
-        return;
-      }
-      const id = state.next;
-      state.next += 1;
-      responses.set(id, { reject, resolve });
-      send({ id, jsonrpc: '2.0', method, params });
-    });
-  const stop = (): void => {
-    child.kill();
-  };
-  return { request, stderr, stop };
-};
 
-const initialize = async ({ request }: Server): Promise<JsonRpcResponse> =>
+  const stderr = yield* Ref.make('');
+  const stderrRead = yield* handle.stderr.pipe(
+    Stream.decodeText,
+    Stream.runForEach((chunk) => Ref.update(stderr, (text) => text + chunk)),
+    Effect.forkScoped,
+  );
+
+  // Every message the server writes, one per line; a server that stops fails
+  // what it left unanswered at once, saying why.
+  const messages = yield* Queue.unbounded<JsonRpcResponse, ServerStopped>();
+  yield* handle.stdout.pipe(
+    Stream.decodeText,
+    Stream.splitLines,
+    Stream.mapEffect(fromJson(JsonRpcResponse)),
+    Stream.runForEach((message) => Queue.offer(messages, message)),
+    Effect.andThen(
+      Effect.gen(function* () {
+        // By the end of stderr, the server has said all it will.
+        yield* Fiber.join(stderrRead);
+        const code = yield* handle.exitCode;
+        const said = yield* Ref.get(stderr);
+        return yield* Queue.fail(
+          messages,
+          ServerStopped.make({ message: `the server exited (code ${code}); stderr:\n${said}` }),
+        );
+      }),
+    ),
+    // Output that cannot be read stops the test as surely as an exit.
+    Effect.catch((error) =>
+      Queue.fail(
+        messages,
+        ServerStopped.make({ message: `the server's output could not be read: ${error.message}` }),
+      ),
+    ),
+    Effect.forkScoped,
+  );
+
+  const next = yield* Ref.make(1);
+  const request = Effect.fn('request')(function* (method: string, params: object) {
+    const id = yield* Ref.getAndUpdate(next, (current) => current + 1);
+    const line = yield* toJson({ id, jsonrpc: '2.0', method, params });
+    yield* Queue.offer(input, `${line}\n`);
+    // Notifications and other answers are skipped.
+    let message = yield* Queue.take(messages);
+    while (message.id !== id) {
+      message = yield* Queue.take(messages);
+    }
+    return message;
+  });
+  return { request, stderr: Ref.get(stderr) };
+});
+
+type Server = Effect.Success<ReturnType<typeof serve>>;
+
+const initialize = ({ request }: Server) =>
   request('initialize', {
     capabilities: {},
     clientInfo: { name: 'tipee-tools tests', version: '0' },
@@ -115,69 +125,77 @@ const expectServerInfo = (serverInfo: unknown): void => {
   expect(icon?.src).toMatch(/^data:image\/png;base64,iVBORw0KGgo/u);
 };
 
-describe('stdio transport', () => {
-  it(
-    'initializes with instructions and lists the tools, each with a title',
-    async () => {
-      const server = serve({ TIPEE_API_KEY: 'unused-in-this-test', TIPEE_INSTANCE: 'acme' });
-      try {
-        const initialized = await initialize(server);
-        const listed = await server.request('tools/list', {});
-        const prompts = await server.request('prompts/list', {});
+interface Listed {
+  readonly name: string;
+  readonly annotations: { readOnlyHint: boolean; destructiveHint: boolean; title?: string };
+}
 
-        expect(initialized.error, server.stderr.join('')).toBeUndefined();
+// A real process, on the real clock.
+layer(nodeServices, { excludeTestServices: true })('stdio transport', (it) => {
+  it.effect(
+    'initializes with instructions and lists the tools, each with a title',
+    () =>
+      Effect.gen(function* () {
+        const server = yield* serve({
+          TIPEE_API_KEY: 'unused-in-this-test',
+          TIPEE_INSTANCE: 'acme',
+        });
+        const initialized = yield* initialize(server);
+        const listed = yield* server.request('tools/list', {});
+        const prompts = yield* server.request('prompts/list', {});
+
+        const stderr = yield* server.stderr;
+        expect(initialized.error, stderr).toBeUndefined();
         expectServerInfo(initialized.result?.serverInfo);
         const instructions = initialized.result?.instructions as string | undefined;
         expect(instructions).toMatch(/check_setup/u);
         expect(instructions?.length).toBeLessThan(INSTRUCTIONS_LIMIT);
-        const tools = listed.result?.tools as Array<{
-          name: string;
-          annotations: { readOnlyHint: boolean; destructiveHint: boolean; title?: string };
-        }>;
-        expect(tools.map((tool) => tool.name)).toContain('check_setup');
-        expect(tools.map((tool) => tool.name)).toContain('schedules_create');
-        expect(tools.map((tool) => tool.name)).toContain('schedules_update_many');
-        expect(tools.filter((tool) => tool.annotations.title === undefined)).toEqual([]);
-        const titled = (name: string) => tools.find((tool) => tool.name === name)?.annotations;
+        const tools = listed.result?.tools as ReadonlyArray<Listed>;
+        const names = Arr.map(tools, (tool) => tool.name);
+        expect(names).toContain('check_setup');
+        expect(names).toContain('schedules_create');
+        expect(names).toContain('schedules_update_many');
+        expect(Arr.filter(tools, (tool) => tool.annotations.title === undefined)).toEqual([]);
+        const titled = (name: string) =>
+          Arr.findFirst(tools, (tool) => tool.name === name).pipe(
+            Option.map((tool) => tool.annotations),
+            Option.getOrUndefined,
+          );
         expect(titled('absences_list')?.title).toBe('Absences: list');
         expect(titled('day_tasks_submit_for_contributor')?.title).toBe(
           'Day tasks: submit for contributor',
         );
         expect(titled('check_setup')?.title).toBe('Check tipee setup');
         expect(titled('check_setup')?.readOnlyHint).toBe(true);
-        expect(
-          tools.find((tool) => tool.name === 'schedules_delete')?.annotations.destructiveHint,
-        ).toBe(true);
-        const promptList = prompts.result?.prompts as Array<{ name: string }> | undefined;
-        expect(promptList?.map((prompt) => prompt.name)).toContain('check-tipee-setup');
-      } finally {
-        server.stop();
-      }
-    },
+        expect(titled('schedules_delete')?.destructiveHint).toBe(true);
+        const promptList = prompts.result?.prompts as ReadonlyArray<{ name: string }> | undefined;
+        expect(Arr.map(promptList ?? [], (prompt) => prompt.name)).toContain('check-tipee-setup');
+      }),
     TIMEOUT_MS,
   );
 
   // Claude keeps stderr in a log nobody opens: the tools must say it.
-  it(
+  it.effect(
     'starts with an instance it cannot use, and check_setup says what to fix',
-    async () => {
-      const server = serve({ TIPEE_API_KEY: 'unused-in-this-test', TIPEE_INSTANCE: 'acme corp' });
-      try {
-        await initialize(server);
-        const checked = await server.request('tools/call', { arguments: {}, name: 'check_setup' });
+    () =>
+      Effect.gen(function* () {
+        const server = yield* serve({
+          TIPEE_API_KEY: 'unused-in-this-test',
+          TIPEE_INSTANCE: 'acme corp',
+        });
+        yield* initialize(server);
+        const checked = yield* server.request('tools/call', { arguments: {}, name: 'check_setup' });
         const result = checked.result as
-          | { isError?: boolean; content: Array<{ text: string }> }
+          | { isError?: boolean; content: ReadonlyArray<{ text: string }> }
           | undefined;
 
         expect(result?.isError).toBe(true);
         expect(result?.content[0]?.text).toContain(
           '"acme corp" is not a tipee instance: enter the part before .tipee.net',
         );
-        expect(server.stderr.join('')).toMatch(/not set up/u);
-      } finally {
-        server.stop();
-      }
-    },
+        const stderr = yield* server.stderr;
+        expect(stderr).toMatch(/not set up/u);
+      }),
     TIMEOUT_MS,
   );
 });

@@ -39,13 +39,21 @@ Effect's own agent docs shipped beside them:
 - Services: `class X extends Context.Service<X, { … }>()("@tipee-tools/core/X") {}`
   with `static readonly layer = Layer.effect(X, Effect.gen(…))` returning
   `X.of({ … })`. Config-driven layers use `Layer.unwrap` (see `TipeeClient.layerConfig`).
-- `@effect/tsgo`'s `schemaClassMissingBrand` is off in every tsconfig: a
-  `TaggedError` is already nominal through its `_tag`, and Effect's own
-  code does not brand.
-- Errors: `class E extends Schema.TaggedError<E>()("E", { fields })` with an
-  `override get message()` that says what to do. One umbrella error with a
-  tagged `reason` field (`TipeeError`) so callers use `Effect.catchReason`.
-  Fail with `return yield* new E(…)`, never `throw`.
+- Errors: `class E extends Schema.TaggedError<E, { readonly brand: unique symbol }>()("E", { fields })`
+  (every schema class carries a brand) with an `override get message()`
+  that says what to do. One umbrella error with a tagged `reason` field
+  (`TipeeError`) so callers use `Effect.catchReason`. Construct with
+  `E.make(…)` and fail with `return yield* E.make(…)`, never `throw`.
+- Native array, string and record methods go through Effect's modules:
+  `import { Array as Arr, Record as Rec, String as Str } from 'effect'`.
+- No Node built-ins and no globals for effects: files, paths, child
+  processes, hashing and random ids come from Effect's services
+  (`FileSystem`, `Path`, `ChildProcess`, `Digest`, `SecureRandom`), provided
+  by the platform layer (`packages/mcp/src/Platform.ts`, NodeServices in
+  scripts and tests); JSON goes through `Schema.fromJsonString`; time
+  through `Clock`/`DateTime`; timers through `Effect.sleep`.
+- Exported functions with two or more arguments are `dual`, so both the
+  data-first call and the pipeable form work.
 - Schemas: `Schema.Struct`, `Schema.Class<T>("id")({ … })` for named entities,
   `Schema.String.check(Schema.isPattern(re))`, `Schema.NullOr`,
   `Schema.optionalKey` for optional JSON keys, `Schema.Literals([…])`,
@@ -132,9 +140,11 @@ comments; add a commented entry there instead.
 
 Effect's own lint rules run in oxlint too: `@effect/tsgo` patches the
 `effecttsgo` plugin into it (`pnpm install` runs the patch), and the
-categories turn every rule on, newer ones included. The config turns off
-the few that do not fit, each with its reason: native array, record and
-string methods, `new` for errors, Node helpers, library-only rules, the
-deliberate unstable modules. Tests and build scripts relax the rest. A new
-`@effect/tsgo` release supports only some oxlint versions (`pnpm install`
-names them); move the two together, as Renovate's toolchain group does.
+categories turn every rule on, newer ones included, for source, tests and
+build scripts alike. Only `unstable-api-usage` and `api-stability-leak` are
+off: the server and the client are built on effect/ai, effect/http and
+effect/http-api. The build scripts are Effect programs run with
+`NodeRuntime.runMain`; tests wrap MSW handlers in an Effect `resolver` and
+read request bodies through `HttpServerRequest`. A new `@effect/tsgo`
+release supports only some oxlint versions (`pnpm install` names them);
+move the two together, as Renovate's toolchain group does.

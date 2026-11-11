@@ -9,7 +9,10 @@ const saying = (summary: string, body: string, otherwise: string): string =>
   body === '' ? `${summary}: ${otherwise}` : `${summary}: ${body}`;
 
 /** The key is not one tipee accepts (typo, revoked, expired, or another instance's). */
-export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKeyRejected', {
+export class ApiKeyRejected extends Schema.TaggedError<
+  ApiKeyRejected,
+  { readonly brand: unique symbol }
+>()('ApiKeyRejected', {
   body: Schema.String,
 }) {
   public override get message(): string {
@@ -26,7 +29,10 @@ export class ApiKeyRejected extends Schema.TaggedError<ApiKeyRejected>()('ApiKey
  * unlocks the API. tipee answers 401 here (not 403), so only the body tells
  * this apart from a bad key.
  */
-export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMissing', {
+export class RightsMissing extends Schema.TaggedError<
+  RightsMissing,
+  { readonly brand: unique symbol }
+>()('RightsMissing', {
   body: Schema.String,
 }) {
   public override get message(): string {
@@ -34,9 +40,12 @@ export class RightsMissing extends Schema.TaggedError<RightsMissing>()('RightsMi
   }
 }
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()('Forbidden', {
-  body: Schema.String,
-}) {
+export class Forbidden extends Schema.TaggedError<Forbidden, { readonly brand: unique symbol }>()(
+  'Forbidden',
+  {
+    body: Schema.String,
+  },
+) {
   public override get message(): string {
     return saying(
       'tipee refused the operation (HTTP 403)',
@@ -46,15 +55,21 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()('Forbidden', {
   }
 }
 
-export class NotFound extends Schema.TaggedError<NotFound>()('NotFound', {
-  body: Schema.String,
-}) {
+export class NotFound extends Schema.TaggedError<NotFound, { readonly brand: unique symbol }>()(
+  'NotFound',
+  {
+    body: Schema.String,
+  },
+) {
   public override get message(): string {
     return saying('tipee could not find it (HTTP 404)', this.body, 'no such resource.');
   }
 }
 
-export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited', {
+export class RateLimited extends Schema.TaggedError<
+  RateLimited,
+  { readonly brand: unique symbol }
+>()('RateLimited', {
   body: Schema.String,
   /** Tipee's Retry-After header, in seconds or as a date. */
   retryAfter: Schema.optionalKey(Schema.String),
@@ -70,21 +85,27 @@ export class RateLimited extends Schema.TaggedError<RateLimited>()('RateLimited'
 }
 
 /** Tipee refused the request on its own terms (a documented 4xx such as 409). */
-export class Rejected extends Schema.TaggedError<Rejected>()('Rejected', {
-  body: Schema.String,
-  /** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
-  code: Schema.optionalKey(Schema.String),
-  /** The fields tipee's answer names, as paths without values (see `fieldsOf`). */
-  fields: Schema.optionalKey(Schema.Array(Schema.String)),
-  status: Schema.Int,
-}) {
+export class Rejected extends Schema.TaggedError<Rejected, { readonly brand: unique symbol }>()(
+  'Rejected',
+  {
+    body: Schema.String,
+    /** Tipee's machine-readable reason when it gives one, such as OVERLAPPING. */
+    code: Schema.optionalKey(Schema.String),
+    /** The fields tipee's answer names, as paths without values (see `fieldsOf`). */
+    fields: Schema.optionalKey(Schema.Array(Schema.String)),
+    status: Schema.Int,
+  },
+) {
   public override get message(): string {
     const code = this.code === undefined ? '' : `, ${this.code}`;
     return `tipee rejected the request (HTTP ${this.status}${code}): ${this.body}`;
   }
 }
 
-export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('UnexpectedStatus', {
+export class UnexpectedStatus extends Schema.TaggedError<
+  UnexpectedStatus,
+  { readonly brand: unique symbol }
+>()('UnexpectedStatus', {
   body: Schema.String,
   status: Schema.Int,
 }) {
@@ -102,7 +123,10 @@ export class UnexpectedStatus extends Schema.TaggedError<UnexpectedStatus>()('Un
  * document. tipee did accept the request, so a write may well have gone
  * through: the message says so.
  */
-export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('UnexpectedShape', {
+export class UnexpectedShape extends Schema.TaggedError<
+  UnexpectedShape,
+  { readonly brand: unique symbol }
+>()('UnexpectedShape', {
   details: Schema.String,
   /** The success status of the answer, when one was read. */
   status: Schema.optionalKey(Schema.Int),
@@ -116,7 +140,10 @@ export class UnexpectedShape extends Schema.TaggedError<UnexpectedShape>()('Unex
 }
 
 /** The request body does not match tipee's API description, so it was never sent. */
-export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('InvalidRequest', {
+export class InvalidRequest extends Schema.TaggedError<
+  InvalidRequest,
+  { readonly brand: unique symbol }
+>()('InvalidRequest', {
   details: Schema.String,
 }) {
   public override get message(): string {
@@ -128,7 +155,10 @@ export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()('Invali
  * No tipee instance has this name. `*.tipee.net` resolves for any name, so a
  * typo is not a DNS failure: tipee answers 410 `instance_not_found`.
  */
-export class InstanceNotFound extends Schema.TaggedError<InstanceNotFound>()('InstanceNotFound', {
+export class InstanceNotFound extends Schema.TaggedError<
+  InstanceNotFound,
+  { readonly brand: unique symbol }
+>()('InstanceNotFound', {
   body: Schema.String,
 }) {
   public override get message(): string {
@@ -141,7 +171,10 @@ export class InstanceNotFound extends Schema.TaggedError<InstanceNotFound>()('In
 }
 
 /** The request never got an answer (DNS, TLS, connection reset, timeout…). */
-export class Unreachable extends Schema.TaggedError<Unreachable>()('Unreachable', {
+export class Unreachable extends Schema.TaggedError<
+  Unreachable,
+  { readonly brand: unique symbol }
+>()('Unreachable', {
   description: Schema.String,
 }) {
   public override get message(): string {
@@ -153,7 +186,10 @@ export class Unreachable extends Schema.TaggedError<Unreachable>()('Unreachable'
  * TIPEE_INSTANCE or TIPEE_API_KEY cannot be used, so nothing was sent. The
  * description is ConfigurationMissing's message, which names the setting.
  */
-export class NotConfigured extends Schema.TaggedError<NotConfigured>()('NotConfigured', {
+export class NotConfigured extends Schema.TaggedError<
+  NotConfigured,
+  { readonly brand: unique symbol }
+>()('NotConfigured', {
   description: Schema.String,
 }) {
   public override get message(): string {
@@ -162,9 +198,12 @@ export class NotConfigured extends Schema.TaggedError<NotConfigured>()('NotConfi
 }
 
 /** A failure in tipee-tools itself, not an answer from tipee: a bug to report. */
-export class Internal extends Schema.TaggedError<Internal>()('Internal', {
-  description: Schema.String,
-}) {
+export class Internal extends Schema.TaggedError<Internal, { readonly brand: unique symbol }>()(
+  'Internal',
+  {
+    description: Schema.String,
+  },
+) {
   public override get message(): string {
     return `tipee-tools failed on its own, not because of anything tipee answered: ${this.description}`;
   }

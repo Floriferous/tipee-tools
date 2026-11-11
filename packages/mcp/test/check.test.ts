@@ -1,18 +1,27 @@
 // The check_setup tool against the fake tipee: every probed endpoint reported, and
 // what a skipped or failed endpoint tells the user.
 
-import { describe, expect, it, layer } from '@effect/vitest';
+import { describe, expect, layer } from '@effect/vitest';
 import { TipeeClient } from '@tipee-tools/core';
 import { API_KEY, BASE, INTEGRATION_ID, server } from '@tipee-tools/core/testing';
-import { Effect, Layer, Redacted } from 'effect';
+import { Array as Arr, Effect, Layer, Option, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
-import { delay } from 'msw';
 import { HttpResponse, http } from 'msw/http';
 
 import { SERVER_VERSION, Telemetry, TipeeToolkitLayer, Update, Updates } from '../src/index.ts';
 import { call, clientFor } from './toolkit.ts';
+import { resolver } from './wire.ts';
 
 const HTTP_FORBIDDEN = 403;
+
+type Endpoint = Readonly<{ name: string; status: string; error?: string }>;
+
+const named = (endpoints: ReadonlyArray<Endpoint>, name: string): Endpoint | undefined =>
+  Option.getOrUndefined(Arr.findFirst(endpoints, (endpoint) => endpoint.name === name));
+const withStatus = (endpoints: ReadonlyArray<Endpoint>, status: string) =>
+  Arr.filter(endpoints, (endpoint) => endpoint.status === status);
+const names = (endpoints: ReadonlyArray<Endpoint>) =>
+  Arr.map(endpoints, (endpoint) => endpoint.name);
 
 layer(clientFor(API_KEY))('check_setup', (it) => {
   it.effect('reports every probed endpoint ok, over the coming week by default', () =>
@@ -20,7 +29,7 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       const report = (yield* call('check_setup', {})) as {
         ok: boolean;
         date_range: string;
-        endpoints: Array<{ name: string; status: string }>;
+        endpoints: ReadonlyArray<Endpoint>;
         integration?: { label: string; roles_page: string };
         version: string;
       };
@@ -29,7 +38,7 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       expect(report.version).toBe(SERVER_VERSION);
       // The test clock starts at the epoch.
       expect(report.date_range).toBe('1970-01-01/1970-01-07');
-      expect(report.endpoints.map((endpoint) => endpoint.name)).toEqual([
+      expect(names(report.endpoints)).toEqual([
         'kinds_list',
         'resources_list',
         'teams_list',
@@ -62,9 +71,9 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       );
       const report = (yield* call('check_setup', {})) as {
         ok: boolean;
-        endpoints: Array<{ name: string; status: string; error?: string }>;
+        endpoints: ReadonlyArray<Endpoint>;
       };
-      const timechecks = report.endpoints.find((endpoint) => endpoint.name === 'timechecks_list');
+      const timechecks = named(report.endpoints, 'timechecks_list');
 
       expect(report.ok).toBe(true);
       expect(timechecks?.status).toBe('skipped');
@@ -82,9 +91,9 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
         ),
       );
       const report = (yield* call('check_setup', {})) as {
-        endpoints: Array<{ name: string; status: string; error?: string }>;
+        endpoints: ReadonlyArray<Endpoint>;
       };
-      const schedules = report.endpoints.find((endpoint) => endpoint.name === 'schedules_list');
+      const schedules = named(report.endpoints, 'schedules_list');
 
       expect(schedules?.status).toBe('skipped');
       expect(schedules?.error).toContain('Access denied.');
@@ -96,7 +105,7 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
   it.effect('looks the integration up once, however many endpoints are refused', () =>
     Effect.gen(function* () {
       let kinds = 0;
-      const refused = ['schedules', 'absences', 'on-calls'].map((name) =>
+      const refused = Arr.map(['schedules', 'absences', 'on-calls'], (name) =>
         http.post(
           `${BASE}/api/schedule/${name}.list`,
           () => HttpResponse.json({ message: 'Access denied.' }, { status: HTTP_FORBIDDEN }),
@@ -111,9 +120,9 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
         }),
       );
       const report = (yield* call('check_setup', {})) as {
-        endpoints: Array<{ status: string; error?: string }>;
+        endpoints: ReadonlyArray<Endpoint>;
       };
-      const skipped = report.endpoints.filter((endpoint) => endpoint.status === 'skipped');
+      const skipped = withStatus(report.endpoints, 'skipped');
 
       expect(skipped).toHaveLength(3);
       for (const endpoint of skipped) {
@@ -130,12 +139,17 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       let most = 0;
       server.use(
         // Counted, held a moment, then answered by the fake tipee.
-        http.post(`${BASE}/api/*`, async () => {
-          inFlight += 1;
-          most = Math.max(most, inFlight);
-          await delay(20);
-          inFlight -= 1;
-        }),
+        http.post(
+          `${BASE}/api/*`,
+          resolver(() =>
+            Effect.gen(function* () {
+              inFlight += 1;
+              most = Math.max(most, inFlight);
+              yield* Effect.sleep('20 millis');
+              inFlight -= 1;
+            }),
+          ),
+        ),
       );
       const report = (yield* call('check_setup', {})) as { ok: boolean };
 
@@ -156,11 +170,9 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       );
       const report = (yield* call('check_setup', { from: '2026-09-07', to: '2026-09-13' })) as {
         ok: boolean;
-        endpoints: Array<{ name: string; status: string; error?: string }>;
+        endpoints: ReadonlyArray<Endpoint>;
       };
-      const templates = report.endpoints.find(
-        (endpoint) => endpoint.name === 'schedule_templates_list',
-      );
+      const templates = named(report.endpoints, 'schedule_templates_list');
 
       expect(report.ok).toBe(false);
       expect(templates?.status).toBe('failed');
@@ -177,12 +189,12 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
       );
       const report = (yield* call('check_setup', {})) as {
         ok: boolean;
-        endpoints: Array<{ name: string; status: string; error?: string }>;
+        endpoints: ReadonlyArray<Endpoint>;
       };
-      const skipped = report.endpoints.filter((endpoint) => endpoint.status === 'skipped');
+      const skipped = withStatus(report.endpoints, 'skipped');
 
       expect(report.ok).toBe(true);
-      expect(skipped.map((endpoint) => endpoint.name)).toEqual([
+      expect(names(skipped)).toEqual([
         'kinds_list',
         'resources_list',
         'resources_show_activity_rates',
@@ -191,7 +203,7 @@ layer(clientFor(API_KEY))('check_setup', (it) => {
         'Not called: it needs an id from kinds_list, which needs «Cœur RH → Voir les collaborateurs».',
       );
       expect(skipped[2]?.error).toMatch(/needs an id from resources_list/u);
-      expect(report.endpoints.filter((endpoint) => endpoint.status === 'ok')).toHaveLength(6);
+      expect(withStatus(report.endpoints, 'ok')).toHaveLength(6);
     }),
   );
 
@@ -214,7 +226,7 @@ const offered = (apiKey: string) =>
     Layer.provide(
       Layer.succeed(Updates, {
         available: Effect.succeedSome(
-          new Update({ url: 'https://github.test/tag/v9.9.9', version: '9.9.9' }),
+          Update.make({ url: 'https://github.test/tag/v9.9.9', version: '9.9.9' }),
         ),
         current: SERVER_VERSION,
         install: Effect.succeed({ status: 'up_to_date' as const }),
@@ -224,23 +236,27 @@ const offered = (apiKey: string) =>
   );
 
 describe('check_setup with a newer release', () => {
-  it.effect('reports it alongside the endpoints', () =>
-    Effect.gen(function* () {
-      const report = (yield* call('check_setup', {})) as { update?: { version: string } };
+  layer(offered(API_KEY))((it) => {
+    it.effect('reports it alongside the endpoints', () =>
+      Effect.gen(function* () {
+        const report = (yield* call('check_setup', {})) as { update?: { version: string } };
 
-      expect(report.update?.version).toBe('9.9.9');
-    }).pipe(Effect.provide(offered(API_KEY))),
-  );
+        expect(report.update?.version).toBe('9.9.9');
+      }),
+    );
+  });
 
-  // A release may fix what makes every call fail.
-  it.effect('offers it when the check aborts', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(call('check_setup', {}));
+  layer(offered('wrong'))((it) => {
+    // A release may fix what makes every call fail.
+    it.effect('offers it when the check aborts', () =>
+      Effect.gen(function* () {
+        const error = yield* Effect.flip(call('check_setup', {}));
 
-      expect(String(error)).toMatch(/refused the API key/u);
-      expect(String(error)).toMatch(
-        /Version 9\.9\.9 of tipee for Claude is available: offer to install it with update_plugin\.$/u,
-      );
-    }).pipe(Effect.provide(offered('wrong'))),
-  );
+        expect(String(error)).toMatch(/refused the API key/u);
+        expect(String(error)).toMatch(
+          /Version 9\.9\.9 of tipee for Claude is available: offer to install it with update_plugin\.$/u,
+        );
+      }),
+    );
+  });
 });

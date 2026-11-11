@@ -5,7 +5,7 @@
 
 import type { IntegrationLink, IntegrationLookup, TipeeClient } from '@tipee-tools/core';
 import { TipeeError, integrationLink, operation, rightFor, invoke } from '@tipee-tools/core';
-import { DateTime, Effect, Fiber, Option } from 'effect';
+import { Array as Arr, DateTime, Effect, Fiber, Option, pipe } from 'effect';
 
 import { Telemetry } from './Telemetry.ts';
 import type { EndpointReport } from './Tools.ts';
@@ -30,7 +30,7 @@ const defaultRange: Effect.Effect<Range> = Effect.map(DateTime.now, (now) => ({
 
 // How many things an answer holds: a list, a page, or one object.
 const countOf = (result: unknown): number => {
-  if (Array.isArray(result)) {
+  if (Arr.isArray(result)) {
     return result.length;
   }
   if (typeof result === 'object' && result !== null && 'data' in result) {
@@ -133,9 +133,11 @@ export const probes = Effect.fn('check_setup.probes')(function* ({
   // People come in a chain, each probe needing an id from the one before.
   const chain = Effect.gen(function* () {
     const kinds = yield* probe('kinds_list', {});
-    const employee = (
-      kinds.result as ReadonlyArray<{ id: string; machine_name: string }> | undefined
-    )?.find((kind) => kind.machine_name === 'employee');
+    const employee = pipe(
+      (kinds.result as ReadonlyArray<{ id: string; machine_name: string }> | undefined) ?? [],
+      Arr.findFirst((kind) => kind.machine_name === 'employee'),
+      Option.getOrUndefined,
+    );
     const people = yield* probeWith(
       'resources_list',
       kinds,
@@ -173,35 +175,32 @@ export const probes = Effect.fn('check_setup.probes')(function* ({
       ],
       { concurrency: CONCURRENCY },
     );
-  const reports = [
-    kinds,
-    people,
-    teams,
-    templates,
-    schedules,
-    absences,
-    onCalls,
-    rates,
-    timechecks,
-  ].map((one) => one.report);
+  const reports = Arr.map(
+    [kinds, people, teams, templates, schedules, absences, onCalls, rates, timechecks],
+    (one) => one.report,
+  );
   const integration = yield* lookup;
   return {
     date_range: dateRange,
     endpoints: reports,
     ...(integration === undefined ? {} : { integration }),
-    ok: reports.every((report) => report.status !== 'failed'),
+    ok: Arr.every(reports, (report) => report.status !== 'failed'),
   } satisfies Report;
 });
 
 // A failed check, with the newer version offered after its own fix.
 const offering = (error: TipeeError, update: Update): TipeeError =>
-  new TipeeError({
-    fix: [
-      error.fix,
-      `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`,
-    ]
-      .filter((part) => part !== undefined)
-      .join(' '),
+  TipeeError.make({
+    fix: Arr.join(
+      Arr.filter(
+        [
+          error.fix,
+          `Version ${update.version} of tipee for Claude is available: offer to install it with update_plugin.`,
+        ],
+        (part) => part !== undefined,
+      ),
+      ' ',
+    ),
     reason: error.reason,
   });
 

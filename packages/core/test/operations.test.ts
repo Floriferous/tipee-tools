@@ -1,44 +1,43 @@
 // The operation catalogue is read off the generated API: every endpoint in
 // tipee's document is there, named after its path, classified by verb.
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { layer as nodeServices } from '@effect/platform-node/NodeServices';
+import { expect, layer } from '@effect/vitest';
+import { Array as Arr, Effect, FileSystem, Path, String as Str } from 'effect';
 
-import { describe, expect, it } from 'vitest';
-
-import { toolName, toolRoutes, vendored } from '../scripts/spec.ts';
+import { specDirectory, toolName, toolRoutes, vendored } from '../scripts/spec.ts';
 import { TIPEE_API_VERSION } from '../src/index.ts';
 import { operation, operations } from '../src/Operations.ts';
 
-const SPEC = new URL('../spec/', import.meta.url);
+const names = Arr.map(operations, (candidate) => candidate.name);
 
-describe('operations', () => {
-  it('lists every operation of the API document with a unique path-derived name', () => {
-    const names = operations.map((candidate) => candidate.name);
+layer(nodeServices)('operations', (it) => {
+  it.effect('lists every operation of the API document with a unique path-derived name', () =>
+    Effect.gen(function* () {
+      const { document } = yield* vendored();
 
-    expect(new Set(names)).toEqual(
-      new Set(toolRoutes(vendored().document).map((route) => toolName(route))),
-    );
-    expect(new Set(names).size).toBe(operations.length);
-    expect(operation('schedules_list').path).toBe('/api/schedule/schedules.list');
-    expect(operation('resources_show_activity_rates').group).toBe('Directory');
-    expect(operation('day_tasks_submit_for_contributor').readOnly).toBe(false);
-  });
+      expect(new Set(names)).toEqual(new Set(Arr.map(toolRoutes(document), toolName)));
+      expect(new Set(names).size).toBe(operations.length);
+      expect(operation('schedules_list').path).toBe('/api/schedule/schedules.list');
+      expect(operation('resources_show_activity_rates').group).toBe('Directory');
+      expect(operation('day_tasks_submit_for_contributor').readOnly).toBe(false);
+    }),
+  );
 
   it('classifies reads, creates and the other writes from the verb', () => {
-    const reads = operations.filter((candidate) => candidate.readOnly);
-    const writes = operations.filter((candidate) => !candidate.readOnly);
-    const creates = writes.filter((candidate) => candidate.name.endsWith('_create'));
+    const reads = Arr.filter(operations, (candidate) => candidate.readOnly);
+    const writes = Arr.filter(operations, (candidate) => !candidate.readOnly);
+    const creates = Arr.filter(writes, (candidate) => Str.endsWith('_create')(candidate.name));
+    const readNames = Arr.map(reads, (candidate) => candidate.name);
 
-    expect(reads.map((candidate) => candidate.name)).toContain('teams_list');
-    expect(reads.map((candidate) => candidate.name)).toContain('resources_show_teams');
-    expect(reads.every((candidate) => !candidate.destructive)).toBe(true);
-    expect(creates.map((candidate) => candidate.name)).toContain('schedules_create');
-    expect(creates.every((candidate) => !candidate.destructive)).toBe(true);
+    expect(readNames).toContain('teams_list');
+    expect(readNames).toContain('resources_show_teams');
+    expect(Arr.every(reads, (candidate) => !candidate.destructive)).toBe(true);
+    expect(Arr.map(creates, (candidate) => candidate.name)).toContain('schedules_create');
+    expect(Arr.every(creates, (candidate) => !candidate.destructive)).toBe(true);
     // MCP reads destructiveHint false as "only adds": updates, cancellations
     // and unassignments all change what is there.
-    expect(
-      writes.filter((candidate) => !creates.includes(candidate)).every((one) => one.destructive),
-    ).toBe(true);
+    expect(Arr.every(Arr.difference(writes, creates), (one) => one.destructive)).toBe(true);
     expect(operation('teams_disable').destructive).toBe(true);
   });
 
@@ -52,7 +51,7 @@ describe('operations', () => {
   // history: a refresh of the document must not hand Claude any of these.
   it('never offers to grant or revoke roles, force a password change or delete a template', () => {
     expect(
-      operations.filter((candidate) =>
+      Arr.filter(operations, (candidate) =>
         /grant_roles|revoke_roles|must_change_password|schedule_templates_delete/u.test(
           candidate.name,
         ),
@@ -61,16 +60,20 @@ describe('operations', () => {
     expect(operation('resources_list_roles').readOnly).toBe(true);
   });
 
-  it('is generated from the document of the API version the client sends', () => {
-    const [spec, ...others] = readdirSync(SPEC).filter((file) => file.endsWith('.json'));
-    const document = JSON.parse(readFileSync(new URL(spec ?? '', SPEC), 'utf8')) as {
-      info: { version: string };
-    };
+  it.effect('is generated from the document of the API version the client sends', () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const directory = yield* specDirectory;
+      const files = yield* fs.readDirectory(directory);
+      const specs = Arr.filter(files, Str.endsWith('.json'));
+      const { document, file } = yield* vendored();
 
-    expect(others).toEqual([]);
-    expect(document.info.version).toBe(TIPEE_API_VERSION);
-    expect(spec).toBe(`tipee-${TIPEE_API_VERSION}.json`);
-  });
+      expect(specs).toEqual([`tipee-${TIPEE_API_VERSION}.json`]);
+      expect(document.info.version).toBe(TIPEE_API_VERSION);
+      expect(path.basename(file)).toBe(`tipee-${TIPEE_API_VERSION}.json`);
+    }),
+  );
 
   it('rejects unknown names', () => {
     expect(() => operation('nope')).toThrow(/no operation named nope/u);

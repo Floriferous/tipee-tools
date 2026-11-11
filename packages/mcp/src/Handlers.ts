@@ -85,8 +85,8 @@ const handlersFor = (connection: Result.Result<TipeeClient['Service'], Configura
         Result.isSuccess(connection)
           ? Effect.provideService(effect, TipeeClient, connection.success)
           : Effect.fail(
-              new TipeeError({
-                reason: new NotConfigured({ description: connection.failure.message }),
+              TipeeError.make({
+                reason: NotConfigured.make({ description: connection.failure.message }),
               }),
             );
 

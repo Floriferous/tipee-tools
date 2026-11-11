@@ -2,7 +2,18 @@
 // tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
 // surfaces show `message`, which explains the cause and the fix.
 
-import { Cause, Config, Effect, Option, Predicate, Schema } from 'effect';
+import {
+  Array as Arr,
+  Cause,
+  Config,
+  Effect,
+  Option,
+  Predicate,
+  Record as Rec,
+  Schema,
+  String as Str,
+  pipe,
+} from 'effect';
 import { HttpClientError } from 'effect/http';
 
 import {
@@ -35,15 +46,19 @@ const RESTATED = new Set(['status', 'title']);
 
 const quoted = (body: string): string =>
   Schema.decodeOption(JsonObject)(body).pipe(
-    Option.flatMap((json) => {
-      const key = ['detail', 'message'].find((candidate) => typeof json[candidate] === 'string');
-      if (key === undefined) {
-        return Option.none();
-      }
-      const line = String(json[key]);
-      const complete = Object.keys(json).every((other) => other === key || RESTATED.has(other));
-      return Option.some(complete ? line : `${line}\n${body}`);
-    }),
+    Option.flatMap((json) =>
+      Option.map(
+        Arr.findFirst(['detail', 'message'], (candidate) => Predicate.isString(json[candidate])),
+        (key) => {
+          const line = String(json[key]);
+          const complete = Arr.every(
+            Rec.keys(json),
+            (other) => other === key || RESTATED.has(other),
+          );
+          return complete ? line : `${line}\n${body}`;
+        },
+      ),
+    ),
     Option.getOrElse(() => body),
   );
 
@@ -57,7 +72,7 @@ const chain = (error: unknown): string => {
   while (current instanceof Error && parts.length < MAX_CAUSES) {
     const { code } = current as { readonly code?: unknown };
     const part =
-      typeof code === 'string' && !current.message.includes(code)
+      Predicate.isString(code) && !Str.includes(code)(current.message)
         ? `${current.message} (${code})`
         : current.message;
     if (part !== '' && parts.at(-1) !== part) {
@@ -65,7 +80,7 @@ const chain = (error: unknown): string => {
     }
     current = current.cause;
   }
-  return parts.join(': ');
+  return Arr.join(parts, ': ');
 };
 
 // Tipee names some refusals with a constant (`error` or `warning_type`, such
@@ -89,16 +104,18 @@ const PATH_LINE = /^\s*(?<path>[A-Za-z_][\w.[\]]*):\s/gmu;
 
 // The paths under an object of per-field errors (`details`, `errors`).
 const keyPaths = (value: unknown, prefix: string): ReadonlyArray<string> => {
-  if (typeof value !== 'object' || value === null) {
+  if (Arr.isArray(value)) {
+    return Arr.flatMap(value, (item) => keyPaths(item, `${prefix}[]`));
+  }
+  if (!Predicate.isObject(value)) {
     return [prefix];
   }
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => keyPaths(item, `${prefix}[]`));
-  }
-  const entries = Object.entries(value);
-  return entries.length === 0
-    ? [prefix]
-    : entries.flatMap(([key, item]) => keyPaths(item, prefix === '' ? key : `${prefix}.${key}`));
+  const entries = Rec.toEntries(value);
+  return Arr.isArrayNonEmpty(entries)
+    ? Arr.flatMap(entries, ([key, item]) =>
+        keyPaths(item, prefix === '' ? key : `${prefix}.${key}`),
+      )
+    : [prefix];
 };
 
 // The fields a refusal names, as property paths with their indices dropped
@@ -112,27 +129,33 @@ export const fieldsOf = (rawBody: string): ReadonlyArray<string> => {
   }
   const found: Array<string> = [];
   const { details, errors, violations } = json;
-  if (Array.isArray(violations)) {
+  if (Arr.isArray(violations)) {
     for (const violation of violations) {
-      const { propertyPath } = (violation ?? {}) as { readonly propertyPath?: unknown };
-      if (typeof propertyPath === 'string') {
-        found.push(propertyPath);
+      if (
+        Predicate.hasProperty(violation, 'propertyPath') &&
+        Predicate.isString(violation.propertyPath)
+      ) {
+        found.push(violation.propertyPath);
       }
     }
   }
   for (const map of [details, errors]) {
-    if (typeof map === 'object' && map !== null && !Array.isArray(map)) {
+    if (Predicate.isObject(map)) {
       found.push(...keyPaths(map, ''));
     }
   }
   const { detail } = json;
-  if (typeof detail === 'string') {
-    found.push(...[...detail.matchAll(PATH_LINE)].map((match) => match.groups?.path ?? ''));
+  if (Predicate.isString(detail)) {
+    const matches = Arr.fromIterable(Str.matchAll(PATH_LINE)(detail));
+    found.push(...Arr.map(matches, (match) => match.groups?.path ?? ''));
   }
-  const paths = found
-    .filter((candidate) => PROPERTY_PATH.test(candidate))
-    .map((candidate) => candidate.replaceAll(/\[\d*\]/gu, '[]'));
-  return [...new Set(paths)].slice(0, MAX_FIELDS);
+  return pipe(
+    found,
+    Arr.filter((candidate) => PROPERTY_PATH.test(candidate)),
+    Arr.map((candidate) => Str.replaceAll(/\[\d*\]/gu, '[]')(candidate)),
+    Arr.dedupe,
+    Arr.take(MAX_FIELDS),
+  );
 };
 
 // Tipee answers 401 (not 403) for a valid key whose integration was never
@@ -157,23 +180,23 @@ const statusReason = (
 ): TipeeErrorReason => {
   const body = quoted(rawBody);
   if (status === HTTP_UNAUTHORIZED) {
-    return rawBody.includes(RIGHTS_MISSING_MARKER)
-      ? new RightsMissing({ body })
-      : new ApiKeyRejected({ body });
+    return Str.includes(RIGHTS_MISSING_MARKER)(rawBody)
+      ? RightsMissing.make({ body })
+      : ApiKeyRejected.make({ body });
   }
   if (status === HTTP_FORBIDDEN) {
-    return new Forbidden({ body });
+    return Forbidden.make({ body });
   }
   if (status === HTTP_NOT_FOUND) {
-    return new NotFound({ body });
+    return NotFound.make({ body });
   }
-  if (status === HTTP_GONE && rawBody.includes(INSTANCE_NOT_FOUND_MARKER)) {
-    return new InstanceNotFound({ body });
+  if (status === HTTP_GONE && Str.includes(INSTANCE_NOT_FOUND_MARKER)(rawBody)) {
+    return InstanceNotFound.make({ body });
   }
   if (status === HTTP_BAD_REQUEST || status === HTTP_CONFLICT || status === HTTP_UNPROCESSABLE) {
     const code = codeOf(Schema.decodeOption(Schema.fromJsonString(ErrorCode))(rawBody));
     const fields = fieldsOf(rawBody);
-    return new Rejected({
+    return Rejected.make({
       body,
       status,
       ...(code === undefined ? {} : { code }),
@@ -181,16 +204,19 @@ const statusReason = (
     });
   }
   if (status === HTTP_TOO_MANY_REQUESTS) {
-    return new RateLimited({ body, ...(retryAfter === undefined ? {} : { retryAfter }) });
+    return RateLimited.make({ body, ...(retryAfter === undefined ? {} : { retryAfter }) });
   }
-  return new UnexpectedStatus({ body, status });
+  return UnexpectedStatus.make({ body, status });
 };
 
-export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
-  /** Where to fix it, with a link into the user's tipee when one is known. */
-  fix: Schema.optionalKey(Schema.String),
-  reason: TipeeErrorReason,
-}) {
+export class TipeeError extends Schema.TaggedError<TipeeError, { readonly brand: unique symbol }>()(
+  'TipeeError',
+  {
+    /** Where to fix it, with a link into the user's tipee when one is known. */
+    fix: Schema.optionalKey(Schema.String),
+    reason: TipeeErrorReason,
+  },
+) {
   public override get message(): string {
     return this.fix === undefined ? this.reason.message : `${this.reason.message} ${this.fix}`;
   }
@@ -213,25 +239,26 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
             const details = Schema.isSchemaError(reason.cause)
               ? reason.cause.message
               : (reason.description ?? cause.message);
-            return new TipeeError({ reason: new UnexpectedShape({ details, status }) });
+            return TipeeError.make({ reason: UnexpectedShape.make({ details, status }) });
           }
           const body = yield* reason.response.text.pipe(Effect.orElseSucceed(() => ''));
           const retryAfter = reason.response.headers['retry-after'];
-          return new TipeeError({ reason: statusReason(status, body, retryAfter) });
+          return TipeeError.make({ reason: statusReason(status, body, retryAfter) });
         }
-        const description = [cause.message, chain(reason.cause)]
-          .filter((part) => part !== '')
-          .join(': ');
-        return new TipeeError({ reason: new Unreachable({ description }) });
+        const description = Arr.join(
+          Arr.filter([cause.message, chain(reason.cause)], Str.isNonEmpty),
+          ': ',
+        );
+        return TipeeError.make({ reason: Unreachable.make({ description }) });
       }
       // An attempt or a call that outlasted its timeout; TipeeClient's
       // message says how long tipee was given.
       if (Cause.isTimeoutError(cause)) {
         const description = cause.message === '' ? 'tipee did not answer in time' : cause.message;
-        return new TipeeError({ reason: new Unreachable({ description }) });
+        return TipeeError.make({ reason: Unreachable.make({ description }) });
       }
       if (Schema.isSchemaError(cause)) {
-        return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
+        return TipeeError.make({ reason: UnexpectedShape.make({ details: cause.message }) });
       }
       // An error the document declares (every one is a 409) arrives decoded,
       // as the plain object tipee answered: quote it whole, since it names
@@ -241,8 +268,8 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
         const body = yield* Schema.encodeUnknownEffect(JsonText)(cause).pipe(
           Effect.orElseSucceed(() => '(an answer that cannot be written as JSON)'),
         );
-        return new TipeeError({
-          reason: new Rejected({
+        return TipeeError.make({
+          reason: Rejected.make({
             body,
             status: HTTP_CONFLICT,
             ...(code === undefined ? {} : { code }),
@@ -250,15 +277,15 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
         });
       }
       const description = cause instanceof Error ? chain(cause) : String(cause);
-      return new TipeeError({ reason: new Internal({ description }) });
+      return TipeeError.make({ reason: Internal.make({ description }) });
     });
 }
 
 /** `TIPEE_INSTANCE` or `TIPEE_API_KEY` is missing or malformed. */
-export class ConfigurationMissing extends Schema.TaggedError<ConfigurationMissing>()(
-  'ConfigurationMissing',
-  { cause: Schema.Defect() },
-) {
+export class ConfigurationMissing extends Schema.TaggedError<
+  ConfigurationMissing,
+  { readonly brand: unique symbol }
+>()('ConfigurationMissing', { cause: Schema.Defect() }) {
   public override get message(): string {
     const detail =
       this.cause instanceof Config.ConfigError ? this.cause.cause.message : String(this.cause);
