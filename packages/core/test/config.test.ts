@@ -1,7 +1,7 @@
 // The configuration as users paste it: the instance in any form a browser or
 // a colleague gives it, the key with stray whitespace, or nothing at all.
 
-import { describe, expect, it } from '@effect/vitest';
+import { describe, expect, it, layer } from '@effect/vitest';
 import { ConfigProvider, Effect, Layer, Option } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 
@@ -44,27 +44,29 @@ describe('configuration', () => {
     expect(normalizeInstance(raw)).toEqual(Option.none());
   });
 
-  it.effect('accepts an instance and a key as pasted', () =>
-    Effect.gen(function* () {
-      const kinds = (yield* call('kinds_list', {})) as ReadonlyArray<unknown>;
+  layer(
+    withProvider({ TIPEE_API_KEY: ` ${API_KEY}\n`, TIPEE_INSTANCE: 'https://ACME.tipee.net/' }),
+  )((it) => {
+    it.effect('accepts an instance and a key as pasted', () =>
+      Effect.gen(function* () {
+        const kinds = (yield* call('kinds_list', {})) as ReadonlyArray<unknown>;
 
-      expect(kinds.length).toBeGreaterThan(0);
-    }).pipe(
-      Effect.provide(
-        withProvider({ TIPEE_API_KEY: ` ${API_KEY}\n`, TIPEE_INSTANCE: 'https://ACME.tipee.net/' }),
-      ),
-    ),
-  );
+        expect(kinds.length).toBeGreaterThan(0);
+      }),
+    );
+  });
 
-  it.effect('rejects a wrong key with an explanation', () =>
-    Effect.gen(function* () {
-      const error = yield* failure(call('kinds_list', {}));
+  layer(withProvider({ TIPEE_API_KEY: 'wrong', TIPEE_INSTANCE: 'acme' }))((it) => {
+    it.effect('rejects a wrong key with an explanation', () =>
+      Effect.gen(function* () {
+        const error = yield* failure(call('kinds_list', {}));
 
-      expect(error.reason._tag).toBe('ApiKeyRejected');
-      expect(error.message).toMatch(/^tipee refused the API key \(HTTP 401\): /u);
-      expect(error.message).toContain('https://acme.tipee.net/hr-core/integrations');
-    }).pipe(Effect.provide(withProvider({ TIPEE_API_KEY: 'wrong', TIPEE_INSTANCE: 'acme' }))),
-  );
+        expect(error.reason._tag).toBe('ApiKeyRejected');
+        expect(error.message).toMatch(/^tipee refused the API key \(HTTP 401\): /u);
+        expect(error.message).toContain('https://acme.tipee.net/hr-core/integrations');
+      }),
+    );
+  });
 
   it.effect('explains missing configuration without calling tipee', () =>
     Effect.gen(function* () {

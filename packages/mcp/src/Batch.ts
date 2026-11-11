@@ -8,7 +8,7 @@
 // timelines depend on order.
 
 import { TipeeError, Unreachable, outcomeUnknown } from '@tipee-tools/core';
-import { Cause, Clock, Duration, Effect, Exit, Result, Schema } from 'effect';
+import { Array as Arr, Cause, Clock, Duration, Effect, Exit, Result, Schema } from 'effect';
 
 /** The operations with a `*_many` tool: those agents edit in bulk. */
 export const BATCHED: ReadonlyArray<string> = [
@@ -80,9 +80,9 @@ const appliedPart = (count: number): string =>
 
 // What an item that ran out of the batch's time says: it may have been sent.
 const cutShort = (): TipeeError =>
-  new TipeeError({
+  TipeeError.make({
     fix: 'This write may have been applied: read it back before sending it again.',
-    reason: new Unreachable({
+    reason: Unreachable.make({
       description: `no answer before the batch's ${BUDGET_SECONDS} s ran out`,
     }),
   });
@@ -111,13 +111,17 @@ const failureOf = (
 const stoppedAtFirst = (error: TipeeError, count: number): TipeeError =>
   count === 1
     ? error
-    : new TipeeError({
-        fix: [
-          error.fix,
-          `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`,
-        ]
-          .filter((part) => part !== undefined)
-          .join(' '),
+    : TipeeError.make({
+        fix: Arr.join(
+          Arr.filter(
+            [
+              error.fix,
+              `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`,
+            ],
+            (part) => part !== undefined,
+          ),
+          ' ',
+        ),
         reason: error.reason,
       });
 

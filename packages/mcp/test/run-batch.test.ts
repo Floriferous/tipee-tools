@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from '@effect/vitest';
 import { Rejected, TipeeError, operations } from '@tipee-tools/core';
-import { Clock, Effect, Exit, Fiber } from 'effect';
+import { Array as Arr, Clock, Effect, Exit, Fiber, Option } from 'effect';
 import { TestClock } from 'effect/testing';
 
 import { BATCHED, runBatch } from '../src/index.ts';
@@ -12,7 +12,7 @@ import type { Send } from '../src/index.ts';
 
 const items = (count: number): Array<number> => Array.from({ length: count }, (_, index) => index);
 
-const refused = new TipeeError({ reason: new Rejected({ body: 'Locked.', status: 409 }) });
+const refused = TipeeError.make({ reason: Rejected.make({ body: 'Locked.', status: 409 }) });
 
 // Runs the batch on the test clock, past any wait it could have.
 const ran = <A, E>(effect: Effect.Effect<A, E>) =>
@@ -113,7 +113,8 @@ describe('runBatch', () => {
 
   it('batches only write operations that exist', () => {
     for (const name of BATCHED) {
-      expect(operations.find((target) => target.name === name)?.readOnly).toBe(false);
+      const target = Arr.findFirst(operations, (candidate) => candidate.name === name);
+      expect(Option.map(target, (found) => found.readOnly)).toEqual(Option.some(false));
     }
   });
 });

@@ -3,33 +3,55 @@
 // update tool downloads; and the tag the marketplace installs the plugin
 // from. They must agree, or a release cannot be found by its own users.
 
-import { readFileSync } from 'node:fs';
-
-import { describe, expect, it } from 'vitest';
+import { layer as nodeServices } from '@effect/platform-node/NodeServices';
+import { expect, layer } from '@effect/vitest';
+import { Array as Arr, Effect, FileSystem, Option, Path, Schema } from 'effect';
 
 import { SERVER_VERSION } from '../src/index.ts';
+import { fromJson } from './wire.ts';
 
-describe('version', () => {
-  it('plugin.json matches SERVER_VERSION', () => {
-    const manifest = new URL('../../../plugins/tipee/.claude-plugin/plugin.json', import.meta.url);
-    const { version } = JSON.parse(readFileSync(manifest, 'utf8')) as { version?: unknown };
+const Manifest = Schema.Struct({ version: Schema.optionalKey(Schema.Unknown) });
+const Marketplace = Schema.Struct({
+  plugins: Schema.Array(Schema.Struct({ name: Schema.String, source: Schema.Unknown })),
+});
 
-    expect(version).toBe(SERVER_VERSION);
-  });
+// Reads a JSON file of the repository, from its path relative to this one.
+const readJson = Effect.fn('readJson')(function* <S extends Schema.ConstraintDecoder<unknown>>(
+  relative: string,
+  schema: S,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const file = yield* path.fromFileUrl(new URL(relative, import.meta.url));
+  const text = yield* fs.readFileString(file);
+  return yield* fromJson(schema)(text);
+});
+
+layer(nodeServices)('version', (it) => {
+  it.effect('plugin.json matches SERVER_VERSION', () =>
+    Effect.gen(function* () {
+      const { version } = yield* readJson(
+        '../../../plugins/tipee/.claude-plugin/plugin.json',
+        Manifest,
+      );
+
+      expect(version).toBe(SERVER_VERSION);
+    }),
+  );
 
   // Claude Code installs the plugin at this tag, never from main: merging
   // work ships nothing until a release bumps the version and this ref.
-  it('the marketplace installs the plugin from the tag of SERVER_VERSION', () => {
-    const marketplace = new URL('../../../.claude-plugin/marketplace.json', import.meta.url);
-    const { plugins } = JSON.parse(readFileSync(marketplace, 'utf8')) as {
-      plugins: ReadonlyArray<{ name: string; source: unknown }>;
-    };
+  it.effect('the marketplace installs the plugin from the tag of SERVER_VERSION', () =>
+    Effect.gen(function* () {
+      const { plugins } = yield* readJson('../../../.claude-plugin/marketplace.json', Marketplace);
+      const tipee = Arr.findFirst(plugins, (plugin) => plugin.name === 'tipee');
 
-    expect(plugins.find((plugin) => plugin.name === 'tipee')?.source).toEqual({
-      path: 'plugins/tipee',
-      ref: `v${SERVER_VERSION}`,
-      source: 'git-subdir',
-      url: 'Floriferous/tipee-tools',
-    });
-  });
+      expect(Option.getOrUndefined(tipee)?.source).toEqual({
+        path: 'plugins/tipee',
+        ref: `v${SERVER_VERSION}`,
+        source: 'git-subdir',
+        url: 'Floriferous/tipee-tools',
+      });
+    }),
+  );
 });

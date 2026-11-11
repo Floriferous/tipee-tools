@@ -3,7 +3,7 @@
 // the report of why it stopped. `start` (Start.ts) runs it.
 
 import { layer as stdioLayer } from '@effect/platform-node/NodeStdio';
-import { Cause, Effect, Layer, Predicate, Result } from 'effect';
+import { Array as Arr, Cause, Context, Effect, Layer, Predicate, Result } from 'effect';
 import { McpProtocol, McpServer } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
@@ -20,27 +20,30 @@ export const SERVER_VERSION = '1.2.0';
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
 // the plugin's skill. Clients may cut them past 2,048 characters.
-export const INSTRUCTIONS = [
-  "These tools read and change the user's company tipee, a Swiss HR software, one tool per " +
-    'API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, ' +
-    'and the time clock is timechecks and day tasks.',
-  'Run check_setup on a new install, or after a tool reports a refused key or a missing ' +
-    'right: it names what to tick and where.',
-  'Every id in a call comes from an earlier result: kinds_list (the employee kind), then ' +
-    'resources_list for people; teams_list for teams; schedule_templates_list for templates.',
-  'Read the current state before writing, and describe the change against it. When tipee ' +
-    'refuses a change, never route around it with a different change without asking the user.',
-  'Bulk changes: one call per person and pattern, not per day. schedules_create and ' +
-    'absences_create take a date interval or an RRULE in when; schedules_delete and ' +
-    'absences_delete take every id at once. For edits that differ per item, the *_many tools ' +
-    'apply up to 50 in one call. Never send writes in parallel.',
-  'Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds ' +
-    '(2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).',
-  '{"redacted": …} in place of a value means tipee withheld it from this integration: say ' +
-    'so, never guess it.',
-  "A failing tool's message names the cause and the fix: follow it, and give the user any " +
-    'link as is.',
-].join('\n\n');
+export const INSTRUCTIONS = Arr.join(
+  [
+    "These tools read and change the user's company tipee, a Swiss HR software, one tool per " +
+      'API operation (<resource>_<verb>). In tipee, people are resources, shifts are schedules, ' +
+      'and the time clock is timechecks and day tasks.',
+    'Run check_setup on a new install, or after a tool reports a refused key or a missing ' +
+      'right: it names what to tick and where.',
+    'Every id in a call comes from an earlier result: kinds_list (the employee kind), then ' +
+      'resources_list for people; teams_list for teams; schedule_templates_list for templates.',
+    'Read the current state before writing, and describe the change against it. When tipee ' +
+      'refuses a change, never route around it with a different change without asking the user.',
+    'Bulk changes: one call per person and pattern, not per day. schedules_create and ' +
+      'absences_create take a date interval or an RRULE in when; schedules_delete and ' +
+      'absences_delete take every id at once. For edits that differ per item, the *_many tools ' +
+      'apply up to 50 in one call. Never send writes in parallel.',
+    'Formats: date ranges can be open (2026-08-01/-); date-time intervals carry no seconds ' +
+      '(2026-09-07T08:00/2026-09-07T12:00); durations are ISO 8601 and may be negative (PT-15M).',
+    '{"redacted": …} in place of a value means tipee withheld it from this integration: say ' +
+      'so, never guess it.',
+    "A failing tool's message names the cause and the fix: follow it, and give the user any " +
+      'link as is.',
+  ],
+  '\n\n',
+);
 
 const TelemetryLive = Telemetry.layer({
   $lib_version: SERVER_VERSION,
@@ -75,13 +78,18 @@ export const ServerLayer = Layer.mergeAll(NotifiedToolkit, SetupPrompt).pipe(
   Layer.provide(stdioLayer),
 );
 
-// Reports why the server stopped, from a telemetry of its own: the server's
-// may never have been built. An expected failure is a `server_failed` event
-// with its reason; anything else is an unhandled exception. Never fails,
-// never takes more than the flush timeout.
+// The telemetry a crash report sends from: its own, since the server's may
+// never have been built.
+const CrashTelemetry = TelemetryLive.pipe(Layer.provide(FetchHttpClient.layer));
+
+// Reports why the server stopped, from a telemetry built for the report and
+// closed with it, which sends what is left. An expected failure is a
+// `server_failed` event with its reason; anything else is an unhandled
+// exception. Never fails, never takes more than the flush timeout.
 export const reportCrash = Effect.fn('reportCrash')(
   function* (cause: Cause.Cause<unknown>) {
-    const telemetry = yield* Telemetry;
+    const services = yield* Layer.build(CrashTelemetry);
+    const telemetry = Context.get(services, Telemetry);
     const failure = Cause.findError(cause);
     if (Result.isSuccess(failure)) {
       const error: unknown = failure.success;
@@ -92,7 +100,6 @@ export const reportCrash = Effect.fn('reportCrash')(
     }
     yield* telemetry.flush;
   },
-  Effect.provide(TelemetryLive.pipe(Layer.provide(FetchHttpClient.layer))),
   Effect.scoped,
   (effect) => Effect.ignore(effect),
 );

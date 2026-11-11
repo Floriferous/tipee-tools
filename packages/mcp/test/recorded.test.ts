@@ -4,11 +4,12 @@
 
 import { expect, layer } from '@effect/vitest';
 import { BASE, server } from '@tipee-tools/core/testing';
-import { Effect } from 'effect';
+import { Array as Arr, Effect } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
-import { recorded, recordedCalls, recordingClient } from './recording.ts';
+import { eventsOf, recorded, recordedCalls, recordingClient } from './recording.ts';
 import { call } from './toolkit.ts';
+import { toJson } from './wire.ts';
 
 const CHLOE = '1000000000000000104';
 const WEEK = '2026-09-07/2026-09-13';
@@ -24,11 +25,7 @@ layer(recordingClient)('telemetry of a session', (it) => {
       yield* call('teams_list', {});
       yield* call('teams_list', {});
 
-      expect(recorded.map((entry) => entry.event)).toEqual([
-        'session_started',
-        'tool_called',
-        'tool_called',
-      ]);
+      expect(eventsOf(recorded)).toEqual(['session_started', 'tool_called', 'tool_called']);
     }),
   );
 });
@@ -46,11 +43,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       yield* Effect.flip(call('schedules_list', { date_range: WEEK }));
       const calls = recordedCalls();
 
-      expect(calls.map((entry) => entry.event)).toEqual([
-        'tool_called',
-        'tool_called',
-        '$exception',
-      ]);
+      expect(eventsOf(calls)).toEqual(['tool_called', 'tool_called', '$exception']);
       expect(calls[0]?.properties).toMatchObject({ outcome: 'ok', tool: 'teams_list' });
       expect(calls[0]?.properties.duration_ms).toBeTypeOf('number');
       expect(calls[1]?.properties).toMatchObject({
@@ -60,8 +53,9 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       });
       expect(calls[2]?.properties).toMatchObject({ handled: true, tool: 'schedules_list' });
       expect(calls[2]?.properties.message).toMatch(/does not match/u);
-      expect(JSON.stringify(recorded)).not.toContain(WEEK);
-      expect(JSON.stringify(recorded)).not.toContain('Opérations');
+      const wire = yield* toJson(recorded);
+      expect(wire).not.toContain(WEEK);
+      expect(wire).not.toContain('Opérations');
     }),
   );
 
@@ -90,7 +84,8 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
         reason: 'Rejected',
         tool: 'schedules_delete',
       });
-      expect(JSON.stringify(recorded)).not.toContain('Some schedules are locked');
+      const wire = yield* toJson(recorded);
+      expect(wire).not.toContain('Some schedules are locked');
     }),
   );
 
@@ -117,7 +112,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       );
       const calls = recordedCalls();
 
-      expect(calls.map((entry) => entry.event)).toEqual(['tool_called', '$exception']);
+      expect(eventsOf(calls)).toEqual(['tool_called', '$exception']);
       expect(calls[0]?.properties).toMatchObject({
         error_fields: ['options.group_action'],
         http_status: HTTP_UNPROCESSABLE,
@@ -131,7 +126,8 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       });
       // Names only: neither the values sent nor what tipee said.
       const { message: _said, ...kept } = calls[1]?.properties ?? {};
-      expect(JSON.stringify([calls[0], kept])).not.toMatch(/Chloé|single|1000000000000000104/u);
+      const wire = yield* toJson([calls[0], kept]);
+      expect(wire).not.toMatch(/Chloé|single|1000000000000000104/u);
     }),
   );
 
@@ -155,7 +151,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       const calls = recordedCalls();
 
       expect(
-        calls.map(({ properties }) => [
+        Arr.map(calls, ({ properties }) => [
           properties.tool,
           properties.via,
           properties.index,
@@ -174,7 +170,8 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
         not_sent: 1,
         stopped_by: 'failure_not_applied',
       });
-      expect(JSON.stringify(recorded)).not.toContain('Some schedules are locked');
+      const wire = yield* toJson(recorded);
+      expect(wire).not.toContain('Some schedules are locked');
     }),
   );
 
@@ -195,7 +192,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       yield* Effect.flip(call('schedules_update_many', { items: [{ id: '1' }, { id: '2' }] }));
       const calls = recordedCalls();
 
-      expect(calls.map((entry) => [entry.event, entry.properties.tool])).toEqual([
+      expect(Arr.map(calls, (entry) => [entry.event, entry.properties.tool])).toEqual([
         ['tool_called', 'schedules_update'],
         ['$exception', 'schedules_update'],
         ['tool_called', 'schedules_update_many'],
@@ -221,7 +218,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       });
 
       expect(answer).toEqual({ done: true });
-      expect(recordedCalls().map((entry) => entry.event)).toEqual(['tool_called']);
+      expect(eventsOf(recordedCalls())).toEqual(['tool_called']);
       expect(recordedCalls()[0]?.properties).toMatchObject({
         off_spec_status: 200,
         outcome: 'ok',
@@ -243,7 +240,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       yield* Effect.flip(call('teams_list', {}));
       const calls = recordedCalls();
 
-      expect(calls.map((entry) => entry.event)).toEqual(['tool_called']);
+      expect(eventsOf(calls)).toEqual(['tool_called']);
       expect(calls[0]?.properties).toMatchObject({
         outcome: 'failed',
         reason: 'InstanceNotFound',
@@ -266,7 +263,7 @@ layer(recordingClient)('telemetry of a tool call', (it) => {
       const calls = recordedCalls();
 
       expect(report.ok).toBe(false);
-      expect(calls.map((entry) => entry.event)).toEqual(['$exception', 'tool_called']);
+      expect(eventsOf(calls)).toEqual(['$exception', 'tool_called']);
       expect(calls[0]?.properties).toMatchObject({ handled: true, tool: 'check_setup' });
       expect(calls[1]?.properties).toMatchObject({ outcome: 'ok', tool: 'check_setup' });
     }),

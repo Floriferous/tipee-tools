@@ -7,7 +7,7 @@
 
 import { TipeeError, operation as operationNamed, operations } from '@tipee-tools/core';
 import type { Operation } from '@tipee-tools/core';
-import { Schema } from 'effect';
+import { Array as Arr, Schema, String as Str, pipe } from 'effect';
 import { Tool, Toolkit } from 'effect/ai';
 
 import {
@@ -123,19 +123,18 @@ const describe = (operation: Operation): string => {
     return operation.description;
   }
   // Some tipee descriptions lack a final period; CONFIRM must not run into them.
-  const text = operation.description.trimEnd();
+  const text = Str.trimEnd(operation.description);
   const base = /[.!?]$/u.test(text) ? text : `${text}.`;
   const final = /\.delete/u.test(operation.path) ? ' It cannot be undone.' : '';
   return `${base} ${CONFIRM}${final}`;
 };
 
-const words = (part: string): string => part.replaceAll('-', ' ');
+const words = (part: string): string => Str.replaceAll('-', ' ')(part);
 
 // `/api/schedule/day-tasks.submit-for-contributor` → "Day tasks: submit for contributor".
 const titleOf = (path: string): string => {
-  const [resource = '', verb = ''] = path.replace(/^\/api\/[^/]+\//u, '').split('.');
-  const subject = words(resource);
-  return `${subject.charAt(0).toUpperCase()}${subject.slice(1)}: ${words(verb)}`;
+  const [resource, verb = ''] = pipe(path, Str.replace(/^\/api\/[^/]+\//u, ''), Str.split('.'));
+  return `${Str.capitalize(words(resource))}: ${words(verb)}`;
 };
 
 const toolFor = (operation: Operation) =>
@@ -190,11 +189,11 @@ const batchToolFor = (operation: Operation) =>
     .annotate(Tool.Idempotent, false);
 
 /** The operations that have a batch tool. */
-export const batched: ReadonlyArray<Operation> = BATCHED.map((name) => operationNamed(name));
+export const batched: ReadonlyArray<Operation> = Arr.map(BATCHED, (name) => operationNamed(name));
 
 export const TipeeToolkit = Toolkit.make(
   Check,
   InstallUpdate,
-  ...operations.map((operation) => toolFor(operation)),
-  ...batched.map((operation) => batchToolFor(operation)),
+  ...Arr.map(operations, (operation) => toolFor(operation)),
+  ...Arr.map(batched, (operation) => batchToolFor(operation)),
 );

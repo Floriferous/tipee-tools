@@ -32,56 +32,10 @@ export default defineConfig({
       },
     },
     {
-      // Tests are not the program: they read the answers of failures typed
-      // `unknown`, stringify what was recorded, answer MSW with async
-      // handlers, drive child processes with promises, and provide each
-      // suite its layer.
-      files: ['packages/*/test/**/*.ts'],
-      rules: {
-        'effecttsgo/any-unknown-in-error-context': 'off',
-        'effecttsgo/async-function': 'off',
-        'effecttsgo/global-json': 'off',
-        'effecttsgo/global-json-in-effect': 'off',
-        'effecttsgo/missed-pipeable-opportunity': 'off',
-        'effecttsgo/new-promise': 'off',
-        'effecttsgo/prefer-schema-over-json': 'off',
-        'effecttsgo/schema-sync': 'off',
-        'effecttsgo/strict-effect-provide': 'off',
-      },
-    },
-    {
       // Scripts are entry points run with `node`, never loaded with require(esm).
       files: ['packages/*/scripts/**/*.ts', 'plugins/*/scripts/**/*.ts'],
       rules: {
         'node/no-top-level-await': 'off',
-      },
-    },
-    {
-      // Build scripts are plain, synchronous Node on purpose (spawnSync,
-      // JSON files, a timer around a child process): Effect would add nothing.
-      files: ['packages/*/scripts/**/*.ts', 'plugins/*/scripts/**/*.ts'],
-      rules: {
-        'effecttsgo/async-function': 'off',
-        'effecttsgo/global-json': 'off',
-        'effecttsgo/global-timers': 'off',
-        'effecttsgo/new-promise': 'off',
-      },
-    },
-    {
-      // The generated client's methods fail with each operation's declared
-      // errors; dispatched by name, their union is `unknown` until
-      // TipeeError.fromCause explains it.
-      files: ['packages/core/src/Invoke.ts'],
-      rules: {
-        'effecttsgo/any-unknown-in-error-context': 'off',
-      },
-    },
-    {
-      // ReportCrash is an entry point of its own: the server's telemetry may
-      // never have been built, so it provides one.
-      files: ['packages/mcp/src/Server.ts'],
-      rules: {
-        'effecttsgo/strict-effect-provide': 'off',
       },
     },
     {
@@ -102,25 +56,11 @@ export default defineConfig({
   // long declarative layers) contradict rules written for plain TypeScript.
   rules: {
     // Effect's own rules (the plugin @effect/tsgo patches into oxlint) are on
-    // through the categories above; these are the ones that do not fit here.
-    // For libraries that publish Effect APIs: no unstable types leaking out,
-    // and dual signatures for every export. The packages are private.
+    // through the categories above, but for two that the design rules out:
+    // the MCP server and the tipee client are built on effect/ai,
+    // effect/http and effect/http-api, marked unstable (see ARCHITECTURE.md;
+    // the version is pinned), and the packages export what they build.
     'effecttsgo/api-stability-leak': 'off',
-    'effecttsgo/missing-pipeable-signature': 'off',
-    // Errors are constructed with `new`, as Effect's own AGENTS.md does.
-    'effecttsgo/new-schema-class': 'off',
-    // Hashing, path joins and the detached update opener are synchronous
-    // Node helpers; a service per call would add wiring, not testability.
-    'effecttsgo/node-builtin-import': 'off',
-    // Native array, record and string methods are typed and clear; Effect's
-    // wrappers would add imports, not safety.
-    'effecttsgo/prefer-effect-array': 'off',
-    'effecttsgo/prefer-effect-record': 'off',
-    'effecttsgo/prefer-effect-string': 'off',
-    // A TaggedError is nominal through its `_tag`; Effect does not brand.
-    'effecttsgo/schema-class-missing-brand': 'off',
-    // Depending on effect/http, effect/http-api and effect/ai is deliberate
-    // (see ARCHITECTURE.md); the version is pinned.
     'effecttsgo/unstable-api-usage': 'off',
     // A comment starts with a capital; the lines that continue it do not.
     'eslint/capitalized-comments': ['error', 'always', { ignoreConsecutiveComments: true }],

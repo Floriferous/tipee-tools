@@ -1,13 +1,11 @@
 // The update check and install against a fake GitHub: newer, same,
 // unreachable, a bundle that does not match, and each way to hand it over.
 
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
-import { describe, expect, it } from '@effect/vitest';
+import { layer as nodeServices } from '@effect/platform-node/NodeServices';
+import { expect, layer } from '@effect/vitest';
 import { server } from '@tipee-tools/core/testing';
-import { ConfigProvider, Effect, Layer, Option } from 'effect';
+import { ConfigProvider, Context, Effect, FileSystem, Layer, Option, Path } from 'effect';
+import { Digest } from 'effect/crypto';
 import { FetchHttpClient } from 'effect/http';
 import { HttpResponse, http } from 'msw/http';
 
@@ -16,17 +14,25 @@ import { Updates, checksumOf, isNewer } from '../src/index.ts';
 const RELEASES = 'https://github.test/releases/latest';
 const DOWNLOADS = 'https://github.test/download';
 const BUNDLE = new TextEncoder().encode('not really a zip, but the bytes we expect');
-const bundleAt = (
-  version: string,
-  checksum = createHash('sha256').update(BUNDLE).digest('hex'),
-) => [
-  http.get(`${DOWNLOADS}/v${version}/SHA256SUMS`, () =>
-    HttpResponse.text(`${checksum}  tipee-${version}.mcpb\n${checksum}  tipee.mcpb\n`),
-  ),
-  http.get(`${DOWNLOADS}/v${version}/tipee-${version}.mcpb`, () =>
-    HttpResponse.arrayBuffer(BUNDLE.buffer),
-  ),
-];
+// The bundle's release, listed with its real checksum unless told otherwise.
+const bundleAt = Effect.fn('bundleAt')(function* (version: string, checksum?: string) {
+  const digest = yield* Digest.Digest;
+  const listed = checksum ?? (yield* digest.digestHex(Digest.sha256, BUNDLE));
+  return [
+    http.get(`${DOWNLOADS}/v${version}/SHA256SUMS`, () =>
+      HttpResponse.text(`${listed}  tipee-${version}.mcpb\n${listed}  tipee.mcpb\n`),
+    ),
+    http.get(`${DOWNLOADS}/v${version}/tipee-${version}.mcpb`, () =>
+      HttpResponse.arrayBuffer(BUNDLE.buffer),
+    ),
+  ];
+});
+// The bytes of a file the install left, as plain bytes rather than a Buffer.
+const bytesOf = Effect.fn('bytesOf')(function* (file: string) {
+  const fs = yield* FileSystem.FileSystem;
+  const read = yield* fs.readFile(file);
+  return new Uint8Array(read);
+});
 const github = (tag: string) =>
   http.get(RELEASES, () =>
     HttpResponse.json({ html_url: `https://github.test/tag/${tag}`, tag_name: tag }),
@@ -38,41 +44,43 @@ interface Setup {
 }
 
 // The service for a running `current` version, configured like a Claude
-// Desktop install that can open files unless told otherwise.
+// Desktop install that can open files unless told otherwise, and released
+// once used.
 const using = <A, E>(
   current: string,
   use: (updates: (typeof Updates)['Service']) => Effect.Effect<A, E>,
   { channel = 'desktop', opener = '/usr/bin/true' }: Setup = {},
 ) =>
-  Effect.flatMap(Updates, use).pipe(
-    Effect.provide(
-      Updates.layer(current).pipe(
-        Layer.provide(
-          Layer.mergeAll(
-            FetchHttpClient.layer,
-            ConfigProvider.layer(
-              // An empty opener is what a platform without one gets by default.
-              ConfigProvider.fromUnknown(
-                {
-                  TIPEE_DOWNLOAD_BASE: DOWNLOADS,
-                  TIPEE_OPENER: opener,
-                  TIPEE_RELEASES_URL: RELEASES,
-                  TIPEE_UPDATE_CHANNEL: channel,
-                },
-                { preserveEmptyStrings: true },
-              ),
+  Layer.build(
+    Updates.layer(current).pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          FetchHttpClient.layer,
+          ConfigProvider.layer(
+            // An empty opener is what a platform without one gets by default.
+            ConfigProvider.fromUnknown(
+              {
+                TIPEE_DOWNLOAD_BASE: DOWNLOADS,
+                TIPEE_OPENER: opener,
+                TIPEE_RELEASES_URL: RELEASES,
+                TIPEE_UPDATE_CHANNEL: channel,
+              },
+              { preserveEmptyStrings: true },
             ),
           ),
         ),
       ),
     ),
+  ).pipe(
+    Effect.flatMap((services) => use(Context.get(services, Updates))),
+    Effect.scoped,
   );
 
 const available = (current: string) => using(current, (updates) => updates.available);
 const install = (current: string, setup?: Setup) =>
   using(current, (updates) => updates.install, setup);
 
-describe('updates', () => {
+layer(Layer.mergeAll(nodeServices, Digest.layerWebCrypto))('updates', (it) => {
   it('compares versions numerically', () => {
     expect(isNewer('0.3.10', '0.3.9')).toBe(true);
     expect(isNewer('v0.4.0', '0.3.11')).toBe(true);
@@ -130,30 +138,32 @@ describe('updates', () => {
 
   it.effect('downloads the verified bundle and hands it to Claude Desktop', () =>
     Effect.gen(function* () {
-      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      server.use(github('v0.4.0'), ...(yield* bundleAt('0.4.0')));
       const outcome = yield* install('0.3.1');
 
       expect(outcome).toMatchObject({ status: 'opened', version: '0.4.0' });
+      const path = yield* Path.Path;
       const file = 'path' in outcome ? outcome.path : '';
+      const bytes = yield* bytesOf(file);
       expect(path.basename(file)).toBe('tipee-0.4.0.mcpb');
-      expect(new Uint8Array(readFileSync(file))).toEqual(BUNDLE);
+      expect(bytes).toEqual(BUNDLE);
     }),
   );
 
   it.effect('leaves the bundle for the user to open when nothing here can', () =>
     Effect.gen(function* () {
-      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      server.use(github('v0.4.0'), ...(yield* bundleAt('0.4.0')));
       const outcome = yield* install('0.3.1', { opener: '' });
 
       expect(outcome).toMatchObject({ status: 'downloaded', version: '0.4.0' });
-      const file = 'path' in outcome ? outcome.path : '';
-      expect(new Uint8Array(readFileSync(file))).toEqual(BUNDLE);
+      const bytes = yield* bytesOf('path' in outcome ? outcome.path : '');
+      expect(bytes).toEqual(BUNDLE);
     }),
   );
 
   it.effect('fails, without crashing, when the opener cannot start', () =>
     Effect.gen(function* () {
-      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      server.use(github('v0.4.0'), ...(yield* bundleAt('0.4.0')));
       const error = yield* Effect.flip(install('0.3.1', { opener: '/nonexistent/opener' }));
 
       expect(error._tag).toBe('UpdateFailed');
@@ -163,7 +173,7 @@ describe('updates', () => {
 
   it.effect('fails, without crashing, when spawning the opener throws', () =>
     Effect.gen(function* () {
-      server.use(github('v0.4.0'), ...bundleAt('0.4.0'));
+      server.use(github('v0.4.0'), ...(yield* bundleAt('0.4.0')));
       // A path through a file: Node throws ENOTDIR instead of emitting it.
       const opener = `${process.execPath}/opener`;
       const error = yield* Effect.flip(install('0.3.1', { opener }));
@@ -175,7 +185,7 @@ describe('updates', () => {
 
   it.effect('refuses a bundle whose checksum does not match', () =>
     Effect.gen(function* () {
-      server.use(github('v0.4.0'), ...bundleAt('0.4.0', 'deadbeef'));
+      server.use(github('v0.4.0'), ...(yield* bundleAt('0.4.0', 'deadbeef')));
       const error = yield* Effect.flip(install('0.3.1'));
 
       expect(error._tag).toBe('UpdateFailed');

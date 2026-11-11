@@ -4,7 +4,7 @@
 import { describe, expect, it } from '@effect/vitest';
 import { TipeeClient } from '@tipee-tools/core';
 import { API_KEY } from '@tipee-tools/core/testing';
-import { Deferred, Effect, Layer, Option, Redacted } from 'effect';
+import { Array as Arr, Deferred, Effect, Layer, Option, Redacted } from 'effect';
 import { McpProtocol, McpTest } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
@@ -17,7 +17,7 @@ import {
   Updates,
 } from '../src/index.ts';
 
-const NEWER = new Update({ url: 'https://example.test/v99', version: '99.0.0' });
+const NEWER = Update.make({ url: 'https://example.test/v99', version: '99.0.0' });
 
 // A client of the server whose release lookup ends when `released` is done.
 const clientOf = (released: Deferred.Deferred<boolean>) =>
@@ -42,7 +42,7 @@ const clientOf = (released: Deferred.Deferred<boolean>) =>
   );
 
 const texts = (result: { readonly content: ReadonlyArray<unknown> }): ReadonlyArray<string> =>
-  result.content.map((block) => (block as { readonly text: string }).text);
+  Arr.map(result.content, (block) => (block as { readonly text: string }).text);
 
 describe('the update note', () => {
   it.effect('follows the first answer after the lookup, once, after the answer itself', () =>

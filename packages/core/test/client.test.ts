@@ -4,7 +4,7 @@
 // responses, so this is also where the generated schemas meet reality.
 
 import { describe, expect, layer } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Array as Arr, Effect } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
 import { TestClient, WEEK, call, failure } from './answers.ts';
@@ -26,8 +26,8 @@ layer(TestClient)('TipeeClient', (it) => {
         const kinds = (yield* call('kinds_list', {})) as ReadonlyArray<{ id: string }>;
         const teams = (yield* call('teams_list', {})) as ReadonlyArray<{ name: string }>;
 
-        expect(kinds.map((kind) => kind.id)).toContain(EMPLOYEE_KIND_ID);
-        expect(teams.map((team) => team.name)).toContain('Opérations FR');
+        expect(Arr.map(kinds, (kind) => kind.id)).toContain(EMPLOYEE_KIND_ID);
+        expect(Arr.map(teams, (team) => team.name)).toContain('Opérations FR');
       }),
     );
 
@@ -38,7 +38,7 @@ layer(TestClient)('TipeeClient', (it) => {
           attributes: ReadonlyArray<{ attribute: { id: string } }>;
         };
 
-        expect(kind.attributes.map((entry) => entry.attribute.id)).toContain('regrouping');
+        expect(Arr.map(kind.attributes, (entry) => entry.attribute.id)).toContain('regrouping');
       }),
     );
 
@@ -50,7 +50,7 @@ layer(TestClient)('TipeeClient', (it) => {
           attributes: ReadonlyArray<{ attribute: { content_type: string } }>;
         };
 
-        expect(kind.attributes.map((entry) => entry.attribute.content_type)).toContain(
+        expect(Arr.map(kind.attributes, (entry) => entry.attribute.content_type)).toContain(
           'month-day/plain',
         );
       }),
@@ -63,7 +63,7 @@ layer(TestClient)('TipeeClient', (it) => {
         const kind = readFixture('kind-employee') as {
           attributes: ReadonlyArray<{ attribute: object }>;
         };
-        const attributes = kind.attributes.map((entry, index) =>
+        const attributes = Arr.map(kind.attributes, (entry, index) =>
           index === 0
             ? { ...entry, attribute: { ...entry.attribute, content_type: 'week-day/plain' } }
             : entry,
@@ -117,7 +117,7 @@ layer(TestClient)('TipeeClient', (it) => {
         })) as { data: ReadonlyArray<{ label: string }>; next_token: string | null };
 
         expect(page.data).toHaveLength(FAKE_PAGE_SIZE);
-        expect(page.data.map((person) => person.label)).toEqual([
+        expect(Arr.map(page.data, (person) => person.label)).toEqual([
           'Non attribué',
           'Bruno (BE2) Exemple',
         ]);
@@ -134,7 +134,7 @@ layer(TestClient)('TipeeClient', (it) => {
           pagination: { limit: PAGE_SIZE, next_token: null },
         })) as { data: ReadonlyArray<{ label: string }> };
 
-        expect(page.data.map((person) => person.label)).toEqual(['Chloé (CT3) Témoin']);
+        expect(Arr.map(page.data, (person) => person.label)).toEqual(['Chloé (CT3) Témoin']);
       }),
     );
 
@@ -162,7 +162,7 @@ layer(TestClient)('TipeeClient', (it) => {
         })) as ReadonlyArray<{ resource_id: string }>;
 
         expect(all.length).toBeGreaterThan(alice.length);
-        expect(alice.every((shift) => shift.resource_id === ALICE)).toBe(true);
+        expect(Arr.every(alice, (shift) => shift.resource_id === ALICE)).toBe(true);
       }),
     );
 
@@ -175,7 +175,7 @@ layer(TestClient)('TipeeClient', (it) => {
           resource_ids: [ALICE],
         })) as ReadonlyArray<{ actor_id: string | null; at: string | null; virtual: boolean }>;
 
-        expect(tasks.map((task) => task.virtual)).toEqual([false, true]);
+        expect(Arr.map(tasks, (task) => task.virtual)).toEqual([false, true]);
         expect(tasks[1]).toMatchObject({ actor_id: null, at: null });
       }),
     );
@@ -203,11 +203,13 @@ layer(TestClient)('TipeeClient', (it) => {
           team_ids: [GE],
         })) as ReadonlyArray<{ team_id: string }>;
 
-        expect(absences.map((absence) => absence.absence_type.machine_name)).toContain('vacances');
+        expect(Arr.map(absences, (absence) => absence.absence_type.machine_name)).toContain(
+          'vacances',
+        );
         expect(duties.length).toBeGreaterThan(0);
-        expect(duties.every((duty) => duty.team_id === FR)).toBe(true);
+        expect(Arr.every(duties, (duty) => duty.team_id === FR)).toBe(true);
         expect(templates.length).toBeGreaterThan(0);
-        expect(templates.every((template) => template.team_id === GE)).toBe(true);
+        expect(Arr.every(templates, (template) => template.team_id === GE)).toBe(true);
       }),
     );
   });

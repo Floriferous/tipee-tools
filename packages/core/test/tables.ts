@@ -1,61 +1,62 @@
-// The fixtures loaded once as the fake tipee's tables, decoded only as far
-// as the fake needs to filter, sort and paginate; rows are answered raw.
+// The fixtures as the fake tipee's tables: each row typed only as far as the
+// fake needs to filter, sort and paginate, and answered raw.
 
-import { Schema } from 'effect';
+import { Array as Arr, Option } from 'effect';
+import type { JsonBodyType } from 'msw';
 
-import { readFixture } from './fixtures.ts';
-import type { FixtureName } from './fixtures.ts';
+import { fixtures } from './fixtures.ts';
 
-// Fixtures are raw tipee JSON and are answered untouched; these schemas only
-// pick what the fake needs to filter, sort and paginate.
-const Row = Schema.Struct({ id: Schema.String });
-const KindRow = Schema.Struct({ ...Row.fields, machine_name: Schema.String });
-const TeamRow = Schema.Struct({ ...Row.fields, parent_id: Schema.NullOr(Schema.String) });
-const TemplateRow = Schema.Struct({ ...Row.fields, team_id: Schema.String });
-export const PersonRow = Schema.Struct({
-  ...Row.fields,
-  attributes: Schema.Struct({ last_name: Schema.String }),
-  teams: Schema.optionalKey(Schema.Array(Schema.Struct({ id: Schema.String }))),
-});
-const ForResource = Schema.Struct({ resource_id: Schema.String });
-const ByResource = Schema.Struct({ ...Row.fields, ...ForResource.fields });
-const OnCallRow = Schema.Struct({ ...ByResource.fields, team_id: Schema.String });
-const AnyRow = Schema.Struct({});
+interface Identified {
+  readonly id: string;
+}
+interface KindRow extends Identified {
+  readonly machine_name: string;
+}
+interface TeamRow extends Identified {
+  readonly parent_id: string | null;
+}
+interface TemplateRow extends Identified {
+  readonly team_id: string;
+}
+export interface PersonRow extends Identified {
+  readonly attributes: { readonly last_name: string };
+  readonly teams?: ReadonlyArray<{ readonly id: string }>;
+}
+interface ForResource {
+  readonly resource_id: string;
+}
+interface ByResource extends Identified, ForResource {}
+interface OnCallRow extends ByResource {
+  readonly team_id: string;
+}
 
 export interface Loaded<Row> {
-  readonly raw: Schema.Json;
+  readonly raw: JsonBodyType;
   readonly row: Row;
 }
 
-const load = <S extends Schema.ConstraintDecoder<unknown>>(
-  schema: S,
-  name: FixtureName,
-): ReadonlyArray<Loaded<S['Type']>> => {
-  const raw = Schema.decodeUnknownSync(Schema.Array(Schema.Json))(readFixture(name));
-  const rows = Schema.decodeSync(Schema.Array(schema))(raw);
-  return rows.map((row, index) => ({ raw: raw[index] ?? null, row }));
-};
+// The compiler checks each fixture against `Row`; the row is its own raw JSON.
+const load = <Row>(rows: ReadonlyArray<Row & JsonBodyType>): ReadonlyArray<Loaded<Row>> =>
+  Arr.map(rows, (row) => ({ raw: row, row }));
 
-export const kinds = load(KindRow, 'kinds');
-export const teams = load(TeamRow, 'teams');
-export const templates = load(TemplateRow, 'templates');
-export const people = load(PersonRow, 'people');
-export const integrations = load(PersonRow, 'integrations');
-export const shifts = load(ByResource, 'shifts');
-export const absences = load(ByResource, 'absences');
-export const onCalls = load(OnCallRow, 'on-calls');
-export const activityRates = load(AnyRow, 'activity-rates');
-export const dayTasks = load(ForResource, 'day-tasks');
+export const kinds = load<KindRow>(fixtures.kinds);
+export const teams = load<TeamRow>(fixtures.teams);
+export const templates = load<TemplateRow>(fixtures.templates);
+export const people = load<PersonRow>(fixtures.people);
+export const integrations = load<PersonRow>(fixtures.integrations);
+export const shifts = load<ByResource>(fixtures.shifts);
+export const absences = load<ByResource>(fixtures.absences);
+export const onCalls = load<OnCallRow>(fixtures['on-calls']);
+export const activityRates = load<object>(fixtures['activity-rates']);
+export const dayTasks = load<ForResource>(fixtures['day-tasks']);
 
-const employeeKind = kinds.find((kind) => kind.row.machine_name === 'employee');
-if (employeeKind === undefined) {
-  throw new Error('fixture kinds.json has no "employee" kind');
-}
-export const EMPLOYEE_KIND_ID = employeeKind.row.id;
-const integrationKind = kinds.find((kind) => kind.row.machine_name === 'integration');
-if (integrationKind === undefined) {
-  throw new Error('fixture kinds.json has no "integration" kind');
-}
-export const INTEGRATION_KIND_ID = integrationKind.row.id;
+const kindId = (machineName: string): string =>
+  Arr.findFirst(kinds, (kind) => kind.row.machine_name === machineName).pipe(
+    Option.map((kind) => kind.row.id),
+    Option.getOrThrowWith(() => new Error(`fixture kinds.json has no "${machineName}" kind`)),
+  );
+
+export const EMPLOYEE_KIND_ID = kindId('employee');
+export const INTEGRATION_KIND_ID = kindId('integration');
 /** The one integration of the fake instance: the key's own. */
 export const INTEGRATION_ID = integrations[0]?.row.id ?? '';

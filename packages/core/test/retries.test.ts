@@ -5,7 +5,6 @@
 import { expect, layer } from '@effect/vitest';
 import { Effect, Layer } from 'effect';
 import { HttpClient, HttpClientResponse } from 'effect/http';
-import { delay } from 'msw';
 import { HttpResponse, http } from 'msw/http';
 
 import { TipeeClient } from '../src/index.ts';
@@ -24,10 +23,13 @@ import {
   settled,
   status,
 } from './answers.ts';
+import { resolver } from './handlers.ts';
 import { server } from './server.ts';
 
 const HTTP_CREATED = 201;
 const HTTP_LOOP_DETECTED = 508;
+// A tipee that never answers.
+const hang = Effect.never;
 
 layer(TestClient)('retries', (it) => {
   it.effect('passes on what tipee says about its rate limit', () =>
@@ -39,7 +41,7 @@ layer(TestClient)('retries', (it) => {
           once: false,
         }),
       );
-      const error = yield* settled(failure(call('kinds_list', {})));
+      const error = yield* call('kinds_list', {}).pipe(failure, settled);
 
       expect(error.reason._tag).toBe('RateLimited');
       expect(error.message).toContain('Retry-After: 30');
@@ -59,7 +61,7 @@ layer(TestClient)('retries', (it) => {
           );
         }),
       );
-      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
+      const error = yield* call('schedules_create', NEW_SCHEDULE).pipe(failure, settled);
 
       expect(sent).toBe(1);
       expect(error.message).toMatch(
@@ -113,7 +115,7 @@ layer(TestClient)('retries', (it) => {
           return HttpResponse.json({ message: 'Oops' }, { status: HTTP_SERVER_ERROR });
         }),
       );
-      const error = yield* settled(failure(call('kinds_list', {})));
+      const error = yield* call('kinds_list', {}).pipe(failure, settled);
 
       expect(sent).toBe(4);
       expect(error.reason._tag).toBe('UnexpectedStatus');
@@ -143,12 +145,16 @@ layer(TestClient)('retries', (it) => {
     Effect.gen(function* () {
       let sent = 0;
       server.use(
-        http.post(KINDS_URL, async () => {
-          sent += 1;
-          await delay('infinite');
-        }),
+        http.post(
+          KINDS_URL,
+          resolver(() =>
+            Effect.sync(() => {
+              sent += 1;
+            }).pipe(Effect.andThen(hang)),
+          ),
+        ),
       );
-      const error = yield* settled(failure(call('kinds_list', {})));
+      const error = yield* call('kinds_list', {}).pipe(failure, settled);
 
       expect(sent).toBe(1);
       expect(error.message).toBe(
@@ -161,44 +167,16 @@ layer(TestClient)('retries', (it) => {
   it.effect('says a write that hung may have been applied', () =>
     Effect.gen(function* () {
       server.use(
-        http.post(SCHEDULES_CREATE_URL, async () => {
-          await delay('infinite');
-        }),
+        http.post(
+          SCHEDULES_CREATE_URL,
+          resolver(() => hang),
+        ),
       );
-      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
+      const error = yield* call('schedules_create', NEW_SCHEDULE).pipe(failure, settled);
 
       expect(error.reason._tag).toBe('Unreachable');
       expect(error.message).toMatch(/did not answer within 20 s/u);
       expect(error.message).toMatch(/may have applied it/u);
-    }),
-  );
-
-  it.effect('stops retrying slow server errors before the client gives up', () =>
-    Effect.gen(function* () {
-      let sent = 0;
-      // Every answer is a 504 that takes 19 s, on the test clock: four of
-      // them would take 80 s, past the minute MCP clients wait.
-      const slow = HttpClient.make((request) =>
-        Effect.sync(() => {
-          sent += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep('19 seconds')),
-          Effect.as(
-            HttpClientResponse.fromWeb(
-              request,
-              Response.json({ message: 'Gateway timeout' }, { status: HTTP_GATEWAY_TIMEOUT }),
-            ),
-          ),
-        ),
-      );
-      const client = TipeeClient.layer(credentials).pipe(
-        Layer.provide(Layer.succeed(HttpClient.HttpClient, slow)),
-      );
-      const error = yield* settled(failure(call('kinds_list', {}))).pipe(Effect.provide(client));
-
-      expect(sent).toBe(3);
-      expect(error.reason._tag).toBe('Unreachable');
-      expect(error.message).toMatch(/no usable answer within 50 s, retries included/u);
     }),
   );
 
@@ -231,7 +209,7 @@ layer(TestClient)('retries', (it) => {
           return HttpResponse.json({ message: 'Oops' }, { status: HTTP_SERVER_ERROR });
         }),
       );
-      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
+      const error = yield* call('schedules_create', NEW_SCHEDULE).pipe(failure, settled);
 
       expect(sent).toBe(1);
       expect(error.message).toMatch(/Nothing was applied/u);
@@ -246,11 +224,47 @@ layer(TestClient)('retries', (it) => {
           HttpResponse.json({ message: 'Loop detected' }, { status: HTTP_LOOP_DETECTED }),
         ),
       );
-      const error = yield* settled(failure(call('schedules_create', NEW_SCHEDULE)));
+      const error = yield* call('schedules_create', NEW_SCHEDULE).pipe(failure, settled);
 
       expect(error.message).toMatch(/HTTP 508/u);
       expect(error.message).toMatch(/nothing was applied/u);
       expect(error.message).toMatch(/one call per day/u);
+    }),
+  );
+});
+
+// Every answer is a 504 that takes 19 s, on the test clock: four of them
+// would take 80 s, past the minute MCP clients wait.
+let slowSent = 0;
+const SlowServer = TipeeClient.layer(credentials).pipe(
+  Layer.provide(
+    Layer.succeed(
+      HttpClient.HttpClient,
+      HttpClient.make((request) =>
+        Effect.sync(() => {
+          slowSent += 1;
+        }).pipe(
+          Effect.andThen(Effect.sleep('19 seconds')),
+          Effect.as(
+            HttpClientResponse.fromWeb(
+              request,
+              Response.json({ message: 'Gateway timeout' }, { status: HTTP_GATEWAY_TIMEOUT }),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
+
+layer(SlowServer)('retries', (it) => {
+  it.effect('stops retrying slow server errors before the client gives up', () =>
+    Effect.gen(function* () {
+      const error = yield* call('kinds_list', {}).pipe(failure, settled);
+
+      expect(slowSent).toBe(3);
+      expect(error.reason._tag).toBe('Unreachable');
+      expect(error.message).toMatch(/no usable answer within 50 s, retries included/u);
     }),
   );
 });

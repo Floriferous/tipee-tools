@@ -3,7 +3,7 @@
 
 import { TipeeClient } from '@tipee-tools/core';
 import { API_KEY } from '@tipee-tools/core/testing';
-import { Effect, Layer, Redacted } from 'effect';
+import { Array as Arr, Effect, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 
 import { SERVER_VERSION, Telemetry, TipeeToolkitLayer, Updates } from '../src/index.ts';
@@ -29,7 +29,10 @@ const recording = Layer.succeed(Telemetry, {
 });
 // What a call recorded, without the session event of whichever call came first.
 export const recordedCalls = (): ReadonlyArray<Recorded> =>
-  recorded.filter((entry) => entry.event !== 'session_started');
+  Arr.filter(recorded, (entry) => entry.event !== 'session_started');
+// The events of these entries, in order.
+export const eventsOf = (entries: ReadonlyArray<Recorded>): ReadonlyArray<string> =>
+  Arr.map(entries, (entry) => entry.event);
 export const recordingClient = TipeeToolkitLayer.pipe(
   Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
   Layer.provide(recording),

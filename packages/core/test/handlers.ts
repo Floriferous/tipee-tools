@@ -3,11 +3,34 @@
 // orders on every page, …) by answering 401/422 the way tipee does — so tests
 // assert on behaviour instead of inspecting requests.
 
-import { Result, Schema } from 'effect';
+import {
+  Array as Arr,
+  Effect,
+  Hash,
+  Option,
+  Order,
+  Schema,
+  String as Str,
+  flow,
+  pipe,
+} from 'effect';
+import { HttpServerRequest } from 'effect/http';
 import type { JsonBodyType } from 'msw';
 import { HttpResponse, http } from 'msw/http';
 
-import { readFixture } from './fixtures.ts';
+import { fixtures } from './fixtures.ts';
+import {
+  DeleteQuery,
+  ListByDateQuery,
+  ListDayTasksQuery,
+  ListOnCallsQuery,
+  ListResourcesQuery,
+  ListTemplatesQuery,
+  ListTimechecksQuery,
+  ShowActivityRatesQuery,
+  ShowQuery,
+} from './queries.ts';
+import type { TeamFilter } from './queries.ts';
 import {
   EMPLOYEE_KIND_ID,
   INTEGRATION_KIND_ID,
@@ -36,52 +59,6 @@ const HTTP_INSUFFICIENT_STORAGE = 507;
 
 const api = (path: string): string => `${BASE}${path}`;
 
-// Either end may be open: `2026-08-01/-`, `-/2018-12-31`.
-const DateRange = Schema.String.check(
-  Schema.isPattern(/^(?:\d{4}-\d{2}-\d{2}|-)\/(?:\d{4}-\d{2}-\d{2}|-)$/u),
-);
-const Ids = Schema.Array(Schema.String);
-const TeamFilter = Schema.Struct({
-  key: Schema.Literal('resource.team'),
-  value: Schema.Struct({ recursive: Schema.Boolean, teams: Ids }),
-});
-const Order = Schema.Struct({
-  attribute: Schema.Literal('last_name'),
-  direction: Schema.Literals(['asc', 'desc']),
-  key: Schema.Literal('resource.attribute'),
-});
-const Pagination = Schema.Struct({
-  limit: Schema.NullOr(Schema.Int.check(Schema.isGreaterThan(0))),
-  next_token: Schema.NullOr(Schema.String),
-});
-
-const ListResourcesQuery = Schema.Struct({
-  filters: Schema.optionalKey(Schema.Array(TeamFilter)),
-  kind_id: Schema.Literals([EMPLOYEE_KIND_ID, INTEGRATION_KIND_ID]),
-  orders: Schema.NonEmptyArray(Order),
-  pagination: Pagination,
-  with_teams: Schema.optionalKey(Schema.Boolean),
-});
-const ListTemplatesQuery = Schema.Struct({ team_ids: Schema.optionalKey(Ids) });
-const ListByDateQuery = Schema.Struct({
-  date_range: DateRange,
-  resource_ids: Schema.optionalKey(Ids),
-});
-const ListOnCallsQuery = Schema.Struct({
-  ...ListByDateQuery.fields,
-  team_ids: Schema.optionalKey(Ids),
-});
-const ListDayTasksQuery = Schema.Struct({
-  date_range: DateRange,
-  is_own: Schema.Boolean,
-  resource_ids: Ids,
-  task_ids: Schema.optionalKey(Schema.NullOr(Ids)),
-});
-const ShowActivityRatesQuery = Schema.Struct({
-  date_range: Schema.optionalKey(DateRange),
-  resource_id: Schema.String,
-});
-
 const unauthorized = (message: string): Response =>
   HttpResponse.json({ message }, { status: HTTP_UNAUTHORIZED });
 
@@ -91,27 +68,22 @@ const unprocessable = (details: unknown): Response =>
 const notFound = (message: string): Response =>
   HttpResponse.json({ message }, { status: HTTP_NOT_FOUND });
 
-const ShowQuery = Schema.Struct({ id: Schema.String });
-const DeleteQuery = Schema.Struct({
-  ids: Schema.Array(Schema.String),
-  options: Schema.Struct({ group_action: Schema.Literals(['single', 'future', 'all']) }),
-});
-const TimecheckFilter = Schema.Struct({ key: Schema.String, value: Schema.Unknown });
-const ListTimechecksQuery = Schema.Struct({
-  filters: Schema.optionalKey(Schema.Array(TimecheckFilter)),
-});
-
 // Deletes answer like tipee's PHP: a map of day to ids, and `[]` for an empty map.
 const deleted = <Row extends { readonly id: string }>(
   items: ReadonlyArray<Loaded<Row>>,
   ids: ReadonlyArray<string>,
   day: string,
 ): JsonBodyType | Response => {
-  const unknown = ids.find((id) => !items.some((item) => item.row.id === id));
-  if (unknown !== undefined) {
-    return notFound(`L'élément avec l'id "${unknown}" n'a pas été trouvé.`);
-  }
-  return { deleted: { [day]: ids }, deleted_count: ids.length, failed: [], failed_count: 0 };
+  const unknown = Arr.findFirst(ids, (id) => !Arr.some(items, (item) => item.row.id === id));
+  return Option.match(unknown, {
+    onNone: () => ({
+      deleted: { [day]: ids },
+      deleted_count: ids.length,
+      failed: [],
+      failed_count: 0,
+    }),
+    onSome: (id) => notFound(`L'élément avec l'id "${id}" n'a pas été trouvé.`),
+  });
 };
 
 const headersLikeTipee = (request: Request): Response | undefined => {
@@ -128,7 +100,12 @@ const headersLikeTipee = (request: Request): Response | undefined => {
 };
 
 const rawOf = <Row>(items: ReadonlyArray<Loaded<Row>>): JsonBodyType =>
-  items.map((item) => item.raw);
+  Arr.map(items, (item) => item.raw);
+
+// An MSW resolver written as an Effect, run as the promise MSW awaits.
+export const resolver = <A>(
+  answer: (info: { readonly request: Request }) => Effect.Effect<A>,
+): ((info: { readonly request: Request }) => Promise<A>) => flow(answer, Effect.runPromise);
 
 // Validates auth headers and the body like tipee, then answers.
 const endpoint = <S extends Schema.ConstraintDecoder<unknown>>(
@@ -136,18 +113,27 @@ const endpoint = <S extends Schema.ConstraintDecoder<unknown>>(
   schema: S,
   answer: (query: S['Type']) => JsonBodyType | Response,
 ) =>
-  http.post(api(path), async ({ request }) => {
-    const rejection = headersLikeTipee(request);
-    if (rejection !== undefined) {
-      return rejection;
-    }
-    const query = Schema.decodeResult(schema)(await request.json());
-    if (Result.isFailure(query)) {
-      return unprocessable(query.failure.message);
-    }
-    const answered = answer(query.success);
-    return answered instanceof Response ? answered : HttpResponse.json(answered);
-  });
+  http.post(
+    api(path),
+    resolver(
+      Effect.fnUntraced(function* ({ request }) {
+        const rejection = headersLikeTipee(request);
+        if (rejection !== undefined) {
+          return rejection;
+        }
+        return yield* HttpServerRequest.fromWeb(request).json.pipe(
+          Effect.flatMap(Schema.decodeUnknownEffect(schema)),
+          Effect.match({
+            onFailure: (error) => unprocessable(error.message),
+            onSuccess: (query) => {
+              const answered = answer(query);
+              return answered instanceof Response ? answered : HttpResponse.json(answered);
+            },
+          }),
+        );
+      }),
+    ),
+  );
 
 const descendants = (teamId: string): Set<string> => {
   const found = new Set([teamId]);
@@ -177,44 +163,45 @@ const teamIdsOf = (filters: ReadonlyArray<typeof TeamFilter.Type>): Set<string> 
   return ids;
 };
 
-type PersonFixture = Loaded<typeof PersonRow.Type>;
+type PersonFixture = Loaded<PersonRow>;
 
-const byLastName =
-  (direction: 'asc' | 'desc') =>
-  (left: PersonFixture, right: PersonFixture): number => {
-    const sign = direction === 'asc' ? 1 : -1;
-    return sign * left.row.attributes.last_name.localeCompare(right.row.attributes.last_name, 'fr');
-  };
+// Tipee sorts names the French way, accents included.
+const French: Order.Order<string> = (self, that) => Str.localeCompare(that, ['fr'])(self);
+const byLastName = (direction: 'asc' | 'desc') =>
+  Arr.sortWith(
+    (person: PersonFixture) => person.row.attributes.last_name,
+    direction === 'asc' ? French : Order.flip(French),
+  );
 
 // A real cursor is opaque; this one is "<offset>:<signature>" so the fake can
 // refuse a page requested with different filters or orders, like tipee does.
 const cursor = (offset: number, signature: string): string => `${offset}:${signature}`;
 
-const readCursor = (token: string | null, signature: string): number | undefined => {
+const readCursor = (token: string | null, signature: string): Option.Option<number> => {
   if (token === null) {
-    return 0;
+    return Option.some(0);
   }
-  const separator = token.indexOf(':');
-  if (token.slice(separator + 1) !== signature) {
-    return undefined;
-  }
-  return Number(token.slice(0, separator));
+  const [offset, signed] = Str.split(token, ':');
+  return signed === signature ? Option.some(Number(offset)) : Option.none();
 };
 
 const listResources = (query: typeof ListResourcesQuery.Type): JsonBodyType | Response => {
   const filters = query.filters ?? [];
-  const signature = JSON.stringify([filters, query.orders]);
-  const offset = readCursor(query.pagination.next_token, signature);
-  if (offset === undefined) {
+  const signature = String(Hash.hash([filters, query.orders]));
+  const cursorOffset = readCursor(query.pagination.next_token, signature);
+  if (Option.isNone(cursorOffset)) {
     return unprocessable('filters or orders changed between pages');
   }
+  const offset = cursorOffset.value;
   const teamIds = teamIdsOf(filters);
   const [order] = query.orders;
-  const matching = (query.kind_id === INTEGRATION_KIND_ID ? integrations : people)
-    .filter(
-      ({ row }) => teamIds.size === 0 || (row.teams ?? []).some((team) => teamIds.has(team.id)),
-    )
-    .toSorted(byLastName(order.direction));
+  const matching = pipe(
+    query.kind_id === INTEGRATION_KIND_ID ? integrations : people,
+    Arr.filter(
+      ({ row }) => teamIds.size === 0 || Arr.some(row.teams ?? [], (team) => teamIds.has(team.id)),
+    ),
+    byLastName(order.direction),
+  );
   const pageSize = Math.min(query.pagination.limit ?? matching.length, FAKE_PAGE_SIZE);
   // Tipee hands out a cursor even when the last page was exactly full.
   const nextOffset = offset + pageSize;
@@ -230,13 +217,13 @@ const forPeople = <Row extends { readonly resource_id: string }>(
 ): ReadonlyArray<Loaded<Row>> =>
   resourceIds === undefined
     ? items
-    : items.filter((item) => resourceIds.includes(item.row.resource_id));
+    : Arr.filter(items, (item) => resourceIds.includes(item.row.resource_id));
 
 export const handlers = [
   endpoint('/api/directory/kinds.list', Schema.Struct({}), () => rawOf(kinds)),
   endpoint('/api/directory/kinds.show', ShowQuery, ({ id }) =>
     id === EMPLOYEE_KIND_ID
-      ? (readFixture('kind-employee') as JsonBodyType)
+      ? fixtures['kind-employee']
       : notFound(`Le type avec l'id "${id}" n'a pas été trouvé.`),
   ),
   endpoint('/api/schedule/schedules.delete', DeleteQuery, ({ ids }) =>
@@ -247,7 +234,7 @@ export const handlers = [
   ),
   // Without a date filter tipee scans every timecheck and runs out of memory.
   endpoint('/api/timeclock/timechecks.list', ListTimechecksQuery, ({ filters }) =>
-    (filters ?? []).some((filter) => filter.key === 'timecheck.date_range')
+    Arr.some(filters ?? [], (filter) => filter.key === 'timecheck.date_range')
       ? []
       : HttpResponse.json(
           { message: 'Your request is using too much memory.' },
@@ -259,7 +246,7 @@ export const handlers = [
     rawOf(
       team_ids === undefined
         ? templates
-        : templates.filter((template) => team_ids.includes(template.row.team_id)),
+        : Arr.filter(templates, (template) => team_ids.includes(template.row.team_id)),
     ),
   ),
   endpoint('/api/directory/resources.list', ListResourcesQuery, listResources),
@@ -271,7 +258,8 @@ export const handlers = [
   ),
   endpoint('/api/schedule/on-calls.list', ListOnCallsQuery, ({ resource_ids, team_ids }) =>
     rawOf(
-      forPeople(onCalls, resource_ids).filter(
+      Arr.filter(
+        forPeople(onCalls, resource_ids),
         (duty) => team_ids === undefined || team_ids.includes(duty.row.team_id),
       ),
     ),
@@ -280,6 +268,6 @@ export const handlers = [
     rawOf(forPeople(dayTasks, resource_ids)),
   ),
   endpoint('/api/directory/resources.show-activity-rates', ShowActivityRatesQuery, (query) =>
-    rawOf(people.some((person) => person.row.id === query.resource_id) ? activityRates : []),
+    rawOf(Arr.some(people, (person) => person.row.id === query.resource_id) ? activityRates : []),
   ),
 ];

@@ -1,7 +1,7 @@
 // Every failure ends with its next step, since the message is all an agent in
 // Claude Desktop gets: what to retry, and when retrying will not help.
 
-import { expect, it, layer } from '@effect/vitest';
+import { expect, layer } from '@effect/vitest';
 import { Effect, Layer } from 'effect';
 import { HttpClient, HttpClientError } from 'effect/http';
 import { HttpResponse, http } from 'msw/http';
@@ -46,7 +46,7 @@ layer(TestClient)('next steps', (it) => {
   it.effect('a read that cannot reach tipee asks to check the connection', () =>
     Effect.gen(function* () {
       server.use(http.post(KINDS_URL, () => HttpResponse.error()));
-      const error = yield* settled(failure(call('kinds_list', {})));
+      const error = yield* call('kinds_list', {}).pipe(failure, settled);
 
       expect(error.reason._tag).toBe('Unreachable');
       expect(error.message).toMatch(
@@ -58,7 +58,7 @@ layer(TestClient)('next steps', (it) => {
   it.effect('a read tipee keeps failing on suggests check_setup', () =>
     Effect.gen(function* () {
       server.use(status(HTTP_SERVER_ERROR, { once: false }));
-      const error = yield* settled(failure(call('kinds_list', {})));
+      const error = yield* call('kinds_list', {}).pipe(failure, settled);
 
       expect(error.message).toMatch(/run check_setup if it persists\.$/u);
     }),
@@ -74,13 +74,15 @@ layer(TestClient)('next steps', (it) => {
   );
 });
 
-it.effect('an untrusted certificate says nothing was sent, even for a write', () =>
-  Effect.gen(function* () {
-    const error = yield* failure(call('schedules_create', NEW_SCHEDULE));
+layer(InspectedNetwork)((it) => {
+  it.effect('an untrusted certificate says nothing was sent, even for a write', () =>
+    Effect.gen(function* () {
+      const error = yield* failure(call('schedules_create', NEW_SCHEDULE));
 
-    expect(error.reason._tag).toBe('Unreachable');
-    expect(error.message).toMatch(/Nothing was sent to tipee/u);
-    expect(error.message).toContain('exempt acme.tipee.net');
-    expect(error.message).not.toMatch(/may have applied it/u);
-  }).pipe(Effect.provide(InspectedNetwork)),
-);
+      expect(error.reason._tag).toBe('Unreachable');
+      expect(error.message).toMatch(/Nothing was sent to tipee/u);
+      expect(error.message).toContain('exempt acme.tipee.net');
+      expect(error.message).not.toMatch(/may have applied it/u);
+    }),
+  );
+});

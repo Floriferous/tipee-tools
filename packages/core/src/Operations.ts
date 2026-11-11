@@ -3,7 +3,7 @@
 // schemas, and what it does to tipee's data. Tools are built from this;
 // `invoke` (Invoke.ts) calls any of them.
 
-import { Context, Schema } from 'effect';
+import { Array as Arr, Context, Option, Schema, String as Str, pipe } from 'effect';
 import { constVoid } from 'effect/Function';
 import { HttpApi, HttpApiSchema, OpenApi } from 'effect/http-api';
 import type { HttpApiEndpoint } from 'effect/http-api';
@@ -39,9 +39,10 @@ export interface Operation {
 }
 
 const nameOf = (path: string): string =>
-  path.replace(/^\/api\/[^/]+\//u, '').replaceAll(/[.-]/gu, '_');
+  pipe(path, Str.replace(/^\/api\/[^/]+\//u, ''), Str.replaceAll(/[.-]/gu, '_'));
 
-const verbOf = (path: string): string => path.slice(path.lastIndexOf('.') + 1);
+// What follows the last dot, or the whole path without one.
+const verbOf = (path: string): string => Arr.lastNonEmpty(Str.split(path, '.'));
 
 const isBody = (schema: Schema.Top): boolean => !HttpApiSchema.isNoContent(schema.ast);
 
@@ -49,9 +50,9 @@ const isBody = (schema: Schema.Top): boolean => !HttpApiSchema.isNoContent(schem
 // object), which MCP tool parameters require; with it, the root is a $ref.
 const bodySchema = (endpoint: HttpApiEndpoint.Top): Body => {
   for (const { schemas } of endpoint.payload.values()) {
-    const body = schemas.find((schema) => isBody(schema));
-    if (body !== undefined) {
-      return body.annotate({ identifier: undefined }) as Body;
+    const body = Arr.findFirst(schemas, isBody);
+    if (Option.isSome(body)) {
+      return body.value.annotate({ identifier: undefined }) as Body;
     }
   }
   return Schema.Struct({});
@@ -61,9 +62,9 @@ const successSchema = (
   successes: ReadonlyMap<number, readonly [Schema.Top, ...Array<Schema.Top>]>,
 ): Body | undefined => {
   for (const schemas of successes.values()) {
-    const body = schemas.find((schema) => isBody(schema));
-    if (body !== undefined) {
-      return body as Body;
+    const body = Arr.findFirst(schemas, isBody);
+    if (Option.isSome(body)) {
+      return body.value as Body;
     }
   }
   return undefined;
@@ -93,7 +94,7 @@ const collect = (): ReadonlyArray<Operation> => {
     },
     onGroup: constVoid,
   });
-  const names = new Set(found.map((operation) => operation.name));
+  const names = new Set(Arr.map(found, (operation) => operation.name));
   if (names.size !== found.length) {
     throw new Error('two tipee operations map to the same name');
   }
@@ -108,9 +109,6 @@ export const operations: ReadonlyArray<Operation> = collect();
 
 // Looks an operation up by name; throws for a name the document does not have.
 export const operation = (name: string): Operation => {
-  const found = operations.find((candidate) => candidate.name === name);
-  if (found === undefined) {
-    throw new Error(`tipee has no operation named ${name}`);
-  }
-  return found;
+  const found = Arr.findFirst(operations, (candidate) => candidate.name === name);
+  return Option.getOrThrowWith(found, () => new Error(`tipee has no operation named ${name}`));
 };

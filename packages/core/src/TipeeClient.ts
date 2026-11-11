@@ -4,6 +4,7 @@
 // say: the base URL, the headers tipee insists on, a timeout, and retries.
 
 import {
+  Array as Arr,
   Cause,
   Clock,
   Config,
@@ -15,8 +16,11 @@ import {
   Option,
   Redacted,
   Schedule,
+  String as Str,
   flow,
+  pipe,
 } from 'effect';
+import { dual } from 'effect/Function';
 import { HttpClient, HttpClientError, HttpClientRequest } from 'effect/http';
 import type { HttpClientResponse } from 'effect/http';
 import { HttpApiClient } from 'effect/http-api';
@@ -58,7 +62,7 @@ const within = (
 
 // `*.list` and `*.show*` operations, the ones that only read.
 export const readsOnly = (path: string): boolean =>
-  /^(?:list|show)/u.test(path.slice(path.lastIndexOf('.') + 1));
+  /^(?:list|show)/u.test(Arr.lastNonEmpty(Str.split(path, '.')));
 
 // Whether a failed request may be sent again. Every tipee operation is a
 // POST, and a write that timed out or lost its connection may already have
@@ -71,17 +75,20 @@ const resendable = (request: HttpClientRequest.HttpClientRequest, status?: numbe
 
 // The seconds a Retry-After header asks to wait, given as seconds or as an
 // HTTP date (compared with `now`, in milliseconds); undefined without one.
-export const retryAfterSeconds = (header: string | undefined, now: number): number | undefined => {
+export const retryAfterSeconds: {
+  (now: number): (header: string | undefined) => number | undefined;
+  (header: string | undefined, now: number): number | undefined;
+} = dual(2, (header: string | undefined, now: number): number | undefined => {
   if (header === undefined) {
     return undefined;
   }
-  const trimmed = header.trim();
+  const trimmed = Str.trim(header);
   if (/^\d+$/u.test(trimmed)) {
     return Number(trimmed);
   }
   const date = Date.parse(trimmed);
   return Number.isNaN(date) ? undefined : Math.max(0, (date - now) / MILLIS_PER_SECOND);
-};
+});
 
 // Waits at least as long as the answer's Retry-After asks.
 const ANSWER_SCHEDULE = RETRY_SCHEDULE.pipe(
@@ -146,12 +153,15 @@ const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 // `https://acme.tipee.net/` all give `acme`. None when what is left is not a
 // single DNS label, so no value can send the key to another host.
 export const normalizeInstance = (raw: string): Option.Option<string> => {
-  const [host = ''] = raw
-    .trim()
-    .toLowerCase()
-    .replace(/^[a-z][a-z0-9+.-]*:\/\//u, '')
-    .split('/');
-  const subdomain = host.replace(/\.tipee\.net$/u, '');
+  const host = pipe(
+    raw,
+    Str.trim,
+    Str.toLowerCase,
+    Str.replace(/^[a-z][a-z0-9+.-]*:\/\//u, ''),
+    Str.split('/'),
+    Arr.headNonEmpty,
+  );
+  const subdomain = Str.replace(/\.tipee\.net$/u, '')(host);
   return DNS_LABEL.test(subdomain) ? Option.some(subdomain) : Option.none();
 };
 
@@ -161,7 +171,7 @@ const invalid = (message: string): Config.ConfigError =>
 
 // A setting never filled in: absent, blank, or the placeholder Claude passes
 // as is, such as `${user_config.instance}`.
-const unset = (raw: string): boolean => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
+const unset = (raw: string): boolean => /^(?:\$\{user_config\.\w+\})?$/u.test(Str.trim(raw));
 
 const instanceConfig = Config.String('TIPEE_INSTANCE').pipe(
   Config.withDefault(''),
@@ -181,7 +191,7 @@ const instanceConfig = Config.String('TIPEE_INSTANCE').pipe(
 const apiKeyConfig = Config.Redacted('TIPEE_API_KEY').pipe(
   Config.withDefault(Redacted.make('')),
   Config.mapEffect((key) => {
-    const trimmed = Redacted.value(key).trim();
+    const trimmed = Str.trim(Redacted.value(key));
     return unset(trimmed)
       ? Effect.fail(invalid('The API key is empty: paste the key generated for the integration.'))
       : Effect.succeed(Redacted.make(trimmed));
@@ -240,7 +250,7 @@ export class TipeeClient extends Context.Service<
   public static readonly layerConfig = Layer.unwrap(
     Config.all({ apiKey: apiKeyConfig, instance: instanceConfig }).pipe(
       Effect.mapBoth({
-        onFailure: (cause) => new ConfigurationMissing({ cause }),
+        onFailure: (cause) => ConfigurationMissing.make({ cause }),
         onSuccess: (credentials) => TipeeClient.layer(credentials),
       }),
     ),

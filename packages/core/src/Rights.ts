@@ -2,6 +2,8 @@
 // right each group of operations needs, as named in the integration's Roles
 // tab, and where Claude keeps the instance and the key.
 
+import { Array as Arr, Option } from 'effect';
+
 import type { Operation } from './Operations.ts';
 
 /** Where the instance and the API key are entered, in each Claude app. */
@@ -59,9 +61,12 @@ export const rightFor = (target: Operation): string => {
     return 'the right this operation needs';
   }
   const special = target.readOnly
-    ? undefined
-    : SPECIAL_RIGHTS.find(([pattern]) => pattern.test(target.name))?.[1];
-  const right = special ?? (target.readOnly ? rights.read : rights.write);
+    ? Option.none()
+    : Arr.findFirst(SPECIAL_RIGHTS, ([pattern]) => pattern.test(target.name));
+  const right = Option.match(special, {
+    onNone: () => (target.readOnly ? rights.read : rights.write),
+    onSome: ([, named]) => named,
+  });
   return right === undefined
     ? `the ${rights.module} right this operation needs`
     : `«${rights.module} → ${right}»`;

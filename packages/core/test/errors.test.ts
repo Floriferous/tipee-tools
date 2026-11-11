@@ -2,7 +2,7 @@
 // a user can fix by hand ending with the page to open on their instance.
 
 import { describe, expect, it as plain, layer } from '@effect/vitest';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 import { HttpResponse, http } from 'msw/http';
 
 import { fieldsOf } from '../src/Errors.ts';
@@ -30,43 +30,50 @@ import { BASE } from './handlers.ts';
 import { server } from './server.ts';
 import { INTEGRATION_ID } from './tables.ts';
 
+// Tipee's answers are JSON text.
+const json = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
+
 // What a refusal names can be recorded: paths, never messages or values.
 describe('fields a refusal names', () => {
-  plain('reads the path lines of a validation detail', () => {
-    expect(
-      fieldsOf(
-        JSON.stringify({
-          detail:
-            'hour_ranges[0].hour_range: This value is not valid.\n' +
-            'options.allow_partial: This value should not be null.',
-          status: 422,
-          title: 'Validation Failed',
-        }),
-      ),
-    ).toEqual(['hour_ranges[].hour_range', 'options.allow_partial']);
-  });
+  plain.effect('reads the path lines of a validation detail', () =>
+    Effect.gen(function* () {
+      const detail = yield* json({
+        detail:
+          'hour_ranges[0].hour_range: This value is not valid.\n' +
+          'options.allow_partial: This value should not be null.',
+        status: 422,
+        title: 'Validation Failed',
+      });
 
-  plain('reads violations and maps of errors', () => {
-    expect(
-      fieldsOf(JSON.stringify({ violations: [{ message: 'Too long.', propertyPath: 'remark' }] })),
-    ).toEqual(['remark']);
-    expect(
-      fieldsOf(
-        JSON.stringify({
-          details: { options: { schedule_on_bank_holidays: 'Required.' }, when: 'Locked.' },
-          message: 'Invalid request',
-        }),
-      ),
-    ).toEqual(['options.schedule_on_bank_holidays', 'when']);
-  });
+      expect(fieldsOf(detail)).toEqual(['hour_ranges[].hour_range', 'options.allow_partial']);
+    }),
+  );
 
-  plain('keeps nothing that is not a path', () => {
-    expect(fieldsOf(JSON.stringify({ details: { 'Chloé Martin': 'Already booked.' } }))).toEqual(
-      [],
-    );
-    expect(fieldsOf(JSON.stringify({ message: 'Note: this is not a field.' }))).toEqual([]);
-    expect(fieldsOf('not json')).toEqual([]);
-  });
+  plain.effect('reads violations and maps of errors', () =>
+    Effect.gen(function* () {
+      const violations = yield* json({
+        violations: [{ message: 'Too long.', propertyPath: 'remark' }],
+      });
+      const details = yield* json({
+        details: { options: { schedule_on_bank_holidays: 'Required.' }, when: 'Locked.' },
+        message: 'Invalid request',
+      });
+
+      expect(fieldsOf(violations)).toEqual(['remark']);
+      expect(fieldsOf(details)).toEqual(['options.schedule_on_bank_holidays', 'when']);
+    }),
+  );
+
+  plain.effect('keeps nothing that is not a path', () =>
+    Effect.gen(function* () {
+      const names = yield* json({ details: { 'Chloé Martin': 'Already booked.' } });
+      const note = yield* json({ message: 'Note: this is not a field.' });
+
+      expect(fieldsOf(names)).toEqual([]);
+      expect(fieldsOf(note)).toEqual([]);
+      expect(fieldsOf('not json')).toEqual([]);
+    }),
+  );
 });
 
 layer(TestClient)('errors', (it) => {
@@ -254,9 +261,10 @@ layer(TestClient)('errors', (it) => {
       };
       server.use(status(HTTP_UNPROCESSABLE, { body, url: SCHEDULES_URL }));
       const error = yield* failure(call('schedules_list', { date_range: WEEK }));
+      const text = yield* json(body);
 
       expect(error.message).toContain(
-        `tipee rejected the request (HTTP 422): Invalid request\n${JSON.stringify(body)} `,
+        `tipee rejected the request (HTTP 422): Invalid request\n${text} `,
       );
     }),
   );

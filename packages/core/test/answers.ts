@@ -1,9 +1,7 @@
 // Shared by the core tests: a client for the fake tipee, and one-off answers
 // to make it fail the way the real one does.
 
-import { setImmediate } from 'node:timers/promises';
-
-import { Effect, Fiber, Layer, Redacted } from 'effect';
+import { Effect, Fiber, Function as Fn, Layer, Redacted } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { TestClock } from 'effect/testing';
 import { HttpResponse, http } from 'msw/http';
@@ -56,37 +54,46 @@ export interface Answer {
 }
 
 // Makes the fake answer one request (by default) with a status and body.
-export const status = (
-  code: number,
-  { url = KINDS_URL, body, headers, once = true }: Answer = {},
-): HttpHandler =>
-  http.post(
-    url,
-    () =>
-      body === undefined
-        ? new HttpResponse(undefined, { headers, status: code })
-        : HttpResponse.json(body, { headers, status: code }),
-    { once },
-  );
+export const status: {
+  (answer?: Answer): (code: number) => HttpHandler;
+  (code: number, answer?: Answer): HttpHandler;
+} = Fn.dual(
+  (args) => typeof args[0] === 'number',
+  (code: number, { url = KINDS_URL, body, headers, once = true }: Answer = {}): HttpHandler =>
+    http.post(
+      url,
+      () =>
+        body === undefined
+          ? new HttpResponse(undefined, { headers, status: code })
+          : HttpResponse.json(body, { headers, status: code }),
+      { once },
+    ),
+);
 
-export const call = (
-  name: string,
-  params: unknown,
-): Effect.Effect<unknown, TipeeError, TipeeClient> => invoke(operation(name), params);
+// Calls an operation by name, the way the tools do.
+export const call: {
+  (params: unknown): (name: string) => Effect.Effect<unknown, TipeeError, TipeeClient>;
+  (name: string, params: unknown): Effect.Effect<unknown, TipeeError, TipeeClient>;
+} = Fn.dual(2, (name: string, params: unknown) => invoke(operation(name), params));
 
+// The error an effect must fail with; succeeding fails the test instead.
 export const failure = <A, R>(
   effect: Effect.Effect<A, TipeeError, R>,
-): Effect.Effect<TipeeError, A, R> => Effect.flip(effect);
+): Effect.Effect<TipeeError, never, R> =>
+  effect.pipe(
+    Effect.flatMap((value) => Effect.die(new Error(`expected a failure, got ${String(value)}`))),
+    Effect.flip,
+  );
 
 // Runs an effect whose retries sleep on the test clock. MSW answers `fetch`
 // on the real event loop, so a single `TestClock.adjust` can pass before a
-// retry's sleep is even scheduled: let real I/O run, then step the clock,
-// until the effect is done.
+// retry's sleep is even scheduled: let real I/O run for a millisecond of the
+// live clock, then step the test clock, until the effect is done.
 export const settled = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
   Effect.gen(function* () {
     const fiber = yield* Effect.forkChild(effect);
     while (fiber.pollUnsafe() === undefined) {
-      yield* Effect.promise(async () => setImmediate());
+      yield* TestClock.withLive(Effect.sleep('1 millis'));
       yield* TestClock.adjust('1 second');
     }
     return yield* Fiber.join(fiber);

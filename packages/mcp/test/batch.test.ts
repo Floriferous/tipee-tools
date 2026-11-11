@@ -5,7 +5,17 @@
 import { describe, expect, it, layer } from '@effect/vitest';
 import { TipeeClient, operations } from '@tipee-tools/core';
 import { API_KEY, BASE, server, settled } from '@tipee-tools/core/testing';
-import { Context, Effect, Layer, Redacted } from 'effect';
+import {
+  Array as Arr,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Record as Rec,
+  Redacted,
+  Schema,
+  String as Str,
+} from 'effect';
 import { Tool } from 'effect/ai';
 import { HttpClient, HttpClientResponse } from 'effect/http';
 import { HttpResponse, http } from 'msw/http';
@@ -21,11 +31,15 @@ import {
 } from '../src/index.ts';
 import type { BatchReport } from '../src/index.ts';
 import { call, clientFor } from './toolkit.ts';
+import { bodyOf, resolver } from './wire.ts';
 
 const UPDATE_URL = `${BASE}/api/schedule/schedules.update`;
 const HTTP_NO_CONTENT = 204;
 const HTTP_CONFLICT = 409;
 const HTTP_LOOP_DETECTED = 508;
+
+// The id of the item a request carries.
+const idOf = bodyOf(Schema.Struct({ id: Schema.String }));
 
 const ids = (count: number): Array<{ id: string }> =>
   Array.from({ length: count }, (_, index) => ({ id: String(index + 1) }));
@@ -37,14 +51,21 @@ const scheduleUpdates = (
 ): Array<string> => {
   const sent: Array<string> = [];
   server.use(
-    http.post(UPDATE_URL, async ({ request }) => {
-      const { id } = (await request.json()) as { id: string };
-      sent.push(id);
-      return answer(id, sent.filter((one) => one === id).length);
-    }),
+    http.post(
+      UPDATE_URL,
+      resolver(({ request }) =>
+        Effect.map(idOf(request), ({ id }) => {
+          sent.push(id);
+          return answer(id, Arr.filter(sent, (one) => one === id).length);
+        }),
+      ),
+    ),
   );
   return sent;
 };
+
+const operationNamed = (name: string) =>
+  Option.getOrUndefined(Arr.findFirst(operations, (target) => target.name === name));
 
 const conflict = (): Response =>
   HttpResponse.json(
@@ -54,19 +75,19 @@ const conflict = (): Response =>
 
 describe('batch tools', () => {
   it('exist for the batched operations only, all of them writes', () => {
-    const names = Object.values(TipeeToolkit.tools).map((tool) => tool.name);
+    const names = Arr.map(Rec.values(TipeeToolkit.tools), (tool) => tool.name);
 
-    expect(names.filter((name) => name.endsWith('_many'))).toEqual(
-      BATCHED.map((name) => `${name}_many`),
+    expect(Arr.filter(names, Str.endsWith('_many'))).toEqual(
+      Arr.map(BATCHED, (name) => `${name}_many`),
     );
     for (const name of BATCHED) {
-      expect(operations.find((target) => target.name === name)?.readOnly).toBe(false);
+      expect(operationNamed(name)?.readOnly).toBe(false);
     }
   });
 
   it('carry the annotations of their operation, and ask for one yes', () => {
     for (const name of BATCHED) {
-      const target = operations.find((candidate) => candidate.name === name);
+      const target = operationNamed(name);
       const tool = TipeeToolkit.tools[`${name}_many` as keyof typeof TipeeToolkit.tools];
       if (tool === undefined) {
         throw new Error(`no batch tool for ${name}`);
@@ -216,24 +237,25 @@ layer(clientFor(API_KEY))('schedules_update_many', (it) => {
   );
 });
 
-describe('the deadline', () => {
+// Every write takes 15 s on the test clock.
+const slow = HttpClient.make((request) =>
+  Effect.as(
+    Effect.sleep('15 seconds'),
+    HttpClientResponse.fromWeb(request, new Response(undefined, { status: HTTP_NO_CONTENT })),
+  ),
+);
+const slowClient = TipeeToolkitLayer.pipe(
+  Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
+  Layer.provide(Layer.succeed(HttpClient.HttpClient, slow)),
+  Layer.provide(Telemetry.layerOff),
+  Layer.provide(Updates.layerNone(SERVER_VERSION)),
+);
+
+layer(slowClient)('the deadline', (it) => {
   it.effect('stops starting items after 30 s and says which to send again', () =>
     Effect.gen(function* () {
-      // Every write takes 15 s on the test clock.
-      const slow = HttpClient.make((request) =>
-        Effect.as(
-          Effect.sleep('15 seconds'),
-          HttpClientResponse.fromWeb(request, new Response(undefined, { status: HTTP_NO_CONTENT })),
-        ),
-      );
-      const toolkit = TipeeToolkitLayer.pipe(
-        Layer.provide(TipeeClient.layer({ apiKey: Redacted.make(API_KEY), instance: 'acme' })),
-        Layer.provide(Layer.succeed(HttpClient.HttpClient, slow)),
-        Layer.provide(Telemetry.layerOff),
-        Layer.provide(Updates.layerNone(SERVER_VERSION)),
-      );
       const report = (yield* settled(
-        call('schedules_update_many', { items: ids(5) }).pipe(Effect.provide(toolkit)),
+        call('schedules_update_many', { items: ids(5) }),
       )) as BatchReport;
 
       expect(report.applied).toBe(2);
@@ -248,21 +270,20 @@ describe('the deadline', () => {
   );
 });
 
+// The count stands in for a per-item answer.
+const absenceUpdates = http.post(
+  `${BASE}/api/schedule/absences.update`,
+  resolver(({ request }) =>
+    Effect.map(idOf(request), ({ id }) =>
+      HttpResponse.json({ failed: [], failed_count: 0, updated: [], updated_count: Number(id) }),
+    ),
+  ),
+);
+
 layer(clientFor(API_KEY))('absences_update_many', (it) => {
   it.effect("returns each applied item's answer, in order", () =>
     Effect.gen(function* () {
-      server.use(
-        http.post(`${BASE}/api/schedule/absences.update`, async ({ request }) => {
-          const { id } = (await request.json()) as { id: string };
-          // The count stands in for a per-item answer.
-          return HttpResponse.json({
-            failed: [],
-            failed_count: 0,
-            updated: [],
-            updated_count: Number(id),
-          });
-        }),
-      );
+      server.use(absenceUpdates);
       const item = (id: string) => ({ id, options: { group_action: 'single' }, percentage: 50 });
       const report = (yield* call('absences_update_many', {
         items: [item('7'), item('8')],

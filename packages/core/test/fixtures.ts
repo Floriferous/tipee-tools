@@ -2,20 +2,14 @@
 // untouched), except day-tasks.json, written from the document's schema.
 // They are the fake tipee's database and the schemas' test data.
 
-import { readFileSync } from 'node:fs';
+import { directory } from './fixtures/directory.ts';
+import { schedule } from './fixtures/schedule.ts';
 
-export type FixtureName =
-  | 'absences'
-  | 'activity-rates'
-  | 'day-tasks'
-  | 'integrations'
-  | 'kind-employee'
-  | 'kinds'
-  | 'on-calls'
-  | 'people'
-  | 'shifts'
-  | 'teams'
-  | 'templates';
+// The fixtures as TypeScript reads them, so the fake's tables are typed
+// values the compiler checks against the shapes the fake relies on.
+export const fixtures = { ...directory, ...schedule };
 
-export const readFixture = (name: FixtureName): unknown =>
-  JSON.parse(readFileSync(new URL(`fixtures/${name}.json`, import.meta.url), 'utf8'));
+export type FixtureName = keyof typeof fixtures;
+
+// A fresh copy each time, so a test may change what it reads.
+export const readFixture = (name: FixtureName): unknown => structuredClone(fixtures[name]);

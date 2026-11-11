@@ -2,17 +2,12 @@
 // Code plugin, plus a manifest generated from the toolkit so tool names and
 // descriptions cannot drift. Output: dist/tipee-<version>.mcpb.
 
-import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-
+import { runMain } from '@effect/platform-node/NodeRuntime';
+import { layer as nodeServices } from '@effect/platform-node/NodeServices';
 import { SERVER_VERSION, SETUP_PROMPT, TipeeToolkit } from '@tipee-tools/mcp';
+import { Array as Arr, Effect, FileSystem, Path, Record as Rec, Schema } from 'effect';
 import { Tool } from 'effect/ai';
-
-const root = path.join(import.meta.dirname, '..');
-const staging = path.join(root, 'dist', 'mcpb');
-const output = path.join(root, 'dist', `tipee-${SERVER_VERSION}.mcpb`);
-const mcpb = path.join(root, 'node_modules', '.bin', 'mcpb');
+import { ChildProcess, ChildProcessSpawner } from 'effect/process';
 
 const REPOSITORY = 'https://github.com/Floriferous/tipee-tools';
 
@@ -83,7 +78,7 @@ const manifest = {
     type: 'node',
   },
   support: `${REPOSITORY}/issues`,
-  tools: Object.values(TipeeToolkit.tools).map((tool) => ({
+  tools: Arr.map(Rec.values(TipeeToolkit.tools), (tool) => ({
     description: Tool.getDescription(tool),
     name: tool.name,
   })),
@@ -93,7 +88,7 @@ const manifest = {
   // Descriptions double as placeholders, so they stay short. Claude Desktop
   // keeps saved values by key: renaming one loses every user's instance or
   // key.
-  user_config: Object.fromEntries([
+  user_config: Rec.fromEntries([
     [
       'instance',
       {
@@ -117,23 +112,46 @@ const manifest = {
   version: SERVER_VERSION,
 };
 
-rmSync(path.join(root, 'dist'), { force: true, recursive: true });
-mkdirSync(path.join(staging, 'server'), { recursive: true });
-writeFileSync(path.join(staging, 'manifest.json'), `${JSON.stringify(manifest, undefined, 2)}\n`);
-copyFileSync(
-  path.join(root, 'server', 'tipee-mcp.mjs'),
-  path.join(staging, 'server', 'tipee-mcp.mjs'),
-);
-for (const file of ['icon.png', 'LICENSE']) {
-  copyFileSync(path.join(root, file), path.join(staging, file));
-}
+class PackFailed extends Schema.TaggedError<PackFailed, { readonly brand: unique symbol }>()(
+  'PackFailed',
+  { message: Schema.String },
+) {}
 
-const run = (...args: ReadonlyArray<string>): void => {
-  const result = spawnSync(mcpb, args, { stdio: 'inherit' });
-  if (result.status !== 0) {
-    throw new Error(`mcpb ${args.join(' ')} failed`);
+const encodeManifest = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown, { space: 2 }));
+
+const pack = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+  const root = path.join(import.meta.dirname, '..');
+  const staging = path.join(root, 'dist', 'mcpb');
+  const output = path.join(root, 'dist', `tipee-${SERVER_VERSION}.mcpb`);
+  const mcpb = path.join(root, 'node_modules', '.bin', 'mcpb');
+
+  yield* fs.remove(path.join(root, 'dist'), { force: true, recursive: true });
+  yield* fs.makeDirectory(path.join(staging, 'server'), { recursive: true });
+  const json = yield* encodeManifest(manifest);
+  yield* fs.writeFileString(path.join(staging, 'manifest.json'), `${json}\n`);
+  yield* fs.copyFile(
+    path.join(root, 'server', 'tipee-mcp.mjs'),
+    path.join(staging, 'server', 'tipee-mcp.mjs'),
+  );
+  for (const file of ['icon.png', 'LICENSE']) {
+    yield* fs.copyFile(path.join(root, file), path.join(staging, file));
   }
-};
 
-// Pack validates the manifest first.
-run('pack', staging, output);
+  // Pack validates the manifest first.
+  const args = ['pack', staging, output];
+  yield* spawner
+    .exitCode(
+      ChildProcess.make(mcpb, args, { stderr: 'inherit', stdin: 'inherit', stdout: 'inherit' }),
+    )
+    .pipe(
+      Effect.filterOrFail(
+        (exitCode) => exitCode === ChildProcessSpawner.ExitCode(0),
+        () => PackFailed.make({ message: `mcpb ${Arr.join(args, ' ')} failed` }),
+      ),
+    );
+});
+
+runMain(Effect.provide(pack, nodeServices));
