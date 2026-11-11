@@ -15,7 +15,7 @@ import { Telemetry } from './Telemetry.ts';
 import { Updates } from './Updates.ts';
 
 const SERVER_NAME = 'tipee';
-export const SERVER_VERSION = '1.2.0';
+export const SERVER_VERSION = '1.3.0';
 
 // What every client gets up front, most important first: with tool search,
 // Claude Code loads only tool names and these, and Claude Desktop never loads
