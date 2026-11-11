@@ -144,18 +144,19 @@ needs a look. It writes `packages/core/src/generated/TipeeApi.ts` —
 committed, never edited, freshness-checked by `pnpm verify`.
 
 Keeping up with tipee: `.github/workflows/spec-refresh.yml` runs
-`pnpm spec:refresh --bump` every Monday. The script (in
+`pnpm spec:refresh` every Monday. The script (in
 `packages/core/scripts/refresh.ts`) finds the newest stable version in
 `llms.txt`, downloads its document over the vendored one (or, for a new
 version, replaces the file and moves `TIPEE_API_VERSION`), regenerates,
 rebuilds and prints the operations and schemas that changed. The workflow
 opens or updates the PR (`spec-refresh`, or `spec-move-<version>` for a
-new version), with the version bumped: minor when operations were added,
-patch otherwise, and a `needs-major` label when one disappeared or was
-renamed, since tool names are the public surface. The routine: refresh PR →
-review the summary and the generated diff (fix or drop patches in
-`generate.ts`, add a fixture for a new shape) → merge, which releases it.
-Run `pnpm spec:refresh` locally (without `--bump`) to do the same by hand.
+new version), without a version bump: its body names the release it calls
+for (minor when operations were added, patch otherwise), and a
+`needs-major` label marks one that disappeared or was renamed, since tool
+names are the public surface. The routine: refresh PR → review the summary
+and the generated diff (fix or drop patches in `generate.ts`, add a fixture
+for a new shape) → merge, which ships nothing until the next release.
+`pnpm spec:refresh --bump` also moves the version, for a release PR.
 `Operations.ts` reads the generated HttpApi with `HttpApi.reflect` and
 derives tool names from paths; the MCP package turns each entry into a
 strict, titled `Tool.dynamic`. Failure messages end with their next step

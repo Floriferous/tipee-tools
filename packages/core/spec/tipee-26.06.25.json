@@ -1506,7 +1506,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ShowKindQuery"
+                "$ref": "#/components/schemas/ShowKindQuery250901"
               }
             }
           }
@@ -1517,7 +1517,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/KindView"
+                  "$ref": "#/components/schemas/KindView250901"
                 }
               }
             }
@@ -3040,7 +3040,8 @@
             "$ref": "#/components/schemas/ActivityRateContract"
           },
           "security": {
-            "$ref": "#/components/schemas/ResourceSecurity"
+            "$ref": "#/components/schemas/ResourceSecurity",
+            "description": "The login access of the resource. Only accepted for the Employee kind."
           },
           "language": {
             "$ref": "#/components/schemas/Locale",
@@ -3120,16 +3121,15 @@
             "$ref": "#/components/schemas/Percentage"
           },
           "work_regime_id": {
+            "description": "If null, it will adopt the sector’s work regime.",
             "oneOf": [
               {
-                "$ref": "#/components/schemas/Snowflake",
-                "description": "If null, it will adopt the sector’s work regime."
+                "$ref": "#/components/schemas/Snowflake"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "If null, it will adopt the sector’s work regime."
+            ]
           },
           "indemnity_enabled": {
             "description": "If not specified, it will adopt the instance indemnity configuration.",
@@ -3242,14 +3242,14 @@
           "unique-validation-error"
         ]
       },
-      "AttributeSummaryView": {
+      "AttributeSummaryView250901": {
         "required": ["id", "content_type", "label", "choices", "icon", "type", "format"],
         "properties": {
           "id": {
             "type": "string"
           },
           "content_type": {
-            "$ref": "#/components/schemas/ContentType"
+            "$ref": "#/components/schemas/ContentType250901"
           },
           "label": {
             "$ref": "#/components/schemas/TranslatedString"
@@ -3615,7 +3615,7 @@
         "example": "unclassified",
         "enum": ["unclassified", "internal", "confidential", "secret"]
       },
-      "ContentType": {
+      "ContentType250901": {
         "type": "string",
         "example": "text/address",
         "enum": [
@@ -3630,7 +3630,6 @@
           "enum/plain",
           "id/plain",
           "integer/plain",
-          "month-day/plain",
           "text/multiline",
           "percentage/plain",
           "text/phone",
@@ -3649,7 +3648,6 @@
           "Enum",
           "Id",
           "Integer",
-          "MonthDay",
           "Multiline",
           "Percentage",
           "Phone",
@@ -3748,16 +3746,15 @@
             "description": "Required when type is `duration`."
           },
           "duration": {
+            "description": "Required when type is `duration`. Must be ≤ 24h.",
             "oneOf": [
               {
-                "$ref": "#/components/schemas/Duration",
-                "description": "Required when type is `duration`. Must be ≤ 24h."
+                "$ref": "#/components/schemas/Duration"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Required when type is `duration`. Must be ≤ 24h."
+            ]
           },
           "remark": {
             "type": ["string", "null"],
@@ -3768,16 +3765,15 @@
             "description": "Required when type is `range`."
           },
           "end": {
+            "description": "Required when type is `range`, but can be omitted for open (running) activity.",
             "oneOf": [
               {
-                "$ref": "#/components/schemas/LocalDateTime",
-                "description": "Required when type is `range`, but can be omitted for open (running) activity."
+                "$ref": "#/components/schemas/LocalDateTime"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Required when type is `range`, but can be omitted for open (running) activity."
+            ]
           }
         },
         "type": "object",
@@ -4687,11 +4683,11 @@
         "example": "in_range",
         "enum": ["in_range", "not_in_range", "none"]
       },
-      "KindAttributeView": {
+      "KindAttributeView250901": {
         "required": ["attribute", "classification_level", "access_level", "searchable", "sortable"],
         "properties": {
           "attribute": {
-            "$ref": "#/components/schemas/AttributeSummaryView"
+            "$ref": "#/components/schemas/AttributeSummaryView250901"
           },
           "classification_level": {
             "$ref": "#/components/schemas/ClassificationLevel"
@@ -4778,7 +4774,7 @@
         },
         "type": "object"
       },
-      "KindView": {
+      "KindView250901": {
         "required": [
           "id",
           "machine_name",
@@ -4797,7 +4793,7 @@
           "attributes": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/KindAttributeView"
+              "$ref": "#/components/schemas/KindAttributeView250901"
             }
           },
           "relation_types": {
@@ -6145,6 +6141,21 @@
                     },
                     "attribute": {
                       "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                {
+                  "required": ["key"],
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "example": "resource.sort_label",
+                      "enum": ["resource.sort_label"]
+                    },
+                    "direction": {
+                      "$ref": "#/components/schemas/QueryOrderDirection"
                     }
                   },
                   "type": "object",
@@ -8518,7 +8529,7 @@
           }
         ]
       },
-      "ShowKindQuery": {
+      "ShowKindQuery250901": {
         "required": ["id"],
         "properties": {
           "id": {
@@ -9463,16 +9474,15 @@
             ]
           },
           "duration": {
+            "description": "Can be provided only for `duration` activity type and must be ≤ 24h.",
             "oneOf": [
               {
-                "$ref": "#/components/schemas/Duration",
-                "description": "Can be provided only for `duration` activity type and must be ≤ 24h."
+                "$ref": "#/components/schemas/Duration"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Can be provided only for `duration` activity type and must be ≤ 24h."
+            ]
           },
           "remark": {
             "type": ["string", "null"]
@@ -9482,16 +9492,15 @@
             "description": "Can be provided only for `range`."
           },
           "end": {
+            "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open.",
             "oneOf": [
               {
-                "$ref": "#/components/schemas/LocalDateTime",
-                "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open."
+                "$ref": "#/components/schemas/LocalDateTime"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open."
+            ]
           }
         },
         "type": "object",

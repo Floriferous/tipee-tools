@@ -16810,9 +16810,9 @@ const TeamPeriodOperator = Literals([
 	"none"
 ]).annotate({ "identifier": "TeamPeriodOperator" });
 const ListKindsQuery = Record(String$2, Never).annotate({ "identifier": "ListKindsQuery" });
-const ContentType = String$2.annotate({
-	"description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, month-day/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain.",
-	"identifier": "ContentType"
+const ContentType250901 = String$2.annotate({
+	"description": "Known values: text/address, text/avs, boolean/plain, date/plain, date-time/plain, decimal/plain, duration/plain, text/email, enum/plain, id/plain, integer/plain, text/multiline, percentage/plain, text/phone, text/regrouping, text/plain.",
+	"identifier": "ContentType250901"
 });
 const ChoicesInputType = String$2.annotate({
 	"description": "Known values: select, combobox, radio.",
@@ -17010,7 +17010,7 @@ const KindSummaryView = StructWithRest(Struct({
 	"id": Snowflake,
 	"machine_name": String$2
 }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindSummaryView" });
-const ShowKindQuery = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowKindQuery" });
+const ShowKindQuery250901 = Struct({ "id": Snowflake }).annotate({ "identifier": "ShowKindQuery250901" });
 const ListTeamQuery = Struct({
 	"team_ids": optionalKey(ArraySchema(Snowflake)),
 	"with_ancestors": optionalKey(Boolean$1),
@@ -17387,10 +17387,10 @@ const CreateActivityCommand = Struct({
 	"billable": Boolean$1,
 	"type": suspend$2(() => ActivityType).annotate({ "description": "Activity type. Determines which fields are required: `duration` needs `date` + `duration`, `range` needs `start` (+ optionally `end`)." }),
 	"date": optionalKey(suspend$2(() => LocalDate$1).annotate({ "description": "Required when type is `duration`." })),
-	"duration": optionalKey(Union([suspend$2(() => Duration).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." }), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." })),
+	"duration": optionalKey(Union([Duration, Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `duration`. Must be ≤ 24h." })),
 	"remark": optionalKey(Union([String$2.check(isMaxCodePoints(65535).annotate({ "expected": "a string with at most 65535 code points" })), Null])),
 	"start": optionalKey(suspend$2(() => LocalDateTime).annotate({ "description": "Required when type is `range`." })),
-	"end": optionalKey(Union([suspend$2(() => LocalDateTime).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }), Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }))
+	"end": optionalKey(Union([LocalDateTime, Null], { mode: "oneOf" }).annotate({ "description": "Required when type is `range`, but can be omitted for open (running) activity." }))
 }).annotate({ "identifier": "CreateActivityCommand" });
 const UpdateActivityCommand = Struct({
 	"id": Snowflake,
@@ -17398,10 +17398,10 @@ const UpdateActivityCommand = Struct({
 	"task_id": optionalKey(Snowflake),
 	"billable": optionalKey(Boolean$1),
 	"date": optionalKey(Union([LocalDate$1, Null], { mode: "oneOf" })),
-	"duration": optionalKey(Union([suspend$2(() => Duration).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." }), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." })),
+	"duration": optionalKey(Union([Duration, Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `duration` activity type and must be ≤ 24h." })),
 	"remark": optionalKey(Union([String$2, Null])),
 	"start": optionalKey(suspend$2(() => LocalDateTime).annotate({ "description": "Can be provided only for `range`." })),
-	"end": optionalKey(Union([suspend$2(() => LocalDateTime).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }), Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }))
+	"end": optionalKey(Union([LocalDateTime, Null], { mode: "oneOf" }).annotate({ "description": "Can be provided only for `range` activity type. Set to `null` to leave the activity open." }))
 }).annotate({ "identifier": "UpdateActivityCommand" });
 const ListTagsQueryFilter = Union([
 	Struct({
@@ -17519,7 +17519,7 @@ const AssignResourceActivityRateCommand260625 = Struct({
 	"resource_id": Snowflake,
 	"date_range": LocalDateInterval,
 	"average_rate": Percentage,
-	"work_regime_id": optionalKey(Union([suspend$2(() => Snowflake).annotate({ "description": "If null, it will adopt the sector’s work regime." }), Null], { mode: "oneOf" }).annotate({ "description": "If null, it will adopt the sector’s work regime." })),
+	"work_regime_id": optionalKey(Union([Snowflake, Null], { mode: "oneOf" }).annotate({ "description": "If null, it will adopt the sector’s work regime." })),
 	"indemnity_enabled": optionalKey(Boolean$1.annotate({ "description": "If not specified, it will adopt the instance indemnity configuration." })),
 	"compensation_enabled": optionalKey(Boolean$1.annotate({ "default": true })),
 	"trainee": optionalKey(Boolean$1.annotate({ "default": false })),
@@ -18042,7 +18042,7 @@ const ResourceView = StructWithRest(Struct({
 const WorkRegimesView = StructWithRest(Struct({ "work_regimes": ArraySchema(WorkRegimeView) }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "WorkRegimesView" });
 const AdditionalSettings = Struct({
 	"activity_rate_contract": optionalKey(ActivityRateContract),
-	"security": optionalKey(ResourceSecurity),
+	"security": optionalKey(suspend$2(() => ResourceSecurity).annotate({ "description": "The login access of the resource. Only accepted for the Employee kind." })),
 	"language": optionalKey(suspend$2(() => Locale).annotate({ "title": "Language the resource will use tipee in (also drives the welcome email), stored<br />as its \"language\" user preference." }))
 }).annotate({ "identifier": "AdditionalSettings" });
 const ActivityRateView = StructWithRest(Struct({
@@ -18068,15 +18068,15 @@ const TeamFilterValue = Struct({
 	"recursive": optionalKey(Boolean$1.annotate({ "default": false })),
 	"head": optionalKey(Union([Boolean$1, Null]))
 }).annotate({ "identifier": "TeamFilterValue" });
-const AttributeSummaryView = StructWithRest(Struct({
+const AttributeSummaryView250901 = StructWithRest(Struct({
 	"id": String$2,
-	"content_type": ContentType,
+	"content_type": ContentType250901,
 	"label": TranslatedString,
 	"choices": Union([AttributeChoices, Null], { mode: "oneOf" }),
 	"icon": Union([AttributeIcon, Null], { mode: "oneOf" }),
 	"type": AttributeType,
 	"format": Union([AttributeFormatType, Null], { mode: "oneOf" })
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AttributeSummaryView" });
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "AttributeSummaryView250901" });
 const AbsenceView250901 = StructWithRest(Struct({
 	"id": Snowflake,
 	"absence_type": AbsenceTypeSummary250901,
@@ -18307,13 +18307,13 @@ const ListResourcesQueryFilter = Union([
 		"value": ArraySchema(Record(String$2, Json.annotate({ "expected": "JSON value" })).annotate({ "description": "A filter of the same shape as the top-level ones." }))
 	})
 ], { mode: "oneOf" }).annotate({ "identifier": "ListResourcesQueryFilter" });
-const KindAttributeView = StructWithRest(Struct({
-	"attribute": AttributeSummaryView,
+const KindAttributeView250901 = StructWithRest(Struct({
+	"attribute": AttributeSummaryView250901,
 	"classification_level": ClassificationLevel,
 	"access_level": AccessLevel,
 	"searchable": Boolean$1,
 	"sortable": Boolean$1
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindAttributeView" });
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindAttributeView250901" });
 const CreateScheduleCommand260625 = Struct({
 	"resource_id": Snowflake,
 	"team_id": Snowflake,
@@ -18419,17 +18419,20 @@ const ListResourcesQuery = Struct({
 		"key": Literal("resource.attribute"),
 		"direction": optionalKey(QueryOrderDirection),
 		"attribute": optionalKey(String$2)
+	}), Struct({
+		"key": Literal("resource.sort_label"),
+		"direction": optionalKey(QueryOrderDirection)
 	})], { mode: "oneOf" })),
 	"pagination": Pagination
 }).annotate({ "identifier": "ListResourcesQuery" });
-const KindView = StructWithRest(Struct({
+const KindView250901 = StructWithRest(Struct({
 	"id": Snowflake,
 	"machine_name": String$2,
-	"attributes": ArraySchema(KindAttributeView),
+	"attributes": ArraySchema(KindAttributeView250901),
 	"relation_types": ArraySchema(KindRelationTypeView),
 	"sections": ArraySchema(KindSectionView),
 	"sorting_attribute_ids": ArraySchema(String$2)
-}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindView" });
+}), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]).annotate({ "identifier": "KindView250901" });
 const PostAppUiApiActivityConfigurationProjectcommandCreateprojectRequestJson = CreateProjectCommand;
 const PostAppUiApiActivityConfigurationProjectcommandCreateproject201 = StructWithRest(Struct({ "id": Snowflake }), [Record(String$2, Json.annotate({ "expected": "JSON value" }))]);
 const PostAppUiApiActivityConfigurationProjectcommandDeleteprojectRequestJson = DeleteProjectCommand;
@@ -18502,8 +18505,8 @@ const PostAppUiApiDirectoryDirectoryqueryResourceslistRequestJson = ListResource
 const PostAppUiApiDirectoryDirectoryqueryResourceslist200 = ResourceListView;
 const PostAppUiApiDirectoryDirectoryqueryKindslistRequestJson = ListKindsQuery;
 const PostAppUiApiDirectoryDirectoryqueryKindslist200 = ArraySchema(KindSummaryView);
-const PostAppUiApiDirectoryDirectoryqueryKindsshowRequestJson = ShowKindQuery;
-const PostAppUiApiDirectoryDirectoryqueryKindsshow200 = KindView;
+const PostAppUiApiDirectoryDirectoryqueryKindsshowRequestJson = ShowKindQuery250901;
+const PostAppUiApiDirectoryDirectoryqueryKindsshow200 = KindView250901;
 const PostAppUiApiDirectoryDirectoryqueryTeamslistRequestJson = ListTeamQuery;
 const PostAppUiApiDirectoryDirectoryqueryTeamslist200 = ArraySchema(TeamView);
 const PostAppUiApiDirectoryDirectoryqueryShowteamRequestJson = ShowTeamQuery;

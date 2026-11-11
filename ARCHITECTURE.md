@@ -58,10 +58,10 @@ document disagrees with tipee or with what Claude needs, the fix is a JSON
 Patch in `packages/core/scripts/generate.ts`,
 nowhere else; granting and revoking roles, forcing a password change and
 deleting a shift template are left out (`EXCLUDED` in `scripts/spec.ts`).
-Every Monday a workflow runs `pnpm spec:refresh --bump`, which fetches
-tipee's newest stable document and regenerates, and opens one PR with what
-moved and the version bumped (a `needs-major` label when an operation
-disappears).
+Every Monday a workflow runs `pnpm spec:refresh`, which fetches tipee's
+newest stable document and regenerates, and opens one PR with what moved and
+the release it calls for (a `needs-major` label when an operation
+disappears); merging it ships nothing until the next release.
 
 ## One bundle, two channels
 

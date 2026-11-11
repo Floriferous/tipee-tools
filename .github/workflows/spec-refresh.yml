@@ -58,10 +58,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Minor when operations were added, patch otherwise; a removed or
-      # renamed operation gets the needs-major label for a person to decide.
+      # No version bump: merging the PR ships nothing, and the next release
+      # takes it out. Its body says which release it calls for; a removed or
+      # renamed operation also gets the needs-major label.
       - name: Refresh the document
-        run: pnpm spec:refresh --bump --report "$RUNNER_TEMP/refresh.json"
+        run: pnpm spec:refresh --report "$RUNNER_TEMP/refresh.json"
 
       # A new stable version gets a PR of its own (spec-move-<version>);
       # changes within the pinned version share the spec-refresh branch. Each
@@ -89,7 +90,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch --force-create "$branch"
           git add --all
-          git commit --message "$title" --message "Opened by the spec-refresh workflow: pnpm spec:refresh --bump."
+          git commit --message "$title" --message "Opened by the spec-refresh workflow: pnpm spec:refresh."
           git push --force "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "$branch"
           number=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
           if [ -z "$number" ]; then
