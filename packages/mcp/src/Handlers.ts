@@ -92,14 +92,14 @@ const handlersFor = (connection: Result.Result<TipeeClient['Service'], Configura
 
       const handlers: Record<string, Handler> = {
         check_setup: observed(watcher, { tool: 'check_setup' }, (params) =>
-          provided(check(connected(probes(params as { from?: string; to?: string })))),
+          probes(params as { from?: string; to?: string }).pipe(connected, check, provided),
         ),
         update_plugin: observed(watcher, { tool: 'update_plugin' }, () => provided(update)),
       };
       const send =
         (target: Operation) =>
         (params: unknown): Effect.Effect<unknown, TipeeError> =>
-          provided(connected(invoke(target, params)));
+          invoke(target, params).pipe(connected, provided);
       for (const target of operations) {
         const run = observed(watcher, { tool: target.name }, send(target));
         handlers[target.name] = (params) => Effect.map(run(params), answerOf);

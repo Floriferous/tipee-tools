@@ -28,6 +28,8 @@ export * from './Reasons.ts';
 // says more (field errors, violations, conflicting dates): the agent must see
 // everything tipee wrote.
 const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
+// Any value as the JSON text tipee would have sent.
+const JsonText = Schema.fromJsonString(Schema.Unknown);
 // Keys that only restate the line or the status.
 const RESTATED = new Set(['status', 'title']);
 
@@ -236,9 +238,12 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
       // the conflicting dates or locked schedules.
       if (Predicate.isObject(cause) && !(cause instanceof Error)) {
         const code = codeOf(Schema.decodeOption(ErrorCode)(cause));
+        const body = yield* Schema.encodeUnknownEffect(JsonText)(cause).pipe(
+          Effect.orElseSucceed(() => '(an answer that cannot be written as JSON)'),
+        );
         return new TipeeError({
           reason: new Rejected({
-            body: JSON.stringify(cause),
+            body,
             status: HTTP_CONFLICT,
             ...(code === undefined ? {} : { code }),
           }),

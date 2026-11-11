@@ -239,8 +239,10 @@ export class TipeeClient extends Context.Service<
   // pasted: the instance is normalized, the key trimmed.
   public static readonly layerConfig = Layer.unwrap(
     Config.all({ apiKey: apiKeyConfig, instance: instanceConfig }).pipe(
-      Effect.map((credentials) => TipeeClient.layer(credentials)),
-      Effect.mapError((cause) => new ConfigurationMissing({ cause })),
+      Effect.mapBoth({
+        onFailure: (cause) => new ConfigurationMissing({ cause }),
+        onSuccess: (credentials) => TipeeClient.layer(credentials),
+      }),
     ),
   );
 }

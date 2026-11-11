@@ -193,7 +193,9 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
           },
           Effect.timeout(DOWNLOAD_TIMEOUT),
           Effect.mapError((cause) =>
-            Predicate.isTagged(cause, 'UpdateFailed') ? cause : failed(describe(cause)),
+            Predicate.isTagged(cause, 'UpdateFailed')
+              ? cause
+              : new UpdateFailed({ detail: describe(cause) }),
           ),
         );
 

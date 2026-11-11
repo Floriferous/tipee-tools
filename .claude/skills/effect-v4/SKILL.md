@@ -129,3 +129,12 @@ the name `@effect/tsgo` reads).
 constructors, anonymous generators, `_tag`, one-letter type parameters,
 `Array<T>`, PascalCase module files). Don't fight the rules with disable
 comments; add a commented entry there instead.
+
+Effect's own lint rules run in oxlint too: `@effect/tsgo` patches the
+`effecttsgo` plugin into it (`pnpm install` runs the patch), and the
+categories turn every rule on, newer ones included. The config turns off
+the few that do not fit, each with its reason: native array, record and
+string methods, `new` for errors, Node helpers, library-only rules, the
+deliberate unstable modules. Tests and build scripts relax the rest. A new
+`@effect/tsgo` release supports only some oxlint versions (`pnpm install`
+names them); move the two together, as Renovate's toolchain group does.
