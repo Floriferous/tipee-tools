@@ -182,10 +182,10 @@ The tools are generated from tipee's OpenAPI document, vendored in
 `packages/core/spec`. tipee refines that document, sometimes within a
 published version, so a workflow runs `pnpm spec:refresh` every Monday: it
 downloads the newest stable document, regenerates the tools and, when
-anything changed, opens a PR listing the operations and schemas that moved,
-with the version bumped. Review it and merge it: merging a version bump
-publishes the release. Other changes can merge without one; users only get
-them with the next release, since Claude Code installs the plugin from the
-release tag the marketplace names, not from `main`. Run `pnpm spec:refresh` yourself to do the same
-locally. [ARCHITECTURE.md](ARCHITECTURE.md) explains the design, and the
+anything changed, opens a PR listing the operations and schemas that moved.
+Review it and merge it. Merging ships nothing: users get changes with the
+next release, a PR that bumps the version (`pnpm spec:refresh --bump` does
+it for a refresh), since Claude Code installs the plugin from the release
+tag the marketplace names, not from `main`. Run `pnpm spec:refresh` yourself
+to do the same locally. [ARCHITECTURE.md](ARCHITECTURE.md) explains the design, and the
 skills in `.claude/skills` brief agents working in this repository.

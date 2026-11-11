@@ -1,9 +1,10 @@
 // `pnpm spec:refresh`: brings the vendored OpenAPI document up to tipee's
 // newest stable version, regenerates the client and the plugin bundle, and
 // prints what changed. It only rewrites files of this checkout, so it is safe
-// to run locally; review the diff, or throw it away. With --bump it also moves
-// the plugin version (minor when operations were added, patch otherwise), and
-// --report <file> writes the summary as JSON for the spec-refresh workflow.
+// to run locally; review the diff, or throw it away. The summary says which
+// release it calls for (major when an operation disappeared, minor when one
+// was added, patch otherwise); with --bump it also moves the version to it,
+// and --report <file> writes the summary as JSON for the spec-refresh workflow.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -134,6 +135,14 @@ const update = (): string | undefined => {
 };
 const version = changed ? update() : undefined;
 
+// The release a change calls for: tool names are the public surface.
+let level = 'patch';
+if (removed.length > 0) {
+  level = 'major';
+} else if (added.length > 0) {
+  level = 'minor';
+}
+
 const list = (names: ReadonlyArray<string>): string =>
   names.length === 0 ? 'none' : names.map((name) => `\`${name}\``).join(', ');
 const title = moved ? `Move to tipee API ${latest}` : `Refresh the tipee API ${latest} document`;
@@ -152,7 +161,10 @@ const body = [
   `### Operations\n\n- Added: ${list(added)}\n- Removed: ${list(removed)}`,
   `### Schemas\n\n- Added: ${list(schemas.added)}\n- Removed: ${list(schemas.removed)}\n` +
     `- Changed: ${list(schemas.changed)}`,
-  ...(version === undefined ? [] : [`### Version\n\n${version}`]),
+  version === undefined
+    ? `### Release\n\nMerging this ships nothing: it goes out with the next release, ` +
+      `which it makes at least a ${level} version.`
+    : `### Version\n\n${version}`,
   'Read the diff of `packages/core/src/generated/TipeeApi.ts`: a patch in ' +
     '`packages/core/scripts/generate.ts` may need to follow, or to go once tipee fixed what it worked around.',
 ].join('\n\n');
