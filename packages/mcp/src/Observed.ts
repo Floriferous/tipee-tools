@@ -3,7 +3,8 @@
 // tipee's code and the names (never the values) of the fields concerned and
 // of the parameters sent; a batch item also names its batch and position.
 
-import { AcceptedOffSpec, TipeeError } from '@tipee-tools/core';
+import { isAcceptedOffSpec } from '@tipee-tools/core';
+import type { TipeeError } from '@tipee-tools/core';
 import { Cause, Duration, Effect, Exit, Option, Result } from 'effect';
 import { McpSchema } from 'effect/ai';
 
@@ -16,7 +17,7 @@ export type Handler = (params: unknown) => Effect.Effect<unknown, Failure>;
 
 // The tag telemetry files a failure under.
 const reasonOf = (failure: Failure): string =>
-  failure instanceof TipeeError ? failure.reason._tag : failure._tag;
+  failure._tag === 'TipeeError' ? failure.reason._tag : failure._tag;
 
 // The parameter names a call was sent with, nested ones as paths
 // (`options.allow_partial`), never their values: with the fields tipee
@@ -38,7 +39,7 @@ const paramsOf = (params: unknown, prefix = ''): ReadonlyArray<string> =>
 // constant for it (such as OVERLAPPING) and the fields it names. None
 // carries anything a user wrote.
 const detailOf = (failure: Failure): Properties => {
-  if (!(failure instanceof TipeeError)) {
+  if (failure._tag !== 'TipeeError') {
     return {};
   }
   const { reason } = failure;
@@ -53,7 +54,7 @@ const detailOf = (failure: Failure): Properties => {
 
 // A write tipee applied with a success status its document does not declare.
 const offSpecOf = (value: unknown): Properties =>
-  value instanceof AcceptedOffSpec ? { off_spec_status: value.status } : {};
+  isAcceptedOffSpec(value) ? { off_spec_status: value.status } : {};
 
 // Failures that may mean a bug here or a change at tipee rather than a user's
 // mistake, each worth an error-tracking issue of its own.
@@ -61,7 +62,7 @@ const REPORTED = new Set(['UnexpectedShape', 'UnexpectedStatus', 'InvalidRequest
 // Refused as invalid: an agent's mistake, or a rule tipee added.
 const INVALID_STATUSES = new Set([400, 422]);
 const reported = (failure: Failure): boolean =>
-  failure instanceof TipeeError &&
+  failure._tag === 'TipeeError' &&
   (REPORTED.has(failure.reason._tag) ||
     (failure.reason._tag === 'Rejected' && INVALID_STATUSES.has(failure.reason.status)));
 
@@ -116,67 +117,65 @@ const countsOf = (report: BatchReport): Properties => ({
 
 // Runs a handler and records one `tool_called` event: name, duration and
 // outcome, plus the failure's reason tag. Parameters and answers stay out.
-export const observed =
-  <E extends Failure>(
-    { announce, telemetry }: Watcher,
-    called: Called,
-    run: (params: unknown) => Effect.Effect<unknown, E>,
-  ) =>
-  (params: unknown): Effect.Effect<unknown, E> =>
-    Effect.gen(function* () {
-      const { tool } = called;
-      const batch = 'batch' in called;
-      const who = yield* caller;
-      yield* announce(who);
-      const [duration, exit] = yield* Effect.timed(Effect.exit(run(params)));
-      const common = {
-        ...who,
-        duration_ms: Math.round(Duration.toMillis(duration)),
-        tool,
-        ...(called.via === undefined ? {} : { index: called.index, via: called.via }),
-      };
-      if (Exit.isSuccess(exit)) {
-        yield* telemetry.capture('tool_called', {
-          ...common,
-          ...(batch ? countsOf(exit.value as BatchReport) : offSpecOf(exit.value)),
-          outcome: 'ok',
+export const observed = <E extends Failure>(
+  { announce, telemetry }: Watcher,
+  called: Called,
+  run: (params: unknown) => Effect.Effect<unknown, E>,
+): ((params: unknown) => Effect.Effect<unknown, E>) =>
+  Effect.fn('observed')(function* (params: unknown) {
+    const { tool } = called;
+    const batch = 'batch' in called;
+    const who = yield* caller;
+    yield* announce(who);
+    const [duration, exit] = yield* Effect.timed(Effect.exit(run(params)));
+    const common = {
+      ...who,
+      duration_ms: Math.round(Duration.toMillis(duration)),
+      tool,
+      ...(called.via === undefined ? {} : { index: called.index, via: called.via }),
+    };
+    if (Exit.isSuccess(exit)) {
+      yield* telemetry.capture('tool_called', {
+        ...common,
+        ...(batch ? countsOf(exit.value as BatchReport) : offSpecOf(exit.value)),
+        outcome: 'ok',
+      });
+      return exit.value;
+    }
+    const failure = Cause.findError(exit.cause);
+    if (Result.isSuccess(failure) && batch) {
+      yield* telemetry.capture('tool_called', {
+        ...common,
+        outcome: 'failed',
+        reason: reasonOf(failure.success),
+      });
+    } else if (Result.isSuccess(failure)) {
+      const reason = reasonOf(failure.success);
+      const sent = paramsOf(params);
+      yield* telemetry.capture('tool_called', {
+        ...common,
+        ...detailOf(failure.success),
+        outcome: 'failed',
+        params_sent: sent,
+        reason,
+      });
+      if (reported(failure.success)) {
+        yield* telemetry.exception(failure.success, {
+          handled: true,
+          properties: { params_sent: sent, tool },
         });
-        return exit.value;
       }
-      const failure = Cause.findError(exit.cause);
-      if (Result.isSuccess(failure) && batch) {
-        yield* telemetry.capture('tool_called', {
-          ...common,
-          outcome: 'failed',
-          reason: reasonOf(failure.success),
+    } else if (Cause.hasInterruptsOnly(exit.cause)) {
+      // Cancelled by the client, or cut short by its batch's time: no crash.
+      yield* telemetry.capture('tool_called', { ...common, outcome: 'interrupted' });
+    } else {
+      yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });
+      if (!batch) {
+        yield* telemetry.exception(Cause.squash(exit.cause), {
+          handled: false,
+          properties: { tool },
         });
-      } else if (Result.isSuccess(failure)) {
-        const reason = reasonOf(failure.success);
-        const sent = paramsOf(params);
-        yield* telemetry.capture('tool_called', {
-          ...common,
-          ...detailOf(failure.success),
-          outcome: 'failed',
-          params_sent: sent,
-          reason,
-        });
-        if (reported(failure.success)) {
-          yield* telemetry.exception(failure.success, {
-            handled: true,
-            properties: { params_sent: sent, tool },
-          });
-        }
-      } else if (Cause.hasInterruptsOnly(exit.cause)) {
-        // Cancelled by the client, or cut short by its batch's time: no crash.
-        yield* telemetry.capture('tool_called', { ...common, outcome: 'interrupted' });
-      } else {
-        yield* telemetry.capture('tool_called', { ...common, outcome: 'crashed' });
-        if (!batch) {
-          yield* telemetry.exception(Cause.squash(exit.cause), {
-            handled: false,
-            properties: { tool },
-          });
-        }
       }
-      return yield* Effect.failCause(exit.cause);
-    }).pipe(Effect.withSpan('observed'));
+    }
+    return yield* Effect.failCause(exit.cause);
+  });

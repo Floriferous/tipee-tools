@@ -7,8 +7,7 @@
 // The note rides in a text block of its own: the answer's structured content
 // stays exactly what the tool's output schema says.
 
-import type { Fiber } from 'effect';
-import { Effect, Exit, Layer, Option } from 'effect';
+import { Deferred, Effect, Layer, Option, Ref } from 'effect';
 import { McpSchema, McpServer } from 'effect/ai';
 
 import { Telemetry } from './Telemetry.ts';
@@ -37,51 +36,43 @@ export const NotifiedToolkit = Layer.effectDiscard(
     const updates = yield* Updates;
     const telemetry = yield* Telemetry;
     const scope = yield* Effect.scope;
-    // This launch's lookup, once started, and whether Claude heard of it.
-    const state: { lookup?: Fiber.Fiber<Option.Option<Update>>; told: boolean } = {
-      told: false,
-    };
-
-    const start = Effect.suspend(() =>
-      state.lookup === undefined
-        ? Effect.map(Effect.forkIn(updates.available, scope), (fiber) => {
-            state.lookup = fiber;
-          })
-        : Effect.void,
+    // This launch's lookup, started by its first tool call, and whether
+    // Claude heard of it.
+    const found = yield* Deferred.make<Option.Option<Update>>();
+    const start = yield* Effect.cached(
+      Effect.asVoid(Effect.forkIn(Deferred.into(updates.available, found), scope)),
     );
+    const told = yield* Ref.make(false);
 
     // The answer, with the note when the lookup found a newer version and
-    // nothing has told it yet.
+    // nothing has told it yet; until the lookup is done, a later answer will.
     const noted = (tool: string, result: Result): Effect.Effect<Result> =>
-      Effect.suspend(() => {
-        if (state.told || !(result instanceof McpSchema.CallToolResult)) {
-          return Effect.succeed(result);
+      Effect.gen(function* () {
+        if (!(result instanceof McpSchema.CallToolResult)) {
+          return result;
         }
         if (SPEAKING_OF_UPDATES.has(tool)) {
-          state.told = true;
-          return Effect.succeed(result);
+          yield* Ref.set(told, true);
+          return result;
         }
-        const exit = state.lookup?.pollUnsafe();
-        if (exit === undefined) {
-          return Effect.succeed(result);
+        if (!(yield* Deferred.isDone(found))) {
+          return result;
         }
-        state.told = true;
-        if (Exit.isFailure(exit) || Option.isNone(exit.value)) {
-          return Effect.succeed(result);
+        const update = yield* Deferred.await(found);
+        // Atomic: of two answers finishing together, one carries the note.
+        if ((yield* Ref.getAndSet(told, true)) || Option.isNone(update)) {
+          return result;
         }
-        const update = exit.value.value;
-        return Effect.as(
-          telemetry.capture('update_offered', { tool, version: update.version }),
-          new McpSchema.CallToolResult({
-            _meta: result._meta,
-            content: [
-              ...result.content,
-              { text: updateNote(update, updates.current), type: 'text' },
-            ],
-            isError: result.isError,
-            structuredContent: result.structuredContent,
-          }),
-        );
+        yield* telemetry.capture('update_offered', { tool, version: update.value.version });
+        return new McpSchema.CallToolResult({
+          _meta: result._meta,
+          content: [
+            ...result.content,
+            { text: updateNote(update.value, updates.current), type: 'text' },
+          ],
+          isError: result.isError,
+          structuredContent: result.structuredContent,
+        });
       });
 
     // The registry the toolkit registers on, each handler wrapped.

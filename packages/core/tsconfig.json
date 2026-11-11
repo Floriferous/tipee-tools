@@ -16,7 +16,7 @@
     "plugins": [
       {
         "name": "@effect/language-service",
-        "diagnosticSeverity": { "unstableApiUsage": "off" },
+        "diagnosticSeverity": { "unstableApiUsage": "off", "schemaClassMissingBrand": "off" },
         "overrides": [
           {
             "include": ["src/generated/*.ts"],

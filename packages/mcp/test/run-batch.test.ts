@@ -27,7 +27,7 @@ describe('runBatch', () => {
     Effect.gen(function* () {
       const send: Send = (_item, index) =>
         index === 2 ? Effect.die(new Error('boom')) : Effect.void;
-      const report = yield* runBatch(items(4), send);
+      const report = yield* runBatch(items(4), send, false);
 
       expect(report).toMatchObject({
         applied: 2,
@@ -40,7 +40,9 @@ describe('runBatch', () => {
 
   it.effect('lets a crash on the first item through', () =>
     Effect.gen(function* () {
-      const exit = yield* Effect.exit(runBatch(items(3), () => Effect.die(new Error('boom'))));
+      const exit = yield* Effect.exit(
+        runBatch(items(3), () => Effect.die(new Error('boom')), false),
+      );
 
       expect(Exit.hasDies(exit)).toBe(true);
     }),
@@ -49,7 +51,7 @@ describe('runBatch', () => {
   it.effect('lets an interruption through instead of reporting it as a failure', () =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(
-        runBatch(items(3), (_item, index) => (index === 1 ? Effect.interrupt : Effect.void)),
+        runBatch(items(3), (_item, index) => (index === 1 ? Effect.interrupt : Effect.void), false),
       );
 
       expect(Exit.hasInterrupts(exit)).toBe(true);
@@ -62,7 +64,7 @@ describe('runBatch', () => {
       const send: Send = (_item, index) => Effect.sleep(index === 0 ? '20 seconds' : '40 seconds');
       const exit = yield* ran(
         Effect.gen(function* () {
-          const report = yield* runBatch(items(3), send);
+          const report = yield* runBatch(items(3), send, false);
           return { ended: yield* Clock.currentTimeMillis, report };
         }),
       );
@@ -86,9 +88,9 @@ describe('runBatch', () => {
         (at: number): Send =>
         (_item, index) =>
           index === at ? Effect.fail(refused) : Effect.void;
-      const at10 = yield* runBatch(items(12), failingAt(10));
-      const at21 = yield* runBatch(items(23), failingAt(21));
-      const at12 = yield* runBatch(items(14), failingAt(12));
+      const at10 = yield* runBatch(items(12), failingAt(10), false);
+      const at21 = yield* runBatch(items(23), failingAt(21), false);
+      const at12 = yield* runBatch(items(14), failingAt(12), false);
 
       expect(at10.message).toContain('items[10] (the 11th) failed and changed nothing');
       expect(at21.message).toContain('items[21] (the 22nd)');
@@ -102,7 +104,7 @@ describe('runBatch', () => {
       const send: Send = (_item, index) =>
         index === 2 ? Effect.fail(refused) : Effect.succeed({ index });
       const report = yield* runBatch(items(4), send, true);
-      const plain = yield* runBatch(items(2), () => Effect.succeed({ ignored: true }));
+      const plain = yield* runBatch(items(2), () => Effect.succeed({ ignored: true }), false);
 
       expect(report).toMatchObject({ applied: 2, results: [{ index: 0 }, { index: 1 }] });
       expect(plain).not.toHaveProperty('results');

@@ -126,68 +126,67 @@ const stoppedAtFirst = (error: TipeeError, count: number): TipeeError =>
 // the very first item fails, the batch fails with its error (a crash
 // propagates), so the client shows an error: nothing else was sent. With
 // `withResults`, the report carries the applied items' answers.
-export const runBatch = (
+export const runBatch = Effect.fn('runBatch')(function* (
   items: ReadonlyArray<unknown>,
   send: Send,
-  withResults = false,
-): Effect.Effect<BatchReport, TipeeError> =>
-  Effect.gen(function* () {
-    const started = yield* Clock.currentTimeMillis;
-    const answers: Array<unknown> = [];
-    const answered = (report: BatchReport): BatchReport =>
-      withResults ? { ...report, results: answers } : report;
-    for (const [index, item] of items.entries()) {
-      const elapsed = (yield* Clock.currentTimeMillis) - started;
-      if (index > 0 && elapsed >= START_DEADLINE_SECONDS * MILLIS_PER_SECOND) {
-        const left = items.length - index;
-        return answered({
-          applied: index,
-          message:
-            `${appliedPart(index)}, then the batch stopped after ${START_DEADLINE_SECONDS} s to ` +
-            `stay within the tool call's time: send the remaining ${plural(left)}, from ` +
-            `${nth(index)}, in a new call.`,
-          not_sent: left,
-        });
-      }
-      const exit = yield* Effect.exit(
-        send(item, index).pipe(
-          Effect.timeoutOrElse({
-            duration: Duration.millis(BUDGET_SECONDS * MILLIS_PER_SECOND - elapsed),
-            orElse: () => Effect.fail(cutShort()),
-          }),
-        ),
-      );
-      if (Exit.isSuccess(exit)) {
-        answers.push(exit.value);
-      } else {
-        const failure = failureOf(exit.cause);
-        if (failure === undefined) {
-          return yield* Effect.failCause(exit.cause);
-        }
-        if (index === 0) {
-          const error = Cause.findError(exit.cause);
-          return yield* Result.isSuccess(error)
-            ? Effect.fail(stoppedAtFirst(error.success, items.length))
-            : Effect.failCause(exit.cause);
-        }
-        const left = items.length - index - 1;
-        const what =
-          failure.outcome === 'unknown'
-            ? `${nth(index)} may or may not have been applied: read it back before sending it again`
-            : `${nth(index)} failed and changed nothing: fix it and send it again with the rest`;
-        return answered({
-          applied: index,
-          failed: { error: failure.error, index, outcome: failure.outcome },
-          message:
-            `${appliedPart(index)}. ${what}; the ${plural(left)} after it were not sent. ` +
-            'Nothing is rolled back.',
-          not_sent: left,
-        });
-      }
+  withResults: boolean,
+) {
+  const started = yield* Clock.currentTimeMillis;
+  const answers: Array<unknown> = [];
+  const answered = (report: BatchReport): BatchReport =>
+    withResults ? { ...report, results: answers } : report;
+  for (const [index, item] of items.entries()) {
+    const elapsed = (yield* Clock.currentTimeMillis) - started;
+    if (index > 0 && elapsed >= START_DEADLINE_SECONDS * MILLIS_PER_SECOND) {
+      const left = items.length - index;
+      return answered({
+        applied: index,
+        message:
+          `${appliedPart(index)}, then the batch stopped after ${START_DEADLINE_SECONDS} s to ` +
+          `stay within the tool call's time: send the remaining ${plural(left)}, from ` +
+          `${nth(index)}, in a new call.`,
+        not_sent: left,
+      });
     }
-    return answered({
-      applied: items.length,
-      message: `All ${plural(items.length)} applied.`,
-      not_sent: 0,
-    });
+    const exit = yield* Effect.exit(
+      send(item, index).pipe(
+        Effect.timeoutOrElse({
+          duration: Duration.millis(BUDGET_SECONDS * MILLIS_PER_SECOND - elapsed),
+          orElse: () => Effect.fail(cutShort()),
+        }),
+      ),
+    );
+    if (Exit.isSuccess(exit)) {
+      answers.push(exit.value);
+    } else {
+      const failure = failureOf(exit.cause);
+      if (failure === undefined) {
+        return yield* Effect.failCause(exit.cause);
+      }
+      if (index === 0) {
+        const error = Cause.findError(exit.cause);
+        return yield* Result.isSuccess(error)
+          ? Effect.fail(stoppedAtFirst(error.success, items.length))
+          : Effect.failCause(exit.cause);
+      }
+      const left = items.length - index - 1;
+      const what =
+        failure.outcome === 'unknown'
+          ? `${nth(index)} may or may not have been applied: read it back before sending it again`
+          : `${nth(index)} failed and changed nothing: fix it and send it again with the rest`;
+      return answered({
+        applied: index,
+        failed: { error: failure.error, index, outcome: failure.outcome },
+        message:
+          `${appliedPart(index)}. ${what}; the ${plural(left)} after it were not sent. ` +
+          'Nothing is rolled back.',
+        not_sent: left,
+      });
+    }
+  }
+  return answered({
+    applied: items.length,
+    message: `All ${plural(items.length)} applied.`,
+    not_sent: 0,
   });
+});

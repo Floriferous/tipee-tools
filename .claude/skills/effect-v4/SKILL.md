@@ -18,11 +18,30 @@ Effect's own agent docs shipped beside them:
 ## Conventions (from Effect's AGENTS.md, applied here)
 
 - `Effect.gen(function* () { … })` inline; `Effect.fn("Name.method")(function* (…) { … })`
-  for reusable functions (the string becomes the span name). Never wrap a
-  bare `Effect.gen` in a function just to name it.
+  for reusable functions worth a span (`invoke`, `runBatch`, `observed`),
+  `Effect.fnUntraced(function* (…) { … })` for internal helpers. Never wrap
+  a bare `Effect.gen` in a function. Trailing arguments pipe the result:
+  `Effect.fnUntraced(body, Effect.timeout(…), Effect.mapError(…))`; wrap an
+  operator whose second parameter is not the function's arguments
+  (`(effect) => Effect.ignore(effect)`). A generic function keeps
+  `Effect.gen`, since `Effect.fn` would lose its type parameters
+  (`check` in `Check.ts`, `settled` in tests).
+- State shared across calls lives in Effect primitives, not `let`: `Ref`
+  (`Ref.getAndSet` for check-and-set), `Deferred` for a result some calls
+  wait on or look at (`Deferred.isDone`, `Deferred.await`), `Effect.cached`
+  for something to start once (see `Notice.ts`).
+- Checks go through tags and the `Predicate` module, not `instanceof` or
+  hand-written object tests: `failure._tag === 'TipeeError'`,
+  `Predicate.isTagged(x, 'UpdateFailed')`, `Predicate.hasProperty`,
+  `Predicate.isObject`, and `Schema.is(TipeeError)` where the value is
+  `unknown` and the class must be narrowed. A success marker is a
+  `Data.TaggedClass` with a guard (`AcceptedOffSpec`, `isAcceptedOffSpec`).
 - Services: `class X extends Context.Service<X, { … }>()("@tipee-tools/core/X") {}`
   with `static readonly layer = Layer.effect(X, Effect.gen(…))` returning
   `X.of({ … })`. Config-driven layers use `Layer.unwrap` (see `TipeeClient.layerConfig`).
+- `@effect/tsgo`'s `schemaClassMissingBrand` is off in every tsconfig: a
+  `TaggedError` is already nominal through its `_tag`, and Effect's own
+  code does not brand.
 - Errors: `class E extends Schema.TaggedError<E>()("E", { fields })` with an
   `override get message()` that says what to do. One umbrella error with a
   tagged `reason` field (`TipeeError`) so callers use `Effect.catchReason`.
@@ -40,12 +59,17 @@ Effect's own agent docs shipped beside them:
   would resend writes; see `retried` in `TipeeClient.ts`), and hand it to
   `HttpApiClient.makeWith(api, { baseUrl, httpClient })`; decode a plain
   response with `HttpClientResponse.schemaJson(schema)`. Provide
-  `FetchHttpClient.layer` (MSW intercepts it in tests).
+  `FetchHttpClient.layer` (MSW intercepts it in tests). Effect 4.1 added
+  `HttpClient.timeout`, `isTransientResponse`/`isTransientError` and
+  Retry-After in `retryTransient`; none fits here: no 508, no read/write
+  split, and `HttpClient.timeout` turns a timeout into a `TransportError`
+  that `retried` would resend.
 - MCP (`effect/ai`): `Tool.make(name, { description, parameters, success, failure })`
   `.annotate(Tool.Readonly, true)`, `Toolkit.make(...)`, handlers with
   `toolkit.toLayer(Effect.gen(…))`, server with `McpServer.toolkit(toolkit)`
   (here `McpServer.registerToolkit` under a wrapped `addTool`, to append a
-  text block to answers: `Notice.ts`) provided
+  text block to answers: `Notice.ts`; `McpServer.middleware` cannot, its
+  success being opaque) provided
   `McpServer.layerStdio({ name, version, protocols: [McpProtocol.v2025_11_25, …] })`
   and `NodeStdio.layer`. Entry point: `NodeRuntime.runMain(Layer.launch(layer))`,
   the effect wrapped in `Effect.provideService(Logger.LogToStderr, true)` and
@@ -58,7 +82,11 @@ Effect's own agent docs shipped beside them:
   `Effect.forkChild`, `TestClock.adjust`, `Fiber.join` to drive retries;
   when the effect also waits on real I/O such as MSW, step the clock in a
   loop instead, as `settled` in `packages/core/test/answers.ts` does);
-  `Effect.flip` to get the error.
+  `Effect.flip` to get the error. `TestClock` comes from `effect/testing`.
+  To test what the MCP server itself does with tools (registrations,
+  encoding, the `addTool` wrapper), use `McpTest.makeClient(layer, { protocols })`
+  from `effect/ai`, in memory (see `test/notice.test.ts`); keep spawned
+  stdio tests for the handshake and stderr.
 
 ## v4 renames and gotchas met in this repo
 

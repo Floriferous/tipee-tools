@@ -231,7 +231,7 @@ export class TipeeClient extends Context.Service<
           baseUrl: `https://${credentials.instance}.tipee.net`,
           httpClient: client,
         });
-        return { api, instance: credentials.instance };
+        return TipeeClient.of({ api, instance: credentials.instance });
       }),
     );
 

@@ -1030,7 +1030,7 @@ var NoSuchElementError = class extends (/*#__PURE__*/ TaggedError$2("NoSuchEleme
 	}
 };
 const DoneTypeId = "~effect/Cause/Done";
-const isDone$1 = (u) => hasProperty(u, DoneTypeId);
+const isDone$2 = (u) => hasProperty(u, DoneTypeId);
 const DoneVoid = {
 	[DoneTypeId]: DoneTypeId,
 	_tag: "Done",
@@ -1055,18 +1055,18 @@ const Prototype = (options) => makePrimitiveProto({
 	[evaluate]: options.evaluate
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Equivalence.js
-const make$51 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
+const make$52 = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that);
 const isStrictEquivalent = (x, y) => x === y;
 const strictEqual = () => isStrictEquivalent;
 function Tuple$1(elements) {
-	return make$51((self, that) => {
+	return make$52((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!elements[i](self[i], that[i])) return false;
 		return true;
 	});
 }
 function Array_(item) {
-	return make$51((self, that) => {
+	return make$52((self, that) => {
 		if (self.length !== that.length) return false;
 		for (let i = 0; i < self.length; i++) if (!item(self[i], that[i])) return false;
 		return true;
@@ -1200,17 +1200,17 @@ const SuccessImpl = function(success) {
 SuccessImpl.prototype = SuccessProto;
 const succeed$9 = (success) => new SuccessImpl(success);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Order.js
-function make$50(compare) {
+function make$51(compare) {
 	return (self, that) => self === that ? 0 : compare(self, that);
 }
-const String$5 = /*#__PURE__*/ make$50((self, that) => self < that ? -1 : 1);
-const Number$4 = /*#__PURE__*/ make$50((self, that) => {
+const String$5 = /*#__PURE__*/ make$51((self, that) => self < that ? -1 : 1);
+const Number$4 = /*#__PURE__*/ make$51((self, that) => {
 	if (globalThis.Number.isNaN(self) && globalThis.Number.isNaN(that)) return 0;
 	if (globalThis.Number.isNaN(self)) return -1;
 	if (globalThis.Number.isNaN(that)) return 1;
 	return self < that ? -1 : 1;
 });
-const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$50((b1, b2) => self(f(b1), f(b2))));
+const mapInput = /*#__PURE__*/ dual(2, (self, f) => make$51((b1, b2) => self(f(b1), f(b2))));
 const isLessThan$1 = (O) => dual(2, (self, that) => O(self, that) === -1);
 const isGreaterThan$1 = (O) => dual(2, (self, that) => O(self, that) === 1);
 const isLessThanOrEqualTo$1 = (O) => dual(2, (self, that) => O(self, that) !== 1);
@@ -1278,7 +1278,7 @@ const ServiceProto = {
 		return self;
 	},
 	context(self) {
-		return make$49(this, self);
+		return make$50(this, self);
 	},
 	use(f) {
 		return withFiber$1((fiber) => f(get$2(fiber.context, this)));
@@ -1332,7 +1332,7 @@ const lookup = (self, key) => {
 	}
 	return value;
 };
-const makeUnsafe$7 = (mapUnsafe, options) => {
+const makeUnsafe$8 = (mapUnsafe, options) => {
 	const maxDepth = options?.maxDepth;
 	return makeImpl(void 0, mapUnsafe, void 0, 0, Number.isInteger(maxDepth) && maxDepth >= 0 ? maxDepth : 8);
 };
@@ -1367,8 +1367,8 @@ const hasSameCache = (self, that) => self.cacheRoot === that.cacheRoot;
 const isContext = (u) => hasProperty(u, TypeId$50);
 const isReference = (u) => !!u[ReferenceTypeId];
 const empty$11 = () => emptyContext;
-const emptyContext = /*#__PURE__*/ makeUnsafe$7(/*#__PURE__*/ new Map());
-const make$49 = (key, service) => makeUnsafe$7(/* @__PURE__ */ new Map([[key.key, service]]));
+const emptyContext = /*#__PURE__*/ makeUnsafe$8(/*#__PURE__*/ new Map());
+const make$50 = (key, service) => makeUnsafe$8(/* @__PURE__ */ new Map([[key.key, service]]));
 const add$2 = /*#__PURE__*/ dual(3, (self, key, service) => addUnsafe(self, key.key, service));
 const addUnsafe = (self, key, service) => {
 	const impl = self;
@@ -1428,7 +1428,7 @@ const mergeAll$1 = (...ctxs) => {
 	for (let i = 0; i < ctxs.length; i++) ctxs[i].mapUnsafe.forEach((value, key) => {
 		map.set(key, value);
 	});
-	return makeUnsafe$7(map);
+	return makeUnsafe$8(map);
 };
 const Reference = Service$1;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/array.js
@@ -1553,7 +1553,7 @@ const bigintNanosPerDay = /*#__PURE__*/ BigInt(864e11);
 const bigintNanosPerWeek = /*#__PURE__*/ BigInt(6048e11);
 const roundTiesAwayFromZero = (input) => BigInt(Math.sign(input) * Math.round(Math.abs(input)));
 const roundMillisToNanos = (millis) => Number.isInteger(millis) ? BigInt(millis) * bigint1e6 : roundTiesAwayFromZero(millis * 1e6);
-const fromNanosNumber = (nanos) => make$48(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
+const fromNanosNumber = (nanos) => make$49(Number.isFinite(nanos) ? roundTiesAwayFromZero(nanos) : nanos);
 const nanosToUnit = (nanos, divisor) => {
 	const value = Number(nanos);
 	if (Number.isFinite(value)) return value / divisor;
@@ -1576,9 +1576,9 @@ const divideTiesAwayFromZero = (numerator, denominator) => {
 };
 const fromMillisString = (input, scale) => {
 	const millis = Number(input) * scale;
-	if (!Number.isFinite(millis)) return make$48(millis);
+	if (!Number.isFinite(millis)) return make$49(millis);
 	const nanos = parseNanos(input, BigInt(scale) * bigint1e6);
-	return make$48(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
+	return make$49(Number.isInteger(millis) && BigInt(millis) * bigint1e6 === nanos ? millis : nanos);
 };
 const DURATION_REGEXP = /^(-?\d+(?:\.\d+)?)\s+(nanos?|micros?|millis?|seconds?|minutes?|hours?|days?|weeks?)$/;
 const fromInputUnsafe$1 = (input) => {
@@ -1618,7 +1618,7 @@ const fromInputUnsafe$1 = (input) => {
 				if (input[0] === -Infinity || input[1] === -Infinity) return negativeInfinity;
 				if (input[0] === Infinity || input[1] === Infinity) return infinity;
 				const nanos = input[0] * 1e9 + input[1];
-				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$48(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
+				return Number.isFinite(nanos) && Number.isInteger(input[0]) && Number.isInteger(input[1]) ? make$49(BigInt(input[0]) * bigint1e9 + BigInt(input[1])) : fromNanosNumber(nanos);
 			}
 			const obj = input;
 			let millis = 0;
@@ -1629,13 +1629,13 @@ const fromInputUnsafe$1 = (input) => {
 			if (obj.seconds) millis += obj.seconds * 1e3;
 			if (obj.milliseconds) millis += obj.milliseconds;
 			if (!obj.microseconds && !obj.nanoseconds) {
-				if (!Number.isFinite(millis)) return make$48(millis);
+				if (!Number.isFinite(millis)) return make$49(millis);
 				const exact = sumObjectNanos(obj);
-				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$48(millis) : make$48(exact);
+				return exact === void 0 || BigInt(millis) * bigint1e6 === exact ? make$49(millis) : make$49(exact);
 			}
 			const nanos = millis * 1e6 + (obj.microseconds ?? 0) * 1e3 + (obj.nanoseconds ?? 0);
 			const exact = Number.isFinite(nanos) ? sumObjectNanos(obj) : void 0;
-			return exact === void 0 ? fromNanosNumber(nanos) : make$48(exact);
+			return exact === void 0 ? fromNanosNumber(nanos) : make$49(exact);
 		}
 	}
 	return invalid$3(input);
@@ -1713,7 +1713,7 @@ const DurationProto = {
 		return pipeArguments(this, arguments);
 	}
 };
-const make$48 = (input) => {
+const make$49 = (input) => {
 	const duration = Object.create(DurationProto);
 	if (typeof input === "number") {
 		if (isNaN(input) || input === 0 || Object.is(input, -0)) duration.value = zeroDurationValue;
@@ -1755,16 +1755,16 @@ const abs = (self) => {
 	switch (self.value._tag) {
 		case "Infinity":
 		case "NegativeInfinity": return infinity;
-		case "Millis": return self.value.millis < 0 ? make$48(-self.value.millis) : self;
-		case "Nanos": return self.value.nanos < bigint0$3 ? make$48(-self.value.nanos) : self;
+		case "Millis": return self.value.millis < 0 ? make$49(-self.value.millis) : self;
+		case "Nanos": return self.value.nanos < bigint0$3 ? make$49(-self.value.nanos) : self;
 	}
 };
-const zero$1 = /*#__PURE__*/ make$48(0);
-const infinity = /*#__PURE__*/ make$48(Infinity);
-const negativeInfinity = /*#__PURE__*/ make$48(-Infinity);
-const nanos = (nanos) => make$48(nanos);
-const millis = (millis) => make$48(millis);
-const seconds = (seconds) => make$48(seconds * 1e3);
+const zero$1 = /*#__PURE__*/ make$49(0);
+const infinity = /*#__PURE__*/ make$49(Infinity);
+const negativeInfinity = /*#__PURE__*/ make$49(-Infinity);
+const nanos = (nanos) => make$49(nanos);
+const millis = (millis) => make$49(millis);
+const seconds = (seconds) => make$49(seconds * 1e3);
 const toMillis = (self) => match$1(fromInputUnsafe$1(self), {
 	onMillis: identity,
 	onNanos: (nanos) => nanosToUnit(nanos, 1e6),
@@ -1793,7 +1793,7 @@ const matchPair = /*#__PURE__*/ dual(3, (self, that, options) => {
 	if (self.value._tag === "Millis") return that.value._tag === "Millis" ? options.onMillis(self.value.millis, that.value.millis) : options.onNanos(toNanosUnsafe(self), that.value.nanos);
 	else return options.onNanos(self.value.nanos, toNanosUnsafe(that));
 });
-const Order$2 = /*#__PURE__*/ make$50((self, that) => matchPair(self, that, {
+const Order$2 = /*#__PURE__*/ make$51((self, that) => matchPair(self, that, {
 	onMillis: (self, that) => self < that ? -1 : self > that ? 1 : 0,
 	onNanos: (self, that) => self < that ? -1 : self > that ? 1 : 0,
 	onInfinity: (self, that) => {
@@ -2041,7 +2041,7 @@ for (let i = 0; i < 16; i++) {
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Tracer.js
 const ParentSpanKey = "effect/Tracer/ParentSpan";
 var ParentSpan = class extends (/*#__PURE__*/ Service$1()(ParentSpanKey, { fiberCached: true })) {};
-const make$47 = (options) => options;
+const make$48 = (options) => options;
 const externalSpan = (options) => ({
 	_tag: "ExternalSpan",
 	spanId: options.spanId,
@@ -2053,7 +2053,7 @@ const DisablePropagation = /*#__PURE__*/ Reference("effect/Tracer/DisablePropaga
 const CurrentTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/CurrentTraceLevel", { defaultValue: () => "Info" });
 const MinimumTraceLevel = /*#__PURE__*/ Reference("effect/Tracer/MinimumTraceLevel", { defaultValue: () => "All" });
 const TracerKey = "effect/Tracer";
-const nativeTracer = /*#__PURE__*/ make$47({ span: (options) => new NativeSpan(options) });
+const nativeTracer = /*#__PURE__*/ make$48({ span: (options) => new NativeSpan(options) });
 var NativeSpan = class {
 	_tag = "Span";
 	sampled;
@@ -2214,7 +2214,7 @@ const findError$1 = (self) => {
 };
 const findErrorOption$1 = /*#__PURE__*/ toOption$1(findError$1);
 const hasDies$1 = (self) => self.reasons.some(isDieReason$1);
-const causeElectDefects = (self) => hasDies$1(self) && hasFails(self) ? causeFromReasons(self.reasons.map((reason) => reason._tag === "Fail" && !isDone$1(reason.error) ? new Die(reason.error, reason.annotations) : reason)) : self;
+const causeElectDefects = (self) => hasDies$1(self) && hasFails(self) ? causeFromReasons(self.reasons.map((reason) => reason._tag === "Fail" && !isDone$2(reason.error) ? new Die(reason.error, reason.annotations) : reason)) : self;
 const findRecoverableError = (self) => hasDies$1(self) ? fail$7(causeElectDefects(self)) : findError$1(self);
 const findDefect = (self) => {
 	const reason = self.reasons.find(isDieReason$1);
@@ -2237,7 +2237,7 @@ const causeInterruptors = (self) => {
 };
 const emptySet = /*#__PURE__*/ new Set();
 const hasInterruptsOnly$1 = (self) => self.reasons.length > 0 && self.reasons.every(isInterruptReason);
-const reasonAnnotations$1 = (self) => makeUnsafe$7(self.annotations);
+const reasonAnnotations$1 = (self) => makeUnsafe$8(self.annotations);
 const causeMap = /*#__PURE__*/ dual(2, (self, f) => {
 	let hasFail = false;
 	const failures = self.reasons.map((failure) => {
@@ -2431,7 +2431,7 @@ var FiberImpl = class {
 	interruptUnsafe(fiberId, annotations) {
 		if (this._exit) return;
 		let cause = causeInterrupt(fiberId);
-		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$49(StackTraceKey, this.cache.stackFrame));
+		if (this.cache.stackFrame) cause = causeAnnotate(cause, make$50(StackTraceKey, this.cache.stackFrame));
 		if (annotations) cause = causeAnnotate(cause, annotations);
 		this._interruptedCause = this._interruptedCause ? causeAddInterrupts(this._interruptedCause, cause) : cause;
 		if (this.interruptible) {
@@ -2621,7 +2621,7 @@ const fiberStackAnnotations = (fiber) => {
 	if (!fiber.cache.stackFrame) return void 0;
 	const annotations = /* @__PURE__ */ new Map();
 	annotations.set(InterruptorStackTrace.key, fiber.cache.stackFrame);
-	return makeUnsafe$7(annotations);
+	return makeUnsafe$8(annotations);
 };
 const fiberInterruptChildren = (fiber) => {
 	if (fiber._children === void 0 || fiber._children.size === 0) return;
@@ -2982,6 +2982,10 @@ const tapEffectCont = function(value) {
 	return new ContImpl(this.payload, succeedPayload, value);
 };
 const asSome = (self) => map$6(self, some);
+const flip$2 = (self) => matchEffect$2(self, {
+	onFailure: succeed$7,
+	onSuccess: fail$6
+});
 const andThen$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? returnPayload : andThenCont, f));
 const tap$1 = /*#__PURE__*/ dual(2, (self, f) => new ContImpl(self, isEffect$1(f) ? tapEffectCont : tapCont, f));
 const asVoid$1 = (self) => new ContImpl(self, returnPayload, exitVoid);
@@ -3272,7 +3276,7 @@ const timeout$1 = /*#__PURE__*/ dual(2, (self, duration) => {
 		orElse: () => fail$6(timeoutErrorFromDuration(decoded))
 	});
 });
-const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep$1(duration), none())));
+const timeoutOption = /*#__PURE__*/ dual(2, (self, duration) => raceFirst$1(asSome(self), as$1(sleep(duration), none())));
 const timed$1 = (self) => clockWith((clock) => {
 	const start = clock.monotonicTimeNanosUnsafe();
 	return map$6(self, (a) => [nanos(clock.monotonicTimeNanosUnsafe() - start), a]);
@@ -4049,7 +4053,7 @@ const wallTimeNanos = /*#__PURE__*/ function() {
 	};
 }();
 const clockWith = (f) => withFiber$1((fiber) => f(fiber.getRef(ClockRef)));
-const sleep$1 = (duration) => clockWith((clock) => clock.sleep(fromInputUnsafe$1(duration)));
+const sleep = (duration) => clockWith((clock) => clock.sleep(fromInputUnsafe$1(duration)));
 const currentTimeMillis$1 = /*#__PURE__*/ clockWith((clock) => clock.currentTimeMillis);
 const TimeoutErrorTypeId = "~effect/Cause/TimeoutError";
 const isTimeoutError$1 = (u) => hasProperty(u, TimeoutErrorTypeId);
@@ -4232,7 +4236,7 @@ const hasDies = hasDies$1;
 const hasInterrupts$1 = hasInterrupts$2;
 const interruptors = causeInterruptors;
 const prettyErrors = causePrettyErrors;
-const isDone = isDone$1;
+const isDone$1 = isDone$2;
 const Done$1 = Done$2;
 const done$1 = done$2;
 const isTimeoutError = isTimeoutError$1;
@@ -4272,8 +4276,8 @@ const DeferredImpl = function() {
 	this.effect = void 0;
 };
 DeferredImpl.prototype = DeferredProto;
-const makeUnsafe$6 = () => new DeferredImpl();
-const make$46 = () => sync$1(() => makeUnsafe$6());
+const makeUnsafe$7 = () => new DeferredImpl();
+const make$47 = () => sync$1(() => makeUnsafe$7());
 const _await = (self) => callback$2((resume) => {
 	if (self.effect) return resume(self.effect);
 	self.resumes ??= [];
@@ -4288,6 +4292,7 @@ const _await = (self) => callback$2((resume) => {
 const done = /* @__PURE__ */ dual(2, (self, effect) => sync$1(() => doneUnsafe(self, effect)));
 const failCause$4 = /*#__PURE__*/ dual(2, (self, cause) => done(self, exitFailCause(cause)));
 const interruptWith = /*#__PURE__*/ dual(2, (self, fiberId) => failCause$4(self, causeInterrupt(fiberId)));
+const isDone = (self) => sync$1(() => isDoneUnsafe(self));
 const isDoneUnsafe = (self) => self.effect !== void 0;
 const succeed$5 = /*#__PURE__*/ dual(2, (self, value) => done(self, exitSucceed(value)));
 const doneUnsafe = (self, effect) => {
@@ -4300,14 +4305,15 @@ const doneUnsafe = (self, effect) => {
 	}
 	return true;
 };
+const into = /*#__PURE__*/ dual(2, (self, deferred) => uninterruptibleMask$1((restore) => flatMap$2(exit$1(restore(self)), (exit) => done(deferred, exit))));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/References.js
 const CurrentLogAnnotations = CurrentLogAnnotations$1;
 const CurrentLogLevel = CurrentLogLevel$1;
 const TracerTimingEnabled = TracerTimingEnabled$1;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Scope.js
 const Scope = scopeTag;
-const make$45 = scopeMake;
-const makeUnsafe$5 = scopeMakeUnsafe;
+const make$46 = scopeMake;
+const makeUnsafe$6 = scopeMakeUnsafe;
 const provide$3 = provideScope;
 const addFinalizerExit = scopeAddFinalizerExit;
 const addFinalizer$1 = scopeAddFinalizer;
@@ -4320,8 +4326,8 @@ const MemoMapTypeId = "~effect/Layer/MemoMap";
 const makeMemoMapEntry = (memoMap, layer) => {
 	const entry = {
 		observers: 0,
-		deferred: makeUnsafe$6(),
-		scope: makeUnsafe$5(),
+		deferred: makeUnsafe$7(),
+		scope: makeUnsafe$6(),
 		finalizer: (exit) => suspend$4(() => {
 			if (--entry.observers > 0) return void_$3;
 			memoMap.map.delete(layer);
@@ -4405,8 +4411,8 @@ const buildWithMemoMap = /*#__PURE__*/ dual(3, (self, memoMap, scope) => provide
 const build = (self) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), getUnsafe(fiber.context, Scope)));
 const buildWithScope = /*#__PURE__*/ dual(2, (self, scope) => withFiber$1((fiber) => buildWithMemoMap(self, CurrentMemoMap.forkOrCreate(fiber.context), scope)));
 const succeed$4 = function() {
-	if (arguments.length === 1) return (resource) => succeedContext(make$49(arguments[0], resource));
-	return succeedContext(make$49(arguments[0], arguments[1]));
+	if (arguments.length === 1) return (resource) => succeedContext(make$50(arguments[0], resource));
+	return succeedContext(make$50(arguments[0], arguments[1]));
 };
 const succeedContext = (context) => fromBuildUnsafe(constant(succeed$7(context)));
 const empty$9 = /*#__PURE__*/ succeedContext(/*#__PURE__*/ empty$11());
@@ -4414,7 +4420,7 @@ const effect = function() {
 	if (arguments.length === 1) return (effect) => effectImpl(arguments[0], effect);
 	return effectImpl(arguments[0], arguments[1]);
 };
-const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$49(service, value)));
+const effectImpl = (service, effect) => effectContext(map$6(effect, (value) => make$50(service, value)));
 const effectContext = (effect) => fromBuildMemo((_, scope) => provide$3(effect, scope));
 const effectDiscard = (effect) => effectContext(as$1(effect, empty$11()));
 const unwrapKey = /*#__PURE__*/ Service$1("effect/Layer/unwrap");
@@ -4537,7 +4543,7 @@ const fromDateUnsafe = (date) => {
 	if (Number.isNaN(epochMillis)) throw new IllegalArgumentError("Invalid date");
 	return makeUtc(epochMillis);
 };
-const makeUnsafe$4 = (input) => {
+const makeUnsafe$5 = (input) => {
 	if (isDateTime$1(input)) return input;
 	else if (input instanceof Date) return fromDateUnsafe(input);
 	else if (typeof input === "object") {
@@ -4549,7 +4555,7 @@ const makeUnsafe$4 = (input) => {
 	return fromDateUnsafe(new Date(input));
 };
 const hasZone = (input) => /Z|GMT|[+-]\d{2}$|[+-]\d{2}:?\d{2}$|\]$/.test(input) || /z$|gmt$/i.test(input);
-const make$44 = /*#__PURE__*/ liftThrowable(makeUnsafe$4);
+const make$45 = /*#__PURE__*/ liftThrowable(makeUnsafe$5);
 const now$1 = /*#__PURE__*/ map$6(currentTimeMillis, makeUtc);
 const toUtc$1 = (self) => makeUtc(self.epochMilliseconds);
 const toDateUtc$1 = (self) => new Date(self.epochMilliseconds);
@@ -4698,7 +4704,7 @@ const formatIsoZoned = (self) => self.zone._tag === "Offset" ? formatIsoOffset(s
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Pull.js
 const catchDone = /*#__PURE__*/ dual(2, (effect, f) => catchCauseFilter$1(effect, filterDoneLeftover, (l) => f(l)));
 const isDoneCause = (cause) => cause.reasons.some(isDoneFailure);
-const isDoneFailure = (failure) => failure._tag === "Fail" && isDone(failure.error);
+const isDoneFailure = (failure) => failure._tag === "Fail" && isDone$1(failure.error);
 const filterDone = (cause) => {
 	let done;
 	let hasFailure = false;
@@ -4782,7 +4788,7 @@ const toStepWithMetadata = (schedule) => clockWith((clock) => map$6(toStep(sched
 			const meta = metaFn(now, input);
 			meta.output = output;
 			meta.duration = duration;
-			return as$1(sleep$1(duration), meta);
+			return as$1(sleep(duration), meta);
 		});
 	});
 }));
@@ -4918,7 +4924,7 @@ const getFromBucket = (self, bucket, key) => {
 	}
 	return none();
 };
-const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
+const set$3 = /*#__PURE__*/ dual(3, (self, key, value) => {
 	if (self.backing.has(key) || isSimpleKey(key)) {
 		self.backing.set(key, value);
 		return self;
@@ -5001,6 +5007,7 @@ const exit = exit$1;
 const map$4 = map$6;
 const as = as$1;
 const asVoid = asVoid$1;
+const flip$1 = flip$2;
 const zipWith = zipWith$1;
 const catch_$2 = catch_$3;
 const catchTag = catchTag$2;
@@ -5021,7 +5028,6 @@ const ignoreCause = ignoreCause$1;
 const orElseSucceed = orElseSucceed$1;
 const timeout = timeout$1;
 const timeoutOrElse = timeoutOrElse$1;
-const sleep = sleep$1;
 const timed = timed$1;
 const raceFirst = raceFirst$1;
 const filter = filter$1;
@@ -5112,7 +5118,7 @@ const getCurrent = getCurrentFiber;
 const runIn = fiberRunIn;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableList.js
 const Empty$3 = /*#__PURE__*/ Symbol.for("effect/MutableList/Empty");
-const make$43 = () => ({
+const make$44 = () => ({
 	head: void 0,
 	tail: void 0,
 	length: 0
@@ -5257,12 +5263,12 @@ const QueueProto = {
 		};
 	}
 };
-const make$42 = (options) => withFiber$1((fiber) => {
+const make$43 = (options) => withFiber$1((fiber) => {
 	const self = Object.create(QueueProto);
 	self.dispatcher = fiber.currentDispatcher;
 	self.capacity = options?.capacity ?? Number.POSITIVE_INFINITY;
 	self.strategy = options?.strategy ?? "suspend";
-	self.messages = make$43();
+	self.messages = make$44();
 	self.scheduleRunning = false;
 	self.state = {
 		_tag: "Open",
@@ -5272,8 +5278,8 @@ const make$42 = (options) => withFiber$1((fiber) => {
 	};
 	return succeed$7(self);
 });
-const bounded = (capacity) => make$42({ capacity });
-const unbounded$1 = () => make$42();
+const bounded = (capacity) => make$43({ capacity });
+const unbounded$1 = () => make$43();
 const offer = /*#__PURE__*/ dual(2, (self, message) => suspend$4(() => offerUnsafe(self, message) ? exitTrue : self.state._tag === "Open" && self.strategy === "suspend" ? offerOrWait(self, message) : exitFalse));
 const offerUnsafe = (self, message) => {
 	if (self.state._tag !== "Open") return false;
@@ -5552,7 +5558,7 @@ const randomBytesUnsafe = (size) => {
 };
 const uuidV4Unsafe = (options) => makeUuid(v4Bytes, randomBytesUnsafe, options?.format);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Semaphore.js
-const makeUnsafe$3 = (permits) => new SemaphoreImpl(permits);
+const makeUnsafe$4 = (permits) => new SemaphoreImpl(permits);
 const firstAvailableWaiter = (self) => {
 	for (const waiter of self.waiters) if (waiter.permits <= self.free) return waiter;
 };
@@ -5649,7 +5655,7 @@ var SemaphoreImpl = class {
 		});
 	}
 };
-const make$41 = (permits) => sync$1(() => new SemaphoreImpl(permits));
+const make$42 = (permits) => sync$1(() => new SemaphoreImpl(permits));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/BigDecimal.js
 const TypeId$42 = "~effect/BigDecimal";
 const BigDecimalProto = {
@@ -5679,7 +5685,7 @@ const BigDecimalProto = {
 	}
 };
 const isBigDecimal = (u) => hasProperty(u, TypeId$42);
-const make$40 = (value, scale) => {
+const make$41 = (value, scale) => {
 	if (!Number.isSafeInteger(scale)) throw new RangeError(`Scale must be a safe integer, got ${scale}`);
 	const o = Object.create(BigDecimalProto);
 	o.value = value;
@@ -5687,7 +5693,7 @@ const make$40 = (value, scale) => {
 	return o;
 };
 const makeNormalized = (value, scale) => {
-	const o = make$40(value, scale);
+	const o = make$41(value, scale);
 	o.normalized = o;
 	return o;
 };
@@ -5945,13 +5951,13 @@ const binaryUnits = [
 ];
 const allUnits = [...decimalUnits, .../*#__PURE__*/ binaryUnits.slice(1)];
 const unitsByName = /*#__PURE__*/ new Map(/*#__PURE__*/ allUnits.flatMap((unit) => unit.names.map((name) => [name, unit])));
-const make$39 = (value) => value;
+const make$40 = (value) => value;
 const invalid$2 = (message) => {
 	throw new Error(`Invalid ByteSize: ${message}`);
 };
 const fromNumber = (input) => {
 	if (!Number.isSafeInteger(input) || input < 0) return invalid$2(`expected a non-negative safe integer, received ${input}`);
-	return make$39(BigInt(input));
+	return make$40(BigInt(input));
 };
 const scaleDecimal = (quantity, factor) => {
 	const match = /^(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(quantity);
@@ -5970,13 +5976,13 @@ const fromStringUnsafe = (input) => {
 	if (unit === void 0) return invalid$2(`unsupported unit ${JSON.stringify(match[2])}`);
 	const value = scaleDecimal(match[1], unit.factor);
 	if (value === void 0) return invalid$2(`${JSON.stringify(input)} does not represent an integral number of bytes`);
-	return make$39(value);
+	return make$40(value);
 };
 const fromInputUnsafe = (input) => {
 	switch (typeof input) {
 		case "bigint":
 			if (input < bigint0) return invalid$2(`expected a non-negative bigint, received ${input}`);
-			return make$39(input);
+			return make$40(input);
 		case "number": return fromNumber(input);
 		case "string": return fromStringUnsafe(input);
 	}
@@ -6117,8 +6123,8 @@ const getCode = (charCode) => {
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/DateTime.js
 const isDateTime = isDateTime$1;
 const isUtc = isUtc$1;
-const makeUnsafe$2 = makeUnsafe$4;
-const make$38 = make$44;
+const makeUnsafe$3 = makeUnsafe$5;
+const make$39 = make$45;
 const now = now$1;
 const toUtc = toUtc$1;
 const toEpochMillis = toEpochMillis$1;
@@ -6275,7 +6281,7 @@ const stringOrRedacted = (val) => typeof val === "string" ? val : value$3(val);
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Redacted.js
 const TypeId$40 = "~effect/Redacted";
 const isRedacted = (u) => hasProperty(u, TypeId$40);
-const make$37 = (value, options) => {
+const make$38 = (value, options) => {
 	const self = Object.create(Proto$15);
 	if (options?.label) self.label = options.label;
 	redactedRegistry.set(self, value);
@@ -6299,7 +6305,7 @@ const Proto$15 = {
 	}
 };
 const value$2 = value$3;
-const makeEquivalence = (isEquivalent) => make$51((x, y) => isEquivalent(value$2(x), value$2(y)));
+const makeEquivalence = (isEquivalent) => make$52((x, y) => isEquivalent(value$2(x), value$2(y)));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Headers.js
 const TypeId$39 = /*#__PURE__*/ Symbol.for("~effect/http/Headers");
 const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.create(null), {
@@ -6319,7 +6325,7 @@ const Proto$14 = /*#__PURE__*/ Object.defineProperties(/*#__PURE__*/ Object.crea
 	toString: { value: BaseProto.toString },
 	[NodeInspectSymbol]: { value: BaseProto[NodeInspectSymbol] }
 });
-const make$36 = (input) => Object.assign(Object.create(Proto$14), input);
+const make$37 = (input) => Object.assign(Object.create(Proto$14), input);
 const Equivalence$2 = /*#__PURE__*/ makeEquivalence$2(/*#__PURE__*/ strictEqual());
 const empty$6 = /*#__PURE__*/ Object.create(Proto$14);
 const fromInput$1 = (input) => {
@@ -6338,22 +6344,22 @@ const fromInput$1 = (input) => {
 	return out;
 };
 const fromRecordUnsafe = (input) => Object.setPrototypeOf(input, Proto$14);
-const set$1 = /*#__PURE__*/ dual(3, (self, key, value) => {
-	const out = make$36(self);
+const set$2 = /*#__PURE__*/ dual(3, (self, key, value) => {
+	const out = make$37(self);
 	out[key.toLowerCase()] = value;
 	return out;
 });
-const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$36({
+const setAll$1 = /*#__PURE__*/ dual(2, (self, headers) => make$37({
 	...self,
 	...fromInput$1(headers)
 }));
 const merge$1 = /*#__PURE__*/ dual(2, (self, headers) => {
-	const out = make$36(self);
+	const out = make$37(self);
 	Object.assign(out, headers);
 	return out;
 });
 const remove$1 = /*#__PURE__*/ dual(2, (self, key) => {
-	const out = make$36(self);
+	const out = make$37(self);
 	delete out[key.toLowerCase()];
 	return out;
 });
@@ -6362,8 +6368,8 @@ const redact$1 = /*#__PURE__*/ dual(2, (self, key) => {
 	const modify = (key) => {
 		if (typeof key === "string") {
 			const k = key.toLowerCase();
-			if (k in self) out[k] = make$37(self[k]);
-		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$37(self[name]);
+			if (k in self) out[k] = make$38(self[k]);
+		} else for (const name in self) if (name.search(key) !== -1) out[name] = make$38(self[name]);
 	};
 	if (Array.isArray(key)) for (let i = 0; i < key.length; i++) modify(key[i]);
 	else modify(key);
@@ -6453,7 +6459,7 @@ const parseRetryAfter$1 = (input) => {
 		});
 	}
 	const millis = httpDateToMillis(trimmed);
-	return millis === void 0 ? fail$7(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$2(millis)));
+	return millis === void 0 ? fail$7(HeaderParseError.fromReason("InvalidRetryAfter", input)) : succeed$8(retryAfterDateTime(makeUnsafe$3(millis)));
 };
 const retryAfterDelay = (self, now) => self._tag === "Duration" ? self.duration : millis(Math.max(0, toEpochMillis(self.dateTime) - now));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/urlParams.js
@@ -6485,7 +6491,7 @@ const Proto$13 = {
 		return array(this.params.flat());
 	}
 };
-const make$35 = (params) => {
+const make$36 = (params) => {
 	const self = Object.create(Proto$13);
 	self.params = params;
 	return self;
@@ -6498,7 +6504,7 @@ const fromInput = (input) => {
 		const [keys, value] = parsed[i];
 		out.push([`${keys[0]}[${keys.slice(1).join("][")}]`, value]);
 	} else out.push(parsed[i]);
-	return make$35(out);
+	return make$36(out);
 };
 const fromInputNested = (input) => {
 	const entries = typeof input[Symbol.iterator] === "function" ? fromIterable$2(input) : Object.entries(input);
@@ -6512,10 +6518,10 @@ const fromInputNested = (input) => {
 	return out;
 };
 const coerce = (value) => isRedacted(value) ? value : String(value);
-const Equivalence$1 = /*#__PURE__*/ make$51((a, b) => arrayEquivalence(a.params, b.params));
+const Equivalence$1 = /*#__PURE__*/ make$52((a, b) => arrayEquivalence(a.params, b.params));
 const arrayEquivalence = /*#__PURE__*/ makeEquivalence$1(/*#__PURE__*/ makeEquivalence$3([/*#__PURE__*/ strictEqual(), /*#__PURE__*/ asEquivalence()]));
-const empty$5 = /*#__PURE__*/ make$35([]);
-const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$35(f(self.params)));
+const empty$5 = /*#__PURE__*/ make$36([]);
+const transform$2 = /*#__PURE__*/ dual(2, (self, f) => make$36(f(self.params)));
 const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 	const params = fromInput(input).params.slice();
 	const keys = /* @__PURE__ */ new Set();
@@ -6524,7 +6530,7 @@ const setAll = /*#__PURE__*/ dual(2, (self, input) => {
 		if (keys.has(self.params[i][0])) continue;
 		params.push(self.params[i]);
 	}
-	return make$35(params);
+	return make$36(params);
 });
 const appendAll = /*#__PURE__*/ dual(2, (self, input) => transform$2(self, appendAll$2(fromInput(input).params)));
 const toString = (input) => new URLSearchParams(fromInput(input).params.map(([key, value]) => [key, unwrap$3(value)])).toString();
@@ -6544,7 +6550,7 @@ const toRecord = (self) => {
 const toReadonlyRecord = toRecord;
 const redact = /*#__PURE__*/ dual(2, (self, key) => {
 	const patterns = Array.isArray(key) ? key : [key];
-	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$37(value) : value]);
+	return self.params.map(([name, value]) => [name, typeof value === "string" && isRedactedName(name, patterns) ? make$38(value) : value]);
 });
 const isRedactedName = isRedactedName$1;
 const redactUrl = (url, redactedNames = currentRedactedNames()) => {
@@ -8931,7 +8937,7 @@ function makeOption(schema) {
 		return none();
 	};
 }
-function make$34(schema) {
+function make$35(schema) {
 	return makeConstructorSync(toType$1(schema.ast));
 }
 function is$3(schema) {
@@ -9069,7 +9075,7 @@ const RebuildOptions = /*#__PURE__*/ Symbol();
 const SchemaProto = {
 	[TypeId$34]: TypeId$34,
 	get make() {
-		const value = make$34(this);
+		const value = make$35(this);
 		Object.defineProperty(this, "make", {
 			value,
 			enumerable: true
@@ -9105,10 +9111,10 @@ const SchemaProto = {
 		return this.rebuild(appendChecks(this.ast, checks));
 	},
 	rebuild(ast) {
-		return make$33(ast, this[RebuildOptions]);
+		return make$34(ast, this[RebuildOptions]);
 	}
 };
-function make$33(ast, options) {
+function make$34(ast, options) {
 	function Schema() {}
 	const self = Object.setPrototypeOf(Schema, SchemaProto);
 	if (options && (Object.hasOwn(options, "name") || Object.hasOwn(options, "length") || Object.hasOwn(options, "__proto__"))) Object.defineProperties(self, Object.getOwnPropertyDescriptors({ ...options }));
@@ -9233,7 +9239,7 @@ const PRE_2020_TO_2020_COLLISIONS = [
 [...PRE_2020_TO_2020_COLLISIONS];
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/internal/schema/toCodec.js
 function toCodecJson$1(schema) {
-	return make$33(toCodecJsonAST(schema.ast), { schema });
+	return make$34(toCodecJsonAST(schema.ast), { schema });
 }
 const toCodecJsonAST = /*#__PURE__*/ makeCodecDerivation(toCodecJsonASTStep);
 function makeCodecDerivation(step, options) {
@@ -9276,7 +9282,7 @@ function toCodecJsonASTStep(ast, recur) {
 		case "Declaration": {
 			const getLink = ast.annotations?.toCodecJson ?? ast.annotations?.toCodec;
 			if (!isFunction(getLink)) return replaceEncoding(ast, [unknownToJson]);
-			const link = getLink(ast.typeParameters.map((tp) => make$33(toEncoded$1(tp))));
+			const link = getLink(ast.typeParameters.map((tp) => make$34(toEncoded$1(tp))));
 			return link === void 0 ? ast : replaceEncoding(ast, [mapLink(link, recur)]);
 		}
 		case "Unknown": return replaceEncoding(ast, [unknownToJson]);
@@ -9302,7 +9308,7 @@ function toCodecJsonASTStep(ast, recur) {
 	return ast;
 }
 function toCodecStringTree$1(schema) {
-	return make$33(toCodecStringTreeAST(schema.ast), { schema });
+	return make$34(toCodecStringTreeAST(schema.ast), { schema });
 }
 const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 	switch (ast._tag) {
@@ -9318,7 +9324,7 @@ const toStringTreeReorder = /*#__PURE__*/ makeReorder((ast) => {
 function toCodecStringTreeASTStep(ast, recur, onMissingAnnotation) {
 	switch (ast._tag) {
 		case "Declaration": {
-			const typeParameters = ast.typeParameters.map((tp) => make$33(recur(toEncoded$1(tp))));
+			const typeParameters = ast.typeParameters.map((tp) => make$34(recur(toEncoded$1(tp))));
 			const getStringTreeLink = ast.annotations?.toCodecStringTree;
 			if (isFunction(getStringTreeLink)) {
 				const link = getStringTreeLink(typeParameters);
@@ -10260,7 +10266,7 @@ function isSchemaError$1(u) {
 const TypeId$31 = TypeId$34;
 function declareConstructor() {
 	return (typeParameters, run, annotations) => {
-		return make$32(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$32(ast))), annotations));
+		return make$33(new Declaration(typeParameters.map(getAST), (typeParameters) => run(typeParameters.map((ast) => make$33(ast))), annotations));
 	};
 }
 function declare(is, annotations) {
@@ -10353,19 +10359,19 @@ function encodeUnknownSync(schema, options) {
 	};
 }
 const encodeSync = encodeUnknownSync;
-const make$32 = make$33;
+const make$33 = make$34;
 function isSchema(u) {
 	return hasProperty(u, TypeId$31) && u[TypeId$31] === TypeId$31;
 }
-const optionalKey = /*#__PURE__*/ lambda((schema) => make$32(optionalKey$1(schema.ast), { schema }));
+const optionalKey = /*#__PURE__*/ lambda((schema) => make$33(optionalKey$1(schema.ast), { schema }));
 const optional$6 = /*#__PURE__*/ lambda((self) => {
 	const schema = UndefinedOr(self);
-	return make$32(optional$7(self.ast), { schema });
+	return make$33(optional$7(self.ast), { schema });
 });
-const toType = /*#__PURE__*/ lambda((schema) => make$32(toType$1(schema.ast), { schema }));
-const toEncoded = /*#__PURE__*/ lambda((schema) => make$32(toEncoded$1(schema.ast), { schema }));
+const toType = /*#__PURE__*/ lambda((schema) => make$33(toType$1(schema.ast), { schema }));
+const toEncoded = /*#__PURE__*/ lambda((schema) => make$33(toEncoded$1(schema.ast), { schema }));
 function Literal(literal) {
-	const out = make$32(new Literal$1(literal), {
+	const out = make$33(new Literal$1(literal), {
 		literal,
 		transform(to) {
 			return out.pipe(decodeTo(Literal(to), {
@@ -10380,20 +10386,20 @@ function templateLiteralParts(parts) {
 	return parts.map((part) => isSchema(part) ? part.ast : new Literal$1(part));
 }
 function TemplateLiteral(parts) {
-	return make$32(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
+	return make$33(new TemplateLiteral$1(templateLiteralParts(parts)), { parts });
 }
-const Never = /*#__PURE__*/ make$32(never);
-const Any = /*#__PURE__*/ make$32(any);
-const Unknown = /*#__PURE__*/ make$32(unknown);
-const Null = /*#__PURE__*/ make$32(null_);
-const Undefined = /*#__PURE__*/ make$32(undefined_);
-const String$2 = /*#__PURE__*/ make$32(string);
-const Number$1 = /*#__PURE__*/ make$32(number);
-const Boolean$1 = /*#__PURE__*/ make$32(boolean);
-const BigInt$1 = /*#__PURE__*/ make$32(bigInt);
-const Void = /*#__PURE__*/ make$32(void_);
+const Never = /*#__PURE__*/ make$33(never);
+const Any = /*#__PURE__*/ make$33(any);
+const Unknown = /*#__PURE__*/ make$33(unknown);
+const Null = /*#__PURE__*/ make$33(null_);
+const Undefined = /*#__PURE__*/ make$33(undefined_);
+const String$2 = /*#__PURE__*/ make$33(string);
+const Number$1 = /*#__PURE__*/ make$33(number);
+const Boolean$1 = /*#__PURE__*/ make$33(boolean);
+const BigInt$1 = /*#__PURE__*/ make$33(bigInt);
+const Void = /*#__PURE__*/ make$33(void_);
 function makeStruct(ast, fields) {
-	return make$32(ast, {
+	return make$33(ast, {
 		fields,
 		mapFields(f, options) {
 			const fields = f(this.fields);
@@ -10405,19 +10411,19 @@ function Struct(fields) {
 	return makeStruct(struct(fields, void 0), fields);
 }
 function Record(key, value) {
-	return make$32(record(key.ast, value.ast), {
+	return make$33(record(key.ast, value.ast), {
 		key,
 		value
 	});
 }
 function StructWithRest(schema, records) {
-	return make$32(structWithRest(schema.ast, records.map(getAST)), {
+	return make$33(structWithRest(schema.ast, records.map(getAST)), {
 		schema,
 		records
 	});
 }
 function makeTuple(ast, elements) {
-	return make$32(ast, {
+	return make$33(ast, {
 		elements,
 		mapElements(f, options) {
 			const elements = f(this.elements);
@@ -10428,10 +10434,10 @@ function makeTuple(ast, elements) {
 function Tuple(elements) {
 	return makeTuple(tuple(elements), elements);
 }
-const ArraySchema = /*#__PURE__*/ lambda((schema) => make$32(new Arrays(false, [], [schema.ast]), { value: schema }));
-const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$32(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
+const ArraySchema = /*#__PURE__*/ lambda((schema) => make$33(new Arrays(false, [], [schema.ast]), { value: schema }));
+const NonEmptyArray = /*#__PURE__*/ lambda((schema) => make$33(new Arrays(false, [schema.ast], [schema.ast]), { value: schema }));
 function makeUnion(ast, members) {
-	return make$32(ast, {
+	return make$33(ast, {
 		members,
 		mapMembers(f, options) {
 			const members = f(this.members);
@@ -10444,7 +10450,7 @@ function Union(members, options) {
 }
 function Literals(literals) {
 	const members = literals.map(Literal);
-	return make$32(union$1(members, void 0, void 0), {
+	return make$33(union$1(members, void 0, void 0), {
 		literals,
 		members,
 		mapMembers(f) {
@@ -10461,11 +10467,11 @@ function Literals(literals) {
 const NullOr = /*#__PURE__*/ lambda((self) => Union([self, Null]));
 const UndefinedOr = /*#__PURE__*/ lambda((self) => Union([self, Undefined]));
 function suspend$2(f) {
-	return make$32(new Suspend(() => f().ast));
+	return make$33(new Suspend(() => f().ast));
 }
 function decodeTo(to, transformation) {
 	return (from) => {
-		return make$32(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
+		return make$33(decodeTo$1(from.ast, to.ast, transformation ? makeTransformation(transformation) : passthrough()), {
 			from,
 			to
 		});
@@ -10483,7 +10489,7 @@ function decode$3(transformation) {
 	};
 }
 function withConstructorDefault(defaultValue) {
-	return (schema) => make$32(withConstructorDefault$1(schema.ast, defaultValue), { schema });
+	return (schema) => make$33(withConstructorDefault$1(schema.ast, defaultValue), { schema });
 }
 function toIssueEffect(self) {
 	if (effectIsExit(self) && self._tag === "Success") return self;
@@ -10530,7 +10536,7 @@ function isPattern(regExp, annotations) {
 		...annotations
 	});
 }
-const Finite = /*#__PURE__*/ make$32(finite);
+const Finite = /*#__PURE__*/ make$33(finite);
 const isFinite = isFinite$1;
 function makeIsGreaterThanOrEqualTo(options) {
 	const gte = isGreaterThanOrEqualTo$2(options.order);
@@ -10802,7 +10808,7 @@ function CauseReason(error, defect) {
 			}
 		}))
 	});
-	return make$32(schema.ast, {
+	return make$33(schema.ast, {
 		error,
 		defect
 	});
@@ -10833,14 +10839,14 @@ function Cause(error, defect) {
 			encode: ({ reasons: failures }) => failures
 		}))
 	});
-	return make$32(schema.ast, {
+	return make$33(schema.ast, {
 		error,
 		defect
 	});
 }
 const dateTimeUtcFromString = /*#__PURE__*/ transformEffect({
 	decode: (s, options) => {
-		return match$3(make$38(s), {
+		return match$3(make$39(s), {
 			onNone: () => fail$3(new InvalidValue({ expected: "a valid UTC DateTime string" }, s, options)),
 			onSome: (result) => succeed$3(toUtc(result))
 		});
@@ -10873,7 +10879,7 @@ const DateTimeUtc = /*#__PURE__*/ declare((u) => isDateTime(u) && isUtc(u), {
 	expected: "DateTime.Utc",
 	toCodecArbitrary: ({ constraint }) => {
 		const [minimum, maximum] = dateTimeArbitraryBounds(constraint, arbitraryMinimumDateTimestamp, arbitraryMaximumDateTimestamp);
-		return linkDecoding()(dateTimeArbitraryInteger(minimum, maximum), transform$1(makeUnsafe$2));
+		return linkDecoding()(dateTimeArbitraryInteger(minimum, maximum), transform$1(makeUnsafe$3));
 	},
 	toCodecJson: () => link$1()(String$2, dateTimeUtcFromString),
 	toFormatter: () => (utc) => utc.toString()
@@ -10973,7 +10979,7 @@ function Exit(value, error, defect) {
 			}
 		}))
 	});
-	return make$32(schema.ast, {
+	return make$33(schema.ast, {
 		value,
 		error,
 		defect
@@ -10992,7 +10998,7 @@ const RecordFromUrlParams = /*#__PURE__*/ (/* @__PURE__ */ declare(isUrlParams, 
 	expected: "UrlParams",
 	toEquivalence: () => Equivalence$1,
 	toCodec: () => link$1()(ArraySchema(Tuple([String$2, String$2])), transform({
-		decode: make$35,
+		decode: make$36,
 		encode: (self) => self.params.map(([key, value]) => [key, unwrap$3(value)])
 	}))
 })).pipe(/*#__PURE__*/ decodeTo(/*#__PURE__*/ Record(String$2, /*#__PURE__*/ Union([String$2, /*#__PURE__*/ NonEmptyArray(String$2)])), /*#__PURE__*/ transform({
@@ -11011,7 +11017,7 @@ function Redacted$2(value, options) {
 		if (isRedacted(input)) {
 			const label = decodeLabel !== void 0 ? mapErrorEager(decodeLabel(input.label, poptions), (issue) => new Pointer(["label"], issue)) : void_$1;
 			return flatMapEager(label, () => mapBothEager(decodeUnknownEffect$1(value)(value$2(input), poptions), {
-				onSuccess: (value) => make$37(value, { label: input.label }),
+				onSuccess: (value) => make$38(value, { label: input.label }),
 				onFailure: () => {
 					return new Composite(ast, [new Pointer(["value"], new InvalidValue(void 0, input, poptions))], input, poptions);
 				}
@@ -11030,12 +11036,12 @@ function Redacted$2(value, options) {
 		}),
 		expected: "Redacted",
 		toCodecJson: ([value]) => link$1()(value, {
-			decode: transform$1((e) => make$37(e, { label })),
+			decode: transform$1((e) => make$38(e, { label })),
 			encode: disallowJsonEncode ? forbidden((oe) => "Cannot serialize Redacted" + (isSome(oe) && typeof oe.value.label === "string" ? ` with label: "${oe.value.label}"` : "")) : transform$1(value$2)
 		}),
 		toEquivalence: ([value]) => makeEquivalence(value)
 	});
-	return make$32(schema.ast, { value });
+	return make$33(schema.ast, { value });
 }
 const immerable = /*#__PURE__*/ globalThis.Symbol.for("immer-draftable");
 const payloadToken = {};
@@ -11126,7 +11132,7 @@ function getClassSchemaFactory(from, identifier, annotations) {
 		const ClassTypeId = getClassTypeId(identifier);
 		const isClassValue = (input) => input instanceof self || hasProperty(input, ClassTypeId);
 		const transformation = getClassTransformation(self);
-		return memo = decodeTo(make$32(new Declaration([from.ast], () => (input, ast, options) => {
+		return memo = decodeTo(make$33(new Declaration([from.ast], () => (input, ast, options) => {
 			return isClassValue(input) ? succeed$3(input) : fail$3(new InvalidType(ast, input, options));
 		}, {
 			identifier,
@@ -11169,16 +11175,16 @@ function toJsonSchemaDocument(schema, options) {
 }
 const toCodecJson = toCodecJson$1;
 const toCodecStringTree = toCodecStringTree$1;
-const Json = /*#__PURE__*/ make$32(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
+const Json = /*#__PURE__*/ make$33(/*#__PURE__*/ annotate(Json$1, { toCode: () => ({
 	runtime: "Schema.Json",
 	Type: "Schema.Json"
 }) }));
-const MutableJson = /*#__PURE__*/ make$32(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
+const MutableJson = /*#__PURE__*/ make$33(/*#__PURE__*/ annotate(MutableJson$1, { toCode: () => ({
 	runtime: "Schema.MutableJson",
 	Type: "Schema.MutableJson"
 }) }));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Latch.js
-const makeUnsafe$1 = makeLatchUnsafe;
+const makeUnsafe$2 = makeLatchUnsafe;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/MutableRef.js
 const TypeId$30 = "~effect/MutableRef";
 const MutableRefProto = {
@@ -11191,20 +11197,20 @@ const MutableRefProto = {
 		};
 	}
 };
-const make$31 = (value) => {
+const make$32 = (value) => {
 	const ref = Object.create(MutableRefProto);
 	ref.current = value;
 	return ref;
 };
-const set = /*#__PURE__*/ dual(2, (self, value) => {
+const set$1 = /*#__PURE__*/ dual(2, (self, value) => {
 	self.current = value;
 	return self;
 });
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/PubSub.js
 const TypeId$29 = "~effect/PubSub";
 const SubscriptionTypeId = "~effect/PubSub/Subscription";
-const make$30 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$5(), makeUnsafe$1(false), make$31(false), options.strategy(), make$31(none())));
-const unbounded = (options) => make$30({
+const make$31 = (options) => sync(() => makePubSubUnsafe(options.atomicPubSub(), /* @__PURE__ */ new Map(), makeUnsafe$6(), makeUnsafe$2(false), make$32(false), options.strategy(), make$32(none())));
+const unbounded = (options) => make$31({
 	atomicPubSub: () => makeAtomicUnbounded(options),
 	strategy: () => new DroppingStrategy()
 });
@@ -11227,7 +11233,7 @@ const subscribe = (self) => uninterruptible(contextWith((services) => {
 	return addFinalizer$1(scope, unsubscribe(subscription)).pipe(andThen(addFinalizerExit(localScope, (exit) => close(scope, exit))), as(subscription));
 }));
 const unsubscribe = (self) => uninterruptible(withFiber((state) => {
-	set(self.shutdownFlag, true);
+	set$1(self.shutdownFlag, true);
 	return forEach$1(takeAll$1(self.pollers), (d) => interruptWith(d, state.id), {
 		discard: true,
 		concurrency: "unbounded"
@@ -11249,7 +11255,7 @@ const removeSubscribers = (subscribers, subscription, pollers) => {
 	set.delete(pollers);
 	if (set.size === 0) subscribers.delete(subscription);
 };
-const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$43(), makeUnsafe$1(false), make$31(false), strategy, pubsub.replayWindow(), ended);
+const makeSubscriptionUnsafe = (pubsub, subscribers, strategy, ended) => new SubscriptionImpl(pubsub, subscribers, pubsub.subscribe(), make$44(), makeUnsafe$2(false), make$32(false), strategy, pubsub.replayWindow(), ended);
 var UnboundedPubSub = class {
 	publisherHead = {
 		value: AbsentValue,
@@ -11620,7 +11626,7 @@ const fromTransformBracket = (f) => fromTransform$1(fnUntraced(function* (upstre
 	return onError(pull, onCause);
 }));
 const toTransform = (channel) => channel.transform;
-const asyncQueue = (scope, f, options) => make$42({
+const asyncQueue = (scope, f, options) => make$43({
 	capacity: options?.bufferSize,
 	strategy: options?.strategy
 }).pipe(tap((queue) => addFinalizer$1(scope, shutdown(queue))), tap((queue) => provide$3(f(queue), scope).pipe(catchCause$2((cause) => failCause$2(queue, cause)), forkIn(scope, { startImmediately: true }))));
@@ -11647,7 +11653,7 @@ const fromReadableStream$1 = (options) => fromTransform$1((_, scope) => readable
 }));
 const readableStreamToPullUnsafe = (options) => {
 	const reader = options.readable.getReader();
-	const exit = options.exit ?? make$31(void 0);
+	const exit = options.exit ?? make$32(void 0);
 	const pull = suspend$3(() => {
 		if (exit.current) return exit.current;
 		return matchCauseEffect(tryPromise({
@@ -11684,7 +11690,7 @@ const mapEffectConcurrent = (self, f, options) => fromTransformBracket(fnUntrace
 	const runFork = runForkWith(yield* context());
 	const trackFiber = runIn(forkedScope);
 	if (options.unordered) {
-		const semaphore = makeUnsafe$3(concurrencyN);
+		const semaphore = makeUnsafe$4(concurrencyN);
 		const release = constant(semaphore.release(1));
 		const handle = matchCauseEffect({
 			onFailure: (cause) => flatMap(failCause$2(queue, cause), release),
@@ -11761,7 +11767,7 @@ const catch_$1 = /*#__PURE__*/ dual(2, (self, f) => catchCauseFilter(self, findR
 const catchIf$1 = /*#__PURE__*/ dual((args) => isChannel(args[0]), (self, predicate, f, orElse) => catch_$1(self, (err) => {
 	return predicate(err) ? f(err) : orElse ? orElse(err) : fail$1(err);
 }));
-const mapError$1 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(mapError$2(pull, (err) => isDone(err) ? err : f(err)))));
+const mapError$1 = /*#__PURE__*/ dual(2, (self, f) => transformPull$1(self, (pull) => succeed$3(mapError$2(pull, (err) => isDone$1(err) ? err : f(err)))));
 const merge = /*#__PURE__*/ dual((args) => isChannel(args[0]) && isChannel(args[1]), (left, right, options) => fromTransformBracket(fnUntraced(function* (upstream, _scope, forkedScope) {
 	const strategy = options?.haltStrategy ?? "both";
 	const queue = yield* bounded(0);
@@ -11796,7 +11802,7 @@ const decodeText$2 = (encoding, options) => fromTransform$1((upstream, _scope) =
 	return suspend$3(() => pull);
 }));
 const pipeTo = /*#__PURE__*/ dual(2, (self, that) => fromTransform$1((upstream, scope) => flatMap(toTransform(self)(upstream, scope), (upstream) => toTransform(that)(upstream, scope))));
-const isUpstreamFailure = (reason) => reason._tag === "Die" && isDone(reason.defect) && isCause(reason.defect.value);
+const isUpstreamFailure = (reason) => reason._tag === "Die" && isDone$1(reason.defect) && isCause(reason.defect.value);
 const hasUpstreamFailure = (cause) => cause.reasons.some(isUpstreamFailure);
 const upstreamFailureToDefect = (pull) => catchCause$2(pull, (cause) => isDoneCause(cause) ? failCause$3(cause) : die$2(Done$1(cause)));
 const unwrapUpstreamFailure = (cause) => hasUpstreamFailure(cause) ? fromReasons(cause.reasons.flatMap((reason) => isUpstreamFailure(reason) ? reason.defect.value.reasons : [reason])) : cause;
@@ -11812,7 +11818,7 @@ const interruptWhen$1 = /*#__PURE__*/ dual(2, (self, effect) => merge(self, from
 const onExit = /*#__PURE__*/ dual(2, (self, finalizer) => fromTransformBracket((upstream, scope, forkedScope) => addFinalizerExit(forkedScope, finalizer).pipe(andThen(toTransform(self)(upstream, scope)))));
 const ensuring$1 = /*#__PURE__*/ dual(2, (self, finalizer) => onExit(self, (_) => finalizer));
 const runWith = (self, f, onHalt) => suspend$3(() => {
-	const scope = makeUnsafe$5();
+	const scope = makeUnsafe$6();
 	const makePull = toTransform(self)(done$1(), scope);
 	return catchDone(flatMap(makePull, f), onHalt ? onHalt : succeed$3).pipe(onExit$1((exit) => close(scope, exit)));
 });
@@ -12307,7 +12313,7 @@ const isIgnorable = (error) => isMissing(error) || error.reason._tag === "Permis
 const isNotLink = (error) => isIgnorable(error) || error.reason._tag === "Unknown";
 const DIRECTORY_CONCURRENCY = 16;
 const byName = /*#__PURE__*/ mapInput(String$5, (entry) => entry.name);
-const make$29 = (fs) => (pattern, options) => walk(fs, compile([pattern], options?.dot ?? false), options);
+const make$30 = (fs) => (pattern, options) => walk(fs, compile([pattern], options?.dot ?? false), options);
 const walk = /*#__PURE__*/ fnUntraced(function* (fs, compiled, options) {
 	if (compiled.initial.size === 0) return [];
 	const root = options?.root ?? "";
@@ -12364,7 +12370,7 @@ const walk = /*#__PURE__*/ fnUntraced(function* (fs, compiled, options) {
 	};
 	let slots = DIRECTORY_CONCURRENCY;
 	let finishing = false;
-	const failed = makeUnsafe$6();
+	const failed = makeUnsafe$7();
 	const fork = (walk) => walk.pipe(onError((cause) => sync(() => {
 		if (!finishing) doneUnsafe(failed, failCause$3(cause));
 	})), ensuring$2(sync(() => {
@@ -12480,7 +12486,7 @@ const forEachArray = (f) => fromTransform((upstream) => upstream.pipe(flatMap(f)
 const unwrap$1 = (effect) => fromChannel$1(unwrap$2(map$4(effect, toChannel$1)));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/RcMap.js
 const TypeId$24 = "~effect/RcMap";
-const makeUnsafe = (options) => ({
+const makeUnsafe$1 = (options) => ({
 	[TypeId$24]: TypeId$24,
 	lookup: options.lookup,
 	context: options.context,
@@ -12495,10 +12501,10 @@ const makeUnsafe = (options) => ({
 		return pipeArguments(this, arguments);
 	}
 });
-const make$28 = (options) => withFiber((fiber) => {
+const make$29 = (options) => withFiber((fiber) => {
 	const context = fiber.context;
 	const scope = get$2(context, Scope);
-	const self = makeUnsafe({
+	const self = makeUnsafe$1({
 		lookup: options.lookup,
 		context,
 		scope,
@@ -12526,8 +12532,8 @@ const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) =
 	} else if (Number.isFinite(self.capacity) && size(self.state.map) >= self.capacity) return fail$3(new ExceededCapacityError(`RcMap attempted to exceed capacity of ${self.capacity}`));
 	else {
 		entry = {
-			deferred: makeUnsafe$6(),
-			scope: makeUnsafe$5(),
+			deferred: makeUnsafe$7(),
+			scope: makeUnsafe$6(),
 			idleTimeToLive: self.idleTimeToLive(key),
 			finalizer: void 0,
 			fiber: void 0,
@@ -12535,13 +12541,13 @@ const get = /*#__PURE__*/ dual(2, (self, key) => uninterruptibleMask((restore) =
 			refCount: 1
 		};
 		entry.finalizer = release(self, key, entry);
-		set$2(state.map, key, entry);
+		set$3(state.map, key, entry);
 		const context = new Map(self.context.mapUnsafe);
 		parent.context.mapUnsafe.forEach((value, key) => {
 			context.set(key, value);
 		});
 		context.set(Scope.key, entry.scope);
-		const lookupContext = makeUnsafe$7(context);
+		const lookupContext = makeUnsafe$8(context);
 		suspend$3(() => self.lookup(key)).pipe(runForkWith(lookupContext), runIn(entry.scope)).addObserver((exit) => {
 			if (hasInterrupts(exit)) removeInterrupted(self, key, entry, lookupContext);
 			doneUnsafe(entry.deferred, exit);
@@ -12651,7 +12657,7 @@ const toReadableStreamWith = /*#__PURE__*/ dual((args) => isStream(args[0]), (se
 	let currentResolve = void 0;
 	let fiber = void 0;
 	let cancelled = false;
-	const latch = makeUnsafe$1(false);
+	const latch = makeUnsafe$2(false);
 	const signal = options?.signal;
 	const onAbort = () => fiber.interruptUnsafe();
 	return new ReadableStream({
@@ -12690,10 +12696,10 @@ const toReadableStreamEffect = /*#__PURE__*/ dual((args) => isStream(args[0]), (
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/FileSystem.js
 const TypeId$22 = "~effect/FileSystem";
 const FileSystem = /*#__PURE__*/ Service$1("effect/FileSystem");
-const make$27 = (impl) => FileSystem.of({
+const make$28 = (impl) => FileSystem.of({
 	...impl,
 	[TypeId$22]: TypeId$22,
-	glob: make$29(impl),
+	glob: make$30(impl),
 	exists: (path) => pipe(impl.access(path), as(true), catchTag("PlatformError", (e) => e.reason._tag === "NotFound" ? succeed$3(false) : fail$3(e))),
 	readFileString: (path, encoding) => flatMap(impl.readFile(path), (_) => try_({
 		try: () => new TextDecoder(encoding).decode(_),
@@ -12778,7 +12784,7 @@ function makeProvider(load, mapInput) {
 function makeSource(get, transform) {
 	return makeProvider((path) => get(transform(path)), (f) => makeSource(get, (path) => f(transform(path))));
 }
-function make$26(get) {
+function make$27(get) {
 	return makeSource(get, identityPath);
 }
 function emptyStringAsMissing(value, preserveEmptyStrings) {
@@ -12787,7 +12793,7 @@ function emptyStringAsMissing(value, preserveEmptyStrings) {
 function fromEnvRecord(env, options) {
 	const preserveEmptyStrings = options?.preserveEmptyStrings === true;
 	const trie = buildEnvTrie(env);
-	return make$26((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
+	return make$27((path) => succeed$3(nodeAtEnv(trie, env, path, preserveEmptyStrings)));
 }
 function fromEnv(options) {
 	return fromEnvRecord(options?.env ?? {
@@ -12855,7 +12861,7 @@ const Proto$11 = {
 		return { _id: "Config" };
 	}
 };
-function make$25(evaluator) {
+function make$26(evaluator) {
 	const self = Object.create(Proto$11);
 	self.evaluator = evaluator;
 	self.parse = (provider) => flatMapEager(evaluator(provider, []), fromResult);
@@ -12863,17 +12869,17 @@ function make$25(evaluator) {
 }
 const evaluateAt = (self, provider, pathPrefix) => self.evaluator(provider, pathPrefix);
 const map$1 = /*#__PURE__*/ dual(2, (self, f) => {
-	return make$25((provider, pathPrefix) => map$4(evaluateAt(self, provider, pathPrefix), map$9(f)));
+	return make$26((provider, pathPrefix) => map$4(evaluateAt(self, provider, pathPrefix), map$9(f)));
 });
 const mapEffect = /*#__PURE__*/ dual(2, (self, f) => {
-	return make$25((provider, pathPrefix) => flatMap(evaluateAt(self, provider, pathPrefix), (resolution) => isSuccess$1(resolution) ? mapEager(f(resolution.success), succeed$8) : succeed$3(fail$7(resolution.failure))));
+	return make$26((provider, pathPrefix) => flatMap(evaluateAt(self, provider, pathPrefix), (resolution) => isSuccess$1(resolution) ? mapEager(f(resolution.success), succeed$8) : succeed$3(fail$7(resolution.failure))));
 });
 function all(arg) {
 	const configs = globalThis.Array.isArray(arg) ? arg : Symbol.iterator in arg ? [...arg] : arg;
-	return make$25((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$8(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
+	return make$26((provider, pathPrefix) => globalThis.Array.isArray(configs) ? mapEager(all$1(configs.map((config) => evaluateAt(config, provider, pathPrefix))), all$3) : mapEager(all$1(map$8(configs, (config) => evaluateAt(config, provider, pathPrefix))), all$3));
 }
 const withDefault = /*#__PURE__*/ dual(2, (self, defaultValue) => {
-	return make$25((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
+	return make$26((provider, pathPrefix) => mapEager(evaluateAt(self, provider, pathPrefix), (resolution) => isFailure$1(resolution) ? succeed$8(defaultValue) : resolution));
 });
 const isSourceError = (u) => isTagged(u, "SourceError");
 const cursorToString = () => "<configuration>";
@@ -12957,9 +12963,9 @@ const toConfigCursorAST = /*#__PURE__*/ memoize((root) => {
 function schema$1(codec, path) {
 	const codecStringTree = toCodecStringTree(codec);
 	const encodedAst = toEncoded$1(codecStringTree.ast);
-	const decodeCursor = decodeUnknownEffect$1(make$32(toConfigCursorAST(codecStringTree.ast)));
+	const decodeCursor = decodeUnknownEffect$1(make$33(toConfigCursorAST(codecStringTree.ast)));
 	const localPath = typeof path === "string" ? [path] : path ?? [];
-	return make$25((provider, pathPrefix) => {
+	return make$26((provider, pathPrefix) => {
 		const fullPath = [...pathPrefix, ...localPath];
 		return loadCursor(provider, fullPath).pipe(flatMapEager((cursor) => decodeCursor(cursor).pipe(mapEager(succeed$8), catchEager((issue) => {
 			const error = new ConfigError(new SchemaError(fullPath.length > 0 ? new Pointer(fullPath, issue) : issue));
@@ -13100,6 +13106,29 @@ const tag = tag$1;
 const tags = tags$1;
 const is = is$1;
 const exhaustive = exhaustive$1;
+// ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Ref.js
+const RefProto = {
+	["~effect/Ref"]: { _A: identity },
+	...PipeInspectableProto,
+	toJSON() {
+		return {
+			_id: "Ref",
+			ref: this.ref
+		};
+	}
+};
+const makeUnsafe = (value) => {
+	const self = Object.create(RefProto);
+	self.ref = make$32(value);
+	return self;
+};
+const make$25 = (value) => sync(() => makeUnsafe(value));
+const set = /*#__PURE__*/ dual(2, (self, value) => sync(() => set$1(self.ref, value)));
+const getAndSet = /*#__PURE__*/ dual(2, (self, value) => sync(() => {
+	const current = self.ref.current;
+	self.ref.current = value;
+	return current;
+}));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/UndefinedOr.js
 const map = /*#__PURE__*/ dual(2, (self, f) => self === void 0 ? void 0 : f(self));
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/Runtime.js
@@ -13424,12 +13453,12 @@ const allShort = [
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/internal/httpBody.js
 const updateHeaders = (headers, body) => {
 	if (body._tag === "Empty" || body._tag === "FormData") return remove$1(remove$1(headers, "content-type"), "content-length");
-	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set$1(headers, "content-type", body.contentType);
+	headers = body.contentType === void 0 ? remove$1(headers, "content-type") : set$2(headers, "content-type", body.contentType);
 	return updateContentLength(headers, body);
 };
 const updateContentLength = (headers, body) => {
 	const contentLength = body._tag === "Empty" || body._tag === "FormData" ? void 0 : body.contentLength;
-	return contentLength === void 0 ? remove$1(headers, "content-length") : set$1(headers, "content-length", contentLength.toString());
+	return contentLength === void 0 ? remove$1(headers, "content-length") : set$2(headers, "content-length", contentLength.toString());
 };
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/http/Url.js
 var UrlError = class extends (/*#__PURE__*/ TaggedError$1("UrlError")) {};
@@ -13505,12 +13534,12 @@ const modify = /*#__PURE__*/ dual(2, (self, options) => {
 	return result;
 });
 const setMethod = /*#__PURE__*/ dual(2, (self, method) => makeWith$2(method, self.url, self.urlParams, self.hash, self.headers, self.body));
-const setHeader$1 = /*#__PURE__*/ dual(3, (self, key, value) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$1(self.headers, key, value), self.body));
+const setHeader$1 = /*#__PURE__*/ dual(3, (self, key, value) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$2(self.headers, key, value), self.body));
 const setHeaders$1 = /*#__PURE__*/ dual(2, (self, input) => makeWith$2(self.method, self.url, self.urlParams, self.hash, setAll$1(self.headers, input), self.body));
 const bearerToken = /*#__PURE__*/ dual(2, (self, token) => setHeader$1(self, "Authorization", `Bearer ${stringOrRedacted(token)}`));
 const accept = /*#__PURE__*/ dual(2, (self, mediaType) => setHeader$1(self, "Accept", mediaType));
 const acceptJson = /*#__PURE__*/ accept("application/json");
-const upgrade = /*#__PURE__*/ dual(2, (self, protocol) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$1(set$1(self.headers, "connection", "Upgrade"), "upgrade", protocol), self.body));
+const upgrade = /*#__PURE__*/ dual(2, (self, protocol) => makeWith$2(self.method, self.url, self.urlParams, self.hash, set$2(set$2(self.headers, "connection", "Upgrade"), "upgrade", protocol), self.body));
 const setUrl = /*#__PURE__*/ dual(2, (self, url) => {
 	if (typeof url === "string") return makeWith$2(self.method, url, self.urlParams, self.hash, self.headers, self.body);
 	const clone = new URL(url.toString());
@@ -14779,7 +14808,7 @@ const jsonUnsafe = (body, options) => {
 		body: jsonUnsafe$1(body, getContentType(options, headers))
 	});
 };
-const setHeader = /*#__PURE__*/ dual(3, (self, key, value) => makeResponse(self, set$1(self.headers, key, value)));
+const setHeader = /*#__PURE__*/ dual(3, (self, key, value) => makeResponse(self, set$2(self.headers, key, value)));
 const setHeaders = /*#__PURE__*/ dual(2, (self, input) => makeResponse(self, setAll$1(self.headers, input)));
 const Proto$6 = {
 	...PipeInspectableProto,
@@ -14857,7 +14886,7 @@ const makeMiddleware = (middleware, options) => options?.global ? effectDiscard(
 	const router = yield* HttpRouter;
 	const fn = isEffect(middleware) ? yield* middleware : middleware;
 	yield* router.addGlobalMiddleware(fn);
-})) : new MiddlewareImpl(isEffect(middleware) ? effectContext(map$4(middleware, (fn) => makeUnsafe$7(/* @__PURE__ */ new Map([[fnContextKey, fn]])))) : succeedContext(makeUnsafe$7(/* @__PURE__ */ new Map([[fnContextKey, middleware]]))));
+})) : new MiddlewareImpl(isEffect(middleware) ? effectContext(map$4(middleware, (fn) => makeUnsafe$8(/* @__PURE__ */ new Map([[fnContextKey, fn]])))) : succeedContext(makeUnsafe$8(/* @__PURE__ */ new Map([[fnContextKey, middleware]]))));
 let middlewareId = 0;
 const fnContextKey = "effect/http/HttpRouter/MiddlewareFn";
 var MiddlewareImpl = class MiddlewareImpl {
@@ -14877,7 +14906,7 @@ var MiddlewareImpl = class MiddlewareImpl {
 				const depsContext = yield* buildWithMemoMap(this.dependencies, memoMap, scope);
 				stack.push(...getMiddleware$1(depsContext));
 			}
-			return makeUnsafe$7(/* @__PURE__ */ new Map([[contextKey, stack]]));
+			return makeUnsafe$8(/* @__PURE__ */ new Map([[contextKey, stack]]));
 		})).pipe(provide$2(this.layerFn));
 	}
 	layer;
@@ -15205,11 +15234,11 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 	get message() {
 		return this.fix === void 0 ? this.reason.message : `${this.reason.message} ${this.fix}`;
 	}
-	static fromCause = (cause) => gen(function* () {
-		if (cause instanceof TipeeError) return cause;
-		if (cause instanceof HttpClientError) {
+	static fromCause = fnUntraced(function* (cause) {
+		if (is$2(TipeeError)(cause)) return cause;
+		if (isHttpClientError(cause)) {
 			const { reason } = cause;
-			if (reason instanceof StatusCodeError || reason instanceof DecodeError) {
+			if (reason._tag === "StatusCodeError" || reason._tag === "DecodeError") {
 				const { status } = reason.response;
 				if (status >= HTTP_OK_MIN$1 && status <= HTTP_OK_MAX$1) {
 					const details = isSchemaError(reason.cause) ? reason.cause.message : reason.description ?? cause.message;
@@ -15230,7 +15259,7 @@ var TipeeError = class TipeeError extends TaggedError()("TipeeError", {
 			return new TipeeError({ reason: new Unreachable({ description }) });
 		}
 		if (isSchemaError(cause)) return new TipeeError({ reason: new UnexpectedShape({ details: cause.message }) });
-		if (typeof cause === "object" && cause !== null && !(cause instanceof Error)) {
+		if (isObject$2(cause) && !(cause instanceof Error)) {
 			const code = codeOf(decodeOption(ErrorCode)(cause));
 			return new TipeeError({ reason: new Rejected({
 				body: JSON.stringify(cause),
@@ -15443,7 +15472,7 @@ const isStreamUint8Array = (u) => isStreamSchema$1(u) && u._tag === "StreamUint8
 const isStreamNdjson = (u) => isStreamSchema$1(u) && u._tag === "StreamNdjson";
 const UpgradeTypeId = "~effect/http-api/HttpApiSchema/Upgrade";
 const upgradeSchema = /*#__PURE__*/ declare(isSocket).pipe(/*#__PURE__*/ status(101));
-const rebuildUpgrade = (protocol, headers) => make$32(upgradeSchema.ast, {
+const rebuildUpgrade = (protocol, headers) => make$33(upgradeSchema.ast, {
 	[UpgradeTypeId]: UpgradeTypeId,
 	protocol,
 	headers
@@ -15458,7 +15487,7 @@ const withHeaders = (options) => ({
 });
 const isWithHeaders = (u) => isSchema(u) && hasProperty(u, "~effect/http-api/HttpApiSchema/WithHeaders");
 function rebuildWithHeaders(self, schema, headers) {
-	return make$32(self.ast, {
+	return make$33(self.ast, {
 		[WithHeadersTypeId]: WithHeadersTypeId,
 		schema,
 		headers
@@ -18850,20 +18879,21 @@ const normalizeInstance = (raw) => {
 const invalid = (message) => new ConfigError(new SourceError({ message }));
 const unset = (raw) => /^(?:\$\{user_config\.\w+\})?$/u.test(raw.trim());
 const instanceConfig = String$1("TIPEE_INSTANCE").pipe(withDefault(""), mapEffect((raw) => unset(raw) ? fail$3(invalid("The tipee instance is empty: enter the part before .tipee.net.")) : mapError$2(fromOption(normalizeInstance(raw)), () => invalid(`"${raw}" is not a tipee instance: enter the part before .tipee.net, such as acme.`))));
-const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$37("")), mapEffect((key) => {
+const apiKeyConfig = Redacted$1("TIPEE_API_KEY").pipe(withDefault(make$38("")), mapEffect((key) => {
 	const trimmed = value$2(key).trim();
-	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$37(trimmed));
+	return unset(trimmed) ? fail$3(invalid("The API key is empty: paste the key generated for the integration.")) : succeed$3(make$38(trimmed));
 }));
 var TipeeClient = class TipeeClient extends Service$1()("@tipee-tools/core/TipeeClient") {
 	static layer = (credentials) => effect(TipeeClient, gen(function* () {
 		const client = (yield* HttpClient).pipe(mapRequest(flow(acceptJson, bearerToken(credentials.apiKey), setHeader$1("tipee-version", TIPEE_API_VERSION))), transformResponse$1(retried));
-		return {
-			api: yield* makeWith(Tipee, {
-				baseUrl: `https://${credentials.instance}.tipee.net`,
-				httpClient: client
-			}),
+		const api = yield* makeWith(Tipee, {
+			baseUrl: `https://${credentials.instance}.tipee.net`,
+			httpClient: client
+		});
+		return TipeeClient.of({
+			api,
 			instance: credentials.instance
-		};
+		});
 	}));
 	static layerConfig = unwrap$4(all({
 		apiKey: apiKeyConfig,
@@ -18917,12 +18947,8 @@ const operation = (name) => {
 	return found;
 };
 // ../../packages/core/src/Invoke.ts
-var AcceptedOffSpec = class {
-	status;
-	constructor(status) {
-		this.status = status;
-	}
-};
+var AcceptedOffSpec = class extends TaggedClass("AcceptedOffSpec") {};
+const isAcceptedOffSpec = (answer) => isTagged(answer, "AcceptedOffSpec");
 const HTTP_OK_MIN = 200;
 const HTTP_OK_MAX = 299;
 const undeclaredSuccess = (error) => {
@@ -18932,14 +18958,14 @@ const undeclaredSuccess = (error) => {
 	const { status } = reason.response;
 	return status >= HTTP_OK_MIN && status <= HTTP_OK_MAX ? status : void 0;
 };
-const call = (target, params) => gen(function* () {
+const call = fnUntraced(function* (target, params) {
 	const { api } = yield* TipeeClient;
 	yield* decodeUnknownEffect(target.parameters)(params).pipe(mapError$2((cause) => new TipeeError({ reason: new InvalidRequest$1({ details: cause.message }) })));
 	const method = api[target.group]?.[target.endpoint];
 	if (method === void 0) return yield* die$2(/* @__PURE__ */ new Error(`the client has no method for ${target.name}`));
 	return yield* method({ payload: params }).pipe(catch_$2((error) => {
 		const status = target.success === void 0 ? undeclaredSuccess(error) : void 0;
-		return status === void 0 ? flatMap(TipeeError.fromCause(error), fail$3) : succeed$3(new AcceptedOffSpec(status));
+		return status === void 0 ? flip$1(TipeeError.fromCause(error)) : succeed$3(new AcceptedOffSpec({ status }));
 	}));
 });
 const PAGE_SIZE$1 = 100;
@@ -18973,7 +18999,7 @@ const integrationLink = gen(function* () {
 		roles_page: pages(instance).roles(only.id)
 	} : void 0;
 });
-const rolesPage = (lookup) => gen(function* () {
+const rolesPage = fnUntraced(function* (lookup) {
 	const { instance } = yield* TipeeClient;
 	return (yield* lookup)?.roles_page ?? pages(instance).integrations;
 });
@@ -18990,9 +19016,9 @@ const serverFix = (status, target) => {
 	return `${target.readOnly ? "" : "Nothing was applied: tipee guarantees an error changes nothing. "}Try again in a moment; run check_setup if it persists.`;
 };
 const UNTRUSTED_CERTIFICATE = /CERT|SELF_SIGNED|UNABLE_TO_(?:GET|VERIFY)/u;
-const explain = (error, target, lookup) => gen(function* () {
+const explain = fnUntraced(function* (failure, target, lookup) {
 	const { instance } = yield* TipeeClient;
-	const { reason } = error;
+	const { reason } = failure;
 	const fixed = (fix) => new TipeeError({
 		fix,
 		reason
@@ -19002,14 +19028,17 @@ const explain = (error, target, lookup) => gen(function* () {
 	if (reason._tag === "InstanceNotFound" || reason._tag === "Unreachable" && /ENOTFOUND/u.test(reason.description)) return fixed(`${instance}.tipee.net does not exist: check the instance name (the subdomain you sign in at) in ${SETTINGS}.`);
 	if (reason._tag === "Unreachable" && UNTRUSTED_CERTIFICATE.test(reason.description)) return fixed(`Nothing was sent to tipee: this network intercepts HTTPS with a certificate this computer does not trust. Ask IT to install their root certificate or to exempt ${instance}.tipee.net; retrying will not help.`);
 	const status = reason._tag === "UnexpectedStatus" ? reason.status : void 0;
-	if (!target.readOnly && outcomeUnknown(error)) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
+	if (!target.readOnly && outcomeUnknown(failure)) return fixed("This write was not retried, and tipee may have applied it before failing: read it back before trying again.");
 	if (reason._tag === "Unreachable") return fixed(`Check the internet connection, or ask IT to allow ${instance}.tipee.net, and try again.`);
 	if (status !== void 0 && status >= HTTP_SERVER_ERROR) return fixed(serverFix(status, target));
 	if (reason._tag === "Forbidden") return /not activated/iu.test(reason.body) ? fixed("The module is off on this instance: only a tipee administrator can turn it on.") : fixed(`Tick ${rightFor(target)} in the integration's Roles tab: ${yield* rolesPage(lookup)}`);
 	const fix = FIXES[reason._tag];
-	return fix === void 0 ? error : fixed(fix);
+	return fix === void 0 ? failure : fixed(fix);
 });
-const invoke = (target, params, lookup = integrationLink) => call(target, params).pipe(catchTag("TipeeError", (failure) => flatMap(explain(failure, target, lookup), fail$3)));
+const invoke = fn("invoke")(function* (target, params, lookup = integrationLink) {
+	yield* annotateCurrentSpan("operation", target.name);
+	return yield* call(target, params).pipe(catchTag("TipeeError", (failure) => flip$1(explain(failure, target, lookup))));
+});
 // ../../packages/mcp/src/Batch.ts
 const BATCHED = [
 	"schedules_create",
@@ -19065,7 +19094,7 @@ const stoppedAtFirst = (error, count) => count === 1 ? error : new TipeeError({
 	fix: [error.fix, `The batch stopped at its first item: the other ${plural(count - 1)} were not sent.`].filter((part) => part !== void 0).join(" "),
 	reason: error.reason
 });
-const runBatch = (items, send, withResults = false) => gen(function* () {
+const runBatch = fn("runBatch")(function* (items, send, withResults) {
 	const started = yield* currentTimeMillis;
 	const answers = [];
 	const answered = (report) => withResults ? {
@@ -19203,7 +19232,7 @@ const withheld = (reason) => {
 	return "status" in reason ? `${reason._tag} (HTTP ${reason.status})` : reason._tag;
 };
 const describe$2 = (error) => {
-	if (error instanceof TipeeError) return {
+	if (is$2(TipeeError)(error)) return {
 		frames: [],
 		type: `Tipee${error.reason._tag}`,
 		value: withheld(error.reason)
@@ -19220,7 +19249,7 @@ const describe$2 = (error) => {
 	};
 };
 var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry") {
-	static layerOff = succeed$4(Telemetry, silent);
+	static layerOff = succeed$4(Telemetry, Telemetry.of(silent));
 	static layer = (base) => effect(Telemetry, gen(function* () {
 		const config = yield* orDie(settings$1);
 		const http = (yield* HttpClient).pipe(retryTransient({
@@ -19238,7 +19267,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 			}))
 		}), flatMap((request) => http.execute(request)), timeout(SEND_TIMEOUT), ignore$1);
 		const drain = flatMap(clear(queue), (batch) => send(batch));
-		yield* forkScoped(forever(andThen(sleep(INTERVAL), drain)));
+		yield* forkScoped(repeat(drain, spaced(INTERVAL)));
 		yield* addFinalizer(() => drain.pipe(timeout(DRAIN_TIMEOUT), ignore$1));
 		const profile = {
 			arch,
@@ -19257,12 +19286,12 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 			...profile,
 			...own
 		});
-		const enqueue = (event, own) => asVoid(offer(queue, {
+		const enqueue = (event, own) => flatMap(now, (now) => asVoid(offer(queue, {
 			event,
 			properties: properties(own),
-			timestamp: (/* @__PURE__ */ new Date()).toISOString()
-		}));
-		return {
+			timestamp: formatIso(now)
+		})));
+		return Telemetry.of({
 			capture: enqueue,
 			exception: (error, { handled, properties: own }) => {
 				const { frames, type, value } = describe$2(error);
@@ -19284,7 +19313,7 @@ var Telemetry = class Telemetry extends Service$1()("@tipee-tools/mcp/Telemetry"
 				});
 			},
 			flush: drain
-		};
+		});
 	}));
 };
 // ../../node_modules/.pnpm/@effect+platform-node-shared@4.1.3_effect@4.1.3/node_modules/@effect/platform-node-shared/dist/internal/utils.js
@@ -19704,7 +19733,7 @@ const writeFile = (path, data, options) => callback$1((resume, signal) => {
 		resume(fail$3(handleBadArgument("writeFile")(err)));
 	}
 });
-const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$27({
+const makeFileSystem = /*#__PURE__*/ map$4(/*#__PURE__*/ serviceOption(WatchBackend), (backend) => make$28({
 	access,
 	chmod,
 	chown,
@@ -19798,11 +19827,11 @@ const checksumOf = (sums, asset) => sums.split("\n").map((line) => line.trim().s
 const failed = (detail) => new UpdateFailed({ detail });
 const describe$1 = (error) => error instanceof Error ? error.message : String(error);
 var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
-	static layerNone = (current) => succeed$4(Updates, {
+	static layerNone = (current) => succeed$4(Updates, Updates.of({
 		available: succeedNone,
 		current,
 		install: succeed$3({ status: "up_to_date" })
-	});
+	}));
 	static layer = (current) => effect(Updates, gen(function* () {
 		const fs = yield* FileSystem;
 		const http = (yield* HttpClient).pipe(filterStatusOk);
@@ -19815,7 +19844,7 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			})) : none();
 		}));
 		const available = latest.pipe(orElseSucceed(() => none()));
-		const download = (version) => gen(function* () {
+		const download = fnUntraced(function* (version) {
 			const asset = `tipee-${version}.mcpb`;
 			const base = `${downloadBase}/v${version}`;
 			const sums = yield* http.get(`${base}/${CHECKSUMS}`).pipe(flatMap((response) => response.text));
@@ -19828,8 +19857,8 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 			const target = path.join(directory, asset);
 			yield* fs.writeFile(target, content);
 			return target;
-		}).pipe(timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => cause instanceof UpdateFailed ? cause : failed(describe$1(cause))));
-		const open = (target) => gen(function* () {
+		}, timeout(DOWNLOAD_TIMEOUT), mapError$2((cause) => isTagged(cause, "UpdateFailed") ? cause : failed(describe$1(cause))));
+		const open = fnUntraced(function* (target) {
 			const cannotOpen = (cause) => failed(`could not open ${target}: ${describe$1(cause)}`);
 			const child = yield* try_({
 				catch: cannotOpen,
@@ -19848,32 +19877,33 @@ var Updates = class Updates extends Service$1()("@tipee-tools/mcp/Updates") {
 				});
 			});
 		});
-		return {
+		const install = gen(function* () {
+			const found = yield* latest.pipe(mapError$2((cause) => failed(`could not look up the latest release on GitHub (${describe$1(cause)})`)));
+			if (isNone(found)) return { status: "up_to_date" };
+			const { url, version } = found.value;
+			if (channel !== "desktop") return {
+				status: "instructions",
+				url,
+				version
+			};
+			const target = yield* download(version);
+			if (opener === "") return {
+				path: target,
+				status: "downloaded",
+				version
+			};
+			yield* open(target);
+			return {
+				path: target,
+				status: "opened",
+				version
+			};
+		});
+		return Updates.of({
 			available,
 			current,
-			install: gen(function* () {
-				const found = yield* latest.pipe(mapError$2((cause) => failed(`could not look up the latest release on GitHub (${describe$1(cause)})`)));
-				if (isNone(found)) return { status: "up_to_date" };
-				const { url, version } = found.value;
-				if (channel !== "desktop") return {
-					status: "instructions",
-					url,
-					version
-				};
-				const target = yield* download(version);
-				if (opener === "") return {
-					path: target,
-					status: "downloaded",
-					version
-				};
-				yield* open(target);
-				return {
-					path: target,
-					status: "opened",
-					version
-				};
-			})
-		};
+			install
+		});
 	})).pipe(provide$2(layer$3));
 };
 // ../../packages/mcp/src/Check.ts
@@ -20555,7 +20585,7 @@ const stringifyToolArguments = (params) => {
 		return String(params);
 	}
 };
-const failureCause = (error, origin) => annotate$1(fail$5(error), make$49(FailureOrigin, origin));
+const failureCause = (error, origin) => annotate$1(fail$5(error), make$50(FailureOrigin, origin));
 const failureOrigin = (error) => isSchemaError(error) ? "result" : "handler";
 const Proto$1 = {
 	.../*#__PURE__*/ Prototype({
@@ -20630,7 +20660,7 @@ const Proto$1 = {
 					const decodedParams = decodedParamsResult.success;
 					const capacity = yield* PreliminaryBuffer;
 					if (capacity !== "unbounded" && !(Number.isInteger(capacity) && capacity > 0)) return yield* die$2(`Tool "${name}": PreliminaryBuffer must be a positive integer, got ${capacity}`);
-					const queue = yield* make$42(capacity === "unbounded" ? void 0 : { capacity });
+					const queue = yield* make$43(capacity === "unbounded" ? void 0 : { capacity });
 					const context = {
 						toolCallId,
 						preliminary: (result) => asVoid(offer(queue, {
@@ -20661,7 +20691,7 @@ const Proto$1 = {
 							reason: error
 						}) : error;
 					};
-					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$49(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
+					return fromQueue(queue).pipe(tool.failureMode === "error" ? catchCause((cause) => failCause(map$5(fromReasons(cause.reasons.map((reason) => isFailReason(reason) ? reason.annotate(make$50(FailureOrigin, failureOrigin(reason.error)), { overwrite: true }) : reason)), normalizeError))) : catch_((error) => succeed({
 						result: normalizeError(error),
 						isFailure: true,
 						failureOrigin: failureOrigin(error),
@@ -20700,7 +20730,7 @@ const Proto$1 = {
 					context: services
 				});
 			}
-			return makeUnsafe$7(context$2);
+			return makeUnsafe$8(context$2);
 		});
 	},
 	toLayer(build) {
@@ -20762,7 +20792,7 @@ function getStreamSchemas(schema) {
 }
 const schema = /*#__PURE__*/ declare(isStream);
 function Stream(success, error) {
-	return make$32(schema.ast, {
+	return make$33(schema.ast, {
 		[StreamSchemaTypeId]: StreamSchemaTypeId,
 		success,
 		error
@@ -21180,7 +21210,7 @@ function encodeJsonRpcMessage(response) {
 const jsonRpcInternalError = -32603;
 // ../../node_modules/.pnpm/effect@4.1.3/node_modules/effect/dist/rpc/Utils.js
 const withRun = () => (f) => suspend$3(() => {
-	const semaphore = makeUnsafe$3(1);
+	const semaphore = makeUnsafe$4(1);
 	let buffer = [];
 	let write = (...args) => contextWith((context) => {
 		buffer.push([args, context]);
@@ -21462,7 +21492,7 @@ const make$7 = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const rpcSchemas = makeRpcSchemas(codecFor);
 	const decodeDefect = decodeSync(codecFor(Defect()));
 	const entries = /* @__PURE__ */ new Map();
-	const closing = makeUnsafe$6();
+	const closing = makeUnsafe$7();
 	const interruptRequest = (requestId) => {
 		if (!entries.has(requestId)) return void_$1;
 		entries.delete(requestId);
@@ -21622,7 +21652,7 @@ const RpcGroupProto = {
 		}
 		return makeProto({
 			requests,
-			annotations: makeUnsafe$7(annotations)
+			annotations: makeUnsafe$8(annotations)
 		});
 	},
 	omit(...tags) {
@@ -21654,7 +21684,7 @@ const RpcGroupProto = {
 					context: services
 				});
 			});
-			return makeUnsafe$7(contextMap);
+			return makeUnsafe$8(contextMap);
 		});
 	},
 	prefix(prefix) {
@@ -21683,7 +21713,7 @@ const RpcGroupProto = {
 				handler,
 				context: services
 			});
-			return makeUnsafe$7(contextMap);
+			return makeUnsafe$8(contextMap);
 		}));
 	},
 	accessHandler(service) {
@@ -21705,7 +21735,7 @@ const RpcGroupProto = {
 		});
 	},
 	annotateRpcs(service, value) {
-		return this.annotateRpcsMerge(make$49(service, value));
+		return this.annotateRpcsMerge(make$50(service, value));
 	},
 	annotateMerge(context) {
 		return makeProto({
@@ -24460,7 +24490,7 @@ const make$1 = /*#__PURE__*/ fnUntraced(function* (protocols) {
 				};
 				yield* protocol.installHandlers(options.core, lifecycle, handlerTarget);
 			}
-			return makeUnsafe$7(contextMap);
+			return makeUnsafe$8(contextMap);
 		})
 	});
 });
@@ -25356,10 +25386,10 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 	const services = yield* context();
 	const scope = get$2(services, Scope);
 	const trackFiber = runIn(forkUnsafe(scope, "parallel"));
-	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$41(concurrency);
+	const concurrencySemaphore = concurrency === "unbounded" ? void 0 : yield* make$42(concurrency);
 	const clients = /* @__PURE__ */ new Map();
 	let isShutdown = false;
-	const shutdownLatch = makeUnsafe$1(false);
+	const shutdownLatch = makeUnsafe$2(false);
 	yield* addFinalizer$1(scope, withFiber((parent) => {
 		isShutdown = true;
 		for (const client of clients.values()) {
@@ -25478,7 +25508,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 		}), handler);
 		const withMiddleware = rpc.middlewares.size === 0 ? handler : isStream ? flatMap(exit(applyMiddleware(services, handler, metadata)), (exit) => writeFailure ? failCause$3(writeFailure) : exit) : applyMiddleware(services, handler, metadata);
 		let responded = false;
-		const scope = makeUnsafe$5();
+		const scope = makeUnsafe$6();
 		let deferred = void 0;
 		let effect = onExit$1(withMiddleware, (exit) => {
 			responded = true;
@@ -25552,7 +25582,7 @@ const makeNoSerialization = /*#__PURE__*/ fnUntraced(function* (group, options) 
 			client.latches ??= /* @__PURE__ */ new Map();
 			latch = client.latches.get(request.id);
 			if (!latch) {
-				latch = makeUnsafe$1(false);
+				latch = makeUnsafe$2(false);
 				client.latches.set(request.id, latch);
 			}
 		}
@@ -25633,7 +25663,7 @@ const make = /*#__PURE__*/ fnUntraced(function* (group, options) {
 	const { codecFor, disconnects, end, run, send, supportsAck, supportsSpanPropagation, supportsTransferables } = yield* Protocol;
 	const { encodeDefectUnsafe, encodeUnknownRequestExit } = defectCodecs(codecFor);
 	const services = yield* context();
-	const scope = yield* make$45();
+	const scope = yield* make$46();
 	const writeOptions = options?.onRequest ? { onRequest: options.onRequest } : void 0;
 	const server = yield* makeNoSerialization(group, {
 		...options,
@@ -25830,10 +25860,10 @@ const makeProtocolStdio = /*#__PURE__*/ gen(function* () {
 		}), sandbox, tapError(logError), retry(spaced(500)), andThen(() => writeRequest(0, constEof)), forkScoped);
 		yield* fromQueue(queue).pipe(run(stdio.stdout()), retry(spaced(500)), onExit$1((exit) => {
 			if (isFailure(exit) && hasInterruptsOnly(exit.cause)) return void_$1;
-			return forkDetach(isSuccess(exit) ? interruptAs(fiber, void 0, make$49(InterruptExitCode, 0)) : interrupt(fiber), { startImmediately: true });
+			return forkDetach(isSuccess(exit) ? interruptAs(fiber, void 0, make$50(InterruptExitCode, 0)) : interrupt(fiber), { startImmediately: true });
 		}), forkScoped);
 		return {
-			disconnects: yield* make$42(),
+			disconnects: yield* make$43(),
 			send(_clientId, response) {
 				const responseEncoded = parser.encode(response);
 				if (responseEncoded === void 0) return void_$1;
@@ -25903,7 +25933,7 @@ const requestServiceKeys = /*#__PURE__*/ new Set([
 const omitRequestServices = (context) => {
 	const services = /* @__PURE__ */ new Map();
 	for (const [key, value] of context.mapUnsafe) if (!requestServiceKeys.has(key) && !key.startsWith(middlewareKeyPrefix)) services.set(key, value);
-	return makeUnsafe$7(services);
+	return makeUnsafe$8(services);
 };
 const provideInvocationContext = (effect, invocation) => {
 	let provided = provideService(effect, McpRequestContext, invocation.requestContext);
@@ -25950,7 +25980,7 @@ const getMiddleware = (context) => {
 };
 const isMcpError = (error) => hasProperty(error, "code") && typeof error.code === "number" && hasProperty(error, "message") && typeof error.message === "string";
 const HandlerFailure = /*#__PURE__*/ Reference("effect/ai/McpServer/HandlerFailure", { defaultValue: () => false });
-const handlerFailure = /*#__PURE__*/ make$49(HandlerFailure, true);
+const handlerFailure = /*#__PURE__*/ make$50(HandlerFailure, true);
 const internalError = /*#__PURE__*/ new InternalError({ message: "Internal error" });
 const rejectWith = (error) => fail$3(new RequestRejected({
 	code: error.code,
@@ -26037,7 +26067,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const resources = [];
 		const resourceTemplates = [];
 		const prompts = [];
-		const notificationsQueue = yield* make$42();
+		const notificationsQueue = yield* make$43();
 		const globalMiddleware = [];
 		const notificationDelivery = {
 			consumers: 0,
@@ -26049,7 +26079,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		const dispatcher = (yield* Scheduler).makeDispatcher();
 		const notifications = yield* makeNoSerialization$1(BroadcastServerNotificationRpcs, {
 			spanPrefix: "McpServer/Notifications",
-			onFromClient: (options) => make$46().pipe(flatMap((delivered) => withFiber((fiber) => {
+			onFromClient: (options) => make$47().pipe(flatMap((delivered) => withFiber((fiber) => {
 				const message = options.message;
 				if (message._tag !== "Request") return void_$1;
 				const notification = toInternalServerNotification(message);
@@ -26114,7 +26144,7 @@ var McpServer = class McpServer extends (/*#__PURE__*/ Service$1()("effect/ai/Mc
 		});
 		const service = McpServer.of({
 			notifications: notifications.client,
-			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$46().pipe(flatMap((delivered) => offer(notificationsQueue, {
+			notifyElicitationComplete: ({ clientId, elicitationId }) => withoutSharedConsumer() ? void_$1 : make$47().pipe(flatMap((delivered) => offer(notificationsQueue, {
 				notification: ServerNotification.ElicitationComplete({ elicitationId }),
 				targetClientId: clientId,
 				delivered
@@ -26407,7 +26437,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 	});
 	const clientStates = /* @__PURE__ */ new Map();
 	const activeRequests = /* @__PURE__ */ new Map();
-	const stdioEnd = transport === "stdio" ? makeUnsafe$1() : void 0;
+	const stdioEnd = transport === "stdio" ? makeUnsafe$2() : void 0;
 	const reverseRequestClients = /* @__PURE__ */ new Map();
 	const disconnectClient = (clientId) => {
 		for (const request of activeRequests.get(clientId)?.values() ?? []) request.liveness.active = false;
@@ -26493,7 +26523,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 		defaultLogLevel,
 		serverInfo: options
 	}));
-	const clients = yield* make$28({
+	const clients = yield* make$29({
 		lookup: fnUntraced(function* (key) {
 			const selectedProtocol = runtime.selectProtocol(key.profile.protocolVersion);
 			let write;
@@ -26772,7 +26802,7 @@ const runWithRuntime = /*#__PURE__*/ fnUntraced(function* (options, runtime, tra
 			const previous = notificationTails.get(clientId);
 			const isOrigin = clientId === (targetClientId ?? requestContext?.clientId);
 			hasOriginDelivery ||= isOrigin;
-			const completed = isOrigin ? delivered : makeUnsafe$6();
+			const completed = isOrigin ? delivered : makeUnsafe$7();
 			notificationTails.set(clientId, completed);
 			const delivery = gen(function* () {
 				if (previous !== void 0) yield* _await(previous);
@@ -26954,7 +26984,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 				context: omitRequestServices(handler.context)
 			});
 		}
-		return makeUnsafe$7(services);
+		return makeUnsafe$8(services);
 	}));
 	const services = yield* context();
 	const internalToolError = (cause) => {
@@ -27028,7 +27058,7 @@ const registerToolkit = /*#__PURE__*/ fnUntraced(function* (toolkit) {
 						isError: false,
 						content: []
 					}) : successResult(result.encodedResult));
-					return result.failureOrigin === "handler" ? succeed$3(failureResult(result.encodedResult)) : failCause$3(annotate$1(fail$5(result.result), make$49(FailureOrigin, result.failureOrigin ?? "result")));
+					return result.failureOrigin === "handler" ? succeed$3(failureResult(result.encodedResult)) : failCause$3(annotate$1(fail$5(result.result), make$50(FailureOrigin, result.failureOrigin ?? "result")));
 				}), catchCause$2(handleCause));
 			},
 			services
@@ -27115,7 +27145,7 @@ const decodeInvalidBatchExit = /*#__PURE__*/ decodeUnknownResult(/* @__PURE__ */
 }));
 const isProtocolVersion = (version) => version === "2024-11-05" || version === "2025-03-26" || version === "2025-06-18" || version === "2025-11-25" || version === "2026-07-28";
 // ../../packages/mcp/src/Observed.ts
-const reasonOf = (failure) => failure instanceof TipeeError ? failure.reason._tag : failure._tag;
+const reasonOf = (failure) => failure._tag === "TipeeError" ? failure.reason._tag : failure._tag;
 const MAX_PARAMS = 30;
 const paramsOf = (params, prefix = "") => typeof params === "object" && params !== null && !Array.isArray(params) ? Object.entries(params).flatMap(([key, value]) => {
 	const name = prefix === "" ? key : `${prefix}.${key}`;
@@ -27123,7 +27153,7 @@ const paramsOf = (params, prefix = "") => typeof params === "object" && params !
 	return nested.length === 0 ? [name] : nested;
 }).toSorted().slice(0, MAX_PARAMS) : [];
 const detailOf = (failure) => {
-	if (!(failure instanceof TipeeError)) return {};
+	if (failure._tag !== "TipeeError") return {};
 	const { reason } = failure;
 	if (reason._tag === "Rejected") return {
 		error_code: reason.code,
@@ -27133,7 +27163,7 @@ const detailOf = (failure) => {
 	if (reason._tag === "UnexpectedShape") return { http_status: reason.status };
 	return reason._tag === "UnexpectedStatus" ? { http_status: reason.status } : {};
 };
-const offSpecOf = (value) => value instanceof AcceptedOffSpec ? { off_spec_status: value.status } : {};
+const offSpecOf = (value) => isAcceptedOffSpec(value) ? { off_spec_status: value.status } : {};
 const REPORTED = /* @__PURE__ */ new Set([
 	"UnexpectedShape",
 	"UnexpectedStatus",
@@ -27141,7 +27171,7 @@ const REPORTED = /* @__PURE__ */ new Set([
 	"Internal"
 ]);
 const INVALID_STATUSES = /* @__PURE__ */ new Set([400, 422]);
-const reported = (failure) => failure instanceof TipeeError && (REPORTED.has(failure.reason._tag) || failure.reason._tag === "Rejected" && INVALID_STATUSES.has(failure.reason.status));
+const reported = (failure) => failure._tag === "TipeeError" && (REPORTED.has(failure.reason._tag) || failure.reason._tag === "Rejected" && INVALID_STATUSES.has(failure.reason.status));
 const caller = map$4(serviceOption(McpServerClient), (client) => match$3(client, {
 	onNone: () => ({}),
 	onSome: ({ clientInfo, protocolVersion }) => ({
@@ -27160,7 +27190,7 @@ const countsOf = (report) => ({
 	not_sent: report.not_sent,
 	stopped_by: stoppedBy(report)
 });
-const observed = ({ announce, telemetry }, called, run) => (params) => gen(function* () {
+const observed = ({ announce, telemetry }, called, run) => fn("observed")(function* (params) {
 	const { tool } = called;
 	const batch = "batch" in called;
 	const who = yield* caller;
@@ -27221,7 +27251,7 @@ const observed = ({ announce, telemetry }, called, run) => (params) => gen(funct
 		});
 	}
 	return yield* failCause$3(exit$2.cause);
-}).pipe(withSpan("observed"));
+});
 // ../../packages/mcp/src/Tools.ts
 const Done = Struct({ done: Literal(true) });
 const LocalDate = String$2.check(isPattern(/^\d{4}-\d{2}-\d{2}$/u));
@@ -27311,7 +27341,7 @@ const update = map$4(flatMap(Updates, (updates) => updates.install), (outcome) =
 	message: said(outcome),
 	outcome
 }));
-const answerOf = (result) => result === void 0 || result instanceof AcceptedOffSpec ? { done: true } : result;
+const answerOf = (result) => result === void 0 || isAcceptedOffSpec(result) ? { done: true } : result;
 const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 	const telemetry = yield* Telemetry;
 	const updates = yield* Updates;
@@ -27319,12 +27349,8 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 		yield* logError(connection.failure.message);
 		yield* telemetry.capture("server_failed", { reason: connection.failure._tag });
 	}
-	let announced = false;
-	const announce = (who) => suspend$3(() => {
-		if (announced) return void_$1;
-		announced = true;
-		return telemetry.capture("session_started", who);
-	});
+	const announced = yield* make$25(false);
+	const announce = (who) => flatMap(getAndSet(announced, true), (already) => already ? void_$1 : telemetry.capture("session_started", who));
 	const watcher = {
 		announce,
 		telemetry
@@ -27349,7 +27375,7 @@ const handlersFor = (connection) => TipeeToolkit.toLayer(gen(function* () {
 			index,
 			tool: target.name,
 			via: tool
-		}, send(target))(item), (result) => result instanceof AcceptedOffSpec ? void 0 : result), target.success !== void 0));
+		}, send(target))(item), (result) => isAcceptedOffSpec(result) ? void 0 : result), target.success !== void 0));
 	}
 	return TipeeToolkit.of(handlers);
 }));
@@ -27362,33 +27388,31 @@ const NotifiedToolkit = effectDiscard(gen(function* () {
 	const updates = yield* Updates;
 	const telemetry = yield* Telemetry;
 	const scope$2 = yield* scope;
-	const state = { told: false };
-	const start = suspend$3(() => state.lookup === void 0 ? map$4(forkIn(updates.available, scope$2), (fiber) => {
-		state.lookup = fiber;
-	}) : void_$1);
-	const noted = (tool, result) => suspend$3(() => {
-		if (state.told || !(result instanceof CallToolResult$5)) return succeed$3(result);
+	const found = yield* make$47();
+	const start = yield* cached(asVoid(forkIn(into(updates.available, found), scope$2)));
+	const told = yield* make$25(false);
+	const noted = (tool, result) => gen(function* () {
+		if (!(result instanceof CallToolResult$5)) return result;
 		if (SPEAKING_OF_UPDATES.has(tool)) {
-			state.told = true;
-			return succeed$3(result);
+			yield* set(told, true);
+			return result;
 		}
-		const exit = state.lookup?.pollUnsafe();
-		if (exit === void 0) return succeed$3(result);
-		state.told = true;
-		if (isFailure(exit) || isNone(exit.value)) return succeed$3(result);
-		const update = exit.value.value;
-		return as(telemetry.capture("update_offered", {
+		if (!(yield* isDone(found))) return result;
+		const update = yield* _await(found);
+		if ((yield* getAndSet(told, true)) || isNone(update)) return result;
+		yield* telemetry.capture("update_offered", {
 			tool,
-			version: update.version
-		}), new CallToolResult$5({
+			version: update.value.version
+		});
+		return new CallToolResult$5({
 			_meta: result._meta,
 			content: [...result.content, {
-				text: updateNote(update, updates.current),
+				text: updateNote(update.value, updates.current),
 				type: "text"
 			}],
 			isError: result.isError,
 			structuredContent: result.structuredContent
-		}));
+		});
 	});
 	const wrapping = McpServer.of({
 		...server,
@@ -27461,8 +27485,8 @@ const releaseWritable = (writable) => callback$1((resume) => {
 });
 const pullIntoWritable = (options) => withFiber((fiber) => {
 	const dispatcher = fiber.currentDispatcher;
-	const completion = makeUnsafe$6();
-	const failure = makeUnsafe$6();
+	const completion = makeUnsafe$7();
+	const failure = makeUnsafe$7();
 	const onError = (error) => doneUnsafe(failure, failSync(() => options.onError(error)));
 	let errorEmitted = false;
 	const onStreamError = (error) => {
@@ -27535,8 +27559,8 @@ const readableToPullUnsafe = (options) => {
 	const readable = options.readable;
 	const chunkSize = options.chunkSize ?? 4096;
 	const closeOnDone = options.closeOnDone ?? true;
-	const exit = options.exit ?? make$31(void 0);
-	const latch = options.latch ?? makeUnsafe$1(false);
+	const exit = options.exit ?? make$32(void 0);
+	const latch = options.latch ?? makeUnsafe$2(false);
 	function onReadable() {
 		latch.openUnsafe();
 	}
@@ -27645,16 +27669,16 @@ const ServerLayer = mergeAll(NotifiedToolkit, SetupPrompt).pipe(provide$2(TipeeT
 	version: SERVER_VERSION,
 	websiteUrl: "https://github.com/Floriferous/tipee-tools#readme"
 })), provide$2(TelemetryLive), provide$2(Updates.layer(SERVER_VERSION)), provide$2(layer$5), provide$2(layer));
-const reportCrash = (cause) => gen(function* () {
+const reportCrash = fn("reportCrash")(function* (cause) {
 	const telemetry = yield* Telemetry;
 	const failure = findError(cause);
 	if (isSuccess$1(failure)) {
 		const error = failure.success;
-		const reason = typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : "Unknown";
+		const reason = hasProperty(error, "_tag") ? String(error._tag) : "Unknown";
 		yield* telemetry.capture("server_failed", { reason });
 	} else if (hasDies(cause)) yield* telemetry.exception(squash(cause), { handled: false });
 	yield* telemetry.flush;
-}).pipe(provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, ignore$1);
+}, provide(TelemetryLive.pipe(provide$2(layer$5))), scoped, (effect) => ignore$1(effect));
 const main = launch(ServerLayer).pipe(tapCause((cause) => reportCrash(cause)));
 // ../../node_modules/.pnpm/@effect+platform-node@4.1.3_effect@4.1.3/node_modules/@effect/platform-node/dist/NodeRuntime.js
 const runMain = /* @__PURE__ */ makeRunMain(({ fiber, teardown }) => {

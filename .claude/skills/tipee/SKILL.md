@@ -195,7 +195,7 @@ in. Spec-versus-reality fixes belong in the patch, nowhere else.
   release is a PR bumping all three, and `verify.yml` on main tags an
   untagged version and releases the `.mcpb` it built. It also runs `plugins/tipee/scripts/smoke.ts`
   on the committed bundle with Node 22.19.
-- No build step: Node 24 runs TypeScript directly (imports need the `.ts`
+- No build step: Node 26 runs TypeScript directly (imports need the `.ts`
   extension, no enums). The only build is `pnpm build`, which bundles the
   server into `plugins/tipee/server/` (the plugin is the workspace package
   `@tipee-tools/plugin`) — committed, and checked for freshness by

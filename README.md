@@ -170,7 +170,7 @@ blocked without harm.
 
 ## Development
 
-Requires Node 24 and pnpm.
+Requires Node 26 (`.node-version`) and pnpm.
 
 ```bash
 pnpm install

@@ -26,7 +26,7 @@
       "groupName": "TypeScript toolchain"
     },
     {
-      "description": "Node types follow the Node 24 runtime pinned in .node-version.",
+      "description": "Node types stay on 24.x: the shipped bundle must run on Node 22.19 (the extension's floor), so the code may only use APIs every supported Node has, while contributors run Node 26 (.node-version).",
       "matchPackageNames": ["@types/node"],
       "allowedVersions": "24.x"
     },

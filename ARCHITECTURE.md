@@ -122,7 +122,7 @@ Windows the update only downloads, and the user opens the file. The Linux beta
 is untested. Claude Code needs `node` 22.19 or newer on its PATH, the first
 22.x with `tls.setDefaultCACertificates`, which lets the server trust the
 system's certificates where a network inspects HTTPS. Contributors use Node
-24, which runs the TypeScript sources directly.
+26, which runs the TypeScript sources directly.
 
 ## Development
 

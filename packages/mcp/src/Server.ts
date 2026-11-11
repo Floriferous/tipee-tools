@@ -3,7 +3,7 @@
 // the report of why it stopped. `start` (Start.ts) runs it.
 
 import { layer as stdioLayer } from '@effect/platform-node/NodeStdio';
-import { Cause, Effect, Layer, Result } from 'effect';
+import { Cause, Effect, Layer, Predicate, Result } from 'effect';
 import { McpProtocol, McpServer } from 'effect/ai';
 import { FetchHttpClient } from 'effect/http';
 
@@ -79,26 +79,23 @@ export const ServerLayer = Layer.mergeAll(NotifiedToolkit, SetupPrompt).pipe(
 // may never have been built. An expected failure is a `server_failed` event
 // with its reason; anything else is an unhandled exception. Never fails,
 // never takes more than the flush timeout.
-export const reportCrash = (cause: Cause.Cause<unknown>): Effect.Effect<void> =>
-  Effect.gen(function* () {
+export const reportCrash = Effect.fn('reportCrash')(
+  function* (cause: Cause.Cause<unknown>) {
     const telemetry = yield* Telemetry;
     const failure = Cause.findError(cause);
     if (Result.isSuccess(failure)) {
       const error: unknown = failure.success;
-      const reason =
-        typeof error === 'object' && error !== null && '_tag' in error
-          ? String(error._tag)
-          : 'Unknown';
+      const reason = Predicate.hasProperty(error, '_tag') ? String(error._tag) : 'Unknown';
       yield* telemetry.capture('server_failed', { reason });
     } else if (Cause.hasDies(cause)) {
       yield* telemetry.exception(Cause.squash(cause), { handled: false });
     }
     yield* telemetry.flush;
-  }).pipe(
-    Effect.provide(TelemetryLive.pipe(Layer.provide(FetchHttpClient.layer))),
-    Effect.scoped,
-    Effect.ignore,
-  );
+  },
+  Effect.provide(TelemetryLive.pipe(Layer.provide(FetchHttpClient.layer))),
+  Effect.scoped,
+  (effect) => Effect.ignore(effect),
+);
 
 /** The whole server as one effect that runs until the client disconnects. */
 export const main: Effect.Effect<never, Cause.IllegalArgumentError> = Layer.launch(
