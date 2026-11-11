@@ -2,7 +2,7 @@
 // tagged `reason`. Callers match on the reason (`Effect.catchReason`); tool
 // surfaces show `message`, which explains the cause and the fix.
 
-import { Cause, Config, Effect, Option, Schema } from 'effect';
+import { Cause, Config, Effect, Option, Predicate, Schema } from 'effect';
 import { HttpClientError } from 'effect/http';
 
 import {
@@ -196,19 +196,16 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
   // Explains whatever the generated client failed with: an HTTP status, a
   // transport failure, a response that does not match the API description,
   // or an error tipee documents for the operation (such as a 409).
-  public static readonly fromCause = (cause: unknown): Effect.Effect<TipeeError> =>
-    Effect.gen(function* () {
-      if (cause instanceof TipeeError) {
+  public static readonly fromCause: (cause: unknown) => Effect.Effect<TipeeError> =
+    Effect.fnUntraced(function* (cause: unknown) {
+      if (Schema.is(TipeeError)(cause)) {
         return cause;
       }
-      if (cause instanceof HttpClientError.HttpClientError) {
+      if (HttpClientError.isHttpClientError(cause)) {
         const { reason } = cause;
         // The derived client reports an undeclared status as a decode failure
         // on that response; a decode failure on a 2xx is a shape mismatch.
-        if (
-          reason instanceof HttpClientError.StatusCodeError ||
-          reason instanceof HttpClientError.DecodeError
-        ) {
+        if (reason._tag === 'StatusCodeError' || reason._tag === 'DecodeError') {
           const { status } = reason.response;
           if (status >= HTTP_OK_MIN && status <= HTTP_OK_MAX) {
             const details = Schema.isSchemaError(reason.cause)
@@ -237,7 +234,7 @@ export class TipeeError extends Schema.TaggedError<TipeeError>()('TipeeError', {
       // An error the document declares (every one is a 409) arrives decoded,
       // as the plain object tipee answered: quote it whole, since it names
       // the conflicting dates or locked schedules.
-      if (typeof cause === 'object' && cause !== null && !(cause instanceof Error)) {
+      if (Predicate.isObject(cause) && !(cause instanceof Error)) {
         const code = codeOf(Schema.decodeOption(ErrorCode)(cause));
         return new TipeeError({
           reason: new Rejected({

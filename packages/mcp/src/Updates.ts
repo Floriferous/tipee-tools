@@ -15,7 +15,7 @@ import path from 'node:path';
 import { platform } from 'node:process';
 
 import { layer as fileSystemLayer } from '@effect/platform-node/NodeFileSystem';
-import { Config, Context, Effect, FileSystem, Layer, Option, Schema } from 'effect';
+import { Config, Context, Effect, FileSystem, Layer, Option, Predicate, Schema } from 'effect';
 import { HttpClient, HttpClientResponse } from 'effect/http';
 
 import { channel as detectedChannel } from './Install.ts';
@@ -130,11 +130,14 @@ interface Service {
 export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/mcp/Updates') {
   // Never reports an update: for tests.
   public static readonly layerNone = (current: string): Layer.Layer<Updates> =>
-    Layer.succeed(Updates, {
-      available: Effect.succeedNone,
-      current,
-      install: Effect.succeed({ status: 'up_to_date' as const }),
-    });
+    Layer.succeed(
+      Updates,
+      Updates.of({
+        available: Effect.succeedNone,
+        current,
+        install: Effect.succeed({ status: 'up_to_date' as const }),
+      }),
+    );
 
   // Compares GitHub's latest release with `current`; downloads go to the
   // machine's temporary directory.
@@ -162,8 +165,8 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
         const available = latest.pipe(Effect.orElseSucceed(() => Option.none<Update>()));
 
         // The bundle, verified against the checksums published with it.
-        const download = (version: string): Effect.Effect<string, UpdateFailed> =>
-          Effect.gen(function* () {
+        const download = Effect.fnUntraced(
+          function* (version: string) {
             const asset = `tipee-${version}.mcpb`;
             const base = `${downloadBase}/v${version}`;
             const sums = yield* http
@@ -187,36 +190,35 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
             const target = path.join(directory, asset);
             yield* fs.writeFile(target, content);
             return target;
-          }).pipe(
-            Effect.timeout(DOWNLOAD_TIMEOUT),
-            Effect.mapError((cause) =>
-              cause instanceof UpdateFailed ? cause : failed(describe(cause)),
-            ),
-          );
+          },
+          Effect.timeout(DOWNLOAD_TIMEOUT),
+          Effect.mapError((cause) =>
+            Predicate.isTagged(cause, 'UpdateFailed') ? cause : failed(describe(cause)),
+          ),
+        );
 
         // Hands the file to Claude Desktop and returns once the opener has
         // started: the process may be replaced as soon as the user confirms.
         // An opener that cannot start reports it as an event (ENOENT, EACCES…)
         // or throws (ENOTDIR…), depending on the error.
-        const open = (target: string): Effect.Effect<void, UpdateFailed> =>
-          Effect.gen(function* () {
-            const cannotOpen = (cause: unknown): UpdateFailed =>
-              failed(`could not open ${target}: ${describe(cause)}`);
-            const child = yield* Effect.try({
-              catch: cannotOpen,
-              try: () => spawn(opener, [target], { detached: true, stdio: 'ignore' }),
-            });
-            const started: Effect.Effect<void, UpdateFailed> = Effect.callback((resume) => {
-              child.once('spawn', () => {
-                child.unref();
-                resume(Effect.void);
-              });
-              child.once('error', (cause) => {
-                resume(Effect.fail(cannotOpen(cause)));
-              });
-            });
-            yield* started;
+        const open = Effect.fnUntraced(function* (target: string) {
+          const cannotOpen = (cause: unknown): UpdateFailed =>
+            failed(`could not open ${target}: ${describe(cause)}`);
+          const child = yield* Effect.try({
+            catch: cannotOpen,
+            try: () => spawn(opener, [target], { detached: true, stdio: 'ignore' }),
           });
+          const started: Effect.Effect<void, UpdateFailed> = Effect.callback((resume) => {
+            child.once('spawn', () => {
+              child.unref();
+              resume(Effect.void);
+            });
+            child.once('error', (cause) => {
+              resume(Effect.fail(cannotOpen(cause)));
+            });
+          });
+          yield* started;
+        });
 
         const install: Effect.Effect<Installed, UpdateFailed> = Effect.gen(function* () {
           // The user asked for an update check_setup reported: a failed
@@ -241,7 +243,7 @@ export class Updates extends Context.Service<Updates, Service>()('@tipee-tools/m
           return { path: target, status: 'opened' as const, version };
         });
 
-        return { available, current, install };
+        return Updates.of({ available, current, install });
       }),
     ).pipe(Layer.provide(fileSystemLayer));
 }

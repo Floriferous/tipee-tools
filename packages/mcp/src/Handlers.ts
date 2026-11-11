@@ -6,15 +6,15 @@
 // to fix.
 
 import {
-  AcceptedOffSpec,
   NotConfigured,
   TipeeClient,
   TipeeError,
   invoke,
+  isAcceptedOffSpec,
   operations,
 } from '@tipee-tools/core';
 import type { ConfigurationMissing, Operation } from '@tipee-tools/core';
-import { Effect, Layer, Result } from 'effect';
+import { Effect, Layer, Ref, Result } from 'effect';
 
 import { runBatch } from './Batch.ts';
 import { check, probes } from './Check.ts';
@@ -51,7 +51,7 @@ const update = Effect.map(
 type Handlers = Parameters<typeof TipeeToolkit.of>[0];
 // What a tool answers: tipee's answer, or `done` for an operation without one.
 const answerOf = (result: unknown): unknown =>
-  result === undefined || result instanceof AcceptedOffSpec ? { done: true } : result;
+  result === undefined || isAcceptedOffSpec(result) ? { done: true } : result;
 
 // The handlers, given the tipee client or why the settings give none.
 const handlersFor = (connection: Result.Result<TipeeClient['Service'], ConfigurationMissing>) =>
@@ -65,15 +65,11 @@ const handlersFor = (connection: Result.Result<TipeeClient['Service'], Configura
       }
       // Claude starts the server repeatedly and uses only some of those
       // launches, so a session begins at the first tool call, not at startup.
-      let announced = false;
+      const announced = yield* Ref.make(false);
       const announce: Announce = (who) =>
-        Effect.suspend(() => {
-          if (announced) {
-            return Effect.void;
-          }
-          announced = true;
-          return telemetry.capture('session_started', who);
-        });
+        Effect.flatMap(Ref.getAndSet(announced, true), (already) =>
+          already ? Effect.void : telemetry.capture('session_started', who),
+        );
       const watcher: Watcher = { announce, telemetry };
       const provided = <A, E>(
         effect: Effect.Effect<A, E, Telemetry | Updates>,
@@ -118,7 +114,7 @@ const handlersFor = (connection: Result.Result<TipeeClient['Service'], Configura
             (item, index) =>
               Effect.map(
                 observed(watcher, { index, tool: target.name, via: tool }, send(target))(item),
-                (result) => (result instanceof AcceptedOffSpec ? undefined : result),
+                (result) => (isAcceptedOffSpec(result) ? undefined : result),
               ),
             target.success !== undefined,
           ),

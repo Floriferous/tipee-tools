@@ -14,7 +14,7 @@ import { arch, platform, version as nodeVersion } from 'node:process';
 
 import { TIPEE_API_VERSION, TipeeError, normalizeInstance } from '@tipee-tools/core';
 import type { TipeeErrorReason } from '@tipee-tools/core';
-import { Config, Context, Effect, Layer, Option, Queue, Schedule } from 'effect';
+import { Config, Context, DateTime, Effect, Layer, Option, Queue, Schedule, Schema } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/http';
 
 import { channel, installationId } from './Install.ts';
@@ -156,7 +156,7 @@ const withheld = (reason: TipeeErrorReason): string => {
 const describe = (
   error: unknown,
 ): { readonly type: string; readonly value: string; readonly frames: ReadonlyArray<Frame> } => {
-  if (error instanceof TipeeError) {
+  if (Schema.is(TipeeError)(error)) {
     return { frames: [], type: `Tipee${error.reason._tag}`, value: withheld(error.reason) };
   }
   if (error instanceof Error) {
@@ -167,7 +167,10 @@ const describe = (
 
 export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/mcp/Telemetry') {
   // Records nothing: for tests.
-  public static readonly layerOff: Layer.Layer<Telemetry> = Layer.succeed(Telemetry, silent);
+  public static readonly layerOff: Layer.Layer<Telemetry> = Layer.succeed(
+    Telemetry,
+    Telemetry.of(silent),
+  );
 
   // Sends to PostHog; `base` is added to every event, as is a launch id that
   // ties one process's events together.
@@ -204,7 +207,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
         const drain = Effect.flatMap(Queue.clear(queue), (batch) => send(batch));
 
         // Whatever gathered in the last moments travels together.
-        yield* Effect.forkScoped(Effect.forever(Effect.andThen(Effect.sleep(INTERVAL), drain)));
+        yield* Effect.forkScoped(Effect.repeat(drain, Schedule.spaced(INTERVAL)));
         yield* Effect.addFinalizer(() => drain.pipe(Effect.timeout(DRAIN_TIMEOUT), Effect.ignore));
 
         // What describes an installation, kept on its person profile too. The
@@ -227,14 +230,16 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
           ...own,
         });
         const enqueue = (event: string, own: Properties | undefined): Effect.Effect<void> =>
-          Effect.asVoid(
-            Queue.offer(queue, {
-              event,
-              properties: properties(own),
-              timestamp: new Date().toISOString(),
-            }),
+          Effect.flatMap(DateTime.now, (now) =>
+            Effect.asVoid(
+              Queue.offer(queue, {
+                event,
+                properties: properties(own),
+                timestamp: DateTime.formatIso(now),
+              }),
+            ),
           );
-        return {
+        return Telemetry.of({
           capture: enqueue,
           exception: (error, { handled, properties: own }) => {
             const { frames, type, value } = describe(error);
@@ -252,7 +257,7 @@ export class Telemetry extends Context.Service<Telemetry, Sink>()('@tipee-tools/
             });
           },
           flush: drain,
-        };
+        });
       }),
     );
 }
