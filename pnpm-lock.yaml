@@ -193,18 +193,18 @@ importers:
   packages/core:
     dependencies:
       effect:
-        specifier: 4.1.3
-        version: 4.1.3
+        specifier: 4.1.5
+        version: 4.1.5
     devDependencies:
       '@effect/openapi-generator':
-        specifier: 4.1.3
-        version: 4.1.3(@effect/platform-node@4.1.3(effect@4.1.3))(effect@4.1.3)
+        specifier: 4.1.5
+        version: 4.1.5(@effect/platform-node@4.1.5(effect@4.1.5))(effect@4.1.5)
       '@effect/platform-node':
-        specifier: 4.1.3
-        version: 4.1.3(effect@4.1.3)
+        specifier: 4.1.5
+        version: 4.1.5(effect@4.1.5)
       '@effect/vitest':
-        specifier: 4.1.3
-        version: 4.1.3(effect@4.1.3)(vitest@5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2)))
+        specifier: 4.1.5
+        version: 4.1.5(effect@4.1.5)(vitest@5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2)))
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
@@ -218,18 +218,18 @@ importers:
   packages/mcp:
     dependencies:
       '@effect/platform-node':
-        specifier: 4.1.3
-        version: 4.1.3(effect@4.1.3)
+        specifier: 4.1.5
+        version: 4.1.5(effect@4.1.5)
       '@tipee-tools/core':
         specifier: workspace:*
         version: link:../core
       effect:
-        specifier: 4.1.3
-        version: 4.1.3
+        specifier: 4.1.5
+        version: 4.1.5
     devDependencies:
       '@effect/vitest':
-        specifier: 4.1.3
-        version: 4.1.3(effect@4.1.3)(vitest@5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2)))
+        specifier: 4.1.5
+        version: 4.1.5(effect@4.1.5)(vitest@5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2)))
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
@@ -250,14 +250,14 @@ importers:
         specifier: 2.1.2
         version: 2.1.2
       '@effect/platform-node':
-        specifier: 4.1.3
-        version: 4.1.3(effect@4.1.3)
+        specifier: 4.1.5
+        version: 4.1.5(effect@4.1.5)
       '@types/node':
         specifier: 24.19.2
         version: 24.19.2
       effect:
-        specifier: 4.1.3
-        version: 4.1.3
+        specifier: 4.1.5
+        version: 4.1.5
       tsdown:
         specifier: 0.23.4
         version: 0.23.4(typescript@7.0.2)
@@ -268,24 +268,24 @@ packages:
     resolution: {integrity: sha512-goRbBC8ySo7SWb7tRzr+tL6FxDc4JPTRCdgfD2omba7freofvjq5rom1lBnYHZHo6Mizs1jAHJeN53aZbDoy8A==}
     hasBin: true
 
-  '@effect/openapi-generator@4.1.3':
-    resolution: {integrity: sha512-gv6I1Yewj1IlzRJ/xwofOtcoOijI1EtDa9T7vIPfMzn9mUlq7bVJss5fI1nKr7LjYT2ZUZWjVcmo7TWASI+Isw==}
+  '@effect/openapi-generator@4.1.5':
+    resolution: {integrity: sha512-tovGv6oLMX31PsDgGdibh8b/CVVpFCg9Y7zJ84gPMD6u8xS0dSjfwIQiQgbPJiDg5aDKA2aas5h3/pS7KfDhFQ==}
     hasBin: true
     peerDependencies:
-      '@effect/platform-node': ^4.1.3
-      effect: ^4.1.3
+      '@effect/platform-node': ^4.1.5
+      effect: ^4.1.5
 
-  '@effect/platform-node-shared@4.1.3':
-    resolution: {integrity: sha512-zcFjbgWuT66NJHi6cCx8/BywQ/pR8I3wSd4GsNolMjwlvMRDELUodTxEPOhwt+sAVekueFPf1lyCS2I05Svnfw==}
+  '@effect/platform-node-shared@4.1.5':
+    resolution: {integrity: sha512-JzlrYe4uKaBFTWihBRXo2pDjkUVB39kQpKdGfXdbp7Co5sKT8hbcjOmdB5pg/WOYESdGTddd3fxD4lwlZELbZQ==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
-      effect: ^4.1.3
+      effect: ^4.1.5
 
-  '@effect/platform-node@4.1.3':
-    resolution: {integrity: sha512-1hT2k2piMmqU3aHnJgVH4zhgmGVCgB1sUw63Pry8/U5QQvehr0ohp9DokSjWXM5MpafQbFv6n+4sEF4I44e+5A==}
+  '@effect/platform-node@4.1.5':
+    resolution: {integrity: sha512-tFnRvxF9EKc3oU17sDHj1JeLP+TL/IkaOEl3IUk2EjgMS0x7AWs0ioUXjdNKLb3Z1LdjVfMf/DxsNh9PW5FFAg==}
     engines: {node: '>=22.19.0'}
     peerDependencies:
-      effect: ^4.1.3
+      effect: ^4.1.5
       redis: '>=5.1.0 <7.0.0'
     peerDependenciesMeta:
       redis:
@@ -330,10 +330,10 @@ packages:
     resolution: {integrity: sha512-uL3mf3Q6F3aFOZK/qLb3eHUcztmgTIbabk0enTiA3t8nZm5EygE3eYT4+XQCp+aWCEzYcc2C3b6sljlsFGzTHg==}
     hasBin: true
 
-  '@effect/vitest@4.1.3':
-    resolution: {integrity: sha512-HgwaaL0BqPX1/tXWQxa1+AfWjcWdJs/+sgxkOTXVDOJuqYpgqDkvZfVdwh1CJ9iNAS7Xx370ranRcNC4X+3v+A==}
+  '@effect/vitest@4.1.5':
+    resolution: {integrity: sha512-18u1013wkJtSelk1ZYLc/5aUnluTQyDfi2hAemkJW1GQ9qXw4mtPSiSf0AXZPhesmGCvG1Dk2C4JYD2sz+R72w==}
     peerDependencies:
-      effect: ^4.1.3
+      effect: ^4.1.5
       vitest: '>=5.0.0 <6.0.0'
 
   '@exodus/schemasafe@1.3.0':
@@ -1185,8 +1185,8 @@ packages:
       oxc-resolver:
         optional: true
 
-  effect@4.1.3:
-    resolution: {integrity: sha512-QWNEu35groH/78Ejq01lZGt8U0sF1P4nrhbcAZz5WffcS27bUUK9C/db+xWWUwNYUvFD5SrSLE0mFGtwyP0PCQ==}
+  effect@4.1.5:
+    resolution: {integrity: sha512-xyR20KhQI0vg2gD8ILUSQRTTESEYJ0JKdP+QD8J37xbwPTqXRxFM/l0+vUVD9fuSvoYruoTqyt33C4FZv1s4TQ==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -1893,8 +1893,8 @@ packages:
     resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
     engines: {node: '>=18'}
 
-  ws@8.22.2:
-    resolution: {integrity: sha512-/rEZ2ejown2N5gxVTHUu9bVVC7ttu0/Tgzf5hbTOixR3Fs7mbbXgn2DbdbcKgJOmpQMtrIUWivtYuVMnp/W/yA==}
+  ws@8.23.0:
+    resolution: {integrity: sha512-wCkmX8QMOrKjgO8HW2WyDbTSGeqkocxgDzS9iR79rEAexty6/2qzilx3Ag8Tqf9ykop3irLKle0MtVn5qjVnoQ==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -1973,27 +1973,27 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@effect/openapi-generator@4.1.3(@effect/platform-node@4.1.3(effect@4.1.3))(effect@4.1.3)':
+  '@effect/openapi-generator@4.1.5(@effect/platform-node@4.1.5(effect@4.1.5))(effect@4.1.5)':
     dependencies:
-      '@effect/platform-node': 4.1.3(effect@4.1.3)
-      effect: 4.1.3
+      '@effect/platform-node': 4.1.5(effect@4.1.5)
+      effect: 4.1.5
       swagger2openapi: 7.0.8
     transitivePeerDependencies:
       - encoding
 
-  '@effect/platform-node-shared@4.1.3(effect@4.1.3)':
+  '@effect/platform-node-shared@4.1.5(effect@4.1.5)':
     dependencies:
       '@types/ws': 8.18.2
-      effect: 4.1.3
-      ws: 8.22.2
+      effect: 4.1.5
+      ws: 8.23.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@effect/platform-node@4.1.3(effect@4.1.3)':
+  '@effect/platform-node@4.1.5(effect@4.1.5)':
     dependencies:
-      '@effect/platform-node-shared': 4.1.3(effect@4.1.3)
-      effect: 4.1.3
+      '@effect/platform-node-shared': 4.1.5(effect@4.1.5)
+      effect: 4.1.5
       undici: 8.12.4
     transitivePeerDependencies:
       - bufferutil
@@ -2030,9 +2030,9 @@ snapshots:
       '@effect/tsgo-win32-arm64': 0.67.5
       '@effect/tsgo-win32-x64': 0.67.5
 
-  '@effect/vitest@4.1.3(effect@4.1.3)(vitest@5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2)))':
+  '@effect/vitest@4.1.5(effect@4.1.5)(vitest@5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2)))':
     dependencies:
-      effect: 4.1.3
+      effect: 4.1.5
       vitest: 5.1.0(@types/node@24.19.2)(msw@3.0.3(@types/node@24.19.2)(graphql@16.14.2)(typescript@7.0.2)(vite@8.3.2(@types/node@24.19.2)))(vite@8.3.2(@types/node@24.19.2))
 
   '@exodus/schemasafe@1.3.0': {}
@@ -2592,7 +2592,7 @@ snapshots:
 
   dts-resolver@3.0.0: {}
 
-  effect@4.1.3: {}
+  effect@4.1.5: {}
 
   emoji-regex@10.6.0: {}
 
@@ -3237,7 +3237,7 @@ snapshots:
       string-width: 7.2.0
       strip-ansi: 7.2.0
 
-  ws@8.22.2: {}
+  ws@8.23.0: {}
 
   y18n@5.0.8: {}
 
