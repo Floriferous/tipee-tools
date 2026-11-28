@@ -26,11 +26,11 @@
     "verify": "turbo run generate lint:check format:check check test build pack --continue && pnpm build:check && node plugins/tipee/scripts/smoke.ts"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.67.5",
+    "@effect/tsgo": "0.73.2",
     "lefthook": "2.2.1",
     "oxfmt": "0.78.0",
-    "oxlint": "1.92.0",
-    "oxlint-tsgolint": "7.0.2006",
+    "oxlint": "1.94.0",
+    "oxlint-tsgolint": "7.0.2008",
     "turbo": "2.11.10",
     "typescript": "7.0.2"
   },
